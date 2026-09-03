@@ -7,6 +7,7 @@
 #include "versionresilienthashcode.h"
 #include "typestring.h"
 #include "pgo_formatprocessing.h"
+#include "dn-stdio.h"
 
 #ifdef FEATURE_PGO
 
@@ -205,9 +206,9 @@ void PgoManager::WritePgoData()
         return;
     }
 
-    FILE* const pgoDataFile = _wfopen(fileName, W("wb"));
+    FILE* pgoDataFile = NULL;
 
-    if (pgoDataFile == NULL)
+    if (fopen_lp(&pgoDataFile, fileName,  W("wb")) != 0)
     {
         return;
     }
@@ -366,10 +367,10 @@ void PgoManager::ReadPgoData()
     {
         return;
     }
+    
+    FILE* pgoDataFile = NULL;
 
-    FILE* const pgoDataFile = _wfopen(fileName, W("rb"));
-
-    if (pgoDataFile == NULL)
+    if (fopen_lp(&pgoDataFile, fileName,  W("wb")) != 0)
     {
         return;
     }
@@ -648,7 +649,7 @@ void PgoManager::Header::Init(MethodDesc *pMD, unsigned codehash, unsigned ilSiz
     this->countsOffset = countsOffset;
 }
 
-HRESULT PgoManager::allocPgoInstrumentationBySchema(MethodDesc* pMD, ICorJitInfo::PgoInstrumentationSchema* pSchema, UINT32 countSchemaItems, BYTE** pInstrumentationData)
+HRESULT PgoManager::allocPgoInstrumentationBySchema(MethodDesc* pMD, const COR_ILMETHOD_DECODER* ilHeader, ICorJitInfo::PgoInstrumentationSchema* pSchema, UINT32 countSchemaItems, BYTE** pInstrumentationData)
 {
     STANDARD_VM_CONTRACT;
 
@@ -674,7 +675,7 @@ HRESULT PgoManager::allocPgoInstrumentationBySchema(MethodDesc* pMD, ICorJitInfo
         return E_NOTIMPL;
     }
 
-    return mgr->allocPgoInstrumentationBySchemaInstance(pMD, pSchema, countSchemaItems, pInstrumentationData);
+    return mgr->allocPgoInstrumentationBySchemaInstance(pMD, ilHeader, pSchema, countSchemaItems, pInstrumentationData);
 }
 
 HRESULT PgoManager::ComputeOffsetOfActualInstrumentationData(const ICorJitInfo::PgoInstrumentationSchema* pSchema, UINT32 countSchemaItems, size_t headerInitialSize, UINT *offsetOfActualInstrumentationData)
@@ -692,6 +693,7 @@ HRESULT PgoManager::ComputeOffsetOfActualInstrumentationData(const ICorJitInfo::
 }
 
 HRESULT PgoManager::allocPgoInstrumentationBySchemaInstance(MethodDesc* pMD,
+                                                            const COR_ILMETHOD_DECODER* ilHeader,
                                                             ICorJitInfo::PgoInstrumentationSchema* pSchema,
                                                             UINT32 countSchemaItems,
                                                             BYTE** pInstrumentationData)
@@ -701,7 +703,7 @@ HRESULT PgoManager::allocPgoInstrumentationBySchemaInstance(MethodDesc* pMD,
     int codehash;
     unsigned ilSize;
 
-    if (!GetVersionResilientILCodeHashCode(pMD, &codehash, &ilSize))
+    if (!GetVersionResilientILCodeHashCode(pMD, ilHeader, &codehash, &ilSize))
     {
         return E_NOTIMPL;
     }
@@ -825,7 +827,7 @@ HRESULT PgoManager::allocPgoInstrumentationBySchemaInstance(MethodDesc* pMD,
 }
 
 #ifndef DACCESS_COMPILE
-HRESULT PgoManager::getPgoInstrumentationResults(MethodDesc* pMD, BYTE** pAllocatedData, ICorJitInfo::PgoInstrumentationSchema** ppSchema, UINT32 *pCountSchemaItems, BYTE**pInstrumentationData, ICorJitInfo::PgoSource *pPgoSource)
+HRESULT PgoManager::getPgoInstrumentationResults(MethodDesc* pMD, const COR_ILMETHOD_DECODER* ilHeader, BYTE** pAllocatedData, ICorJitInfo::PgoInstrumentationSchema** ppSchema, UINT32 *pCountSchemaItems, BYTE**pInstrumentationData, ICorJitInfo::PgoSource *pPgoSource)
 {
     // Initialize our out params
     *pAllocatedData = NULL;
@@ -839,7 +841,7 @@ HRESULT PgoManager::getPgoInstrumentationResults(MethodDesc* pMD, BYTE** pAlloca
     //
     if (s_textFormatPgoData.GetCount() > 0)
     {
-        hr = getPgoInstrumentationResultsFromText(pMD, pAllocatedData, ppSchema, pCountSchemaItems, pInstrumentationData, pPgoSource);
+        hr = getPgoInstrumentationResultsFromText(pMD, ilHeader, pAllocatedData, ppSchema, pCountSchemaItems, pInstrumentationData, pPgoSource);
     }
 
     // If we didn't find any text format data, look for dynamic or static data.
@@ -865,11 +867,11 @@ HRESULT PgoManager::getPgoInstrumentationResults(MethodDesc* pMD, BYTE** pAlloca
     return hr;
 }
 
-HRESULT PgoManager::getPgoInstrumentationResultsFromText(MethodDesc* pMD, BYTE** pAllocatedData, ICorJitInfo::PgoInstrumentationSchema** ppSchema, UINT32* pCountSchemaItems, BYTE** pInstrumentationData, ICorJitInfo::PgoSource* pPgoSource)
+HRESULT PgoManager::getPgoInstrumentationResultsFromText(MethodDesc* pMD, const COR_ILMETHOD_DECODER* ilHeader, BYTE** pAllocatedData, ICorJitInfo::PgoInstrumentationSchema** ppSchema, UINT32* pCountSchemaItems, BYTE** pInstrumentationData, ICorJitInfo::PgoSource* pPgoSource)
 {
     int codehash;
     unsigned ilSize;
-    if (!GetVersionResilientILCodeHashCode(pMD, &codehash, &ilSize))
+    if (!GetVersionResilientILCodeHashCode(pMD, ilHeader, &codehash, &ilSize))
     {
         return E_NOTIMPL;
     }
@@ -1002,13 +1004,13 @@ class R2RInstrumentationDataReader
 {
     ReadyToRunInfo *m_pReadyToRunInfo;
     Module* m_pModule;
-    PEDecoder* m_pNativeImage;
+    ReadyToRunLoadedImage* m_pNativeImage;
 
 public:
     StackSArray<ICorJitInfo::PgoInstrumentationSchema> schemaArray;
     StackSArray<BYTE> instrumentationData;
 
-    R2RInstrumentationDataReader(ReadyToRunInfo *pReadyToRunInfo, Module* pModule, PEDecoder* pNativeImage) :
+    R2RInstrumentationDataReader(ReadyToRunInfo *pReadyToRunInfo, Module* pModule, ReadyToRunLoadedImage* pNativeImage) :
         m_pReadyToRunInfo(pReadyToRunInfo),
         m_pModule(pModule),
         m_pNativeImage(pNativeImage)
@@ -1103,7 +1105,7 @@ public:
 
 HRESULT PgoManager::getPgoInstrumentationResultsFromR2RFormat(ReadyToRunInfo *pReadyToRunInfo,
                                                               Module* pModule,
-                                                              PEDecoder* pNativeImage,
+                                                              ReadyToRunLoadedImage* pNativeImage,
                                                               BYTE* pR2RFormatData,
                                                               size_t pR2RFormatDataMaxSize,
                                                               BYTE** pAllocatedData,
@@ -1221,7 +1223,7 @@ HRESULT PgoManager::getPgoInstrumentationResultsInstance(MethodDesc* pMD, BYTE**
 
 // Stub version for !FEATURE_PGO builds
 //
-HRESULT PgoManager::allocPgoInstrumentationBySchema(MethodDesc* pMD, ICorJitInfo::PgoInstrumentationSchema* pSchema, UINT32 countSchemaItems, BYTE** pInstrumentationData)
+HRESULT PgoManager::allocPgoInstrumentationBySchema(MethodDesc* pMD, const COR_ILMETHOD_DECODER* ilHeader, ICorJitInfo::PgoInstrumentationSchema* pSchema, UINT32 countSchemaItems, BYTE** pInstrumentationData)
 {
     *pInstrumentationData = NULL;
     return E_NOTIMPL;
@@ -1229,9 +1231,29 @@ HRESULT PgoManager::allocPgoInstrumentationBySchema(MethodDesc* pMD, ICorJitInfo
 
 // Stub version for !FEATURE_PGO builds
 //
-HRESULT PgoManager::getPgoInstrumentationResults(MethodDesc* pMD, NewArrayHolder<BYTE> *pAllocatedData, ICorJitInfo::PgoInstrumentationSchema** ppSchema, UINT32 *pCountSchemaItems, BYTE**pInstrumentationData)
+HRESULT PgoManager::getPgoInstrumentationResultsFromR2RFormat(ReadyToRunInfo *pReadyToRunInfo,
+                                                              Module* pModule,
+                                                              ReadyToRunLoadedImage* pNativeImage,
+                                                              BYTE* pR2RFormatData,
+                                                              size_t pR2RFormatDataMaxSize,
+                                                              BYTE** pAllocatedData,
+                                                              ICorJitInfo::PgoInstrumentationSchema** ppSchema,
+                                                              UINT32 *pCountSchemaItems,
+                                                              BYTE**pInstrumentationData)
 {
     *pAllocatedData = NULL;
+    *ppSchema = NULL;
+    *pCountSchemaItems = 0;
+    *pInstrumentationData = NULL;
+    return E_NOTIMPL;
+}
+
+// Stub version for !FEATURE_PGO builds
+//
+HRESULT PgoManager::getPgoInstrumentationResults(MethodDesc* pMD, const COR_ILMETHOD_DECODER* ilHeader, BYTE **pAllocatedData, ICorJitInfo::PgoInstrumentationSchema** ppSchema, UINT32 *pCountSchemaItems, BYTE**pInstrumentationData, ICorJitInfo::PgoSource* pPgoSource)
+{
+    *pAllocatedData = NULL;
+    *ppSchema = NULL;
     *pCountSchemaItems = 0;
     *pInstrumentationData = NULL;
     return E_NOTIMPL;
@@ -1243,7 +1265,7 @@ void PgoManager::VerifyAddress(void* address)
 
 // Stub version for !FEATURE_PGO builds
 //
-void PgoManager::CreatePgoManager(PgoManager** ppMgr, bool loaderAllocator)
+void PgoManager::CreatePgoManager(PgoManager* volatile* ppMgr, bool loaderAllocator)
 {
     *ppMgr = NULL;
 }

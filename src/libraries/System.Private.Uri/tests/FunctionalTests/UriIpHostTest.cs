@@ -219,6 +219,11 @@ namespace System.PrivateUri.Tests
             {
                 Assert.NotEqual(UriHostNameType.IPv4, testUri.HostNameType);
             }
+
+            if (Uri.TryCreate($"custom://{badIpv4String}/", UriKind.Absolute, out testUri))
+            {
+                Assert.NotEqual(UriHostNameType.IPv4, testUri.HostNameType);
+            }
         }
 
         #endregion Helpers
@@ -289,6 +294,22 @@ namespace System.PrivateUri.Tests
         public void UriIPv6Host_ScopeId_Success(string address)
         {
             ParseIPv6Address(address);
+
+            // Test various suffixes
+            for (int i = 0; i < 65536; i++)
+            {
+                char c = (char)i;
+                string testAddress = address + c;
+
+                if (c == '%' || UriEscapingTest.RFC3986Unreserved.Contains(c))
+                {
+                    ParseIPv6Address(testAddress);
+                }
+                else
+                {
+                    ParseBadIPv6Address(testAddress);
+                }
+            }
         }
 
         [Theory]
@@ -298,7 +319,6 @@ namespace System.PrivateUri.Tests
         [InlineData("::FFFF:0:192.168.0.1", "::ffff:0:192.168.0.1")] // SIIT
         [InlineData("::5EFE:192.168.0.1", "::5efe:192.168.0.1")] // ISATAP
         [InlineData("1::5EFE:192.168.0.1", "1::5efe:192.168.0.1")] // ISATAP
-        [InlineData("::192.168.0.010", "::192.168.0.10")] // Embedded IPv4 octal, read as decimal
         public void UriIPv6Host_EmbeddedIPv4_Success(string address, string expected)
         {
             ParseIPv6Address(address, expected);
@@ -316,6 +336,7 @@ namespace System.PrivateUri.Tests
         [InlineData(":1:2:3:4:5")] // leading single colon
         [InlineData(":1:2:3:4:5:6")] // leading single colon
         [InlineData(":1:2:3:4:5:6:7")] // leading single colon
+        [InlineData(":1:2:3:4:5:6:7:8")] // leading single colon
         [InlineData(":1:2:3:4:5:6:7:8:9")] // leading single colon
         [InlineData("::1:2:3:4:5:6:7:8")] // compressor with too many number groups
         [InlineData("1::2:3:4:5:6:7:8")] // compressor with too many number groups
@@ -345,14 +366,6 @@ namespace System.PrivateUri.Tests
         {
             ParseBadIPv6Address(address);
         }
-
-        [Theory]
-        [InlineData(":1:2:3:4:5:6:7:8")] // leading single colon
-        public void UriIPv6Host_BadAddress_SkipOnFramework(string address)
-        {
-            ParseBadIPv6Address(address);
-        }
-
 
         #region Helpers
 
@@ -452,6 +465,7 @@ namespace System.PrivateUri.Tests
 
             // TryCreate
             Assert.False(Uri.TryCreate($"http://[{badIpv6String}]/", UriKind.Absolute, out _), badIpv6String);
+            Assert.False(Uri.TryCreate($"custom://[{badIpv6String}]/", UriKind.Absolute, out _), badIpv6String);
         }
 
         #endregion Helpers

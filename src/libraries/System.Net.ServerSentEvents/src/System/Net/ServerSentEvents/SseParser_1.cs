@@ -33,13 +33,20 @@ namespace System.Net.ServerSentEvents
         private readonly long TimeSpan_MaxValueMilliseconds = (long)TimeSpan.MaxValue.TotalMilliseconds;
 
         /// <summary>The default size of an ArrayPool buffer to rent.</summary>
-        /// <remarks>Larger size used by default to minimize number of reads. Smaller size used in debug to stress growth/shifting logic.</remarks>
+        /// <remarks>
+        /// Larger size used by default to minimize number of reads. Smaller size used in debug to stress growth/shifting logic.
+        /// Also serves as the smallest configurable maximum buffer size; buffers smaller than this don't meaningfully reduce
+        /// memory usage but can cause excessive I/O and line-buffer churn.
+        /// </remarks>
         private const int DefaultArrayPoolRentSize =
 #if DEBUG
             16;
 #else
             1024;
 #endif
+
+        /// <summary>The maximum amount of data buffered by default.</summary>
+        private const int DefaultMaxBufferSize = 1024 * 1024 * 1024;
 
         /// <summary>The stream to be parsed.</summary>
         private readonly Stream _stream;
@@ -74,6 +81,8 @@ namespace System.Net.ServerSentEvents
         /// <remarks>This can be different than <see cref="_dataLength"/> != 0 if empty data was appended.</remarks>
         private bool _dataAppended;
 
+        private readonly int _maxBufferSize;
+
         /// <summary>The event type for the next event.</summary>
         private string? _eventType;
 
@@ -85,11 +94,18 @@ namespace System.Net.ServerSentEvents
 
         /// <summary>Initialize the enumerable.</summary>
         /// <param name="stream">The stream to parse.</param>
-        /// <param name="itemParser">The function to use to parse payload bytes into a <typeparamref name="T"/>.</param>
-        internal SseParser(Stream stream, SseItemParser<T> itemParser)
+        /// <param name="options">The options to use to parse the stream.</param>
+        internal SseParser(Stream stream, SseParserOptions<T> options)
         {
             _stream = stream;
-            _itemParser = itemParser;
+            _itemParser = options.ItemParser;
+            _maxBufferSize = options.MaxBufferSize == -1 ? DefaultMaxBufferSize : Math.Max(options.MaxBufferSize, DefaultArrayPoolRentSize);
+
+#if NET
+            _maxBufferSize = Math.Min(_maxBufferSize, Array.MaxLength);
+#else
+            _maxBufferSize = Math.Min(_maxBufferSize, 0x7FFFFFC7);
+#endif
         }
 
         /// <summary>Gets an enumerable of the server-sent events from this parser.</summary>
@@ -304,9 +320,12 @@ namespace System.Net.ServerSentEvents
                 }
                 else if (_lineLength == _lineBuffer.Length)
                 {
-                    GrowBuffer(ref _lineBuffer, _lineBuffer.Length * 2);
+                    GrowBuffer(ref _lineBuffer, (uint)_lineBuffer.Length + 1);
                 }
             }
+
+            // Storage available for at least one byte
+            Debug.Assert(_lineOffset + _lineLength < _lineBuffer.Length);
         }
 
         /// <summary>Processes a complete line from the SSE stream.</summary>
@@ -387,11 +406,8 @@ namespace System.Net.ServerSentEvents
                     }
                 }
 
-                // We need to copy the data from the data buffer to the line buffer. Make sure there's enough room.
-                if (_dataBuffer is null || _dataLength + _lineLength + 1 > _dataBuffer.Length)
-                {
-                    GrowBuffer(ref _dataBuffer, _dataLength + _lineLength + 1);
-                }
+                // We need to copy the data from the line buffer to the data buffer. Make sure there's enough room.
+                GrowBuffer(ref _dataBuffer, (uint)_dataLength + (uint)_lineLength + 1);
 
                 // Append a newline if there's already content in the buffer.
                 // Then copy the field value to the data buffer
@@ -411,7 +427,7 @@ namespace System.Net.ServerSentEvents
             else if (fieldName.SequenceEqual("id"u8))
             {
                 // Spec: "If the field value does not contain U+0000 NULL, then set the last event ID buffer to the field value. Otherwise, ignore the field."
-                if (fieldValue.IndexOf((byte)'\0') < 0)
+                if (!fieldValue.Contains((byte)'\0'))
                 {
                     // Note that fieldValue might be empty, in which case LastEventId will naturally be reset to the empty string. This is per spec.
                     LastEventId = _eventId = Encoding.UTF8.GetString(fieldValue);
@@ -532,10 +548,30 @@ namespace System.Net.ServerSentEvents
         }
 
         /// <summary>Grows the buffer, returning the existing one to the ArrayPool and renting an ArrayPool replacement.</summary>
-        private static void GrowBuffer([NotNull] ref byte[]? buffer, int minimumLength)
+        private void GrowBuffer([NotNull] ref byte[]? buffer, uint minimumSize)
         {
+            int currentSize = buffer?.Length ?? 0;
+
+            uint preferredSize = (uint)currentSize * 2;
+            preferredSize = Math.Min(preferredSize, (uint)_maxBufferSize);
+            preferredSize = Math.Max(preferredSize, DefaultArrayPoolRentSize);
+            Debug.Assert(preferredSize <= int.MaxValue);
+
+            if (minimumSize > _maxBufferSize)
+            {
+                throw new InvalidDataException(SR.InvalidDataException_SseExceededMaxLength);
+            }
+            Debug.Assert(minimumSize <= int.MaxValue);
+
+            if (buffer is not null && currentSize >= minimumSize)
+            {
+                return;
+            }
+
+            int rentedSize = Math.Max((int)preferredSize, (int)minimumSize);
+
             byte[]? toReturn = buffer;
-            buffer = ArrayPool<byte>.Shared.Rent(Math.Max(minimumLength, DefaultArrayPoolRentSize));
+            buffer = ArrayPool<byte>.Shared.Rent(rentedSize);
             if (toReturn is not null)
             {
                 Array.Copy(toReturn, buffer, toReturn.Length);
