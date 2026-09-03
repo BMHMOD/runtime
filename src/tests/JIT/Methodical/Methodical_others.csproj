@@ -3,6 +3,14 @@
     <HasMergedInTests>true</HasMergedInTests>
     <!-- Tracking issue: https://github.com/dotnet/runtime/issues/90427 -->
     <CLRTestTargetUnsupported Condition="'$(RuntimeFlavor)' == 'mono' and ('$(RuntimeVariant)' == 'minifullaot' or '$(RuntimeVariant)' == 'llvmfullaot')">true</CLRTestTargetUnsupported>
+    <!--
+      The merged runner compiles reverse P/Invoke tests directly into its own assembly, so the
+      wasm P/Invoke table generator cannot emit call helpers for them and they cannot be excluded
+      one project at a time. Skip the test-specific corerun; the tests merged in here that need
+      native assets stay gated on TestLibrary.PlatformDetection.PlatformDoesNotSupportNativeTestAssets.
+      Tracked by https://github.com/dotnet/runtime/issues/131811
+    -->
+    <WasmBuildTestCorerun Condition="'$(RuntimeFlavor)' == 'coreclr' and '$(TargetOS)' == 'browser'">false</WasmBuildTestCorerun>
   </PropertyGroup>
   <ItemGroup>
     <MergedWrapperProjectReference Include="*/**/*.??proj" />
@@ -14,14 +22,17 @@
     <ProjectReference Include="../common/localloc_common.ilproj" />
     <ProjectReference Include="../common/eh_common.csproj" />
     <ProjectReference Include="flowgraph/dev10_bug679008/helper.ilproj" />
+    <ProjectReference Include="$(TestLibraryProjectPath)" />
     <MergedWrapperProjectReference Remove="flowgraph/dev10_bug679008/helper.ilproj" />
     <CMakeProjectReference Include="gc_poll/CMakeLists.txt" />
+    <CMakeProjectReference Include="structs/systemvbringup/CMakeLists.txt" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Arrays\misc\IndexingSideEffects.cs" />
     <Compile Include="Boxing\boxunbox\BoxPatternMatchAndSideEffects.cs" />
     <Compile Include="Boxing\misc\unusedindir.cs" />
     <Compile Include="Coverage\b433189.cs" />
+    <Compile Include="delegate\DelegateToDelegate.cs" />
     <Compile Include="delegate\GSDelegate.cs" />
     <Compile Include="delegate\VirtualDelegate.cs" />
     <Compile Include="divrem\div\negSignedMod.cs" />

@@ -8,7 +8,6 @@
 
 #include "holder.h"
 
-#define _T(s) L##s
 #include "RhConfig.h"
 
 #include "gcenv.h"
@@ -18,7 +17,7 @@
 #include "thread.h"
 #include "threadstore.h"
 
-#include "nativecontext.h"
+#include "NativeContext.h"
 
 #ifdef FEATURE_SPECIAL_USER_MODE_APC
 #include <versionhelpers.h>
@@ -220,8 +219,15 @@ UInt32_BOOL PalAllocateThunksFromTemplate(_In_ HANDLE hTemplateModule, uint32_t 
     success = ((*newThunksOut) != NULL);
 
 cleanup:
-    CloseHandle(hMap);
-    CloseHandle(hFile);
+    if (hMap != NULL)
+    {
+        CloseHandle(hMap);
+    }
+
+    if (hFile != INVALID_HANDLE_VALUE)
+    {
+        CloseHandle(hFile);
+    }
 
     return success;
 #endif
@@ -673,9 +679,9 @@ static void* g_returnAddressHijackTarget = NULL;
 static void NTAPI ActivationHandler(ULONG_PTR parameter)
 {
     CLONE_APC_CALLBACK_DATA* data = (CLONE_APC_CALLBACK_DATA*)parameter;
-    Thread::HijackCallback((NATIVE_CONTEXT*)data->ContextRecord, NULL);
-
     Thread* pThread = (Thread*)data->Parameter;
+    Thread::HijackCallback((NATIVE_CONTEXT*)data->ContextRecord, pThread, true /* doInlineSuspend */);
+
     pThread->SetActivationPending(false);
 }
 
@@ -774,9 +780,6 @@ void PalHijack(Thread* pThreadToHijack)
         DWORD lastError = GetLastError();
         if (lastError != ERROR_INVALID_PARAMETER && lastError != ERROR_NOT_SUPPORTED)
         {
-            // An unexpected failure has happened. It is a concern.
-            ASSERT_UNCONDITIONALLY("Failed to queue an APC for unusual reason.");
-
             // maybe it will work next time.
             return;
         }
@@ -833,7 +836,7 @@ void PalHijack(Thread* pThreadToHijack)
 
         if (isSafeToRedirect)
         {
-            Thread::HijackCallback((NATIVE_CONTEXT*)&win32ctx, pThreadToHijack);
+            Thread::HijackCallback((NATIVE_CONTEXT*)&win32ctx, pThreadToHijack, false /* doInlineSuspend */);
         }
     }
 
@@ -918,14 +921,15 @@ bool PalStartEventPipeHelperThread(_In_ BackgroundCallback callback, _In_opt_ vo
     return PalStartBackgroundWork(callback, pCallbackContext, FALSE);
 }
 
-HANDLE PalGetModuleHandleFromPointer(_In_ void* pointer)
+HANDLE PalGetModuleHandleFromPointer(_In_ void* pointer, bool pinModule)
 {
-    // The runtime is not designed to be unloadable today. Use GET_MODULE_HANDLE_EX_FLAG_PIN to prevent
-    // the module from ever unloading.
+    // The runtime is not designed to be unloadable today.
+    DWORD flags = GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS |
+        (pinModule ? GET_MODULE_HANDLE_EX_FLAG_PIN : GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT);
 
     HMODULE module;
     if (!GetModuleHandleExW(
-        GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_PIN,
+        flags,
         (LPCWSTR)pointer,
         &module))
     {
@@ -950,8 +954,12 @@ char* PalCopyTCharAsChar(const TCHAR* toCopy)
         return nullptr;
 
     char* converted = new (nothrow) char[len];
-    int written = ::WideCharToMultiByte(CP_UTF8, 0, toCopy, -1, converted, len, nullptr, nullptr);
-    assert(len == written);
+
+    if (converted != nullptr)
+    {
+        int written = ::WideCharToMultiByte(CP_UTF8, 0, toCopy, -1, converted, len, nullptr, nullptr);
+        assert(len == written);
+    }
     return converted;
 }
 

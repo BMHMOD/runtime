@@ -205,7 +205,7 @@ namespace System.Reflection
 
             if (tkCustomAttributeTokens.Length == 0)
             {
-                return Array.Empty<CustomAttributeRecord>();
+                return [];
             }
 
             CustomAttributeRecord[] records = new CustomAttributeRecord[tkCustomAttributeTokens.Length];
@@ -269,7 +269,7 @@ namespace System.Reflection
             }
             else
             {
-                m_ctorParams = Array.Empty<CustomAttributeCtorParameter>();
+                m_ctorParams = [];
             }
 
             FieldInfo[] fields = m_ctor.DeclaringType!.GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
@@ -651,11 +651,13 @@ namespace System.Reflection
     [StructLayout(LayoutKind.Explicit)]
     internal struct PrimitiveValue
     {
+        /// <safety>Overlaps only Byte8; both views are non-reference integers (int and long), so reinterpreting one as the other cannot forge a managed reference or read out of bounds.</safety>
         [FieldOffset(0)]
-        public int Byte4;
+        public safe int Byte4;
 
+        /// <safety>Overlaps only Byte4; both views are non-reference integers (long and int), so reinterpreting one as the other cannot forge a managed reference.</safety>
         [FieldOffset(0)]
-        public long Byte8;
+        public safe long Byte8;
     }
 
     internal sealed class CustomAttributeEncodedArgument
@@ -1701,7 +1703,7 @@ namespace System.Reflection
             RuntimeTypeHandle attributeTypeHandle = attributeType.TypeHandle;
 
             bool result = RuntimeMethodHandle.IsCAVisibleFromDecoratedType(new QCallTypeHandle(ref attributeTypeHandle),
-                                                                    ctorWithParameters is not null ? ctorWithParameters.Value : RuntimeMethodHandleInternal.EmptyHandle,
+                                                                    ctorWithParameters is not null ? IRuntimeMethodInfo.GetValue(ctorWithParameters) : RuntimeMethodHandleInternal.EmptyHandle,
                                                                     new QCallTypeHandle(ref parentTypeHandle),
                                                                     new QCallModule(ref decoratedModule)) != Interop.BOOL.FALSE;
 
@@ -1823,11 +1825,11 @@ namespace System.Reflection
 
             if (useAttributeArray)
             {
-                return elementCount == 0 ? Array.Empty<Attribute>() : new Attribute[elementCount];
+                return elementCount == 0 ? [] : new Attribute[elementCount];
             }
             if (useObjectArray)
             {
-                return elementCount == 0 ? Array.Empty<object>() : new object[elementCount];
+                return elementCount == 0 ? [] : new object[elementCount];
             }
             return elementCount == 0 ? caType.GetEmptyArray() : (object[])Array.CreateInstance(caType, elementCount);
         }

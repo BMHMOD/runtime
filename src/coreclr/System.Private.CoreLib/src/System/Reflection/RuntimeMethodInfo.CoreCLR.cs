@@ -69,8 +69,6 @@ namespace System.Reflection
         #endregion
 
         #region Private Methods
-        RuntimeMethodHandleInternal IRuntimeMethodInfo.Value => new RuntimeMethodHandleInternal(m_handle);
-
         private RuntimeType ReflectedTypeInternal => m_reflectedTypeCache.GetRuntimeType();
 
         private ParameterInfo[] FetchNonReturnParameters() =>
@@ -78,6 +76,9 @@ namespace System.Reflection
 
         private ParameterInfo FetchReturnParameter() =>
             m_returnParameter ??= RuntimeParameterInfo.GetReturnParameter(this, this, Signature);
+
+        private bool IsDisallowedAsyncHelper =>
+            RuntimeMethodHandle.IsAsyncMethod(new RuntimeMethodHandleInternal(m_handle));
         #endregion
 
         #region Internal Members
