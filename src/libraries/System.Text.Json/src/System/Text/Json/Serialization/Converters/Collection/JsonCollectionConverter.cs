@@ -16,7 +16,6 @@ namespace System.Text.Json.Serialization
     {
         internal override bool SupportsCreateObjectDelegate => true;
         private protected sealed override ConverterStrategy GetDefaultConverterStrategy() => ConverterStrategy.Enumerable;
-        internal sealed override JsonValueType GetSupportedJsonValueTypes(JsonNumberHandling _) => JsonValueType.Array;
         internal override Type ElementType => typeof(TElement);
 
         protected abstract void Add(in TElement value, ref ReadStack state);
@@ -55,7 +54,7 @@ namespace System.Text.Json.Serialization
 
         protected static JsonConverter<TElement> GetElementConverter(ref WriteStack state)
         {
-            Debug.Assert(state.Current.JsonPropertyInfo is not null);
+            Debug.Assert(state.Current.JsonPropertyInfo != null);
             return (JsonConverter<TElement>)state.Current.JsonPropertyInfo.EffectiveConverter;
         }
 
@@ -84,7 +83,7 @@ namespace System.Text.Json.Serialization
 
                 state.Current.JsonPropertyInfo = elementTypeInfo.PropertyInfoForTypeInfo;
                 JsonConverter<TElement> elementConverter = GetElementConverter(elementTypeInfo);
-                if (elementConverter.CanUseDirectReadOrWrite && state.Current.NumberHandling is null)
+                if (elementConverter.CanUseDirectReadOrWrite && state.Current.NumberHandling == null)
                 {
                     // Fast path that avoids validation and extra indirection.
                     while (true)
@@ -160,7 +159,7 @@ namespace System.Text.Json.Serialization
                 }
 
                 // Dispatch to any polymorphic converters: should always be entered regardless of ObjectState progress
-                if (((state.Current.MetadataPropertyNames & MetadataPropertyName.Type) != 0 || state.PolymorphicResolvedType is not null) &&
+                if ((state.Current.MetadataPropertyNames & MetadataPropertyName.Type) != 0 &&
                     state.Current.PolymorphicSerializationState != PolymorphicSerializationState.PolymorphicReEntryStarted &&
                     ResolvePolymorphicConverter(jsonTypeInfo, ref state) is JsonConverter polymorphicConverter)
                 {
@@ -182,7 +181,7 @@ namespace System.Text.Json.Serialization
 
                     if ((state.Current.MetadataPropertyNames & MetadataPropertyName.Id) != 0)
                     {
-                        Debug.Assert(state.ReferenceId is not null);
+                        Debug.Assert(state.ReferenceId != null);
                         Debug.Assert(options.ReferenceHandlingStrategy == JsonKnownReferenceHandler.Preserve);
                         Debug.Assert(state.Current.ReturnValue is TCollection);
                         state.ReferenceResolver.AddReference(state.ReferenceId, state.Current.ReturnValue);
@@ -297,7 +296,7 @@ namespace System.Text.Json.Serialization
         {
             bool success;
 
-            if (value is null)
+            if (value == null)
             {
                 writer.WriteNullValue();
                 success = true;

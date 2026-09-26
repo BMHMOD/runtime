@@ -4,9 +4,6 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Xunit;
 
-
-namespace Runtime_83941;
-
 public class Test
 {
 	public int test (IEqualityComparer comparer) {

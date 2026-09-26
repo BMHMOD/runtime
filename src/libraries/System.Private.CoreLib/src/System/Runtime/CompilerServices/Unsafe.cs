@@ -20,7 +20,6 @@ namespace System.Runtime.CompilerServices
         /// Returns a pointer to the given by-ref parameter.
         /// </summary>
         /// <typeparam name="T">The type referenced by the byref parameter.</typeparam>
-        /// <safety>Converts a managed pointer (byref) into an unmanaged one without dereferencing it; the danger is deferred to whoever dereferences the pointer, which the GC neither tracks nor updates.</safety>
         [Intrinsic]
         // CoreCLR:METHOD__UNSAFE__AS_POINTER
         // AOT:AsPointer
@@ -154,7 +153,6 @@ namespace System.Runtime.CompilerServices
         /// Adds an element offset to the given pointer.
         /// </summary>
         /// <typeparam name="T">The element type referenced by the pointer.</typeparam>
-        /// <safety>Computes a new pointer by adding elementOffset scaled by sizeof(T); it performs only pointer arithmetic and never dereferences the pointer.</safety>
         [Intrinsic]
         // CoreCLR:METHOD__UNSAFE__PTR_ADD
         // AOT:Add
@@ -851,7 +849,6 @@ namespace System.Runtime.CompilerServices
         /// Subtracts an element offset from the given void pointer.
         /// </summary>
         /// <typeparam name="T">The element type referenced by the pointer.</typeparam>
-        /// <safety>Computes a new pointer by subtracting elementOffset scaled by sizeof(T); it performs only pointer arithmetic and never dereferences the pointer.</safety>
         [Intrinsic]
         // CoreCLR:METHOD__UNSAFE__PTR_INT_SUBTRACT
         [NonVersionable]

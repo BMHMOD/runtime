@@ -107,8 +107,8 @@ namespace System.Security.Cryptography.X509Certificates
         {
             try
             {
-                ValueAsnReader outer = new ValueAsnReader(rawData, AsnEncodingRules.DER);
-                ValueAsnReader sequence = outer.ReadSequence();
+                AsnValueReader outer = new AsnValueReader(rawData, AsnEncodingRules.DER);
+                AsnValueReader sequence = outer.ReadSequence();
                 outer.ThrowIfNotEmpty();
 
                 List<GeneralNameAsn> decoded = new List<GeneralNameAsn>();

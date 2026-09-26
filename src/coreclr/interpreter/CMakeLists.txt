@@ -5,19 +5,14 @@ set(INTERPRETER_SOURCES
   compileropt.cpp
   intops.cpp
   interpconfig.cpp
-  interpmethoddata.cpp
   eeinterp.cpp
   stackmap.cpp
   naming.cpp
   methodset.cpp
-  intrinsics.cpp
-  simdhash.cpp
-  ../jitshared/histogram.cpp
-  )
+  intrinsics.cpp)
 
 set(INTERPRETER_LINK_LIBRARIES
   gcinfo
-  minipal
 )
 
 if(CLR_CMAKE_HOST_WIN32)
@@ -25,10 +20,6 @@ if(CLR_CMAKE_HOST_WIN32)
     ${STATIC_MT_CRT_LIB}
     ${STATIC_MT_VCRT_LIB}
   )
-  # Native.rc is added only to the shared library, not to the statically linked one,
-  # to prevent VERSION duplicates
-  set(INTERPRETER_RESOURCES Native.rc)
-  add_definitions(-DFX_VER_INTERNALNAME_STR=clrinterpreter.dll)
 endif()
 
 if(CLR_CMAKE_HOST_WIN32)
@@ -45,18 +36,12 @@ endif()
 
 add_library_clr(clrinterpreter_objects OBJECT ${INTERPRETER_SOURCES})
 
-target_include_directories(clrinterpreter_objects PRIVATE ../jitshared)
-
-if (FEATURE_PERFTRACING AND FEATURE_PERFTRACING_DISABLE_THREADS)
-  target_compile_definitions(clrinterpreter_objects PRIVATE PERFTRACING_DISABLE_THREADS)
-endif()
-
 if (NOT CMAKE_GENERATOR MATCHES "Visual Studio")
   set_target_properties(clrinterpreter_objects PROPERTIES EXCLUDE_FROM_ALL $<NOT:${FEATURE_INTERPRETER}>)
 endif()
 
 if (NOT CLR_CMAKE_TARGET_ARCH_WASM)
-  add_library_clr(clrinterpreter SHARED $<TARGET_OBJECTS:clrinterpreter_objects> $<TARGET_OBJECTS:dn-containers> ${INTERPRETER_RESOURCES})
+  add_library_clr(clrinterpreter SHARED $<TARGET_OBJECTS:clrinterpreter_objects> $<TARGET_OBJECTS:dn-containers>)
 else()
   add_library_clr(clrinterpreter STATIC $<TARGET_OBJECTS:clrinterpreter_objects> $<TARGET_OBJECTS:dn-containers>)
 endif()
@@ -82,8 +67,4 @@ target_link_libraries(clrinterpreter
         ${INTERPRETER_LINK_LIBRARIES}
     )
 
-if (FEATURE_STATICALLY_LINKED)
-    install_clr(TARGETS clrinterpreter DESTINATIONS . COMPONENT runtime OPTIONAL)
-else()
-    install_clr(TARGETS clrinterpreter DESTINATIONS . sharedFramework COMPONENT runtime OPTIONAL)
-endif()
+install_clr(TARGETS clrinterpreter DESTINATIONS . sharedFramework COMPONENT runtime OPTIONAL)

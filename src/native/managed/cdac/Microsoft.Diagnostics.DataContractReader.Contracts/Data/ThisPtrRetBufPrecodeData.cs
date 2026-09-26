@@ -3,8 +3,16 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.ThisPtrRetBufPrecodeData))]
-internal sealed partial class ThisPtrRetBufPrecodeData : IData<ThisPtrRetBufPrecodeData>
+internal sealed class ThisPtrRetBufPrecodeData : IData<ThisPtrRetBufPrecodeData>
 {
-    [Field] public partial TargetPointer MethodDesc { get; }
+    static ThisPtrRetBufPrecodeData IData<ThisPtrRetBufPrecodeData>.Create(Target target, TargetPointer address)
+        => new ThisPtrRetBufPrecodeData(target, address);
+
+    public ThisPtrRetBufPrecodeData(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.ThisPtrRetBufPrecodeData);
+        MethodDesc = target.ReadPointer(address + (ulong)type.Fields[nameof(MethodDesc)].Offset);
+    }
+
+    public TargetPointer MethodDesc { get; init; }
 }

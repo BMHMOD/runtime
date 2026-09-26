@@ -10,7 +10,6 @@ using System.Runtime.InteropServices;
 
 namespace System.Text
 {
-    [DebuggerDisplay("{DebuggerDisplay,nq}")]
     internal ref partial struct ValueStringBuilder<TChar>
         where TChar : unmanaged
     {
@@ -93,28 +92,21 @@ namespace System.Text
             }
         }
 
-        // ToString() clears the builder, so we need a side-effect free debugger display.
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        private readonly string DebuggerDisplay => GetString();
-
-        private readonly string GetString()
+        public override string ToString()
         {
+            string result;
             Span<TChar> slice = _chars.Slice(0, _pos);
 
             if (typeof(TChar) == typeof(Utf8Char))
             {
-                return Encoding.UTF8.GetString(Unsafe.BitCast<ReadOnlySpan<TChar>, ReadOnlySpan<byte>>(slice));
+                result = Encoding.UTF8.GetString(Unsafe.BitCast<ReadOnlySpan<TChar>, ReadOnlySpan<byte>>(slice));
             }
             else
             {
                 Debug.Assert(typeof(TChar) == typeof(Utf16Char));
-                return Unsafe.BitCast<ReadOnlySpan<TChar>, ReadOnlySpan<char>>(slice).ToString();
+                result = Unsafe.BitCast<ReadOnlySpan<TChar>, ReadOnlySpan<char>>(slice).ToString();
             }
-        }
 
-        public override string ToString()
-        {
-            string result = GetString();
             Dispose();
             return result;
         }

@@ -7,9 +7,6 @@
 // Reduced from 270.2 KiB to 0.4 KiB in 00:01:48
 // Debug: Outputs 0
 // Release: Outputs 1
-
-namespace Runtime_105817;
-
 using System;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.Arm;
@@ -17,51 +14,69 @@ using Xunit;
 
 public class Runtime_105817
 {
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestOverShiftLeftLogical()
     {
-        var vr6 = Vector128.Create<short>(1);
-        var vr7 = AdvSimd.ShiftLeftLogical(vr6, 16);
-        Assert.Equal(vr7, Vector128<short>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr6 = Vector128.Create<short>(1);
+            var vr7 = AdvSimd.ShiftLeftLogical(vr6, 16);
+            Assert.Equal(vr7, Vector128<short>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestOverShiftLeftLogicalScalar()
     {
-        var vr6 = Vector64.Create<long>(1);
-        var vr7 = AdvSimd.ShiftLeftLogicalScalar(vr6, 64);
-        Assert.Equal(vr7, Vector64<long>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr6 = Vector64.Create<long>(1);
+            var vr7 = AdvSimd.ShiftLeftLogicalScalar(vr6, 64);
+            Assert.Equal(vr7, Vector64<long>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestOverShiftRightLogical()
     {
-        var vr6 = Vector128.Create<short>(1);
-        var vr7 = AdvSimd.ShiftRightLogical(vr6, 16);
-        Assert.Equal(vr7, Vector128<short>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr6 = Vector128.Create<short>(1);
+            var vr7 = AdvSimd.ShiftRightLogical(vr6, 16);
+            Assert.Equal(vr7, Vector128<short>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestOverShiftRightLogicalScalar()
     {
-        var vr6 = Vector64.Create<long>(1);
-        var vr7 = AdvSimd.ShiftRightLogicalScalar(vr6, 64);
-        Assert.Equal(vr7, Vector64<long>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr6 = Vector64.Create<long>(1);
+            var vr7 = AdvSimd.ShiftRightLogicalScalar(vr6, 64);
+            Assert.Equal(vr7, Vector64<long>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestOverShiftRightArithmetic()
     {
-        var vr6 = Vector128.Create<short>(1);
-        var vr7 = AdvSimd.ShiftRightArithmetic(vr6, 16);
-        Assert.Equal(vr7, Vector128<short>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr6 = Vector128.Create<short>(1);
+            var vr7 = AdvSimd.ShiftRightArithmetic(vr6, 16);
+            Assert.Equal(vr7, Vector128<short>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestOverShiftRightArithmeticScalar()
     {
-        var vr6 = Vector64.Create<long>(1);
-        var vr7 = AdvSimd.ShiftRightArithmeticScalar(vr6, 64);
-        Assert.Equal(vr7, Vector64<long>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr6 = Vector64.Create<long>(1);
+            var vr7 = AdvSimd.ShiftRightArithmeticScalar(vr6, 64);
+            Assert.Equal(vr7, Vector64<long>.Zero);
+        }
     }
 }

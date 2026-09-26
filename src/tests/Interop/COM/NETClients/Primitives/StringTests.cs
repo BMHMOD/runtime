@@ -46,12 +46,11 @@ namespace NetClient
 
         public StringTests()
         {
-            this.server = new Server.Contract.Servers.StringTesting();
+            this.server = (Server.Contract.Servers.StringTesting)new Server.Contract.Servers.StringTestingClass();
         }
 
         public void Run()
         {
-            Console.WriteLine(nameof(StringTests));
             this.Marshal_LPString();
             this.Marshal_LPWString();
             this.Marshal_BStrString();

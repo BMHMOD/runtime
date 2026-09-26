@@ -36,51 +36,51 @@ namespace System.IO.Ports.Tests
 
         #region Test Cases
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void Buffer_Null()
         {
             VerifyReadException<ArgumentNullException>(null, 0, 1);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void Offset_NEG1()
         {
             VerifyReadException<ArgumentOutOfRangeException>(new byte[defaultByteArraySize], -1, defaultByteCount);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void Offset_NEGRND()
         {
             var rndGen = new Random(-55);
             VerifyReadException<ArgumentOutOfRangeException>(new byte[defaultByteArraySize], rndGen.Next(int.MinValue, 0), defaultByteCount);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void Offset_MinInt()
         {
             VerifyReadException<ArgumentOutOfRangeException>(new byte[defaultByteArraySize], int.MinValue, defaultByteCount);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void Count_NEG1()
         {
             VerifyReadException<ArgumentOutOfRangeException>(new byte[defaultByteArraySize], defaultByteOffset, -1);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void Count_NEGRND()
         {
             var rndGen = new Random(-55);
             VerifyReadException<ArgumentOutOfRangeException>(new byte[defaultByteArraySize], defaultByteOffset, rndGen.Next(int.MinValue, 0));
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void Count_MinInt()
         {
             VerifyReadException<ArgumentOutOfRangeException>(new byte[defaultByteArraySize], defaultByteOffset, int.MinValue);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void OffsetCount_EQ_Length_Plus_1()
         {
             var rndGen = new Random(-55);
@@ -91,7 +91,7 @@ namespace System.IO.Ports.Tests
             VerifyReadException<ArgumentException>(new byte[bufferLength], offset, count);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void OffsetCount_GT_Length()
         {
             var rndGen = new Random(-55);
@@ -101,7 +101,7 @@ namespace System.IO.Ports.Tests
             VerifyReadException<ArgumentException>(new byte[bufferLength], offset, count);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void Offset_GT_Length()
         {
             var rndGen = new Random(-55);
@@ -112,7 +112,7 @@ namespace System.IO.Ports.Tests
             VerifyReadException<ArgumentException>(new byte[bufferLength], offset, count);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void Count_GT_Length()
         {
             var rndGen = new Random(-55);
@@ -123,7 +123,7 @@ namespace System.IO.Ports.Tests
             VerifyReadException<ArgumentException>(new byte[bufferLength], offset, count);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void OffsetCount_EQ_Length()
         {
             var rndGen = new Random(-55);
@@ -134,7 +134,7 @@ namespace System.IO.Ports.Tests
             VerifyRead(new byte[bufferLength], offset, count);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void Offset_EQ_Length_Minus_1()
         {
             var rndGen = new Random(-55);
@@ -145,7 +145,7 @@ namespace System.IO.Ports.Tests
             VerifyRead(new byte[bufferLength], offset, count);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void Count_EQ_Length()
         {
             var rndGen = new Random(-55);
@@ -156,7 +156,7 @@ namespace System.IO.Ports.Tests
             VerifyRead(new byte[bufferLength], offset, count);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void LargeInputBuffer()
         {
             int bufferLength = largeNumRndBytesToRead;
@@ -166,7 +166,7 @@ namespace System.IO.Ports.Tests
             VerifyRead(new byte[bufferLength], offset, count, largeNumRndBytesToRead);
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void Callback()
         {
             using (var com1 = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))
@@ -212,7 +212,7 @@ namespace System.IO.Ports.Tests
             }
         }
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void Callback_EndReadonCallback()
         {
             using (var com1 = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))
@@ -259,7 +259,7 @@ namespace System.IO.Ports.Tests
         }
 
 
-        [ConditionalFact(typeof(SerialStream_BeginRead), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void Callback_State()
         {
             using (var com1 = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))

@@ -2,11 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Buffers;
 using System.Diagnostics;
-
-using Internal.Text;
-
+using System.Buffers;
 using static ILCompiler.ObjectWriter.DwarfNative;
 
 namespace ILCompiler.ObjectWriter
@@ -15,20 +12,20 @@ namespace ILCompiler.ObjectWriter
     {
         public readonly DwarfCie Cie;
         public readonly byte[] Instructions;
-        public readonly Utf8String PcStartSymbolName;
+        public readonly string PcStartSymbolName;
         public readonly long PcStartSymbolOffset;
         public readonly ulong PcLength;
-        public readonly Utf8String LsdaSymbolName;
-        public readonly Utf8String PersonalitySymbolName;
+        public readonly string LsdaSymbolName;
+        public readonly string PersonalitySymbolName;
 
         public DwarfFde(
             DwarfCie cie,
             byte[] blobData,
-            Utf8String pcStartSymbolName,
+            string pcStartSymbolName,
             long pcStartSymbolOffset,
             ulong pcLength,
-            Utf8String lsdaSymbolName,
-            Utf8String personalitySymbolName)
+            string lsdaSymbolName,
+            string personalitySymbolName)
         {
             Cie = cie;
             Instructions = CfiCodeToInstructions(cie, blobData);
@@ -115,10 +112,6 @@ namespace ILCompiler.ObjectWriter
                         cfiCode[cfiCodeOffset++] = (byte)dwarfReg;
                         cfaOffset = cfiOffset;
                         cfiCodeOffset += DwarfHelper.WriteULEB128(cfiCode.AsSpan(cfiCodeOffset), (uint)cfaOffset);
-                        break;
-
-                    case CFI_OPCODE.CFI_NEGATE_RA_STATE:
-                        cfiCode[cfiCodeOffset++] = DW_CFA_AARCH64_negate_ra_state;
                         break;
                 }
             }

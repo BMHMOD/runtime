@@ -5,7 +5,7 @@ using Mono.Linker.Tests.Cases.UnreachableBody.Dependencies;
 namespace Mono.Linker.Tests.Cases.UnreachableBody
 {
 #if NET
-    [SetupLinkerArgument("-a", "other2")]
+    [SetupLinkerArgument("-a", "other2.dll")]
 #else
     [SetupLinkerArgument("-r", "other2")]
 #endif

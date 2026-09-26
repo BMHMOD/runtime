@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 
 namespace System.Runtime.InteropServices
 {
@@ -23,19 +22,6 @@ namespace System.Runtime.InteropServices
             return isImplemented;
         }
 
-        [UnmanagedCallersOnly]
-        private static unsafe void IsInterfaceImplemented(IDynamicInterfaceCastable* pCastable, RuntimeType* pInterfaceType, bool throwIfNotImplemented, bool* pResult, Exception* pException)
-        {
-            try
-            {
-                *pResult = IsInterfaceImplemented(*pCastable, *pInterfaceType, throwIfNotImplemented);
-            }
-            catch (Exception ex)
-            {
-                *pException = ex;
-            }
-        }
-
         [StackTraceHidden]
         internal static RuntimeType? GetInterfaceImplementation(IDynamicInterfaceCastable castable, RuntimeType interfaceType)
         {
@@ -54,19 +40,6 @@ namespace System.Runtime.InteropServices
                 throw new InvalidOperationException(SR.Format(SR.IDynamicInterfaceCastable_DoesNotImplementRequested, implType, interfaceType));
 
             return implType;
-        }
-
-        [UnmanagedCallersOnly]
-        private static unsafe void GetInterfaceImplementation(IDynamicInterfaceCastable* pCastable, RuntimeType* pInterfaceType, RuntimeType* pResult, Exception* pException)
-        {
-            try
-            {
-                *pResult = GetInterfaceImplementation(*pCastable, *pInterfaceType);
-            }
-            catch (Exception ex)
-            {
-                *pException = ex;
-            }
         }
     }
 }

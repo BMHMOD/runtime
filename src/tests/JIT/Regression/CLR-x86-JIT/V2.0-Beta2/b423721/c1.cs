@@ -4,7 +4,7 @@
 using System;
 using System.Runtime.CompilerServices;
 
-namespace b423721
+namespace Test
 {
 
     public class C1<T>

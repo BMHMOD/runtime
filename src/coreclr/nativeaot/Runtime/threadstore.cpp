@@ -22,15 +22,13 @@
 #include "TargetPtrs.h"
 #include "yieldprocessornormalized.h"
 #include <minipal/time.h>
-#include <minipal/thread.h>
-#include "SignalSafeThreadMap.h"
+
+#include "slist.inl"
 
 EXTERN_C volatile uint32_t RhpTrapThreads;
 volatile uint32_t RhpTrapThreads = (uint32_t)TrapThreadsFlags::None;
 
 GVAL_IMPL_INIT(PTR_Thread, RhpSuspendingThread, 0);
-
-SPTR_IMPL(ThreadStore, ThreadStore, s_pThreadStore);
 
 ThreadStore * GetThreadStore()
 {
@@ -144,15 +142,7 @@ void ThreadStore::AttachCurrentThread(bool fAcquireThreadStoreLock)
     ASSERT(pAttachingThread->m_ThreadStateFlags == Thread::TSF_Unknown);
     pAttachingThread->m_ThreadStateFlags = Thread::TSF_Attached;
 
-    pTS->m_ThreadList.InsertHead(pAttachingThread);
-
-#if defined(TARGET_UNIX) && !defined(TARGET_WASM)
-    if (!InsertThreadIntoSignalSafeMap(pAttachingThread->m_threadId, pAttachingThread))
-    {
-        PalPrintFatalError("\nFailed to insert thread into signal-safe map due to out of memory.\n");
-        RhFailFast();
-    }
-#endif // TARGET_UNIX && !TARGET_WASM
+    pTS->m_ThreadList.PushHead(pAttachingThread);
 }
 
 // static
@@ -193,14 +183,11 @@ void ThreadStore::DetachCurrentThread()
         // Note that when process is shutting down, the threads may be rudely terminated,
         // possibly while holding the threadstore lock. That is ok, since the process is being torn down.
         CrstHolder threadStoreLock(&pTS->m_Lock);
+        ASSERT(rh::std::count(pTS->m_ThreadList.Begin(), pTS->m_ThreadList.End(), pDetachingThread) == 1);
         // remove the thread from the list of managed threads.
-        bool removed = pTS->m_ThreadList.RemoveFirst(pDetachingThread);
-        ASSERT(removed);
+        pTS->m_ThreadList.RemoveFirst(pDetachingThread);
         // tidy up GC related stuff (release allocation context, etc..)
         pDetachingThread->Detach();
-#if defined(TARGET_UNIX) && !defined(TARGET_WASM)
-        RemoveThreadFromSignalSafeMap(pDetachingThread->m_threadId, pDetachingThread);
-#endif
     }
 
     // post-mortem clean up.
@@ -246,7 +233,6 @@ void ThreadStore::SuspendAllThreads(bool waitForGCEvent)
     }
 
     // set the global trap for pinvoke leave and return
-    GCHeapUtilities::GetGCHeap()->SetSuspensionPending(true);
     RhpTrapThreads |= (uint32_t)TrapThreadsFlags::TrapThreads;
 
     // Our lock-free algorithm depends on flushing write buffers of all processors running RH code.  The
@@ -347,7 +333,6 @@ void ThreadStore::ResumeAllThreads(bool waitForGCEvent)
 #endif //TARGET_ARM || TARGET_ARM64 || TARGET_LOONGARCH64
 
     RhpTrapThreads &= ~(uint32_t)TrapThreadsFlags::TrapThreads;
-    GCHeapUtilities::GetGCHeap()->SetSuspensionPending(false);
 
     RhpSuspendingThread = NULL;
     if (waitForGCEvent)
@@ -366,13 +351,6 @@ EXTERN_C RuntimeThreadLocals* RhpGetThread()
 {
     return &tls_CurrentThread;
 }
-
-#if defined(TARGET_UNIX) && !defined(TARGET_WASM)
-Thread * ThreadStore::GetCurrentThreadIfAvailableAsyncSafe()
-{
-    return (Thread*)FindThreadInSignalSafeMap(minipal_get_current_thread_id_no_cache());
-}
-#endif // TARGET_UNIX && !TARGET_WASM
 
 #endif // !DACCESS_COMPILE
 

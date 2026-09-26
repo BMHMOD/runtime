@@ -3,12 +3,25 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.RuntimeFunction))]
-internal sealed partial class RuntimeFunction : IData<RuntimeFunction>
+internal sealed class RuntimeFunction : IData<RuntimeFunction>
 {
-    [Field] public partial uint BeginAddress { get; }
+    static RuntimeFunction IData<RuntimeFunction>.Create(Target target, TargetPointer address)
+        => new RuntimeFunction(target, address);
 
-    // Not all platforms define EndAddress
-    [Field] public partial uint? EndAddress { get; }
-    [Field] public partial uint UnwindData { get; }
+    public RuntimeFunction(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.RuntimeFunction);
+
+        BeginAddress = target.Read<uint>(address + (ulong)type.Fields[nameof(BeginAddress)].Offset);
+
+        // Not all platforms define EndAddress
+        if (type.Fields.ContainsKey(nameof(EndAddress)))
+            EndAddress = target.Read<uint>(address + (ulong)type.Fields[nameof(EndAddress)].Offset);
+
+        UnwindData = target.Read<uint>(address + (ulong)type.Fields[nameof(UnwindData)].Offset);
+    }
+
+    public uint BeginAddress { get; }
+    public uint? EndAddress { get; }
+    public uint UnwindData { get; }
 }

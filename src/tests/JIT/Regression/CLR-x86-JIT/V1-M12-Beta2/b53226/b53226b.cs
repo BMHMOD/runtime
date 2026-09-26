@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Xunit;
-namespace b53226b
+namespace Test
 {
     using System;
 
@@ -15,7 +15,6 @@ namespace b53226b
             byte bb = __refvalue((b ? __makeref(b) : tr), byte);
             return 0;
         }
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

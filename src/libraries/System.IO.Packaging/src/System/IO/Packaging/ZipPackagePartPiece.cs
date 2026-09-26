@@ -152,7 +152,12 @@ namespace System.IO.Packaging
         {
             ArgumentNullException.ThrowIfNull(zipArchiveEntry);
             ArgumentNullException.ThrowIfNull(prefixName);
+#if NET
             ArgumentOutOfRangeException.ThrowIfNegative(pieceNumber);
+#else
+            if (pieceNumber < 0)
+                throw new ArgumentOutOfRangeException(nameof(pieceNumber));
+#endif
 
             ZipArchiveEntry = zipArchiveEntry;
 

@@ -4,7 +4,7 @@
 using System.Globalization;
 using Xunit;
 
-namespace System.Drawing.Primitives.Tests
+namespace System.Drawing.PrimitivesTests
 {
     public class PointTests
     {

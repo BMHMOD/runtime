@@ -17,17 +17,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using Xunit;
-using TestLibrary;
 
 namespace Tracing.Tests
 {
     public sealed class NativeRuntimeEventSourceTest
     {
-        [ActiveIssue("Build doesn't include diagnostics tracing", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoAnyAOT))]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/92727", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoInterpreter), nameof(PlatformDetection.IsArm64Process), nameof(PlatformDetection.IsNotWindows))]
-        [ActiveIssue("WASM doesn't support diagnostics tracing", TestPlatforms.Browser)]
-        [SkipOnCoreClr("This test is sensitive to JIT optimizations.", RuntimeTestModes.AnyJitOptimizationStress)]
-        [SkipOnCoreClr("Tracing tests routinely time out with JIT stress and GC stress.", RuntimeTestModes.AnyGCStress)]
         [Fact]
         public static void TestEntryPoint()
         {
@@ -83,7 +77,7 @@ namespace Tracing.Tests
 
                         Stopwatch sw = Stopwatch.StartNew();
 
-                        while (sw.Elapsed <= TimeSpan.FromSeconds(45))
+                        while (sw.Elapsed <= TimeSpan.FromMinutes(1d / 12d))
                         {
                             Thread.Sleep(100);
 

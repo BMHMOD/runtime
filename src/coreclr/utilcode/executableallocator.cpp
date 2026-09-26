@@ -190,7 +190,7 @@ void ExecutableAllocator::InitLazyPreferredRange(size_t base, size_t size, int r
     }
 
     // Randomize the address space
-    pStart += minipal_getpagesize() * randomPageOffset;
+    pStart += GetOsPageSize() * randomPageOffset;
 
     g_lazyPreferredRangeStart = pStart;
     g_lazyPreferredRangeHint = pStart;
@@ -395,6 +395,9 @@ bool ExecutableAllocator::AddRWBlock(void* baseRW, void* baseRX, size_t size, Ca
 {
     LIMITED_METHOD_CONTRACT;
 
+    // The new "nothrow" below failure is handled as fail fast since it is not recoverable
+    PERMANENT_CONTRACT_VIOLATION(FaultViolation, ReasonContractInfrastructure);
+
     BlockRW* pBlockRW = new (nothrow) BlockRW();
     if (pBlockRW == NULL)
     {
@@ -495,7 +498,7 @@ void* ExecutableAllocator::Commit(void* pStart, size_t size, bool isExecutable)
     }
     else
     {
-#if !defined(FEATURE_DYNAMIC_CODE_COMPILED)
+#if defined(TARGET_IOS) || defined(TARGET_TVOS) || defined(TARGET_MACCATALYST)
         return ClrVirtualAlloc(pStart, size, MEM_COMMIT, PAGE_READWRITE);
 #else
         return ClrVirtualAlloc(pStart, size, MEM_COMMIT, isExecutable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE);
@@ -711,7 +714,7 @@ void* ExecutableAllocator::ReserveWithinRange(size_t size, const void* loAddress
     else
     {
         DWORD allocationType = MEM_RESERVE;
-#if defined(HOST_UNIX) && defined(FEATURE_DYNAMIC_CODE_COMPILED)
+#if defined(HOST_UNIX) && !defined(TARGET_IOS) && !defined(TARGET_TVOS) && !defined(TARGET_MACCATALYST)
         // Tell PAL to use the executable memory allocator to satisfy this request for virtual memory.
         // This will allow us to place JIT'ed code close to the coreclr library
         // and thus improve performance by avoiding jump stubs in managed code.
@@ -801,7 +804,7 @@ void* ExecutableAllocator::Reserve(size_t size)
         else
         {
             DWORD allocationType = MEM_RESERVE;
-#if defined(HOST_UNIX) && defined(FEATURE_DYNAMIC_CODE_COMPILED)
+#if defined(HOST_UNIX) && !defined(TARGET_IOS) && !defined(TARGET_TVOS) && !defined(TARGET_MACCATALYST)
             // Tell PAL to use the executable memory allocator to satisfy this request for virtual memory.
             // This will allow us to place JIT'ed code close to the coreclr library
             // and thus improve performance by avoiding jump stubs in managed code.

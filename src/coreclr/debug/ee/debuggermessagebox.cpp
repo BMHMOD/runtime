@@ -9,6 +9,7 @@
 #include <utilcode.h>                   // Utility helpers.
 #include <corerror.h>
 #include <clrversion.h>
+#include "../../dlls/mscorrc/resource.h"
 
 // Output printf-style formatted text to the debugger if it's present or stdout otherwise.
 static void DbgPrintf(const LPCSTR szFormat, ...)
@@ -47,6 +48,8 @@ static int MessageBoxImpl(
 {
     CONTRACTL
     {
+        INJECT_FAULT(return IDCANCEL;);
+
         // Assert if none of MB_ICON is set
         PRECONDITION((uType & MB_ICONMASK) != 0);
     }
@@ -98,6 +101,7 @@ static int UtilMessageBoxNonLocalized(
     CONTRACTL
     {
         NOTHROW;
+        INJECT_FAULT(return IDCANCEL;);
 
         // Assert if none of MB_ICON is set
         PRECONDITION((uType & MB_ICONMASK) != 0);
@@ -149,6 +153,7 @@ int NotifyUserOfFaultMessageBox(
     CONTRACTL
     {
         NOTHROW;
+        INJECT_FAULT(return IDCANCEL;);
     }
     CONTRACTL_END;
 

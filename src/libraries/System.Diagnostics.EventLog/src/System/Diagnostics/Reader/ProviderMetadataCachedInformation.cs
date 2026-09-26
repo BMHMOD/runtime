@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using Microsoft.Win32;
 
@@ -19,7 +18,7 @@ namespace System.Diagnostics.Eventing.Reader
         private readonly Dictionary<ProviderMetadataId, CacheItem> _cache;
         private readonly int _maximumCacheSize;
         private readonly EventLogSession _session;
-        private readonly string? _logfile;
+        private readonly string _logfile;
 
         private sealed class ProviderMetadataId
         {
@@ -29,9 +28,9 @@ namespace System.Diagnostics.Eventing.Reader
                 TheCultureInfo = cultureInfo;
             }
 
-            public override bool Equals([NotNullWhen(true)] object? obj)
+            public override bool Equals(object obj)
             {
-                ProviderMetadataId? rhs = obj as ProviderMetadataId;
+                ProviderMetadataId rhs = obj as ProviderMetadataId;
                 if (rhs == null)
                     return false;
                 if (ProviderName.Equals(rhs.ProviderName) && (TheCultureInfo == rhs.TheCultureInfo))
@@ -61,7 +60,7 @@ namespace System.Diagnostics.Eventing.Reader
             public ProviderMetadata ProviderMetadata { get; }
         }
 
-        public ProviderMetadataCachedInformation(EventLogSession session, string? logfile, int maximumCacheSize)
+        public ProviderMetadataCachedInformation(EventLogSession session, string logfile, int maximumCacheSize)
         {
             Debug.Assert(session != null);
             _session = session;
@@ -105,7 +104,7 @@ namespace System.Diagnostics.Eventing.Reader
         {
             double maxPassedTime = -10;
             DateTime timeNow = DateTime.Now;
-            ProviderMetadataId? keyToDelete = null;
+            ProviderMetadataId keyToDelete = null;
 
             // Get the entry in the cache which was not accessed for the longest time.
             foreach (KeyValuePair<ProviderMetadataId, CacheItem> kvp in _cache)
@@ -176,7 +175,7 @@ namespace System.Diagnostics.Eventing.Reader
             }
         }
 
-        public string? GetFormatDescription(string ProviderName, EventLogHandle eventHandle)
+        public string GetFormatDescription(string ProviderName, EventLogHandle eventHandle)
         {
             lock (this)
             {
@@ -194,7 +193,7 @@ namespace System.Diagnostics.Eventing.Reader
             }
         }
 
-        public string? GetFormatDescription(string ProviderName, EventLogHandle eventHandle, string?[] values)
+        public string GetFormatDescription(string ProviderName, EventLogHandle eventHandle, string[] values)
         {
             lock (this)
             {
@@ -211,7 +210,7 @@ namespace System.Diagnostics.Eventing.Reader
             }
         }
 
-        public string? GetLevelDisplayName(string ProviderName, EventLogHandle eventHandle)
+        public string GetLevelDisplayName(string ProviderName, EventLogHandle eventHandle)
         {
             lock (this)
             {
@@ -221,7 +220,7 @@ namespace System.Diagnostics.Eventing.Reader
             }
         }
 
-        public string? GetOpcodeDisplayName(string ProviderName, EventLogHandle eventHandle)
+        public string GetOpcodeDisplayName(string ProviderName, EventLogHandle eventHandle)
         {
             lock (this)
             {
@@ -231,7 +230,7 @@ namespace System.Diagnostics.Eventing.Reader
             }
         }
 
-        public string? GetTaskDisplayName(string ProviderName, EventLogHandle eventHandle)
+        public string GetTaskDisplayName(string ProviderName, EventLogHandle eventHandle)
         {
             lock (this)
             {

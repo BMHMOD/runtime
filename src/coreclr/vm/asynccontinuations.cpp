@@ -19,14 +19,13 @@ AsyncContinuationsManager::AsyncContinuationsManager(LoaderAllocator* allocator)
 {
     LIMITED_METHOD_CONTRACT;
 
-    m_layoutsLock.Init(CrstAsyncContinuations);
+    m_layoutsLock.Init(CrstLeafLock);
     LockOwner lock = {&m_layoutsLock, IsOwnerOfCrst};
     m_layouts.Init(16, &lock, m_allocator->GetLowFrequencyHeap());
 }
 
 void AsyncContinuationsManager::NotifyUnloadingClasses()
 {
-#ifdef PROFILING_SUPPORTED
     if (!CORProfilerTrackClasses())
     {
         return;
@@ -40,8 +39,9 @@ void AsyncContinuationsManager::NotifyUnloadingClasses()
         ClassLoader::NotifyUnload(pMT, true);
         ClassLoader::NotifyUnload(pMT, false);
     }
-#endif // PROFILING_SUPPORTED
 }
+
+static EEClass* volatile g_singletonContinuationEEClass;
 
 EEClass* AsyncContinuationsManager::GetOrCreateSingletonSubContinuationEEClass()
 {
@@ -188,7 +188,37 @@ MethodTable* AsyncContinuationsManager::CreateNewContinuationMethodTable(
     return pMT;
 }
 
-MethodTable* AsyncContinuationsManager::LookupOrCreateContinuationMethodTable(unsigned dataSize, const bool* objRefs, Module* loaderModule)
+MethodTable* AsyncContinuationsManager::CreateNewContinuationMethodTable(
+    unsigned dataSize,
+    const bool* objRefs,
+    MethodDesc* asyncMethod,
+    AllocMemTracker* pamTracker)
+{
+    MethodTable* pMT = CreateNewContinuationMethodTable(
+        dataSize,
+        objRefs,
+        GetOrCreateSingletonSubContinuationEEClass(),
+        m_allocator,
+        asyncMethod->GetLoaderModule(),
+        pamTracker);
+
+#ifdef DEBUG
+    StackSString debugName;
+    PrintContinuationName(
+        pMT,
+        [&](LPCSTR str, LPCWSTR wstr) { debugName.AppendUTF8(str); },
+        [&](unsigned num) { debugName.AppendPrintf("%u", num); });
+    const char* debugNameUTF8 = debugName.GetUTF8();
+    size_t len = strlen(debugNameUTF8) + 1;
+    char* name = (char*)pamTracker->Track(m_allocator->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(len)));
+    strcpy_s(name, len, debugNameUTF8);
+    pMT->SetDebugClassName(name);
+#endif
+
+    return pMT;
+}
+
+MethodTable* AsyncContinuationsManager::LookupOrCreateContinuationMethodTable(unsigned dataSize, const bool* objRefs, MethodDesc* asyncMethod)
 {
     STANDARD_VM_CONTRACT;
 
@@ -207,27 +237,7 @@ MethodTable* AsyncContinuationsManager::LookupOrCreateContinuationMethodTable(un
 #endif
 
     AllocMemTracker amTracker;
-    MethodTable* pNewMT = CreateNewContinuationMethodTable(
-        dataSize,
-        objRefs,
-        GetOrCreateSingletonSubContinuationEEClass(),
-        m_allocator,
-        loaderModule,
-        &amTracker);
-
-#ifdef DEBUG
-    StackSString debugName;
-    PrintContinuationName(
-        pNewMT,
-        [&](LPCSTR str, LPCWSTR wstr) { debugName.AppendUTF8(str); },
-        [&](unsigned num) { debugName.AppendPrintf("%u", num); });
-    const char* debugNameUTF8 = debugName.GetUTF8();
-    size_t len = strlen(debugNameUTF8) + 1;
-    char* name = (char*)amTracker.Track(m_allocator->GetHighFrequencyHeap()->AllocMem(S_SIZE_T(len)));
-    strcpy_s(name, len, debugNameUTF8);
-    pNewMT->SetDebugClassName(name);
-#endif
-
+    MethodTable* pNewMT = CreateNewContinuationMethodTable(dataSize, objRefs, asyncMethod, &amTracker);
     MethodTable* pReturnedMT = pNewMT;
     {
         CrstHolder lock(&m_layoutsLock);
@@ -275,6 +285,7 @@ EEHashEntry_t* ContinuationLayoutKeyHashTableHelper::AllocateEntry(ContinuationL
     {
         WRAPPER(THROWS);
         WRAPPER(GC_NOTRIGGER);
+        INJECT_FAULT(return FALSE;);
     }
     CONTRACTL_END
 
@@ -384,6 +395,11 @@ DWORD ContinuationLayoutKeyHashTableHelper::Hash(ContinuationLayoutKey key)
     }
 
     return dwHash;
+}
+
+void ContinuationLayoutKeyHashTableHelper::ReplaceKey(EEHashEntry_t *pEntry, ContinuationLayoutKey newKey)
+{
+    memcpy(pEntry->Key, &newKey, sizeof(ContinuationLayoutKey));
 }
 
 #endif

@@ -79,9 +79,6 @@ namespace R2RDump
         public Option<bool> ValidateDebugInfo { get; } =
             new("--validateDebugInfo", "--val") { Description = "Validate functions reported debug info." };
 
-        public Option<string[]> DumpRva { get; } =
-            new("--dump-rva") { Description = "Dump raw bytes at RVA:Size (hex), e.g. --dump-rva 0x1234:0x20" };
-
         public ParseResult Result;
 
         public R2RDumpRootCommand()
@@ -124,7 +121,6 @@ namespace R2RDump
             Options.Add(SignatureBinary);
             Options.Add(InlineSignatureBinary);
             Options.Add(ValidateDebugInfo);
-            Options.Add(DumpRva);
 
             SetAction(parseResult =>
             {

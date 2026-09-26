@@ -44,7 +44,7 @@ namespace System.IO.Tests
             Assert.Equal(new string[] { "" }, await ReadAsync(path));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task EmptyStringCreatesFileAsync()
         {
             string path = GetTestFilePath();
@@ -53,7 +53,7 @@ namespace System.IO.Tests
             Assert.Empty(await ReadAsync(path));
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(0)]
         [InlineData(100)]
         public async Task ValidWriteAsync(int size)

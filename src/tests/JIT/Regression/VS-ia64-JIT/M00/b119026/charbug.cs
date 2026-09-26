@@ -2,18 +2,14 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b119026a;
-
 using System;
 using Xunit;
 
-public class charbug
+public class test
 {
     static sbyte si8;
     static char sc;
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

@@ -77,7 +77,7 @@ namespace System.Security.Cryptography.X509Certificates
 #endif
             // Windows and Unix permit trailing data after the DER contents of the certificate, so we will allow
             // it here, too.
-            ValueAsnReader reader = new ValueAsnReader(rawData, AsnEncodingRules.DER);
+            AsnValueReader reader = new AsnValueReader(rawData, AsnEncodingRules.DER);
             ReadOnlySpan<byte> encodedValue = reader.PeekEncodedValue();
 
             CertificateAsn.Decode(ref reader, rawData, out certificate);
@@ -280,8 +280,8 @@ namespace System.Security.Cryptography.X509Certificates
 
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(extensionBytes, AsnEncodingRules.DER);
-                ValueAsnReader sequenceReader = reader.ReadSequence();
+                AsnValueReader reader = new AsnValueReader(extensionBytes, AsnEncodingRules.DER);
+                AsnValueReader sequenceReader = reader.ReadSequence();
                 reader.ThrowIfNotEmpty();
 
                 while (sequenceReader.HasData)
@@ -296,7 +296,7 @@ namespace System.Security.Cryptography.X509Certificates
                             {
                                 // Currently only UPN is supported, which is a UTF8 string per
                                 // https://msdn.microsoft.com/en-us/library/ff842518.aspx
-                                ValueAsnReader nameReader = new ValueAsnReader(
+                                AsnValueReader nameReader = new AsnValueReader(
                                     generalName.OtherName.Value.Value.Span,
                                     AsnEncodingRules.DER);
 
@@ -330,11 +330,9 @@ namespace System.Security.Cryptography.X509Certificates
                     }
                 }
             }
-            catch (AsnContentException)
+            catch (AsnContentException e)
             {
-            }
-            catch (CryptographicException)
-            {
+                throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding, e);
             }
 
             return null;

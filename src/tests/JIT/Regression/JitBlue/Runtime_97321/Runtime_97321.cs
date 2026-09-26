@@ -1,9 +1,6 @@
 using System.Runtime.CompilerServices;
 using Xunit;
 
-
-namespace Runtime_97321;
-
 public class Runtime_97321
 {
     [Fact]

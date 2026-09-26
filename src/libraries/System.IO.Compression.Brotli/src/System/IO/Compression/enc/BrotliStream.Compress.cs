@@ -41,7 +41,6 @@ namespace System.IO.Compression
             ArgumentNullException.ThrowIfNull(compressionOptions);
 
             _encoder.SetQuality(compressionOptions.Quality);
-            _encoder.SetWindow(compressionOptions.WindowLog2);
         }
 
         /// <summary>Writes compressed bytes to the underlying stream from the specified byte array.</summary>

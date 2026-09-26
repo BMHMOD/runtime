@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Diagnostics;
 using System.Threading.Tasks;
 
 namespace System.Runtime.CompilerServices
@@ -16,7 +15,6 @@ namespace System.Runtime.CompilerServices
         /// On single-threaded environments (for example, browser), it registers a continuation and yields to the browser event loop immediately.
         /// </remarks>
         /// <param name="task">The result from the main entry point to await.</param>
-        [StackTraceHidden]
         public static void HandleAsyncEntryPoint(Task task)
         {
             task.GetAwaiter().GetResult();
@@ -30,7 +28,6 @@ namespace System.Runtime.CompilerServices
         /// On single-threaded environments (for example, browser), it registers a continuation and yields to the browser event loop immediately.
         /// </remarks>
         /// <param name="task">The result from the main entry point to await.</param>
-        [StackTraceHidden]
         public static int HandleAsyncEntryPoint(Task<int> task)
         {
             return task.GetAwaiter().GetResult();

@@ -41,9 +41,9 @@ namespace ILCompiler.DependencyAnalysis
             sb.Append("unbox_"u8).Append(nameMangler.GetMangledMethodName(Method));
         }
 
-        public static Utf8String GetMangledName(NameMangler nameMangler, MethodDesc method)
+        public static string GetMangledName(NameMangler nameMangler, MethodDesc method)
         {
-            return Utf8String.Concat("unbox_"u8, nameMangler.GetMangledMethodName(method).AsSpan());
+            return "unbox_" + nameMangler.GetMangledMethodName(method);
         }
 
         protected override string GetName(NodeFactory factory) => this.GetMangledName(factory.NameMangler);

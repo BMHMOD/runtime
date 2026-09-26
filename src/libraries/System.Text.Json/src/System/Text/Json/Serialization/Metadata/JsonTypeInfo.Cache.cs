@@ -33,7 +33,7 @@ namespace System.Text.Json.Serialization.Metadata
             get
             {
                 Debug.Assert(IsConfigured);
-                return _parameterCache is not null;
+                return _parameterCache != null;
             }
         }
 
@@ -181,7 +181,7 @@ namespace System.Text.Json.Serialization.Metadata
             {
                 PropertyRef[] newCache = cacheBuilder.ToArray();
                 Debug.Assert(newCache.Length <= PropertyRefCacheBuilder.MaxCapacity);
-                _utf8PropertyCache = newCache;
+                _utf8PropertyCache = cacheBuilder.ToArray();
             }
 
             frame.PropertyRefCacheBuilder = null;

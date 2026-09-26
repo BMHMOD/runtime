@@ -54,7 +54,6 @@ extends:
             displayName: Build
             steps:
               - checkout: self
-                fetchTags: false
 
               - task: UseDotNet@2
                 inputs:

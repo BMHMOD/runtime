@@ -209,7 +209,6 @@ public class Test
     }
 
     [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsCollectibleAssembliesSupported))]
-    [SkipOnCoreClr("Test polls a fixed number of times for collectible ALCs to be unloaded, which is unreliable under GC stress", RuntimeTestModes.AnyGCStress)]
     public static int TestEntryPoint()
     {
         int status = 100;

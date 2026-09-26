@@ -288,21 +288,22 @@ namespace System
         /// Tries to convert a local date and time to Coordinated Universal Time (UTC).
         /// </summary>
         /// <param name="localDateTime">The local date and time to convert.</param>
-        /// <param name="utcTicks">When this method returns, contains the UTC ticks if the conversion succeeded. The value may be negative or exceed DateTime range.</param>
+        /// <param name="utcDateTime">When this method returns, contains the UTC date and time if the conversion succeeded.</param>
         /// <returns>True if the conversion was successful; otherwise, false.</returns>
         /// <remarks>
         /// This method attempts to convert a local time to UTC. It returns false if the local time is invalid,
         /// such as during a daylight saving time transition when the local time does not exist.
         /// </remarks>
-        private bool TryLocalToUtc(DateTime localDateTime, out long utcTicks)
+        private bool TryLocalToUtc(DateTime localDateTime, out DateTime utcDateTime)
         {
             if (TryGetUtcOffset(localDateTime, out TimeSpan offset))
             {
-                utcTicks = localDateTime.Ticks - offset.Ticks;
+                long ticks = localDateTime.Ticks - offset.Ticks;
+                utcDateTime = SafeCreateDateTimeFromTicks(ticks, DateTimeKind.Utc);
                 return true;
             }
 
-            utcTicks = 0;
+            utcDateTime = default;
             return false;
         }
 

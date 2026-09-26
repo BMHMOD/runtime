@@ -78,7 +78,7 @@ namespace System.Runtime.Serialization.DataContracts
         [RequiresUnreferencedCode(DataContract.SerializerTrimmerWarning)]
         internal void Add(Type type)
         {
-            DataContract dataContract = GetDataContract(type, verifyConstructor: false);
+            DataContract dataContract = GetDataContract(type);
             EnsureTypeNotGeneric(dataContract.UnderlyingType);
             Add(dataContract);
         }
@@ -226,22 +226,15 @@ namespace System.Runtime.Serialization.DataContracts
         [RequiresUnreferencedCode(DataContract.SerializerTrimmerWarning)]
         public DataContract GetDataContract(Type type)
         {
-            return GetDataContract(type, verifyConstructor: true);
-        }
-
-        [RequiresDynamicCode(DataContract.SerializerAOTWarning)]
-        [RequiresUnreferencedCode(DataContract.SerializerTrimmerWarning)]
-        private DataContract GetDataContract(Type type, bool verifyConstructor)
-        {
             if (_surrogateProvider == null)
-                return DataContract.GetDataContract(type, verifyConstructor);
+                return DataContract.GetDataContract(type);
 
             DataContract? dataContract = DataContract.GetBuiltInDataContract(type);
             if (dataContract != null)
                 return dataContract;
 
             Type dcType = DataContractSurrogateCaller.GetDataContractType(_surrogateProvider, type);
-            dataContract = DataContract.GetDataContract(dcType, verifyConstructor);
+            dataContract = DataContract.GetDataContract(dcType);
             if (_extendedSurrogateProvider != null && !SurrogateData.Contains(dataContract))
             {
                 object? customData = DataContractSurrogateCaller.GetCustomDataToExport(_extendedSurrogateProvider, type, dcType);
@@ -288,7 +281,7 @@ namespace System.Runtime.Serialization.DataContracts
                 }
                 else
                 {
-                    return GetDataContract(dataMemberType, verifyConstructor: false);
+                    return GetDataContract(dataMemberType);
                 }
             }
             return dataMember.MemberTypeContract;
@@ -299,7 +292,7 @@ namespace System.Runtime.Serialization.DataContracts
         internal DataContract GetItemTypeDataContract(CollectionDataContract collectionContract)
         {
             if (collectionContract.ItemType != null)
-                return GetDataContract(collectionContract.ItemType, verifyConstructor: false);
+                return GetDataContract(collectionContract.ItemType);
             return collectionContract.ItemContract;
         }
 
@@ -330,7 +323,7 @@ namespace System.Runtime.Serialization.DataContracts
                     foreach (Type type in _referencedTypes)
                     {
                         if (type == null)
-                            throw new InvalidOperationException(SR.ReferencedTypesCannotContainNull);
+                            throw new InvalidOperationException(SR.Format(SR.ReferencedTypesCannotContainNull));
 
                         AddReferencedType(_referencedTypesDictionary, type);
                     }
@@ -351,7 +344,7 @@ namespace System.Runtime.Serialization.DataContracts
                     foreach (Type type in _referencedCollectionTypes)
                     {
                         if (type == null)
-                            throw new InvalidOperationException(SR.ReferencedCollectionTypesCannotContainNull);
+                            throw new InvalidOperationException(SR.Format(SR.ReferencedCollectionTypesCannotContainNull));
                         AddReferencedType(_referencedCollectionTypesDictionary, type);
                     }
                 }

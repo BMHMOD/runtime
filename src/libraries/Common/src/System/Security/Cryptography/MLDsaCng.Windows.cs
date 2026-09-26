@@ -49,7 +49,11 @@ namespace System.Security.Cryptography
 
             MLDsaAlgorithm algorithm = AlgorithmFromHandleImpl(key);
 
+#if SYSTEM_SECURITY_CRYPTOGRAPHY
+            duplicateKey = CngHelpers.Duplicate(key.HandleNoDuplicate, key.IsEphemeral);
+#else
             duplicateKey = key.Duplicate();
+#endif
 
             return algorithm;
         }
@@ -94,7 +98,13 @@ namespace System.Security.Cryptography
         {
             ThrowIfDisposed();
 
+#if SYSTEM_SECURITY_CRYPTOGRAPHY
+            return CngHelpers.Duplicate(_key.HandleNoDuplicate, _key.IsEphemeral);
+#else
+#pragma warning disable CA1416 // only supported on: 'windows'
             return _key.Duplicate();
+#pragma warning restore CA1416 // only supported on: 'windows'
+#endif
         }
 
         internal CngKey KeyNoDuplicate => _key;
@@ -113,28 +123,16 @@ namespace System.Security.Cryptography
                 ExportKeyWithEncryptedOnlyExport(
                     static (ref readonly mldsaPrivateKeyAsn, algorithm, destination) =>
                     {
-                        ReadOnlySpan<byte> seedValue = default;
-                        bool hasSeed = false;
+                        ReadOnlyMemory<byte>? seed = mldsaPrivateKeyAsn.Seed ?? mldsaPrivateKeyAsn.Both?.Seed;
 
-                        if (mldsaPrivateKeyAsn.HasSeed)
-                        {
-                            hasSeed = true;
-                            seedValue = mldsaPrivateKeyAsn.Seed;
-                        }
-                        else if (mldsaPrivateKeyAsn.HasBoth)
-                        {
-                            hasSeed = true;
-                            seedValue = mldsaPrivateKeyAsn.Both.Seed;
-                        }
-
-                        if (hasSeed)
+                        if (seed is ReadOnlyMemory<byte> seedValue)
                         {
                             if (seedValue.Length != algorithm.PrivateSeedSizeInBytes)
                             {
                                 throw new CryptographicException(SR.Argument_PrivateSeedWrongSizeForAlgorithm);
                             }
 
-                            seedValue.CopyTo(destination);
+                            seedValue.Span.CopyTo(destination);
                             return;
                         }
 
@@ -158,41 +156,30 @@ namespace System.Security.Cryptography
             {
                 ExportKeyWithEncryptedOnlyExport(static (ref readonly mldsaPrivateKeyAsn, algorithm, destination) =>
                 {
-                    ReadOnlySpan<byte> expandedKeyValue = default;
-                    bool hasExpandedKey = false;
+                    ReadOnlyMemory<byte>? expandedKey = mldsaPrivateKeyAsn.ExpandedKey ?? mldsaPrivateKeyAsn.Both?.ExpandedKey;
 
-                    if (mldsaPrivateKeyAsn.HasExpandedKey)
-                    {
-                        hasExpandedKey = true;
-                        expandedKeyValue = mldsaPrivateKeyAsn.ExpandedKey;
-                    }
-                    else if (mldsaPrivateKeyAsn.HasBoth)
-                    {
-                        hasExpandedKey = true;
-                        expandedKeyValue = mldsaPrivateKeyAsn.Both.ExpandedKey;
-                    }
-
-                    if (hasExpandedKey)
+                    if (expandedKey is ReadOnlyMemory<byte> expandedKeyValue)
                     {
                         if (expandedKeyValue.Length != algorithm.PrivateKeySizeInBytes)
                         {
                             throw new CryptographicException(SR.Argument_PrivateKeyWrongSizeForAlgorithm);
                         }
 
-                        expandedKeyValue.CopyTo(destination);
+                        expandedKeyValue.Span.CopyTo(destination);
                         return;
                     }
 
-                    if (mldsaPrivateKeyAsn.HasSeed)
-                    {
-                        ReadOnlySpan<byte> seedValue = mldsaPrivateKeyAsn.Seed;
+                    // If PKCS#8 only has seed, then we can calculate the private key
+                    ReadOnlyMemory<byte>? seed = mldsaPrivateKeyAsn.Seed;
 
+                    if (seed is ReadOnlyMemory<byte> seedValue)
+                    {
                         if (seedValue.Length != algorithm.PrivateSeedSizeInBytes)
                         {
                             throw new CryptographicException(SR.Argument_PrivateSeedWrongSizeForAlgorithm);
                         }
 
-                        using (MLDsa cloned = MLDsaImplementation.ImportSeed(algorithm, seedValue))
+                        using (MLDsa cloned = MLDsaImplementation.ImportSeed(algorithm, seedValue.Span))
                         {
                             cloned.ExportMLDsaPrivateKey(destination);
                             return;
@@ -445,7 +432,10 @@ namespace System.Security.Cryptography
             base.Dispose(disposing);
         }
 
-        private void ExportKey(CngKeyBlobFormat blobFormat, int expectedKeySize, Span<byte> destination)
+        private void ExportKey(
+            CngKeyBlobFormat blobFormat,
+            int expectedKeySize,
+            Span<byte> destination)
         {
             byte[] blob = _key.Export(blobFormat);
 
@@ -472,7 +462,7 @@ namespace System.Security.Cryptography
         }
 
         private delegate void KeySelectorFunc(
-            ref readonly ValueMLDsaPrivateKeyAsn mldsaPrivateKeyAsn,
+            ref readonly MLDsaPrivateKeyAsn mldsaPrivateKeyAsn,
             MLDsaAlgorithm algorithm,
             Span<byte> destination);
 
@@ -483,12 +473,12 @@ namespace System.Security.Cryptography
 
             try
             {
-                ReadOnlySpan<byte> privateKey = KeyFormatHelper.ReadPkcs8(KnownOids, pkcs8.AsSpan(), out _);
-                scoped ValueMLDsaPrivateKeyAsn mldsaPrivateKeyAsn;
+                ReadOnlyMemory<byte> privateKey = KeyFormatHelper.ReadPkcs8(KnownOids, pkcs8.AsMemory(), out _);
+                MLDsaPrivateKeyAsn mldsaPrivateKeyAsn;
 
                 try
                 {
-                    ValueMLDsaPrivateKeyAsn.Decode(privateKey, AsnEncodingRules.BER, out mldsaPrivateKeyAsn);
+                    mldsaPrivateKeyAsn = MLDsaPrivateKeyAsn.Decode(privateKey, AsnEncodingRules.BER);
                 }
                 catch (AsnContentException e)
                 {

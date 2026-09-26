@@ -109,19 +109,6 @@ namespace System
             }
         }
 
-        [UnmanagedCallersOnly]
-        private static unsafe void ReleaseAllData(__ComObject* pComObject, Exception* pException)
-        {
-            try
-            {
-                pComObject->ReleaseAllData();
-            }
-            catch (Exception ex)
-            {
-                *pException = ex;
-            }
-        }
-
         /// <summary>
         /// Called from within the EE and is used to handle calls on methods of event interfaces.
         /// </summary>

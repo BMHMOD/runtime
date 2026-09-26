@@ -193,11 +193,6 @@ static StackWalkAction GetStackFramesCallback(CrawlFrame* pCf, VOID* data)
     //                       because we asked the stackwalker for it!
     MethodDesc* pFunc = pCf->GetFunction();
 
-    if (pFunc != nullptr && pFunc == g_pEnvironmentCallEntryPointMethodDesc)
-    {
-        return SWA_CONTINUE;
-    }
-
     DebugStackTrace::GetStackFramesData* pData = (DebugStackTrace::GetStackFramesData*)data;
     if (pData->cElements >= pData->cElementsAllocated)
     {
@@ -287,33 +282,6 @@ static void GetStackFrames(DebugStackTrace::GetStackFramesData *pData)
     {
         pData->pElements[i].InitPass2();
     }
-}
-
-extern "C" void QCALLTYPE AsyncHelpers_AddContinuationToExInternal(
-    void* diagnosticIP,
-    QCall::ObjectHandleOnStack exception)
-{
-    QCALL_CONTRACT;
-
-    BEGIN_QCALL;
-
-    GCX_COOP();
-
-    OBJECTREF pException = (OBJECTREF)exception.Get();
-    _ASSERTE(pException != NULL);
-
-    // populate exception with information from the continuation object
-    EECodeInfo codeInfo((PCODE)diagnosticIP);
-    _ASSERTE(codeInfo.IsValid());
-    MethodDesc* methodDesc = codeInfo.GetMethodDesc();
-    StackTraceInfo::AppendElement(
-        pException,
-        (UINT_PTR)diagnosticIP,
-        0,
-        methodDesc,
-        NULL);
-
-    END_QCALL;
 }
 
 extern "C" void QCALLTYPE StackTrace_GetStackFramesInternal(
@@ -561,15 +529,15 @@ extern "C" void QCALLTYPE StackTrace_GetStackFramesInternal(
                 // limitations (doesn't support in-memory or embedded PDBs).
                 if (pModule->GetPEAssembly()->HasLoadedPEImage())
                 {
-                    PEImageLayout* pe = pModule->GetPEAssembly()->GetLoadedLayout();
-                    if (pe->HasDirectoryEntry(IMAGE_DIRECTORY_ENTRY_DEBUG))
+                    PEDecoder* pe = pModule->GetPEAssembly()->GetLoadedLayout();
+                    IMAGE_DATA_DIRECTORY* debugDirectoryEntry = pe->GetDirectoryEntry(IMAGE_DIRECTORY_ENTRY_DEBUG);
+                    if (debugDirectoryEntry != nullptr)
                     {
-                        COUNT_T debugDirSize = 0;
-                        IMAGE_DEBUG_DIRECTORY* debugDirectory = (IMAGE_DEBUG_DIRECTORY*)(TADDR)pe->GetDirectoryEntryData(IMAGE_DIRECTORY_ENTRY_DEBUG, &debugDirSize);
+                        IMAGE_DEBUG_DIRECTORY* debugDirectory = (IMAGE_DEBUG_DIRECTORY*)pe->GetDirectoryData(debugDirectoryEntry);
                         if (debugDirectory != nullptr)
                         {
                             size_t nbytes = 0;
-                            while (nbytes < debugDirSize)
+                            while (nbytes < debugDirectoryEntry->Size)
                             {
                                 if ((debugDirectory->Type == IMAGE_DEBUG_TYPE_CODEVIEW && debugDirectory->MinorVersion == PORTABLE_PDB_MINOR_VERSION) ||
                                     (debugDirectory->Type == IMAGE_DEBUG_TYPE_EMBEDDED_PORTABLE_PDB))
@@ -844,19 +812,8 @@ extern "C" MethodDesc* QCALLTYPE StackFrame_GetMethodDescFromNativeIP(LPVOID ip)
     return pResult;
 }
 
-struct StrongHandleHolderTraits final
-{
-    using Type = OBJECTHANDLE;
-    static constexpr Type Default() { return NULL; }
-    static void Free(Type handle)
-    {
-        WRAPPER_NO_CONTRACT;
-        if (handle != NULL)
-            DestroyStrongHandle(handle);
-    }
-};
-
-using StrongHandleHolder = LifetimeHolder<StrongHandleHolderTraits>;
+FORCEINLINE void HolderDestroyStrongHandle(OBJECTHANDLE h) { if (h != NULL) DestroyStrongHandle(h); }
+typedef Wrapper<OBJECTHANDLE, DoNothing<OBJECTHANDLE>, HolderDestroyStrongHandle, 0> StrongHandleHolder;
 
 // receives a custom notification object from the target and sends it to the RS via
 // code:Debugger::SendCustomDebuggerNotification
@@ -877,14 +834,14 @@ extern "C" void QCALLTYPE DebugDebugger_CustomNotification(QCall::ObjectHandleOn
     Thread * pThread = GetThread();
     AppDomain * pAppDomain = AppDomain::GetCurrentDomain();
 
-    StrongHandleHolder objHandle(pAppDomain->CreateStrongHandle(data.Get()));
+    StrongHandleHolder objHandle = pAppDomain->CreateStrongHandle(data.Get());
     MethodTable* pMT = data.Get()->GetGCSafeMethodTable();
     Module* pModule = pMT->GetModule();
-    Assembly* pAssembly = pModule->GetAssembly();
+    DomainAssembly* pDomainAssembly = pModule->GetDomainAssembly();
     mdTypeDef classToken = pMT->GetCl();
 
     pThread->SetThreadCurrNotification(objHandle);
-    g_pDebugInterface->SendCustomDebuggerNotification(pThread, pAssembly, classToken);
+    g_pDebugInterface->SendCustomDebuggerNotification(pThread, pDomainAssembly, classToken);
     pThread->ClearThreadCurrNotification();
 
     if (pThread->IsAbortRequested())
@@ -994,37 +951,25 @@ void DebugStackTrace::GetStackFramesFromException(OBJECTREF * e,
                 // push frames and the method body is therefore non-contiguous.
                 // Currently such methods always return an IP of 0, so they're easy
                 // to spot.
-                DWORD dwNativeOffset = 0;
-                UINT_PTR ip = cur.ip;
-                if (cur.flags & STEF_CONTINUATION)
-                {
-                    EECodeInfo codeInfo((PCODE)ip);
-                    if (codeInfo.IsValid())
-                    {
-                        PCODE startAddress = codeInfo.GetStartAddress();
-                        dwNativeOffset = (DWORD)(ip - startAddress);
-                    }
-                }
+                DWORD dwNativeOffset;
 
+                UINT_PTR ip = cur.ip;
+#if defined(DACCESS_COMPILE) && defined(TARGET_AMD64)
+                // Compensate for a bug in the old EH that for a frame that faulted
+                // has the ip pointing to an address before the faulting instruction
+                if ((i == 0) && ((cur.flags & STEF_IP_ADJUSTED) == 0))
+                {
+                    ip -= 1;
+                }
+#endif // DACCESS_COMPILE && TARGET_AMD64
+                if (ip)
+                {
+                    EECodeInfo codeInfo(ip);
+                    dwNativeOffset = codeInfo.GetRelOffset();
+                }
                 else
                 {
-#if defined(DACCESS_COMPILE) && defined(TARGET_AMD64)
-                    // Compensate for a bug in the old EH that for a frame that faulted
-                    // has the ip pointing to an address before the faulting instruction
-                    if ((i == 0) && ((cur.flags & STEF_IP_ADJUSTED) == 0))
-                    {
-                        ip -= 1;
-                    }
-#endif // DACCESS_COMPILE && TARGET_AMD64
-                    if (ip)
-                    {
-                        EECodeInfo codeInfo(ip);
-                        dwNativeOffset = codeInfo.GetRelOffset();
-                    }
-                    else
-                    {
-                        dwNativeOffset = 0;
-                    }
+                    dwNativeOffset = 0;
                 }
 
                 pData->pElements[i].InitPass1(
@@ -1099,7 +1044,7 @@ bool CheckNativeToILCacheCore(void* ip, bool fAdjustOffset, uint32_t* pILOffset)
     // Check the cache for the IP
     int hashCode = MixPointerIntoHash(ip);
     StackWalkNativeToILCacheEntry* cacheTable = VolatileLoad(&s_stackWalkCache);
-
+    
     if (cacheTable == NULL)
     {
         // Cache is not initialized
@@ -1172,7 +1117,7 @@ void InsertIntoNativeToILCache(void* ip, bool fAdjustOffset, uint32_t dwILOffset
     }
 
     // Insert the IP and IL offset into the cache
-
+    
     LONG versionStart = VolatileLoadWithoutBarrier(&s_stackWalkNativeToILCacheVersion);
     if ((versionStart & 1) == 1)
     {
@@ -1304,7 +1249,7 @@ size_t WalkILOffsetsCallback(ICorDebugInfo::OffsetMapping *pOffsetMapping, void 
             // We are looking for an IL offset, and all IL offsets are are about portions of the method that are after the native offset we were passed initially.
             // Treat this like a PROLOG and set the IL offset to 0
             pWalkData->dwFinalILOffset = 0;
-            return 1;
+            return 1; 
         }
         pWalkData->dwILOffsetFound = pOffsetMapping->ilOffset;
     }
@@ -1317,7 +1262,7 @@ size_t WalkILOffsetsCallback(ICorDebugInfo::OffsetMapping *pOffsetMapping, void 
             if (pWalkData->skipPrologCase)
             {
                 if (pWalkData->prevILOffsetFound != (DWORD)ICorDebugInfo::NO_MAPPING &&
-                    pWalkData->prevILOffsetFound != (DWORD)ICorDebugInfo::PROLOG &&
+                    pWalkData->prevILOffsetFound != (DWORD)ICorDebugInfo::PROLOG && 
                     pWalkData->prevILOffsetFound != (DWORD)ICorDebugInfo::EPILOG)
                 {
                     // We found a valid IL offset after the prolog, so set the final IL offset to the one we found
@@ -1407,19 +1352,19 @@ void ValidateILOffset(MethodDesc *pFunc, uint8_t* ip)
 
     DWORD dwILOffsetDebugInterface = 0;
     DWORD dwILOffsetWalk = 0;
-
+    
     bool bResGetILOffsetFromNative = g_pDebugInterface->GetILOffsetFromNative(
         pFunc,
         (LPCBYTE)ip,
         dwNativeOffset,
         &dwILOffsetDebugInterface);
-
+        
     WalkILOffsetsData data(dwNativeOffset);
     TADDR startAddress = codeInfo.GetStartAddress();
     DebugInfoRequest request;
     request.InitFromStartingAddr(codeInfo.GetMethodDesc(), startAddress);
     bool bWalkILOffsets;
-
+    
     if (pFunc->IsDynamicMethod())
     {
         bWalkILOffsets = false;
@@ -1609,7 +1554,7 @@ void DebugStackTrace::Element::InitPass2()
 
     bool bRes = false;
 
-    bool fAdjustOffset = (this->flags & STEF_IP_ADJUSTED) == 0 && this->dwOffset > 0 && !(this->flags & STEF_CONTINUATION);
+    bool fAdjustOffset = (this->flags & STEF_IP_ADJUSTED) == 0 && this->dwOffset > 0;
 
     // Check the cache!
     uint32_t dwILOffsetFromCache;
@@ -1665,7 +1610,7 @@ int32_t ILToNativeMapArrays::CompareILOffsets(uint32_t ilOffsetA, uint32_t ilOff
 {
     if (ilOffsetA == ilOffsetB)
     {
-        return 0;
+        return 0; 
     }
 
     if (ilOffsetA == (uint32_t)ICorDebugInfo::PROLOG)
@@ -1757,7 +1702,7 @@ int32_t ILToNativeMapArrays::Partition(uint32_t* rguiNativeOffset, uint32_t *rgu
 {
     LIMITED_METHOD_CONTRACT;
 
-    // Choose the pivot as the middle element and
+    // Choose the pivot as the middle element and 
     // pull the pivot the the end of the array.
     Swap(rguiNativeOffset, rguiILOffset, low + (high - low) / 2, high);
 
@@ -1819,7 +1764,7 @@ void ILToNativeMapArrays::AddEntry(ICorDebugInfo::OffsetMapping *pOffsetMapping)
         if (callInstrSequence < 2)
         {
             // Check to see if we should prefer to drop this mapping in favor of a future mapping.
-            if ((m_rguiILOffset.GetCount() > 0) &&
+            if ((m_rguiILOffset.GetCount() > 0) && 
                 (m_rguiILOffset[m_rguiILOffset.GetCount() - 1] == pOffsetMapping->ilOffset))
             {
                 callInstrSequence = 0;

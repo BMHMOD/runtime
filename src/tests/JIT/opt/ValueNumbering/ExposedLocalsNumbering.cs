@@ -6,7 +6,6 @@ using System.Threading;
 using System.Runtime.InteropServices;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 public unsafe class ExposedLocalsNumbering
 {
@@ -15,7 +14,6 @@ public unsafe class ExposedLocalsNumbering
     private static volatile bool s_finished;
     private static int* s_pIndex = (int*)NativeMemory.Alloc(4);
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/105187", TestPlatforms.Any)]
     [Fact]
     public static int TestEntryPoint()
     {

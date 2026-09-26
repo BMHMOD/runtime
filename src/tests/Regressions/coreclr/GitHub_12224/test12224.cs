@@ -3,7 +3,6 @@
 using System;
 using System.Threading;
 using Xunit;
-using TestLibrary;
 
 public class Test12224
 {    
@@ -29,9 +28,7 @@ public class Test12224
         }
     }
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
-    [SkipOnCoreClr("This test is not compatible with GC stress.", RuntimeTestModes.AnyGCStress)]
-    [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+    [Fact]
     public static int TestEntryPoint()
     {
         Thread thread = new Thread(new ParameterizedThreadStart(Test12224.ExecuteTest));

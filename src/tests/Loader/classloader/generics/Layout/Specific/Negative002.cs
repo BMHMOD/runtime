@@ -4,7 +4,6 @@
 using System;
 using System.Runtime.InteropServices;
 using Xunit;
-using TestLibrary;
 
 [StructLayout(LayoutKind.Auto)]
 public class GenBase<T>
@@ -65,7 +64,6 @@ public class Test_Negative002
 	
 	}
 	
- [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
 	[Fact]
 	public static int TestEntryPoint()
 	{

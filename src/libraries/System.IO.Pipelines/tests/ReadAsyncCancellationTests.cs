@@ -134,7 +134,7 @@ namespace System.IO.Pipelines.Tests
             Pipe.Reader.AdvanceTo(buffer.Start, buffer.Start);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public void ReadAsyncCancellationDeadlock()
         {
             var cts = new CancellationTokenSource();
@@ -385,7 +385,7 @@ namespace System.IO.Pipelines.Tests
             Pipe.Reader.AdvanceTo(result.Buffer.Start);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task ReadingCanBeCanceled()
         {
             var cts = new CancellationTokenSource();

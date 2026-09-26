@@ -98,11 +98,6 @@ namespace Microsoft.Extensions.Caching.Memory
         /// </value>
         public bool TrackStatistics { get; set; }
 
-        /// <summary>
-        /// Gets or sets the name of this cache instance.
-        /// </summary>
-        public string Name { get; set; } = "Default";
-
         MemoryCacheOptions IOptions<MemoryCacheOptions>.Value
         {
             get { return this; }

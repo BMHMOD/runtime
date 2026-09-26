@@ -23,13 +23,13 @@ namespace NetClient
             Console.WriteLine($"Calling {nameof(ActivateLicensedObject)}...");
 
             // Validate activation
-            var licenseTesting = new LicenseTesting();
+            var licenseTesting = (LicenseTesting)new LicenseTestingClass();
 
             // Validate license denial
             licenseTesting.SetNextDenyLicense(true);
             try
             {
-                var tmp = new LicenseTesting();
+                var tmp = (LicenseTesting)new LicenseTestingClass();
                 Assert.Fail("Activation of licensed class should fail");
             }
             catch (COMException e)
@@ -75,9 +75,9 @@ namespace NetClient
             }
         }
 
-        static void ActivateUnderDesignTimeContext()
+        static void ActivateUnderDesigntimeContext()
         {
-            Console.WriteLine($"Calling {nameof(ActivateUnderDesignTimeContext)}...");
+            Console.WriteLine($"Calling {nameof(ActivateUnderDesigntimeContext)}...");
 
             LicenseContext prev = LicenseManager.CurrentContext;
             try
@@ -86,7 +86,7 @@ namespace NetClient
                 LicenseManager.CurrentContext = new MockLicenseContext(typeof(LicenseTestingClass), LicenseUsageMode.Designtime);
                 LicenseManager.CurrentContext.SetSavedLicenseKey(typeof(LicenseTestingClass), licKey);
 
-                var licenseTesting = new LicenseTesting();
+                var licenseTesting = (LicenseTesting)new LicenseTestingClass();
 
                 // During design time the IClassFactory::CreateInstance will be called - no license
                 Assert.Null(licenseTesting.GetLicense());
@@ -111,7 +111,7 @@ namespace NetClient
                 LicenseManager.CurrentContext = new MockLicenseContext(typeof(LicenseTestingClass), LicenseUsageMode.Runtime);
                 LicenseManager.CurrentContext.SetSavedLicenseKey(typeof(LicenseTestingClass), licKey);
 
-                var licenseTesting = new LicenseTesting();
+                var licenseTesting = (LicenseTesting)new LicenseTestingClass();
 
                 // During runtime the IClassFactory::CreateInstance2 will be called with license from context
                 Assert.Equal(licKey, licenseTesting.GetLicense());
@@ -134,7 +134,7 @@ namespace NetClient
             try
             {
                 ActivateLicensedObject();
-                ActivateUnderDesignTimeContext();
+                ActivateUnderDesigntimeContext();
                 ActivateUnderRuntimeContext();
             }
             catch (Exception e)

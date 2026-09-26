@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using Microsoft.DotNet.XUnitExtensions;
@@ -106,10 +105,6 @@ namespace System.Management.Tests
         [ConditionalFact(typeof(WmiTestHelper), nameof(WmiTestHelper.IsWmiSupported))]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/34689", TestPlatforms.Windows, TargetFrameworkMonikers.Netcoreapp, TestRuntimes.Mono)]
         [OuterLoop]
-#if NET
-        [RequiresDynamicCode("BinaryFormatter serialization uses dynamic code generation")]
-        [RequiresUnreferencedCode("BinaryFormatter serialization is not trim compatible")]
-#endif
         public void Serialize_ManagementException()
         {
             try

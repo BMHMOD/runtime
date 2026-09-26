@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 
-
-namespace DevDiv_288222;
-
 using System;
 using System.Runtime.CompilerServices;
 using System.Numerics;
@@ -25,7 +22,6 @@ public class Program
         doCopy(array, start);
     }
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

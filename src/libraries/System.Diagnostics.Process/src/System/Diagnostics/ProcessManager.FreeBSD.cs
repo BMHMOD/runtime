@@ -20,17 +20,6 @@ namespace System.Diagnostics
             return Interop.Process.GetProcPath(processId);
         }
 
-        internal static string? GetProcessName(int processId, string _ /* machineName */, bool __ /* isRemoteMachine */, ref ProcessInfo? processInfo)
-        {
-            if (processInfo is not null)
-            {
-                return processInfo.ProcessName;
-            }
-
-            processInfo = CreateProcessInfo(processId);
-            return processInfo?.ProcessName;
-        }
-
         internal static ProcessInfo? CreateProcessInfo(int pid, string? processNameFilter = null)
         {
             // Negative PIDs aren't valid
@@ -39,7 +28,7 @@ namespace System.Diagnostics
             // Try to get the task info. This can fail if the user permissions don't permit
             // this user context to query the specified process
             ProcessInfo iinfo = Interop.Process.GetProcessInfoById(pid);
-            if (processNameFilter != null && !processNameFilter.Equals(iinfo.ProcessName, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(processNameFilter) && !processNameFilter.Equals(iinfo.ProcessName))
             {
                 return null;
             }

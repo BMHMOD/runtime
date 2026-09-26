@@ -4,30 +4,21 @@
 using System;
 using System.Runtime.InteropServices;
 
-unsafe partial class Program
+unsafe
 {
-#if !EXCLUDE_WIN32RESOURCES_MAIN
-    private static int Main()
-    {
-        ValidateWin32Resources();
-        return 100;
-    }
-#endif
+    nint lib = 0;
 
-    public static void ValidateWin32Resources()
-    {
-        nint lib = 0;
+    if (GetIntValueFromResource(lib, (ushort*)(nuint)(ushort)10, 0x041B) != 3)
+        throw new Exception();
 
-        if (GetIntValueFromResource(lib, (ushort*)(nuint)(ushort)10, 0x041B) != 3)
+    ReadOnlySpan<char> resName = "funny";
+    fixed (char* pResName = resName)
+        if (GetIntValueFromResource(lib, (ushort*)pResName, 0x041B) != 1)
             throw new Exception();
 
-        ReadOnlySpan<char> resName = "funny";
-        fixed (char* pResName = resName)
-            if (GetIntValueFromResource(lib, (ushort*)pResName, 0x041B) != 1)
-                throw new Exception();
-    }
+    return 100;
 
-    private static int GetIntValueFromResource(nint hModule, ushort* lpName, ushort wLanguage)
+    static int GetIntValueFromResource(nint hModule, ushort* lpName, ushort wLanguage)
     {
         ushort* RT_RCDATA = (ushort*)(nuint)(ushort)10;
 
@@ -45,14 +36,14 @@ unsafe partial class Program
     }
 
     [DllImport("kernel32")]
-    private static extern nint FindResourceExW(nint hModule, ushort* lpType, ushort* lpName, ushort wLanguage);
+    static extern nint FindResourceExW(nint hModule, ushort* lpType, ushort* lpName, ushort wLanguage);
 
     [DllImport("kernel32")]
-    private static extern nint LoadResource(nint hModule, nint hResInfo);
+    static extern nint LoadResource(nint hModule, nint hResInfo);
 
     [DllImport("kernel32")]
-    private static extern void* LockResource(nint hResData);
+    static extern void* LockResource(nint hResData);
 
     [DllImport("kernel32")]
-    private static extern uint SizeofResource(nint hModule, nint hResInfo);
+    static extern uint SizeofResource(nint hModule, nint hResInfo);
 }

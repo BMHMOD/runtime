@@ -5,9 +5,6 @@
 // Since the issue was filed, the 'TestStructManuallyInlined' case has apparently
 // gotten worse, as there is a MEMSET of the large struct to 0.
 
-
-namespace GitHub_11816;
-
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;

@@ -6,9 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Swift;
 using Xunit;
-using TestLibrary;
 
-[PlatformSpecific(TestPlatforms.AnyApple)]
 public unsafe class SwiftIndirectResultTests
 {
     private struct NonFrozenStruct

@@ -8,7 +8,7 @@ using Mono.Linker.Tests.Cases.Expectations.Metadata;
 
 namespace Mono.Linker.Tests.Cases.RequiresCapability
 {
-    [SetupLinkerArgument("-a", "test", "library")]
+    [SetupLinkerArgument("-a", "test.exe", "library")]
 
     [SkipKeptItemsValidation]
     [ExpectedNoWarnings]

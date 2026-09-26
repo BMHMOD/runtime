@@ -10,7 +10,7 @@
 #define __stacking_allocator_h__
 
 #include "util.hpp"
-#include <contract.h>
+#include "eecontract.h"
 
 
 // We use zero sized arrays, disable the non-standard extension warning.
@@ -106,14 +106,16 @@ public:
     // @todo move this into a .inl file as many class users of this class don't need to include this body
     FORCEINLINE void * UnsafeAllocNoThrow(unsigned Size)
     {
-        CONTRACTL
+        CONTRACT (void*)
         {
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
+            INJECT_FAULT(CONTRACT_RETURN NULL;);
             PRECONDITION(m_CheckpointDepth > 0);
+            POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
         }
-        CONTRACTL_END;
+        CONTRACT_END;
 
 #ifdef _DEBUG
         m_Allocs++;
@@ -123,7 +125,7 @@ public:
         //special case, 0 size alloc, return non-null but invalid pointer
         if (Size == 0)
         {
-            return (void*)-1;
+            RETURN (void*)-1;
         }
 
         // Round size up to ensure alignment.
@@ -141,7 +143,7 @@ public:
         {
             if (!AllocNewBlockForBytes(n))
             {
-                return NULL;
+                RETURN NULL;
             }
         }
 
@@ -158,7 +160,7 @@ public:
         m_FirstBlock->m_Sentinel = new(m_FirstFree - sizeof(Sentinel)) Sentinel(m_FirstBlock->m_Sentinel);
 #endif
 
-        return ret;
+        RETURN ret;
     }
 
     FORCEINLINE void * AllocNoThrow(S_UINT32 size)

@@ -32,8 +32,6 @@ internal sealed class ArraySingleObjectRecord : SZArrayRecord<SerializationRecor
 
     private SerializationRecord?[] ToArray(bool allowNulls)
     {
-        CheckExpectedRecordCount(Records, allowNulls);
-
         SerializationRecord?[] values = new SerializationRecord?[Length];
 
         int valueIndex = 0;

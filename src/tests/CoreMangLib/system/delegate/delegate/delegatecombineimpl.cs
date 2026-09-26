@@ -6,7 +6,7 @@ using System.Globalization;
 using System.Collections;
 using Xunit;
 //create for delegate combine(delegate a,delegate b) testing
-namespace DelegateCombineImplTest
+namespace DelegateTest
 {
     delegate bool booldelegate();
     delegate void voiddelegate();
@@ -26,7 +26,6 @@ namespace DelegateCombineImplTest
         }
         booldelegate starkWork;
         booldelegate working;
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {
@@ -74,7 +73,7 @@ namespace DelegateCombineImplTest
 
             try
             {
-                booldelegate delegate1 = new booldelegate(new DelegateCombineImplTestClass().Working_Bool);
+                booldelegate delegate1 = new booldelegate(new TestClass().Working_Bool);
                 if (!CombineImpl(delegate1,identify_null.c_Start_null_false))
                 {
                     TestLibrary.TestFramework.LogError("001", "delegate combineimpl is not successful ");
@@ -129,7 +128,7 @@ namespace DelegateCombineImplTest
             try
             {
 
-                booldelegate delegate1 = new booldelegate(new DelegateCombineImplTestClass().StartWork_Bool);
+                booldelegate delegate1 = new booldelegate(new TestClass().StartWork_Bool);
                 if (!CombineImpl(delegate1, identify_null.c_Working_null_true   ))
                 {
                     TestLibrary.TestFramework.LogError("005", "delegate combine is not successful ");
@@ -183,7 +182,7 @@ namespace DelegateCombineImplTest
 
             try
             {
-                booldelegate delegate1 = new booldelegate(new DelegateCombineImplTestClass().Working_Bool);
+                booldelegate delegate1 = new booldelegate(new TestClass().Working_Bool);
                 if (!CombineImpl(delegate1, identify_null.c_Start_null_false_duplicate ))
                 {
                     TestLibrary.TestFramework.LogError("009", "delegate combine is not successful ");
@@ -202,7 +201,7 @@ namespace DelegateCombineImplTest
         private bool CombineImpl(booldelegate delegatesrc,identify_null start)
         {
             DelegateCombineImpl delctor = new DelegateCombineImpl();
-            DelegateCombineImplTestClass testinstance = new DelegateCombineImplTestClass();
+            TestClass testinstance = new TestClass();
 
             string sFlag = string.Empty;
             string sFlagAdd=string.Empty ;
@@ -268,7 +267,7 @@ namespace DelegateCombineImplTest
     }
 
     //create testclass for providing test method and test target.
-    class DelegateCombineImplTestClass
+    class TestClass
     {
         public bool StartWork_Bool()
         {

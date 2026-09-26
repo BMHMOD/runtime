@@ -22,6 +22,7 @@ BOOL BaseAssemblySpec::IsCoreLib()
         INSTANCE_CHECK;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
     if (m_pAssemblyName == NULL)
@@ -51,6 +52,7 @@ BOOL BaseAssemblySpec::IsCoreLibSatellite() const
         INSTANCE_CHECK;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
 

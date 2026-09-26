@@ -133,7 +133,11 @@ namespace System.Configuration
 
                 if (collectionAttribute != null)
                 {
+#if NET
                     if (!collectionAttribute.AddItemName.Contains(','))
+#else
+                    if (collectionAttribute.AddItemName.IndexOf(',') == -1)
+#endif
                     {
                         AddElementName = collectionAttribute.AddItemName;
                     }

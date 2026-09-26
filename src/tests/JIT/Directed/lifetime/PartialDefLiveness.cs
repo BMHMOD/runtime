@@ -5,8 +5,6 @@
 // Here we are testing that SSA and liveness agree on whether a dead
 // partial store constitues a use (it does, in our model).
 
-namespace JitTest_Directed_lifetime_PartialDefLiveness;
-
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -16,7 +14,6 @@ public class PartialDefLiveness
 {
     [SkipLocalsInit]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    [OuterLoop]
     [Fact]
     public static void Problem()
     {

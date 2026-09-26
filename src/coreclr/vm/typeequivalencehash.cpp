@@ -46,6 +46,7 @@ TypeEquivalenceHashTable *TypeEquivalenceHashTable::Create(AppDomain *pAppDomain
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
 
@@ -68,6 +69,7 @@ void TypeEquivalenceHashTable::RecordEquivalence(TypeHandle thA, TypeHandle thB,
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
         PRECONDITION(match != TypeEquivalenceHashTable::MatchUnknown);
     }
     CONTRACTL_END;

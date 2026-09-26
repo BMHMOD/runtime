@@ -16,16 +16,28 @@ namespace Microsoft.Extensions.Hosting
     [Obsolete("IApplicationLifetime has been deprecated. Use Microsoft.Extensions.Hosting.IHostApplicationLifetime instead.")]
     public interface IApplicationLifetime
     {
-        /// <inheritdoc cref="IHostApplicationLifetime.ApplicationStarted" />
+        /// <summary>
+        /// Gets a cancellation token. Triggered when the application host has fully started and is about to wait
+        /// for a graceful shutdown.
+        /// </summary>
         CancellationToken ApplicationStarted { get; }
 
-        /// <inheritdoc cref="IHostApplicationLifetime.ApplicationStopping" />
+        /// <summary>
+        /// Gets a cancellation token. Triggered when the application host is performing a graceful shutdown.
+        /// Requests may still be in flight. Shutdown will block until this event completes.
+        /// </summary>
         CancellationToken ApplicationStopping { get; }
 
-        /// <inheritdoc cref="IHostApplicationLifetime.ApplicationStopped" />
+        /// <summary>
+        /// Gets a cancellation token. Triggered when the application host is performing a graceful shutdown.
+        /// All requests should be complete at this point. Shutdown will block
+        /// until this event completes.
+        /// </summary>
         CancellationToken ApplicationStopped { get; }
 
-        /// <inheritdoc cref="IHostApplicationLifetime.StopApplication" />
+        /// <summary>
+        /// Requests termination of the current application.
+        /// </summary>
         void StopApplication();
     }
 }

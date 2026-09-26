@@ -58,7 +58,11 @@ namespace Microsoft.Extensions.DependencyInjection.ServiceLookup
             // Only scope methods are cached
             if (callSite.Cache.Location == CallSiteResultCacheLocation.Scope)
             {
+#if NETFRAMEWORK || NETSTANDARD2_0
+                return _scopeResolverCache.GetOrAdd(callSite.Cache.Key, key => _buildTypeDelegate(key, callSite));
+#else
                 return _scopeResolverCache.GetOrAdd(callSite.Cache.Key, _buildTypeDelegate, callSite);
+#endif
             }
 
             return BuildNoCache(callSite);
@@ -112,19 +116,19 @@ namespace Microsoft.Extensions.DependencyInjection.ServiceLookup
         protected override Expression VisitIEnumerable(IEnumerableCallSite callSite, object? context)
         {
             [UnconditionalSuppressMessage("AotAnalysis", "IL3050:RequiresDynamicCode",
-                Justification = "The element type is guaranteed not to be a ValueType when dynamic code isn't supported")]
+                Justification = "VerifyAotCompatibility ensures elementType is not a ValueType")]
             static MethodInfo GetArrayEmptyMethodInfo(Type elementType)
             {
-                Debug.Assert(ServiceProvider.IsDynamicCodeSupported || !elementType.IsValueType, "When dynamic code isn't supported, building the IEnumerableCallSite will throw if elementType is a ValueType.");
+                Debug.Assert(!ServiceProvider.VerifyAotCompatibility || !elementType.IsValueType, "VerifyAotCompatibility=true will throw during building the IEnumerableCallSite if elementType is a ValueType.");
 
                 return ServiceLookupHelpers.GetArrayEmptyMethodInfo(elementType);
             }
 
             [UnconditionalSuppressMessage("AotAnalysis", "IL3050:RequiresDynamicCode",
-                Justification = "The element type is guaranteed not to be a ValueType when dynamic code isn't supported")]
+                Justification = "VerifyAotCompatibility ensures elementType is not a ValueType")]
             static NewArrayExpression NewArrayInit(Type elementType, IEnumerable<Expression> expr)
             {
-                Debug.Assert(ServiceProvider.IsDynamicCodeSupported || !elementType.IsValueType, "When dynamic code isn't supported, building the IEnumerableCallSite will throw if elementType is a ValueType.");
+                Debug.Assert(!ServiceProvider.VerifyAotCompatibility || !elementType.IsValueType, "VerifyAotCompatibility=true will throw during building the IEnumerableCallSite if elementType is a ValueType.");
 
                 return Expression.NewArrayInit(elementType, expr);
             }

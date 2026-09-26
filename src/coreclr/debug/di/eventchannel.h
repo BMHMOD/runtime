@@ -12,8 +12,6 @@
 #ifndef _EVENT_CHANNEL_H_
 #define _EVENT_CHANNEL_H_
 
-#include "debugwait.h"
-
 //---------------------------------------------------------------------------------------
 //
 // This is the abstract base class for the old-style "IPC" event channel.  (Despite the name, these events are
@@ -156,13 +154,13 @@ public:
     // first to see if it is necessary to wait for an acknowledgement.
     //
     // Return Value:
-    //    a waitable event which will be signaled when the LS acknowledges the receipt of the IPC event
+    //    a handle to a Win32 event which will be signaled when the LS acknowledges the receipt of the IPC event
     //
     // Assumptions:
     //    NeedToWaitForAck() returns true after sending an IPC event to the LS
     //
 
-    virtual WaitEvent *GetRightSideEventAckHandle() = 0;
+    virtual HANDLE GetRightSideEventAckHandle() = 0;
 
     //
     // After sending an event to the LS and determining that we need to wait for the LS's acknowledgement,

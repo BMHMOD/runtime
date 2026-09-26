@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- Needed for IsLongRunningGCTest -->
+    <!-- Needed for GCStressIncompatible -->
     <RequiresProcessIsolation>true</RequiresProcessIsolation>
+    <CLRTestExecutionArguments />
+    <GCStressIncompatible>true</GCStressIncompatible>
     <IsLongRunningGCTest>true</IsLongRunningGCTest>
   </PropertyGroup>
   <PropertyGroup>
@@ -9,8 +11,5 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="NoGC.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
   </ItemGroup>
 </Project>

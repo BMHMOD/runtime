@@ -1,8 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Collections.Generic;
-using System.Linq;
 using Xunit;
 
 namespace System.Security.Cryptography.Tests
@@ -35,7 +33,7 @@ namespace System.Security.Cryptography.Tests
             {
                 ExerciseSuccessfulVerify(publicKey, data, signature, []);
 
-                Assert.ThrowsAny<CryptographicException>(() => publicKey.SignData(data));
+                Assert.Throws<CryptographicException>(() => publicKey.SignData(data));
             }
         }
 
@@ -121,19 +119,10 @@ namespace System.Security.Cryptography.Tests
             ExerciseSuccessfulVerify(dsa, [], signature, context);
         }
 
-        public static IEnumerable<object[]> SupportedIetfVectorsWithContextFlagTestData =>
-            from vector in CompositeMLDsaTestData.SupportedAlgorithmIetfVectors
-            from useContext in new[] { false, true }
-            select new object[] { vector, useContext };
-
         [Theory]
-        [MemberData(nameof(SupportedIetfVectorsWithContextFlagTestData))]
-        public void ImportExportVerify(CompositeMLDsaTestData.CompositeMLDsaTestVector vector, bool useContext)
+        [MemberData(nameof(CompositeMLDsaTestData.SupportedAlgorithmIetfVectorsTestData), MemberType = typeof(CompositeMLDsaTestData))]
+        public void ImportExportVerify(CompositeMLDsaTestData.CompositeMLDsaTestVector vector)
         {
-            byte[] message = vector.Message.ToArray();
-            byte[] context = useContext ? vector.Context.ToArray() : Array.Empty<byte>();
-            byte[] expectedSignature = (useContext ? vector.SignatureWithContext : vector.Signature).ToArray();
-
             using (CompositeMLDsa privateKey = ImportPrivateKey(vector.Algorithm, vector.SecretKey))
             {
                 byte[] exportedSecretKey = privateKey.ExportCompositeMLDsaPrivateKey();
@@ -142,7 +131,7 @@ namespace System.Security.Cryptography.Tests
                 byte[] exportedPublicKey = privateKey.ExportCompositeMLDsaPublicKey();
                 CompositeMLDsaTestHelpers.AssertPublicKeyEquals(vector.Algorithm, vector.PublicKey, exportedPublicKey);
 
-                ExerciseSuccessfulVerify(privateKey, message, expectedSignature, context);
+                ExerciseSuccessfulVerify(privateKey, vector.Message, vector.Signature, []);
             }
 
             using (CompositeMLDsa publicKey = ImportPublicKey(vector.Algorithm, vector.PublicKey))
@@ -155,32 +144,28 @@ namespace System.Security.Cryptography.Tests
                 byte[] exportedPublicKey = publicKey.ExportCompositeMLDsaPublicKey();
                 CompositeMLDsaTestHelpers.AssertPublicKeyEquals(vector.Algorithm, vector.PublicKey, exportedPublicKey);
 
-                ExerciseSuccessfulVerify(publicKey, message, expectedSignature, context);
+                ExerciseSuccessfulVerify(publicKey, vector.Message, vector.Signature, []);
             }
         }
 
         [Theory]
-        [MemberData(nameof(SupportedIetfVectorsWithContextFlagTestData))]
-        public void ImportSignVerify(CompositeMLDsaTestData.CompositeMLDsaTestVector vector, bool useContext)
+        [MemberData(nameof(CompositeMLDsaTestData.SupportedAlgorithmIetfVectorsTestData), MemberType = typeof(CompositeMLDsaTestData))]
+        public void ImportSignVerify(CompositeMLDsaTestData.CompositeMLDsaTestVector vector)
         {
-            byte[] message = vector.Message.ToArray();
-            byte[] context = useContext ? vector.Context.ToArray() : Array.Empty<byte>();
-            byte[] expectedSignature = (useContext ? vector.SignatureWithContext : vector.Signature).ToArray();
-
             byte[] signature;
 
             using (CompositeMLDsa privateKey = ImportPrivateKey(vector.Algorithm, vector.SecretKey))
             {
-                signature = privateKey.SignData(message, context);
+                signature = privateKey.SignData(vector.Message, null);
 
-                ExerciseSuccessfulVerify(privateKey, message, signature, context);
-                ExerciseSuccessfulVerify(privateKey, message, expectedSignature, context);
+                ExerciseSuccessfulVerify(privateKey, vector.Message, signature, []);
+                ExerciseSuccessfulVerify(privateKey, vector.Message, vector.Signature, []);
             }
 
             using (CompositeMLDsa publicKey = ImportPublicKey(vector.Algorithm, vector.PublicKey))
             {
-                ExerciseSuccessfulVerify(publicKey, message, signature, context);
-                ExerciseSuccessfulVerify(publicKey, message, expectedSignature, context);
+                ExerciseSuccessfulVerify(publicKey, vector.Message, signature, []);
+                ExerciseSuccessfulVerify(publicKey, vector.Message, vector.Signature, []);
             }
         }
 
@@ -296,8 +281,8 @@ namespace System.Security.Cryptography.Tests
         [MemberData(nameof(CompositeMLDsaTestData.SupportedAlgorithmIetfVectorsTestData), MemberType = typeof(CompositeMLDsaTestData))]
         public void ImportPrivateKey_TrailingData(CompositeMLDsaTestData.CompositeMLDsaTestVector vector)
         {
-            byte[] secretKeyWithTrailingData = new byte[vector.SecretKey.Length + 1];
-            vector.SecretKey.CopyTo(secretKeyWithTrailingData);
+            byte[] secretKeyWithTrailingData = vector.SecretKey;
+            Array.Resize(ref secretKeyWithTrailingData, vector.SecretKey.Length + 1);
             Assert.Throws<CryptographicException>(() => ImportPrivateKey(vector.Algorithm, secretKeyWithTrailingData));
         }
 
@@ -305,8 +290,8 @@ namespace System.Security.Cryptography.Tests
         [MemberData(nameof(CompositeMLDsaTestData.SupportedAlgorithmIetfVectorsTestData), MemberType = typeof(CompositeMLDsaTestData))]
         public void ImportPublicKey_TrailingData(CompositeMLDsaTestData.CompositeMLDsaTestVector vector)
         {
-            byte[] publicKeyWithTrailingData = new byte[vector.PublicKey.Length + 1];
-            vector.PublicKey.CopyTo(publicKeyWithTrailingData);
+            byte[] publicKeyWithTrailingData = vector.PublicKey;
+            Array.Resize(ref publicKeyWithTrailingData, vector.PublicKey.Length + 1);
             Assert.Throws<CryptographicException>(() => ImportPublicKey(vector.Algorithm, publicKeyWithTrailingData));
         }
 

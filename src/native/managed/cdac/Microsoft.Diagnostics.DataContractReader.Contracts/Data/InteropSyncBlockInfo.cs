@@ -3,10 +3,23 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.InteropSyncBlockInfo))]
-internal sealed partial class InteropSyncBlockInfo : IData<InteropSyncBlockInfo>
+internal sealed class InteropSyncBlockInfo : IData<InteropSyncBlockInfo>
 {
-    [Field] public partial TargetPointer? RCW { get; }
-    [Field] public partial TargetPointer? CCW { get; }
-    [Field] public partial TargetPointer? CCF { get; }
+    static InteropSyncBlockInfo IData<InteropSyncBlockInfo>.Create(Target target, TargetPointer address)
+        => new InteropSyncBlockInfo(target, address);
+
+    public InteropSyncBlockInfo(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.InteropSyncBlockInfo);
+
+        RCW = type.Fields.TryGetValue(nameof(RCW), out Target.FieldInfo rcwField)
+            ? target.ReadPointer(address + (ulong)rcwField.Offset)
+            : TargetPointer.Null;
+        CCW = type.Fields.TryGetValue(nameof(CCW), out Target.FieldInfo ccwField)
+            ? target.ReadPointer(address + (ulong)ccwField.Offset)
+            : TargetPointer.Null;
+    }
+
+    public TargetPointer RCW { get; init; }
+    public TargetPointer CCW { get; init; }
 }

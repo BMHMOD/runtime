@@ -69,12 +69,8 @@ internal sealed class CodeDirectoryBlob : IBlob
         HashType hashType,
         ExecutableSegmentFlags execSegmentFlags,
         byte[][] specialSlotHashes,
-        byte[][] codeHashes,
-        uint pageSize)
+        byte[][] codeHashes)
     {
-        // The CodeDirectory stores log2 of the page size. codesign only uses a 4 KB or 16 KB code directory page.
-        Debug.Assert(pageSize is MachObjectFile.DefaultCodeDirectoryPageSize or MachObjectFile.Arm64CodeDirectoryPageSize);
-        byte log2PageSize = pageSize == MachObjectFile.Arm64CodeDirectoryPageSize ? (byte)14 : (byte)12;
         // Always assume the executable length is the entire file size / signature start.
         _cdHeader = new CodeDirectoryHeader(
             identifier,
@@ -86,8 +82,7 @@ internal sealed class CodeDirectoryBlob : IBlob
             signatureStart,
             0,
             signatureStart,
-            execSegmentFlags,
-            log2PageSize);
+            execSegmentFlags);
         _identifier = identifier;
         _specialSlotHashes = specialSlotHashes;
         _codeHashes = codeHashes;
@@ -124,8 +119,8 @@ internal sealed class CodeDirectoryBlob : IBlob
         long signatureStart,
         string identifier,
         RequirementsBlob requirementsBlob,
-        uint pageSize,
-        HashType hashType = HashType.SHA256)
+        HashType hashType = HashType.SHA256,
+        uint pageSize = MachObjectFile.DefaultPageSize)
     {
         uint codeSlotCount = GetCodeSlotCount((uint)signatureStart, pageSize);
         uint specialCodeSlotCount = (uint)CodeDirectorySpecialSlot.Requirements;
@@ -176,8 +171,7 @@ internal sealed class CodeDirectoryBlob : IBlob
             hashType,
             ExecutableSegmentFlags.MainBinary,
             specialSlotHashes,
-            codeHashes,
-            pageSize);
+            codeHashes);
     }
 
     [StructLayout(LayoutKind.Sequential)]
@@ -223,7 +217,7 @@ internal sealed class CodeDirectoryBlob : IBlob
 
         private static unsafe uint GetSize() => (uint)sizeof(CodeDirectoryHeader);
 
-        public CodeDirectoryHeader(string identifier, uint codeSlotCount, uint specialCodeSlotCount, uint executableLength, byte hashSize, HashType hashType, ulong signatureStart, ulong execSegmentBase, ulong execSegmentLimit, ExecutableSegmentFlags execSegmentFlags, byte log2PageSize)
+        public CodeDirectoryHeader(string identifier, uint codeSlotCount, uint specialCodeSlotCount, uint executableLength, byte hashSize, HashType hashType, ulong signatureStart, ulong execSegmentBase, ulong execSegmentLimit, ExecutableSegmentFlags execSegmentFlags)
         {
             HashSize = hashSize;
             _version = (CodeDirectoryVersion)((uint)CodeDirectoryVersion.HighestVersion).ConvertToBigEndian();
@@ -235,7 +229,7 @@ internal sealed class CodeDirectoryBlob : IBlob
             _executableLength = executableLength.ConvertToBigEndian();
             HashType = hashType;
             Platform = 0;
-            Log2PageSize = log2PageSize;
+            Log2PageSize = 12; // 4K page size
             _codeLimit64 = (signatureStart >= uint.MaxValue ? signatureStart : 0).ConvertToBigEndian();
             _execSegmentBase = execSegmentBase.ConvertToBigEndian();
             _execSegmentLimit = execSegmentLimit.ConvertToBigEndian();
@@ -294,7 +288,7 @@ internal sealed class CodeDirectoryBlob : IBlob
         return (uint)(Encoding.UTF8.GetByteCount(identifier) + 1);
     }
 
-    internal static uint GetCodeSlotCount(uint signatureStart, uint pageSize)
+    internal static uint GetCodeSlotCount(uint signatureStart, uint pageSize = MachObjectFile.DefaultPageSize)
     {
         return (signatureStart + pageSize - 1) / pageSize;
     }

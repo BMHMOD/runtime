@@ -6,9 +6,6 @@
 // that the ABI is correctly implemented, but this test is here to enable
 // these cases to be manually verified (and diffed).
 //
-
-namespace Runtime_35144;
-
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;

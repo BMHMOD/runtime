@@ -4,8 +4,6 @@
 using System;
 using System.Reflection.Metadata;
 
-using Internal.Text;
-
 namespace Internal.TypeSystem
 {
     /// <summary>
@@ -21,6 +19,6 @@ namespace Internal.TypeSystem
         /// <summary>
         /// Gets the simple assembly name
         /// </summary>
-        Utf8Span Name { get; }
+        ReadOnlySpan<byte> Name { get; }
     }
 }

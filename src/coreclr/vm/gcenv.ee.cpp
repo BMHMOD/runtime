@@ -6,6 +6,8 @@
  *
  * GCToEEInterface implementation
  *
+
+ *
  */
 
 #include "common.h"
@@ -13,7 +15,6 @@
 #include "../gc/env/gcenv.ee.h"
 #include "threadsuspend.h"
 #include "interoplibinterface.h"
-#include "exinfo.h"
 
 #ifdef FEATURE_COMINTEROP
 #include "runtimecallablewrapper.h"
@@ -53,14 +54,14 @@ void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
         g_pDebugInterface->SuspendForGarbageCollectionCompleted();
 }
 
-void GCToEEInterface::RestartEE(bool bUnused)
+void GCToEEInterface::RestartEE(bool bFinishedGC)
 {
     WRAPPER_NO_CONTRACT;
 
     if (g_pDebugInterface)
         g_pDebugInterface->ResumeForGarbageCollectionStarted();
 
-    ThreadSuspend::RestartEE(true /* SuspendSucceeded */);
+    ThreadSuspend::RestartEE(bFinishedGC, TRUE);
 }
 
 VOID GCToEEInterface::SyncBlockCacheWeakPtrScan(HANDLESCANPROC scanProc, uintptr_t lp1, uintptr_t lp2)
@@ -140,6 +141,7 @@ static void ScanStackRoots(Thread * pThread, promote_func* fn, ScanContext* sc)
                 IsGCSpecialThread() ||
                 (GetThread() == ThreadSuspend::GetSuspensionThread() && ThreadStore::HoldingThreadStore()));
 
+#if defined(FEATURE_CONSERVATIVE_GC) || defined(USE_FEF)
     Frame* pTopFrame = pThread->GetFrame();
     Object ** topStack = (Object **)pTopFrame;
     if (InlinedCallFrame::FrameHasActiveCall(pTopFrame))
@@ -148,10 +150,19 @@ static void ScanStackRoots(Thread * pThread, promote_func* fn, ScanContext* sc)
         InlinedCallFrame* pInlinedFrame = dac_cast<PTR_InlinedCallFrame>(pTopFrame);
         topStack = (Object **)pInlinedFrame->GetCallSiteSP();
     }
+#endif // FEATURE_CONSERVATIVE_GC || USE_FEF
 
-    // We set the stack_limit when FEF (FaultingExceptionFrame) is enabled.
+#ifdef USE_FEF
+    // We only set the stack_limit when FEF (FaultingExceptionFrame) is enabled, because without the
+    // FEF, the code above would have to check if hardware exception is being handled and get the limit
+    // from the exception frame. Since the stack_limit is strictly necessary only on Unix and FEF is
+    // not enabled on Window x86 only, it is sufficient to keep the stack_limit set to 0 in this case.
     // See the comment on the stack_limit usage in the PromoteCarefully function for more details.
     sc->stack_limit = (uintptr_t)topStack;
+#else // USE_FEF
+    // It should be set to 0 in the ScanContext constructor
+    _ASSERTE(sc->stack_limit == 0);
+#endif // USE_FEF
 
 #ifdef FEATURE_CONSERVATIVE_GC
     if (g_pConfig->GetGCConservative())
@@ -191,32 +202,19 @@ static void ScanStackRoots(Thread * pThread, promote_func* fn, ScanContext* sc)
 #endif
     {
         unsigned flagsStackWalk = ALLOW_ASYNC_STACK_WALK | ALLOW_INVALID_OBJECTS;
-
+#if defined(FEATURE_EH_FUNCLETS)
         flagsStackWalk |= GC_FUNCLET_REFERENCE_REPORTING;
-
+#endif // defined(FEATURE_EH_FUNCLETS)
         gcctx.pScannedSlots = NULL;
         pThread->StackWalkFrames( GcStackCrawlCallBack, &gcctx, flagsStackWalk);
         delete gcctx.pScannedSlots;
     }
 
     GCFrame* pGCFrame = pThread->GetGCFrame();
-    while (pGCFrame != NULL)
+    while (pGCFrame != GCFRAME_TOP)
     {
         pGCFrame->GcScanRoots(fn, sc);
         pGCFrame = pGCFrame->PtrNextFrame();
-    }
-
-    // Scan the ExInfo chain for exception objects held by direct pointer.
-    // Superseded ExInfo objects may live in logically dead parts of the stack
-    // that the normal GC stackwalk skips (e.g., when one exception dispatch
-    // supersedes a previous one). We keep them alive for post-mortem debugging
-    // and SOS. This mirrors NativeAOT's GcScanRootsWorker (thread.cpp:569-573).
-    PTR_ExInfo pExInfo = pThread->GetExceptionState()->GetCurrentExceptionTracker();
-    while (pExInfo != NULL)
-    {
-        PTR_PTR_Object pRef = dac_cast<PTR_PTR_Object>(&pExInfo->m_exception);
-        fn(pRef, sc, 0);
-        pExInfo = pExInfo->GetPreviousExceptionTracker();
     }
 }
 
@@ -422,22 +420,6 @@ void GCToEEInterface::TriggerClientBridgeProcessing(MarkCrossReferencesArgs* arg
 #endif // FEATURE_JAVAMARSHAL
 }
 
-bool GCToEEInterface::IsClientBridgeProcessingActive()
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-    }
-    CONTRACTL_END;
-
-#ifdef FEATURE_JAVAMARSHAL
-    return Interop::IsGCBridgeActive();
-#else
-    return false;
-#endif // FEATURE_JAVAMARSHAL
-}
-
 void GCToEEInterface::SyncBlockCacheDemote(int max_gen)
 {
     CONTRACTL
@@ -495,22 +477,33 @@ void GCToEEInterface::GcEnumAllocContexts(enum_alloc_context_func* fn, void* par
     }
     CONTRACTL_END;
 
-    Thread * pThread = NULL;
-    while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
+    if (GCHeapUtilities::UseThreadAllocationContexts())
     {
-        ee_alloc_context* palloc_context = pThread->GetEEAllocContext();
-        if (palloc_context != nullptr)
+        Thread * pThread = NULL;
+        while ((pThread = ThreadStore::GetThreadList(pThread)) != NULL)
         {
-            gc_alloc_context* ac = &palloc_context->m_GCAllocContext;
-            fn(ac, param);
-            // The GC may zero the alloc_ptr and alloc_limit fields of AC during enumeration and we need to keep
-            // m_CombinedLimit up-to-date. Note that the GC has multiple threads running this enumeration concurrently
-            // with no synchronization. If you need to change this code think carefully about how that concurrency
-            // may affect the results.
-            if (ac->alloc_limit == 0 && palloc_context->m_CombinedLimit != 0)
+            ee_alloc_context* palloc_context = pThread->GetEEAllocContext();
+            if (palloc_context != nullptr)
             {
-                palloc_context->m_CombinedLimit = 0;
+                gc_alloc_context* ac = &palloc_context->m_GCAllocContext;
+                fn(ac, param);
+                // The GC may zero the alloc_ptr and alloc_limit fields of AC during enumeration and we need to keep
+                // m_CombinedLimit up-to-date. Note that the GC has multiple threads running this enumeration concurrently
+                // with no synchronization. If you need to change this code think carefully about how that concurrency
+                // may affect the results.
+                if (ac->alloc_limit == 0 && palloc_context->m_CombinedLimit != 0)
+                {
+                    palloc_context->m_CombinedLimit = 0;
+                }
             }
+        }
+    }
+    else
+    {
+        fn(&g_global_alloc_context.m_GCAllocContext, param);
+        if (g_global_alloc_context.m_GCAllocContext.alloc_limit == 0 && g_global_alloc_context.m_CombinedLimit != 0)
+        {
+            g_global_alloc_context.m_CombinedLimit = 0;
         }
     }
 }
@@ -841,9 +834,7 @@ void GCProfileWalkHeap(bool etwOnly)
 
 void WalkFReachableObjects(bool isCritical, void* objectID)
 {
-#if defined(PROFILING_SUPPORTED)
-    (&g_profControlBlock)->FinalizeableObjectQueued(isCritical, (ObjectID)objectID);
-#endif // PROFILING_SUPPORTED
+	(&g_profControlBlock)->FinalizeableObjectQueued(isCritical, (ObjectID)objectID);
 }
 
 static fq_walk_fn g_FQWalkFn = &WalkFReachableObjects;
@@ -857,13 +848,9 @@ void GCToEEInterface::DiagGCStart(int gen, bool isInduced)
         BEGIN_PROFILER_CALLBACK(CORProfilerTrackGC());
         size_t context = 0;
 
-        // ObjectsAllocatedByClass callback can lead to enormous overhead in the case of Server GC,
-        // so it was made skippable. See https://github.com/dotnet/runtime/issues/108230 for details.
-        if (!CORProfilerSkipAllocatedByClassStatistic()) {
-            // When we're walking objects allocated by class, then we don't want to walk the large
-            // object heap because then it would count things that may have been around for a while.
-            GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&AllocByClassHelper, (void *)&context, 0, false);
-        }
+        // When we're walking objects allocated by class, then we don't want to walk the large
+        // object heap because then it would count things that may have been around for a while.
+        GCHeapUtilities::GetGCHeap()->DiagWalkHeap(&AllocByClassHelper, (void *)&context, 0, false);
 
         // Notify that we've reached the end of the Gen 0 scan
         (&g_profControlBlock)->EndAllocByClass(&context);
@@ -883,7 +870,7 @@ void GCToEEInterface::DiagUpdateGenerationBounds()
 
 void GCToEEInterface::DiagGCEnd(size_t index, int gen, int reason, bool fConcurrent)
 {
-#if defined(GC_PROFILING) || defined(PERFTRACING_DISABLE_THREADS)
+#ifdef GC_PROFILING
     // We were only doing generation bounds and GC finish callback for non concurrent GCs so
     // I am keeping that behavior to not break profilers. But if BasicGC monitoring is enabled
     // we will do these for all GCs.
@@ -891,9 +878,7 @@ void GCToEEInterface::DiagGCEnd(size_t index, int gen, int reason, bool fConcurr
     {
         GCProfileWalkHeap(false);
     }
-#endif // defined(GC_PROFILING) || defined(PERFTRACING_DISABLE_THREADS)
 
-#ifdef GC_PROFILING
     if (CORProfilerTrackBasicGC() || (!fConcurrent && CORProfilerTrackGC()))
     {
         DiagUpdateGenerationBounds();
@@ -1085,7 +1070,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
         {
             assert(!args->is_runtime_suspended &&
                 "if runtime was suspended in patching routines then it was in running state at beginning");
-            ThreadSuspend::RestartEE(true /* SuspendSucceeded */);
+            ThreadSuspend::RestartEE(FALSE, TRUE);
         }
         return; // unlike other branches we have already done cleanup so bailing out here
 
@@ -1186,7 +1171,7 @@ void GCToEEInterface::StompWriteBarrier(WriteBarrierParameters* args)
     {
         assert(!args->is_runtime_suspended &&
             "if runtime was suspended in patching routines then it was in running state at beginning");
-        ThreadSuspend::RestartEE(true /* SuspendSucceeded */);
+        ThreadSuspend::RestartEE(FALSE, TRUE);
     }
 }
 
@@ -1591,7 +1576,7 @@ namespace
         ThreadStubArguments args;
         args.Argument = argument;
         args.ThreadStart = threadStart;
-        args.Thread = NULL;
+        args.Thread = INVALID_HANDLE_VALUE;
 #ifdef __APPLE__
         args.name = name;
 #endif //__APPLE__
@@ -1624,7 +1609,7 @@ namespace
         };
 
         args.Thread = Thread::CreateUtilityThread(Thread::StackSize_Medium, threadStub, &args, name);
-        if (args.Thread == NULL)
+        if (args.Thread == INVALID_HANDLE_VALUE)
         {
             args.ThreadStartedEvent.CloseEvent();
             return false;

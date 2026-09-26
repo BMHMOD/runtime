@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Concurrent;
-using System.Runtime.CompilerServices;
 
 namespace System.Threading.Tasks
 {
@@ -132,7 +131,8 @@ namespace System.Threading.Tasks
         {
             // Browser hosts do not support synchronous Wait so we want to run the
             //  replicated task directly instead of going through Task infrastructure
-            if (!RuntimeFeature.IsMultithreadingSupported)
+#if !FEATURE_WASM_MANAGED_THREADS
+            if (OperatingSystem.IsBrowser() || OperatingSystem.IsWasi() )
             {
                 // Since we are running on a single thread, we don't want the action to time out
                 long timeout = long.MaxValue - 1;
@@ -143,6 +143,7 @@ namespace System.Threading.Tasks
                     throw new Exception("Replicated tasks cannot yield in this single-threaded browser environment");
             }
             else
+#endif
             {
                 int maxConcurrencyLevel = (options.EffectiveMaxConcurrencyLevel > 0) ? options.EffectiveMaxConcurrencyLevel : int.MaxValue;
 

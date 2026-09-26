@@ -58,7 +58,7 @@ namespace System.Diagnostics
     [DebuggerTypeProxy(typeof(ActivityDebuggerProxy))]
     public partial class Activity : IDisposable
     {
-#pragma warning disable CA1825 // avoid the extra generic instantiation for Array.Empty<T>()
+#pragma warning disable CA1825 // Array.Empty<T>() doesn't exist in all configurations
         private static readonly IEnumerable<KeyValuePair<string, string?>> s_emptyBaggageTags = new KeyValuePair<string, string?>[0];
         private static readonly IEnumerable<KeyValuePair<string, object?>> s_emptyTagObjects = new KeyValuePair<string, object?>[0];
         private static readonly IEnumerable<ActivityLink> s_emptyLinks = new DiagLinkedList<ActivityLink>();
@@ -243,7 +243,7 @@ namespace System.Diagnostics
                 if (_id == null && _spanId != null)
                 {
                     // Convert flags to binary.
-                    Span<char> flagsChars = ['\0', '\0'];
+                    Span<char> flagsChars = stackalloc char[2];
                     HexConverter.ToCharsBuffer((byte)((~ActivityTraceFlagsIsSet) & _w3CIdFlags), flagsChars, 0, HexConverter.Casing.Lower);
                     string id =
 #if NET
@@ -275,7 +275,7 @@ namespace System.Diagnostics
                 {
                     if (_parentSpanId != null)
                     {
-                        Span<char> flagsChars = ['\0', '\0'];
+                        Span<char> flagsChars = stackalloc char[2];
                         HexConverter.ToCharsBuffer((byte)((~ActivityTraceFlagsIsSet) & _parentTraceFlags), flagsChars, 0, HexConverter.Casing.Lower);
                         string parentId =
 #if NET
@@ -428,18 +428,12 @@ namespace System.Diagnostics
         public Enumerator<ActivityLink> EnumerateLinks() => new Enumerator<ActivityLink>(_links?.First);
 
         /// <summary>
-        /// Enumerate the baggage attached to this Activity object and its ancestors without allocating.
-        /// </summary>
-        /// <returns><see cref="BaggageEnumerator"/>.</returns>
-        internal BaggageEnumerator EnumerateBaggage() => new BaggageEnumerator(this);
-
-        /// <summary>
         /// Returns the value of the key-value pair added to the activity with <see cref="AddBaggage(string, string)"/>.
         /// Returns null if that key does not exist.
         /// </summary>
         public string? GetBaggageItem(string key)
         {
-            foreach (KeyValuePair<string, string?> keyValue in EnumerateBaggage())
+            foreach (KeyValuePair<string, string?> keyValue in Baggage)
                 if (key == keyValue.Key)
                     return keyValue.Value;
             return null;
@@ -946,12 +940,7 @@ namespace System.Diagnostics
         }
 
         /// <summary>
-        /// True if the <see cref="ActivityTraceFlags.RandomTraceId"/> flag is set.
-        /// </summary>
-        public bool HasRandomizedTraceId { get => (ActivityTraceFlags & ActivityTraceFlags.RandomTraceId) != 0; }
-
-        /// <summary>
-        /// True if the <see cref="ActivityTraceFlags.Recorded"/> flag is set.
+        /// True if the W3CIdFlags.Recorded flag is set.
         /// </summary>
         public bool Recorded { get => (ActivityTraceFlags & ActivityTraceFlags.Recorded) != 0; }
 
@@ -1300,30 +1289,8 @@ namespace System.Diagnostics
                 if (!TrySetTraceIdFromParent())
                 {
                     Func<ActivityTraceId>? traceIdGenerator = TraceIdGenerator;
-                    ActivityTraceId id;
-
-                    if (traceIdGenerator == null)
-                    {
-                        id = ActivityTraceId.CreateRandom();
-                        // Set RandomTraceId flag when using the default random generator
-                        ActivityTraceFlags |= ActivityTraceFlags.RandomTraceId;
-                    }
-                    else
-                    {
-                        // Using custom generator
-                        id = traceIdGenerator();
-                    }
-
+                    ActivityTraceId id = traceIdGenerator == null ? ActivityTraceId.CreateRandom() : traceIdGenerator();
                     _traceId = id.ToHexString();
-                }
-                else
-                {
-                    // When inheriting trace ID from parent, propagate the RandomTraceId flag
-                    // so downstream participants know the trace ID has sufficient randomness
-                    // for probabilistic sampling (W3C Trace Context Level 2).
-                    // This is needed here because TrySetTraceFlagsFromParent() below may be
-                    // skipped when W3CIdFlagsSet is already true (e.g., Recorded set by sampling).
-                    TryPropagateRandomTraceIdFromParent();
                 }
             }
 
@@ -1499,28 +1466,6 @@ namespace System.Diagnostics
             }
         }
 
-        /// <summary>
-        /// Propagates the RandomTraceId flag from the parent when a child inherits its trace ID.
-        /// Unlike Recorded (which is set independently per-activity by sampling), RandomTraceId
-        /// reflects a property of the trace ID itself and should be inherited along with it.
-        /// </summary>
-        private void TryPropagateRandomTraceIdFromParent()
-        {
-            if (Parent is not null)
-            {
-                if ((Parent.ActivityTraceFlags & ActivityTraceFlags.RandomTraceId) != 0)
-                {
-                    ActivityTraceFlags |= ActivityTraceFlags.RandomTraceId;
-                }
-            }
-            else if (_parentId is not null && IsW3CId(_parentId)
-                     && HexConverter.IsHexLowerChar(_parentId[53]) && HexConverter.IsHexLowerChar(_parentId[54])
-                     && (ActivityTraceId.HexByteFromChars(_parentId[53], _parentId[54]) & (byte)ActivityTraceFlags.RandomTraceId) != 0)
-            {
-                ActivityTraceFlags |= ActivityTraceFlags.RandomTraceId;
-            }
-        }
-
         private bool W3CIdFlagsSet
         {
             get => (_w3CIdFlags & ActivityTraceFlagsIsSet) != 0;
@@ -1602,54 +1547,6 @@ namespace System.Diagnostics
 
                 _currentNode = _nextNode;
                 _nextNode = _nextNode.Next;
-                return true;
-            }
-        }
-
-        /// <summary>
-        /// Enumerates the baggage stored on this Activity and its ancestors without allocating.
-        /// Mirrors the semantics of the <see cref="Baggage"/> property, which uses an iterator
-        /// (allocating a state machine on every call) to walk the same data.
-        /// </summary>
-        internal struct BaggageEnumerator
-        {
-            // The next Activity (if any) to search for a non-empty baggage list. Always points at an
-            // Activity whose own baggage list has not yet been consumed by this enumerator.
-            private Activity? _activity;
-
-            // The remaining nodes of the baggage list currently being drained.
-            private DiagNode<KeyValuePair<string, string?>>? _next;
-
-            internal BaggageEnumerator(Activity? activity)
-            {
-                _activity = activity;
-                _next = null;
-                Current = default;
-            }
-
-            public KeyValuePair<string, string?> Current { get; private set; }
-
-            public readonly BaggageEnumerator GetEnumerator() => this;
-
-            public bool MoveNext()
-            {
-                while (_next is null)
-                {
-                    if (_activity is null)
-                    {
-                        return false;
-                    }
-
-                    BaggageLinkedList? baggage = _activity._baggage;
-                    _activity = _activity.Parent;
-                    if (baggage != null)
-                    {
-                        _next = baggage.First;
-                    }
-                }
-
-                Current = _next.Value;
-                _next = _next.Next;
                 return true;
             }
         }
@@ -1975,7 +1872,6 @@ namespace System.Diagnostics
     {
         None = 0b_0_0000000,
         Recorded = 0b_0_0000001, // The Activity (or more likely its parents) has been marked as useful to record
-        RandomTraceId = 0b_0_0000010, // The Activity has a randomized TraceId
     }
 
     /// <summary>
@@ -2006,7 +1902,7 @@ namespace System.Diagnostics
         /// <summary>
         /// Create a new TraceId with at random number in it (very likely to be unique)
         /// </summary>
-        public static unsafe ActivityTraceId CreateRandom()
+        public static ActivityTraceId CreateRandom()
         {
             Span<byte> span = stackalloc byte[sizeof(ulong) * 2];
             SetToRandomBytes(span);
@@ -2017,7 +1913,11 @@ namespace System.Diagnostics
             if (idData.Length != 16)
                 throw new ArgumentOutOfRangeException(nameof(idData));
 
+#if NET9_0_OR_GREATER
             return new ActivityTraceId(Convert.ToHexStringLower(idData));
+#else
+            return new ActivityTraceId(HexConverter.ToString(idData, HexConverter.Casing.Lower));
+#endif
         }
         public static ActivityTraceId CreateFromUtf8String(ReadOnlySpan<byte> idData) => new ActivityTraceId(idData);
 
@@ -2074,7 +1974,7 @@ namespace System.Diagnostics
             if (idData.Length != 32)
                 throw new ArgumentOutOfRangeException(nameof(idData));
 
-            Span<ulong> span = [0, 0];
+            Span<ulong> span = stackalloc ulong[2];
 
             if (!Utf8Parser.TryParse(idData.Slice(0, 16), out span[0], out _, 'x'))
             {
@@ -2096,7 +1996,11 @@ namespace System.Diagnostics
                 span[1] = BinaryPrimitives.ReverseEndianness(span[1]);
             }
 
+#if NET9_0_OR_GREATER
             _hexString = Convert.ToHexStringLower(MemoryMarshal.AsBytes(span));
+#else
+            _hexString = HexConverter.ToString(MemoryMarshal.AsBytes(span), HexConverter.Casing.Lower);
+#endif
         }
 
         /// <summary>
@@ -2177,14 +2081,22 @@ namespace System.Diagnostics
         {
             ulong id;
             ActivityTraceId.SetToRandomBytes(new Span<byte>(&id, sizeof(ulong)));
+#if NET9_0_OR_GREATER
             return new ActivitySpanId(Convert.ToHexStringLower(new ReadOnlySpan<byte>(&id, sizeof(ulong))));
+#else
+            return new ActivitySpanId(HexConverter.ToString(new ReadOnlySpan<byte>(&id, sizeof(ulong)), HexConverter.Casing.Lower));
+#endif
         }
         public static ActivitySpanId CreateFromBytes(ReadOnlySpan<byte> idData)
         {
             if (idData.Length != 8)
                 throw new ArgumentOutOfRangeException(nameof(idData));
 
+#if NET9_0_OR_GREATER
             return new ActivitySpanId(Convert.ToHexStringLower(idData));
+#else
+            return new ActivitySpanId(HexConverter.ToString(idData, HexConverter.Casing.Lower));
+#endif
         }
         public static ActivitySpanId CreateFromUtf8String(ReadOnlySpan<byte> idData) => new ActivitySpanId(idData);
 
@@ -2252,7 +2164,11 @@ namespace System.Diagnostics
                 id = BinaryPrimitives.ReverseEndianness(id);
             }
 
+#if NET9_0_OR_GREATER
             _hexString = Convert.ToHexStringLower(new ReadOnlySpan<byte>(&id, sizeof(ulong)));
+#else
+            _hexString = HexConverter.ToString(new ReadOnlySpan<byte>(&id, sizeof(ulong)), HexConverter.Casing.Lower);
+#endif
         }
 
         /// <summary>

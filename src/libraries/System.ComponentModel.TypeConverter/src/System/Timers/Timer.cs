@@ -89,7 +89,10 @@ namespace System.Timers
                 else if (_autoReset != value)
                 {
                     _autoReset = value;
-                    UpdateTimer();
+                    if (_timer != null)
+                    {
+                        UpdateTimer();
+                    }
                 }
             }
         }
@@ -149,11 +152,7 @@ namespace System.Timers
 
         private void UpdateTimer()
         {
-            if (_timer is null || !_enabled)
-            {
-                return;
-            }
-
+            Debug.Assert(_timer != null, $"{nameof(_timer)} was expected not to be null");
             int i = (int)Math.Ceiling(_interval);
             _timer.Change(i, _autoReset ? i : Timeout.Infinite);
         }
@@ -173,7 +172,10 @@ namespace System.Timers
                 }
 
                 _interval = value;
-                UpdateTimer();
+                if (_timer != null)
+                {
+                    UpdateTimer();
+                }
             }
         }
 

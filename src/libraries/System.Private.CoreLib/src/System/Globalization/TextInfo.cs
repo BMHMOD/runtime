@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Buffers;
@@ -19,6 +19,13 @@ namespace System.Globalization
     /// </summary>
     public sealed partial class TextInfo : ICloneable, IDeserializationCallback
     {
+        private enum Tristate : byte
+        {
+            NotInitialized = 0,
+            False = 1,
+            True = 2
+        }
+
         private bool _isReadOnly;
 
         private readonly string _cultureName;
@@ -29,10 +36,10 @@ namespace System.Globalization
         // // Name of the text info we're using (ie: _cultureData.TextInfoName)
         private readonly string _textInfoName;
 
-        private NullableBool _isAsciiCasingSameAsInvariant;
+        private Tristate _isAsciiCasingSameAsInvariant = Tristate.NotInitialized;
 
         // Invariant text info
-        internal static readonly TextInfo Invariant = new TextInfo(CultureData.Invariant, readOnly: true) { _isAsciiCasingSameAsInvariant = NullableBool.True };
+        internal static readonly TextInfo Invariant = new TextInfo(CultureData.Invariant, readOnly: true) { _isAsciiCasingSameAsInvariant = Tristate.True };
 
         internal TextInfo(CultureData cultureData)
         {
@@ -203,33 +210,6 @@ namespace System.Globalization
 
             return OrdinalCasing.ToUpper(c);
         }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static char ToLowerOrdinal(char c)
-        {
-            if (GlobalizationMode.Invariant)
-            {
-                return char.IsAscii(c)
-                    ? ToLowerAsciiInvariant(c)
-                    : PreserveOrdinalLowerCasingClass(c, InvariantModeCasing.ToLower(c));
-            }
-
-            if (GlobalizationMode.UseNls)
-            {
-                return char.IsAscii(c)
-                    ? ToLowerAsciiInvariant(c)
-                    : PreserveOrdinalLowerCasingClass(c, Invariant.ChangeCase(c, toUpper: false));
-            }
-
-            return OrdinalCasing.ToLower(c);
-        }
-
-        // Ordinal lower casing must never move a character out of its ordinal upper-casing class, otherwise it
-        // would stop being consistent with OrdinalIgnoreCase (for example the Kelvin, Ohm and Angstrom signs). The
-        // ICU ordinal table encodes this directly, but invariant and NLS simple lowering do not, so keep the original
-        // character whenever its simple lower mapping would change its ordinal upper-casing form.
-        private static char PreserveOrdinalLowerCasingClass(char c, char lower) =>
-            lower == c || ToUpperOrdinal(lower) == ToUpperOrdinal(c) ? lower : c;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void ChangeCaseToLower(ReadOnlySpan<char> source, Span<char> destination)
@@ -522,7 +502,7 @@ namespace System.Globalization
         /// </summary>
         /// <param name="value">The rune to convert to lowercase.</param>
         /// <returns>The specified rune converted to lowercase.</returns>
-        public unsafe Rune ToLower(Rune value)
+        public Rune ToLower(Rune value)
         {
             // Convert rune to span
             ReadOnlySpan<char> valueChars = value.AsSpan(stackalloc char[Rune.MaxUtf16CharsPerRune]);
@@ -530,7 +510,7 @@ namespace System.Globalization
             // Change span to lower and convert to rune
             if (valueChars.Length == 2)
             {
-                Span<char> lowerChars = ['\0', '\0'];
+                Span<char> lowerChars = stackalloc char[2];
                 ToLower(valueChars, lowerChars);
                 return new Rune(lowerChars[0], lowerChars[1]);
             }
@@ -544,7 +524,7 @@ namespace System.Globalization
         /// </summary>
         /// <param name="value">The rune to convert to uppercase.</param>
         /// <returns>The specified rune converted to uppercase.</returns>
-        public unsafe Rune ToUpper(Rune value)
+        public Rune ToUpper(Rune value)
         {
             // Convert rune to span
             ReadOnlySpan<char> valueChars = value.AsSpan(stackalloc char[Rune.MaxUtf16CharsPerRune]);
@@ -552,7 +532,7 @@ namespace System.Globalization
             // Change span to upper and convert to rune
             if (valueChars.Length == 2)
             {
-                Span<char> upperChars = ['\0', '\0'];
+                Span<char> upperChars = stackalloc char[2];
                 ToUpper(valueChars, upperChars);
                 return new Rune(upperChars[0], upperChars[1]);
             }
@@ -566,13 +546,13 @@ namespace System.Globalization
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_isAsciiCasingSameAsInvariant == NullableBool.Undefined)
+                if (_isAsciiCasingSameAsInvariant == Tristate.NotInitialized)
                 {
                     PopulateIsAsciiCasingSameAsInvariant();
                 }
 
-                Debug.Assert(_isAsciiCasingSameAsInvariant == NullableBool.True || _isAsciiCasingSameAsInvariant == NullableBool.False);
-                return _isAsciiCasingSameAsInvariant == NullableBool.True;
+                Debug.Assert(_isAsciiCasingSameAsInvariant == Tristate.True || _isAsciiCasingSameAsInvariant == Tristate.False);
+                return _isAsciiCasingSameAsInvariant == Tristate.True;
             }
         }
 
@@ -580,7 +560,7 @@ namespace System.Globalization
         private void PopulateIsAsciiCasingSameAsInvariant()
         {
             bool compareResult = CultureInfo.GetCultureInfo(_textInfoName).CompareInfo.Compare("abcdefghijklmnopqrstuvwxyz", "ABCDEFGHIJKLMNOPQRSTUVWXYZ", CompareOptions.IgnoreCase) == 0;
-            _isAsciiCasingSameAsInvariant = compareResult ? NullableBool.True : NullableBool.False;
+            _isAsciiCasingSameAsInvariant = (compareResult) ? Tristate.True : Tristate.False;
         }
 
         /// <summary>
@@ -756,7 +736,7 @@ namespace System.Globalization
                 }
                 else
                 {
-                    Span<char> dst = ['\0', '\0'];
+                    Span<char> dst = stackalloc char[2];
                     ChangeCaseToUpper(src, dst);
                     result.Append(dst);
                 }

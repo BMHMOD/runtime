@@ -4,7 +4,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 
 namespace System.Linq
 {
@@ -77,7 +76,6 @@ namespace System.Linq
     {
         private readonly IEqualityComparer<TKey> _comparer;
         private Grouping<TKey, TElement>[] _groupings;
-        private ulong _fastModMultiplier;
         internal Grouping<TKey, TElement>? _lastGrouping;
         private int _count;
 
@@ -129,10 +127,6 @@ namespace System.Linq
         {
             _comparer = comparer ?? EqualityComparer<TKey>.Default;
             _groupings = new Grouping<TKey, TElement>[7];
-            if (IntPtr.Size == 8)
-            {
-                _fastModMultiplier = HashHelpers.GetFastModMultiplier((uint)_groupings.Length);
-            }
         }
 
         public int Count => _count;
@@ -207,19 +201,10 @@ namespace System.Linq
             return (key is null) ? 0 : _comparer.GetHashCode(key) & 0x7FFFFFFF;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private uint GetBucketIndex(int hashCode)
-        {
-            Grouping<TKey, TElement>[] groupings = _groupings;
-            return IntPtr.Size == 8
-                ? HashHelpers.FastMod((uint)hashCode, (uint)groupings.Length, _fastModMultiplier)
-                : (uint)hashCode % (uint)groupings.Length;
-        }
-
         internal Grouping<TKey, TElement>? GetGrouping(TKey key, bool create)
         {
             int hashCode = InternalGetHashCode(key);
-            for (Grouping<TKey, TElement>? g = _groupings[GetBucketIndex(hashCode)]; g is not null; g = g._hashNext)
+            for (Grouping<TKey, TElement>? g = _groupings[(uint)hashCode % _groupings.Length]; g is not null; g = g._hashNext)
             {
                 if (g._hashCode == hashCode && _comparer.Equals(g._key, key))
                 {
@@ -234,7 +219,7 @@ namespace System.Linq
                     Resize();
                 }
 
-                uint index = GetBucketIndex(hashCode);
+                int index = hashCode % _groupings.Length;
                 Grouping<TKey, TElement> g = new Grouping<TKey, TElement>(key, hashCode);
                 g._hashNext = _groupings[index];
                 _groupings[index] = g;
@@ -258,22 +243,19 @@ namespace System.Linq
 
         private void Resize()
         {
-            int newSize = HashHelpers.ExpandPrime(_count);
-            _groupings = new Grouping<TKey, TElement>[newSize];
-            if (IntPtr.Size == 8)
-            {
-                _fastModMultiplier = HashHelpers.GetFastModMultiplier((uint)newSize);
-            }
-
+            int newSize = checked((_count * 2) + 1);
+            Grouping<TKey, TElement>[] newGroupings = new Grouping<TKey, TElement>[newSize];
             Grouping<TKey, TElement> g = _lastGrouping!;
             do
             {
                 g = g._next!;
-                uint index = GetBucketIndex(g._hashCode);
-                g._hashNext = _groupings[index];
-                _groupings[index] = g;
+                int index = g._hashCode % newSize;
+                g._hashNext = newGroupings[index];
+                newGroupings[index] = g;
             }
             while (g != _lastGrouping);
+
+            _groupings = newGroupings;
         }
     }
 

@@ -7,13 +7,9 @@ using System.Runtime.InteropServices;
 using System.Threading;
 
 using Xunit;
-using TestLibrary;
 
 public unsafe class ManagedPointers
 {
-    [ActiveIssue("Function mismatch", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
-    [ActiveIssue("Function mismatch", typeof(PlatformDetection), nameof(PlatformDetection.IsBrowser), nameof(PlatformDetection.IsMonoRuntime))]
-    [ActiveIssue("Doesn't compile with LLVM AOT.", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoAnyAOT))]
     [Fact]
     public static void Validate_BoxingHelpers_NullByRef()
     {
@@ -32,9 +28,6 @@ public unsafe class ManagedPointers
         });
     }
 
-    [ActiveIssue("Function mismatch", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
-    [ActiveIssue("Function mismatch", typeof(PlatformDetection), nameof(PlatformDetection.IsBrowser), nameof(PlatformDetection.IsMonoRuntime))]
-    [ActiveIssue("Doesn't compile with LLVM AOT.", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoAnyAOT))]
     [Fact]
     [Xunit.SkipOnCoreClrAttribute("Depends on marshalled calli", RuntimeTestModes.InterpreterActive)]
     public static void Validate_GeneratedILStubs_NullByRef()
@@ -60,9 +53,6 @@ public unsafe class ManagedPointers
         static nint PassByRef(void* a) => (nint)a;
     }
 
-    [ActiveIssue("Function mismatch", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
-    [ActiveIssue("Function mismatch", typeof(PlatformDetection), nameof(PlatformDetection.IsBrowser), nameof(PlatformDetection.IsMonoRuntime))]
-    [ActiveIssue("Doesn't compile with LLVM AOT.", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoAnyAOT))]
     [Fact]
     public static void Validate_IntrinsicMethodsWithByRef_NullByRef()
     {

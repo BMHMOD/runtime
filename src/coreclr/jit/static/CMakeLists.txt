@@ -6,7 +6,6 @@ add_library_clr(clrjit_static
     OBJECT
     ${JIT_SOURCES}
     ${JIT_ARCH_SOURCES}
-    ${JITSHARED_SOURCES}
 )
 
 if(CLR_CMAKE_HOST_UNIX)

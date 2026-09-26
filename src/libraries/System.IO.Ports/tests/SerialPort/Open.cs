@@ -10,7 +10,7 @@ namespace System.IO.Ports.Tests
 {
     public class Open : PortsTest
     {
-        [ConditionalFact(typeof(Open), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void OpenDefault()
         {
             using (SerialPort com = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))
@@ -27,7 +27,7 @@ namespace System.IO.Ports.Tests
             }
         }
 
-        [ConditionalFact(typeof(Open), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void OpenTwice()
         {
             using (SerialPort com = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))
@@ -46,7 +46,7 @@ namespace System.IO.Ports.Tests
             }
         }
 
-        [ConditionalFact(typeof(Open), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void OpenTwoInstances()
         {
             using (SerialPort com1 = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))

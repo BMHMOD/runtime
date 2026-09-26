@@ -21,7 +21,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public override ObjectNodeSection GetSection(NodeFactory factory)
         {
-            return ObjectNodeSection.ReadOnlyDataSection;
+            return ObjectNodeSection.Win32ResourcesSection;
         }
 
         public override bool IsShareable => false;

@@ -5,7 +5,7 @@ using System;
 using System.Runtime.CompilerServices;
 using Xunit;
 
-namespace GitHub_3539
+namespace GitHub_19910
 
 {
     public class Program
@@ -22,7 +22,7 @@ namespace GitHub_3539
             {
                 unsafe
                 {
-                    void* stackPtr = stackalloc byte[sizeof(Bgr)];
+                    void* stackPtr = stackalloc byte[Unsafe.SizeOf<Bgr>()];
 
                     var value = Unsafe.Read<T>(stackPtr);
                 }
@@ -34,7 +34,7 @@ namespace GitHub_3539
             {
                 unsafe
                 {
-                    void* stackPtr = stackalloc byte[sizeof(Bgr)];
+                    void* stackPtr = stackalloc byte[Unsafe.SizeOf<Bgr>()];
 
                     T value = default(T);
                     Unsafe.Write<T>(stackPtr, value);

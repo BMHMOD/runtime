@@ -19,55 +19,55 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         {
             switch (_thunkKind)
             {
-                case ImportThunkKind.Eager:
+                case Kind.Eager:
                     // mov r12, [helper]
                     instructionEncoder.EmitMOV(Register.R12, _helperCell);
-                    // ldr r12, [r12]
-                    instructionEncoder.EmitLDR(Register.R12, Register.R12);
+                    // ldr.w r12, [r12]
+                    instructionEncoder.EmitLDR(Register.R12, Register.R12, 0);
                     // bx r12
                     instructionEncoder.EmitJMP(Register.R12);
                     break;
 
-                case ImportThunkKind.DelayLoadHelper:
-                case ImportThunkKind.VirtualStubDispatch:
-                case ImportThunkKind.DelayLoadHelperWithExistingIndirectionCell:
-                    // r12 contains indirection cell
-                    // push r12
-                    instructionEncoder.EmitPUSH(Register.R12);
+                case Kind.DelayLoadHelper:
+                case Kind.VirtualStubDispatch:
+                case Kind.DelayLoadHelperWithExistingIndirectionCell:
+                    // r4 contains indirection cell
+                    // push r4
+                    instructionEncoder.EmitPUSH(Register.R4);
 
                     if (!relocsOnly)
                     {
                         int index = _containingImportSection.IndexFromBeginningOfArray;
-                        // movw r12, #index
-                        instructionEncoder.EmitMOV(Register.R12, checked((ushort)index));
-                        // push r12
-                        instructionEncoder.EmitPUSH(Register.R12);
+                        // mov r4, #index
+                        instructionEncoder.EmitMOV(Register.R4, index);
+                        // push r4
+                        instructionEncoder.EmitPUSH(Register.R4);
                     }
 
-                    // mov r12, [module]
-                    instructionEncoder.EmitMOV(Register.R12, factory.ModuleImport);
-                    // ldr r12, [r12]
-                    instructionEncoder.EmitLDR(Register.R12, Register.R12);
-                    // push r12
-                    instructionEncoder.EmitPUSH(Register.R12);
+                    // mov r4, [module]
+                    instructionEncoder.EmitMOV(Register.R4, factory.ModuleImport);
+                    // ldr r4, [r4]
+                    instructionEncoder.EmitLDR(Register.R4, Register.R4);
+                    // push r4
+                    instructionEncoder.EmitPUSH(Register.R4);
 
-                    // mov r12, [helper]
-                    instructionEncoder.EmitMOV(Register.R12, _helperCell);
-                    // ldr r12, [r12]
-                    instructionEncoder.EmitLDR(Register.R12, Register.R12);
-                    // bx r12
-                    instructionEncoder.EmitJMP(Register.R12);
+                    // mov r4, [helper]
+                    instructionEncoder.EmitMOV(Register.R4, _helperCell);
+                    // ldr r4, [r4]
+                    instructionEncoder.EmitLDR(Register.R4, Register.R4);
+                    // bx r4
+                    instructionEncoder.EmitJMP(Register.R4);
                     break;
 
-                case ImportThunkKind.Lazy:
+                case Kind.Lazy:
                     // mov r1, [module]
                     instructionEncoder.EmitMOV(Register.R1, factory.ModuleImport);
                     // ldr r1, [r1]
                     instructionEncoder.EmitLDR(Register.R1, Register.R1);
                     // mov r12, [helper]
                     instructionEncoder.EmitMOV(Register.R12, _helperCell);
-                    // ldr r12, [r12]
-                    instructionEncoder.EmitLDR(Register.R12, Register.R12);
+                    // ldr.w r12, [r12]
+                    instructionEncoder.EmitLDR(Register.R12, Register.R12, 0);
                     // bx r12
                     instructionEncoder.EmitJMP(Register.R12);
                     break;

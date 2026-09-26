@@ -6,7 +6,6 @@
 using System;
 using System.Threading;
 using Xunit;
-using TestLibrary;
 
 public class MyData
 {
@@ -43,7 +42,7 @@ public class Test_threadstatic05
 
     private int retVal = 0;
 
-    [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+    [Fact]
     public static int TestEntryPoint()
     {
         Test_threadstatic05 staticsTest = new Test_threadstatic05();        

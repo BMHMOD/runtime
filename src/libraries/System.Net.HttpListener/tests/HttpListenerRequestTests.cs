@@ -26,8 +26,8 @@ namespace System.Net.Tests
 
         public void Dispose()
         {
-            Client?.Dispose();
             Factory?.Dispose();
+            Client?.Dispose();
         }
 
         [Theory]
@@ -126,6 +126,8 @@ namespace System.Net.Tests
 
         [Theory]
         [InlineData("POST", "Content-Length: 9223372036854775807", 9223372036854775807, true)] // long.MaxValue
+        [InlineData("POST", "Content-Length: 9223372036854775808", 0, false)] // long.MaxValue + 1
+        [InlineData("POST", "Content-Length: 18446744073709551615 ", 0, false)] // ulong.MaxValue
         [InlineData("POST", "Content-Length: 0", 0, false)]
         [InlineData("PUT", "Content-Length: 0", 0, false)]
         [InlineData("PUT", "Content-Length: 1", 1, true)]
@@ -227,6 +229,11 @@ namespace System.Net.Tests
         [InlineData("Unknown-Header: Test", false)]
         public async Task IsWebSocketRequest_GetProperty_ReturnsExpected(string webSocketString, bool expected)
         {
+            if (PlatformDetection.IsWindows7)
+            {
+                return;
+            }
+
             HttpListenerRequest request = await GetRequest("POST", "", new string[] { webSocketString });
             Assert.Equal(expected, request.IsWebSocketRequest);
         }
@@ -269,7 +276,7 @@ namespace System.Net.Tests
         public async Task GetClientCertificateAsync_NoCertificate_ReturnsNull()
         {
             HttpListenerRequest request = await GetRequest("POST", null, null);
-            Assert.Null(await request.GetClientCertificateAsync());
+            Assert.Null(request.GetClientCertificateAsync().Result);
         }
 
         [Fact]
@@ -600,7 +607,7 @@ namespace System.Net.Tests
 
         private async Task<HttpListenerRequest> GetRequest(string requestType, string query, string[] headers, string content = "Text\r\n", string httpVersion = "1.1")
         {
-            await Client.SendAsync(Factory.GetContent(httpVersion, requestType, query, content, headers, true));
+            Client.Send(Factory.GetContent(httpVersion, requestType, query, content, headers, true));
 
             HttpListener listener = Factory.GetListener();
             return (await listener.GetContextAsync()).Request;

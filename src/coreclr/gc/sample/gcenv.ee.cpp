@@ -131,7 +131,7 @@ void GCToEEInterface::SuspendEE(SUSPEND_REASON reason)
     // TODO: Implement
 }
 
-void GCToEEInterface::RestartEE(bool bUnused)
+void GCToEEInterface::RestartEE(bool bFinishedGC)
 {
     // TODO: Implement
 
@@ -166,11 +166,6 @@ bool GCToEEInterface::RefCountedHandleCallbacks(Object * pObject)
 
 void GCToEEInterface::TriggerClientBridgeProcessing(MarkCrossReferencesArgs* args)
 {
-}
-
-bool GCToEEInterface::IsClientBridgeProcessingActive()
-{
-    return false;
 }
 
 bool GCToEEInterface::IsPreemptiveGCDisabled()

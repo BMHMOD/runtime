@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-
-using Internal.Text;
 using Internal.TypeSystem;
 
 using Debug = System.Diagnostics.Debug;
@@ -130,7 +128,7 @@ namespace Internal.IL.Stubs
             return emitter.Link(this);
         }
 
-        public override Utf8Span Name
+        public override ReadOnlySpan<byte> Name
         {
             get
             {
@@ -223,7 +221,7 @@ namespace Internal.IL.Stubs
             return emitter.Link(this);
         }
 
-        public override Utf8Span Name
+        public override ReadOnlySpan<byte> Name
         {
             get
             {
@@ -283,7 +281,7 @@ namespace Internal.IL.Stubs
             return emitter.Link(this);
         }
 
-        public override Utf8Span Name
+        public override ReadOnlySpan<byte> Name
         {
             get
             {
@@ -310,7 +308,7 @@ namespace Internal.IL.Stubs
             ILEmitter emitter = new ILEmitter();
             ILCodeStream codeStream = emitter.NewCodeStream();
 
-            TypeDesc delegateWrapperType = ((MetadataType)SystemDelegateType).GetKnownNestedType("Wrapper"u8);
+            TypeDesc delegateWrapperType = ((MetadataType)SystemDelegateType).GetKnownNestedType("Wrapper");
             ArrayType invocationListArrayType = delegateWrapperType.MakeArrayType();
 
             ILLocalVariable delegateArrayLocal = emitter.NewLocal(invocationListArrayType);
@@ -418,7 +416,7 @@ namespace Internal.IL.Stubs
             return emitter.Link(this);
         }
 
-        public override Utf8Span Name
+        public override ReadOnlySpan<byte> Name
         {
             get
             {
@@ -466,7 +464,7 @@ namespace Internal.IL.Stubs
             return emitter.Link(this);
         }
 
-        public override Utf8Span Name
+        public override ReadOnlySpan<byte> Name
         {
             get
             {
@@ -643,7 +641,7 @@ namespace Internal.IL.Stubs
             return emitter.Link(this);
         }
 
-        public override Utf8Span Name
+        public override ReadOnlySpan<byte> Name
         {
             get
             {
@@ -760,7 +758,7 @@ namespace Internal.IL.Stubs
             }
         }
 
-        public override Utf8Span Name
+        public override ReadOnlySpan<byte> Name
         {
             get
             {

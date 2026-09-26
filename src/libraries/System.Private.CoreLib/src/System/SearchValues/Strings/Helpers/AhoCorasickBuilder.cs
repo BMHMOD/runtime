@@ -194,7 +194,7 @@ namespace System.Buffers
 
         // If all the values start with ASCII characters, we can use IndexOfAnyAsciiSearcher
         // to quickly skip to the next possible starting location in the input.
-        private unsafe void GenerateStartingAsciiCharsBitmap()
+        private void GenerateStartingAsciiCharsBitmap()
         {
             scoped ValueListBuilder<char> startingChars = new ValueListBuilder<char>(stackalloc char[128]);
 

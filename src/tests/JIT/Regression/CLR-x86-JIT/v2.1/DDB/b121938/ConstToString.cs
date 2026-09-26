@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace ConstToString;
-
 using System;
 using Xunit;
 
@@ -70,7 +67,6 @@ public class ConstToString
         }
         return iret;
     }
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

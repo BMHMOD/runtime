@@ -22,7 +22,6 @@ delegate void GClosed<T>();
 public class Test_negativegenerics{
 	public static int retVal=100;
 
-	[OuterLoop]
 	[Fact]
 	public static int TestEntryPoint(){
 		//Try to create an open-instance delegate to a virtual generic method (@TODO - Need early bound case here too)

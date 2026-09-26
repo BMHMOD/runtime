@@ -80,12 +80,12 @@ struct BitVecTraits
 private:
     unsigned  size;
     unsigned  arraySize; // pre-computed to avoid computation in GetArrSize
-    Compiler* m_compiler;
+    Compiler* comp;
 
 public:
     BitVecTraits(unsigned size, Compiler* comp)
         : size(size)
-        , m_compiler(comp)
+        , comp(comp)
     {
         const unsigned elemBits = 8 * sizeof(size_t);
         arraySize               = roundUp(size, elemBits) / elemBits;

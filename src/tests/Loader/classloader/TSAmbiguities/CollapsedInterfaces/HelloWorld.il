@@ -3,8 +3,6 @@
 
 .assembly extern System.Console { }
 .assembly extern xunit.core {}
-.assembly extern Microsoft.DotNet.XUnitExtensions { .publickeytoken = (31 BF 38 56 AD 36 4E 35 ) }
-.assembly extern TestLibrary { .ver 0:0:0:0 }
 
 .assembly extern mscorlib
 {
@@ -13,7 +11,7 @@
 }
 .assembly HelloWorld
 {
-  .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(int32) = ( 01 00 08 00 00 00 00 00 )
+  .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(int32) = ( 01 00 08 00 00 00 00 00 ) 
   .custom instance void [mscorlib]System.Runtime.CompilerServices.RuntimeCompatibilityAttribute::.ctor() = ( 01 00 01 00 54 02 16 57 72 61 70 4E 6F 6E 45 78   // ....T..WrapNonEx
                                                                                                              63 65 70 74 69 6F 6E 54 68 72 6F 77 73 01 )       // ceptionThrows.
   .hash algorithm 0x00008004
@@ -33,7 +31,7 @@
 .class private auto ansi beforefieldinit HelloWorld
        extends [mscorlib]System.Object
 {
-  .method private hidebysig static int32
+  .method private hidebysig static int32 
           Main() cil managed
   {
     .custom instance void [xunit.core]Xunit.FactAttribute::.ctor() = (
@@ -150,7 +148,7 @@
       IL_00df:  leave.s    IL_0119
 
     }  // end .try
-    catch [mscorlib]System.Object
+    catch [mscorlib]System.Object 
     {
       IL_00e1:  pop
       IL_00e2:  nop
@@ -216,7 +214,7 @@
     IL_0150:  ret
   } // end of method HelloWorld::Main
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_A_int_byte() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
@@ -236,7 +234,7 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_A_int_byte
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_A_int_int() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
@@ -256,7 +254,7 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_A_int_int
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_A_string_object() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
@@ -276,7 +274,7 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_A_string_object
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_A_string_string() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
@@ -296,7 +294,7 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_A_string_string
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_B_int_byte() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
@@ -316,7 +314,7 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_B_int_byte
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_B_int_int() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
@@ -336,7 +334,7 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_B_int_int
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_B_string_object() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
@@ -356,7 +354,7 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_B_string_object
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_B_string_string() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
@@ -376,7 +374,7 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_B_string_string
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_C_int_byte() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
@@ -396,7 +394,7 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_C_int_byte
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_C_string_string() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
@@ -416,12 +414,12 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_C_string_string
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_C_ListInt_byte() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
                                                    class [mscorlib]System.Type,
-                                                   bool) = ( 01 00 12 43 3C 4C 69 73 74 3C 69 6E 74 3E 2C 20   // ...C<List<int>,
+                                                   bool) = ( 01 00 12 43 3C 4C 69 73 74 3C 69 6E 74 3E 2C 20   // ...C<List<int>, 
                                                              62 79 74 65 3E 03 43 60 32 00 00 00 )             // byte>.C`2...
     // Code size       16 (0x10)
     .maxstack  1
@@ -436,12 +434,12 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_C_ListInt_byte
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_C_ListInt_int() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
                                                    class [mscorlib]System.Type,
-                                                   bool) = ( 01 00 11 43 3C 4C 69 73 74 3C 69 6E 74 3E 2C 20   // ...C<List<int>,
+                                                   bool) = ( 01 00 11 43 3C 4C 69 73 74 3C 69 6E 74 3E 2C 20   // ...C<List<int>, 
                                                              69 6E 74 3E 03 43 60 32 01 00 00 )                // int>.C`2...
     // Code size       16 (0x10)
     .maxstack  1
@@ -456,14 +454,14 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_C_ListInt_int
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_C_ListString_object() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
                                                    class [mscorlib]System.Type,
                                                    bool) = ( 01 00 17 43 3C 4C 69 73 74 3C 73 74 72 69 6E 67   // ...C<List<string
                                                              3E 2C 20 6F 62 6A 65 63 74 3E 03 43 60 32 00 00   // >, object>.C`2..
-                                                             00 )
+                                                             00 ) 
     // Code size       16 (0x10)
     .maxstack  1
     .locals init (class [mscorlib]System.Type V_0)
@@ -477,14 +475,14 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_C_ListString_object
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_C_ListString_string() cil managed
   {
     .custom instance void TypeTestAttribute::.ctor(string,
                                                    class [mscorlib]System.Type,
                                                    bool) = ( 01 00 17 43 3C 4C 69 73 74 3C 73 74 72 69 6E 67   // ...C<List<string
                                                              3E 2C 20 73 74 72 69 6E 67 3E 03 43 60 32 01 00   // >, string>.C`2..
-                                                             00 )
+                                                             00 ) 
     // Code size       16 (0x10)
     .maxstack  1
     .locals init (class [mscorlib]System.Type V_0)
@@ -498,7 +496,7 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_C_ListString_string
 
-  .method public hidebysig specialname rtspecialname
+  .method public hidebysig specialname rtspecialname 
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)
@@ -517,7 +515,7 @@
   .field public initonly string instantiation
   .field public initonly class [mscorlib]System.Type 'type'
   .field public initonly bool shouldFail
-  .method public hidebysig specialname rtspecialname
+  .method public hidebysig specialname rtspecialname 
           instance void  .ctor(string instantiation,
                                class [mscorlib]System.Type 'type',
                                bool shouldFail) cil managed
@@ -545,7 +543,7 @@
 
 .class interface private abstract auto ansi I`1<T>
 {
-  .method public hidebysig newslot abstract virtual
+  .method public hidebysig newslot abstract virtual 
           instance void  M() cil managed
   {
   } // end of method I`1::M
@@ -557,7 +555,7 @@
        implements class I`1<!T>,
                   class I`1<!U>
 {
-  .method public hidebysig newslot virtual
+  .method public hidebysig newslot virtual 
           instance void  M() cil managed
   {
     // Code size       33 (0x21)
@@ -575,7 +573,7 @@
     IL_0020:  ret
   } // end of method A`2::M
 
-  .method public hidebysig specialname rtspecialname
+  .method public hidebysig specialname rtspecialname 
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)
@@ -592,7 +590,7 @@
        implements class I`1<class [mscorlib]System.Collections.Generic.List`1<!T>>,
                   class I`1<class [mscorlib]System.Collections.Generic.List`1<!U>>
 {
-  .method public hidebysig newslot virtual
+  .method public hidebysig newslot virtual 
           instance void  M() cil managed
   {
     // Code size       33 (0x21)
@@ -610,7 +608,7 @@
     IL_0020:  ret
   } // end of method B`2::M
 
-  .method public hidebysig specialname rtspecialname
+  .method public hidebysig specialname rtspecialname 
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)
@@ -627,7 +625,7 @@
        implements class I`1<class [mscorlib]System.Collections.Generic.List`1<!T>>,
                   class I`1<class [mscorlib]System.Collections.Generic.List`1<class [mscorlib]System.Collections.Generic.List`1<!U>>>
 {
-  .method public hidebysig newslot virtual
+  .method public hidebysig newslot virtual 
           instance void  M() cil managed
   {
     // Code size       33 (0x21)
@@ -645,7 +643,7 @@
     IL_0020:  ret
   } // end of method C`2::M
 
-  .method public hidebysig specialname rtspecialname
+  .method public hidebysig specialname rtspecialname 
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)

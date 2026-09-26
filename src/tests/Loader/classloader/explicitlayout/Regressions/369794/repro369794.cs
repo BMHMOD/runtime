@@ -4,7 +4,6 @@
 using System.Runtime.InteropServices;
 using System;
 using Xunit;
-using TestLibrary;
 
 [StructLayout(LayoutKind.Explicit, Size = 153)]
 internal struct A
@@ -15,7 +14,6 @@ internal struct A
 
 public class Test
 {
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static unsafe int TestEntryPoint()
     {

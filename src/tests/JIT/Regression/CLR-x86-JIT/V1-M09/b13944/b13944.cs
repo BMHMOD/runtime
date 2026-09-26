@@ -6,7 +6,7 @@ using System;
 using Xunit;
 
 
-namespace b13944
+namespace DefaultNamespace
 {
     public class X
     {
@@ -28,7 +28,6 @@ namespace b13944
         }
 
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

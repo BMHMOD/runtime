@@ -3,7 +3,6 @@
 
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -36,7 +35,6 @@ namespace System.Data.Common.Tests
 
         private class FinalizingConnection : MockDbConnection
         {
-            [MethodImpl(MethodImplOptions.NoInlining)]
             public static void CreateAndRelease() => new FinalizingConnection();
 
             protected override void Dispose(bool disposing)

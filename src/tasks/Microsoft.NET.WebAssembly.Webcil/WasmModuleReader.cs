@@ -36,8 +36,6 @@ internal class WasmModuleReader : IDisposable
 
     public bool IsWasmModule => _isWasmModule.Value;
 
-    protected Stream BaseStream => _reader.BaseStream;
-
     public WasmModuleReader(Stream stream)
     {
         _reader = new BinaryReader(stream, Encoding.UTF8, leaveOpen: true);

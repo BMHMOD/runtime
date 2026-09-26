@@ -33,7 +33,7 @@ namespace ILCompiler.Reflection.ReadyToRun
         /// </summary>
         public string SignatureString { get; }
 
-        public PgoInfoKey(IAssemblyMetadata componentReader, string owningType, EntityHandle methodHandle, string[] instanceArgs, string[] signaturePrefixes)
+        public PgoInfoKey(IAssemblyMetadata componentReader, string owningType, EntityHandle methodHandle, string[] instanceArgs)
         {
             ComponentReader = componentReader;
             EntityHandle owningTypeHandle;
@@ -76,14 +76,6 @@ namespace ILCompiler.Reflection.ReadyToRun
             }
 
             StringBuilder sb = new StringBuilder();
-            if (signaturePrefixes != null)
-            {
-                foreach (var prefix in signaturePrefixes)
-                {
-                    sb.Append(prefix);
-                    sb.Append(" ");
-                }
-            }
             sb.Append(Signature.ReturnType);
             sb.Append(" ");
             sb.Append(DeclaringType);
@@ -138,7 +130,7 @@ namespace ILCompiler.Reflection.ReadyToRun
 
         public static PgoInfoKey FromReadyToRunMethod(ReadyToRunMethod method)
         {
-            var key = new PgoInfoKey(method.ComponentReader, method.DeclaringType, method.MethodHandle, method.InstanceArgs, method.SignaturePrefixes);
+            var key = new PgoInfoKey(method.ComponentReader, method.DeclaringType, method.MethodHandle, method.InstanceArgs);
             Debug.Assert(key.SignatureString == method.SignatureString);
             return key;
         }

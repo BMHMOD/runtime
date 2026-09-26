@@ -37,19 +37,17 @@ enum GCRefKind : unsigned char
 static_assert(PTFF_RAX_IS_GCREF == ((uint64_t)GCRK_Object << 16));
 static_assert(PTFF_RAX_IS_BYREF == ((uint64_t)GCRK_Byref << 16));
 
-inline uintptr_t ReturnKindToTransitionFrameFlags(GCRefKind returnKind, bool isAsync)
+inline uintptr_t ReturnKindToTransitionFrameFlags(GCRefKind returnKind)
 {
     // just need to report gc ref bits here.
     // appropriate PTFF_SAVE_ bits will be added by the frame building routine.
-    return ((uintptr_t)returnKind << 16) | (isAsync ? PTFF_RCX_IS_GCREF : 0);
+    return ((uintptr_t)returnKind << 16);
 }
 
-inline GCRefKind TransitionFrameFlagsToReturnKind(uintptr_t transFrameFlags, bool* isAsync)
+inline GCRefKind TransitionFrameFlagsToReturnKind(uintptr_t transFrameFlags)
 {
     GCRefKind returnKind = (GCRefKind)((transFrameFlags & (PTFF_RAX_IS_GCREF | PTFF_RAX_IS_BYREF)) >> 16);
-    *isAsync = (transFrameFlags & PTFF_RCX_IS_GCREF) != 0;
     ASSERT((returnKind == GCRK_Scalar) || (transFrameFlags & PTFF_SAVE_RAX));
-    ASSERT(!*isAsync || (transFrameFlags & PTFF_SAVE_RCX));
     return returnKind;
 }
 
@@ -103,7 +101,7 @@ enum class ClasslibFunctionId
     FailFast = 1,
     ThreadEntryPoint = 2,
     AppendExceptionStackFrame = 3,
-    ResolveDispatch = 4,
+    // unused = 4,
     GetSystemArrayEEType = 5,
     OnFirstChanceException = 6,
     OnUnhandledException = 7,
@@ -165,14 +163,12 @@ public:
 
     virtual bool GetReturnAddressHijackInfo(MethodInfo *    pMethodInfo,
                                             REGDISPLAY *    pRegisterSet,          // in
-                                            PTR_PTR_VOID *  ppvRetAddrLocation,    // out
-                                            uintptr_t *     pSpForArm64PacSign     // out
+                                            PTR_PTR_VOID *  ppvRetAddrLocation     // out
                                             ) PURE_VIRTUAL
 
 #ifdef TARGET_X86
     virtual GCRefKind GetReturnValueKind(MethodInfo *   pMethodInfo,
-                                  REGDISPLAY *   pRegisterSet,
-                                  bool* isAsync) PURE_VIRTUAL
+                                  REGDISPLAY *   pRegisterSet) PURE_VIRTUAL
 #endif
 
     virtual PTR_VOID RemapHardwareFaultToGCSafePoint(MethodInfo * pMethodInfo, PTR_VOID controlPC) PURE_VIRTUAL

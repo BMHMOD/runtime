@@ -1,8 +1,9 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
-
 // ---------------------------------------------------------------------------
 // Check.h
+//
+
 //
 // Assertion checking infrastructure
 // ---------------------------------------------------------------------------
@@ -662,7 +663,7 @@ CHECK CheckAligned(UINT value, UINT alignment);
 CHECK CheckAligned(ULONG value, UINT alignment);
 #endif
 CHECK CheckAligned(UINT64 value, UINT alignment);
-#if defined(__APPLE__) || defined(__OpenBSD__)
+#ifdef __APPLE__
 CHECK CheckAligned(SIZE_T value, UINT alignment);
 #endif
 CHECK CheckAligned(const void *address, UINT alignment);
@@ -672,7 +673,7 @@ CHECK CheckOverflow(UINT value1, UINT value2);
 CHECK CheckOverflow(ULONG value1, ULONG value2);
 #endif
 CHECK CheckOverflow(UINT64 value1, UINT64 value2);
-#if defined(__APPLE__) || defined(__OpenBSD__)
+#ifdef __APPLE__
 CHECK CheckOverflow(SIZE_T value1, SIZE_T value2);
 #endif
 #ifndef __wasm__
@@ -688,7 +689,7 @@ CHECK CheckUnderflow(UINT value1, UINT value2);
 CHECK CheckUnderflow(ULONG value1, ULONG value2);
 #endif
 CHECK CheckUnderflow(UINT64 value1, UINT64 value2);
-#if defined(__APPLE__) || defined(__OpenBSD__)
+#ifdef __APPLE__
 CHECK CheckUnderflow(SIZE_T value1, SIZE_T value2);
 #endif
 CHECK CheckUnderflow(const void *address, UINT offset);
@@ -696,7 +697,7 @@ CHECK CheckUnderflow(const void *address, UINT offset);
 CHECK CheckUnderflow(const void *address, ULONG offset);
 #endif
 CHECK CheckUnderflow(const void *address, UINT64 offset);
-#if defined(__APPLE__) || defined(__OpenBSD__)
+#ifdef __APPLE__
 CHECK CheckUnderflow(const void *address, SIZE_T offset);
 #endif
 CHECK CheckUnderflow(const void *address, void *address2);

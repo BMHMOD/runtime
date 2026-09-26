@@ -44,13 +44,7 @@ namespace System.Security.Cryptography
                 throw new CryptographicException(SR.Cryptography_NoPrivateKeyAvailable);
             }
 
-            int written = Interop.BCrypt.BCryptSignHashPqcPure(_key, data, context, destination);
-
-            if (written != destination.Length)
-            {
-                Debug.Fail($"Expected {destination.Length} bytes, but {nameof(Interop.BCrypt.BCryptSignHashPqcPure)} wrote {written} bytes.");
-                throw new CryptographicException();
-            }
+            Interop.BCrypt.BCryptSignHashPqcPure(_key, data, context, destination);
         }
 
         protected override bool VerifyDataCore(ReadOnlySpan<byte> data, ReadOnlySpan<byte> context, ReadOnlySpan<byte> signature) =>

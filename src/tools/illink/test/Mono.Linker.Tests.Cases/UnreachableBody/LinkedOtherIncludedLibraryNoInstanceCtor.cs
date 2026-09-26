@@ -3,10 +3,10 @@ using Mono.Linker.Tests.Cases.Expectations.Metadata;
 
 namespace Mono.Linker.Tests.Cases.UnreachableBody
 {
-    [SkipUnresolved(true)]
+    [SetupLinkerArgument("--skip-unresolved", "true")]
     [Define("OTHER_INCLUDED")]
 #if NET
-    [SetupLinkerArgument("-a", "other", "visible")]
+    [SetupLinkerArgument("-a", "other.dll", "visible")]
 #else
     [SetupLinkerArgument("-r", "other")]
 #endif

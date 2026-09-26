@@ -17,6 +17,22 @@ namespace System
         private readonly ref byte _value;
         private readonly IntPtr _type;
 
+        // implementation of CORINFO_HELP_GETREFANY
+        [StackTraceHidden]
+        internal static ref byte GetRefAny(IntPtr clsHnd, TypedReference typedByRef)
+        {
+            if (clsHnd != typedByRef._type)
+            {
+                ThrowInvalidCastException();
+            }
+
+            return ref typedByRef._value;
+
+            [DoesNotReturn]
+            [StackTraceHidden]
+            static void ThrowInvalidCastException() => throw new InvalidCastException();
+        }
+
         private TypedReference(ref byte target, RuntimeType type)
         {
             _value = ref target;
@@ -54,22 +70,6 @@ namespace System
             }
 
             return result;
-        }
-
-        // Implementation of CORINFO_HELP_GETREFANY
-        [StackTraceHidden]
-        internal static ref byte GetRefAny(IntPtr type, TypedReference value)
-        {
-            if (type != value._type)
-            {
-                ThrowInvalidCastException();
-            }
-
-            return ref value._value;
-
-            [DoesNotReturn]
-            [StackTraceHidden]
-            static void ThrowInvalidCastException() => throw new InvalidCastException();
         }
     }
 }

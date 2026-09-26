@@ -41,8 +41,8 @@ namespace System.Security.Cryptography
             try
             {
                 StringBuilder output = new StringBuilder();
-                ValueAsnReader reader = new ValueAsnReader(rawData, AsnEncodingRules.DER);
-                ValueAsnReader collectionReader = reader.ReadSequence();
+                AsnValueReader reader = new AsnValueReader(rawData, AsnEncodingRules.DER);
+                AsnValueReader collectionReader = reader.ReadSequence();
 
                 reader.ThrowIfNotEmpty();
 

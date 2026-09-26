@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-namespace Runtime_105822;
-
 using System;
 using System.Runtime.CompilerServices;
 using System.Numerics;
@@ -27,17 +24,20 @@ public class Runtime_105822
 {
     public static Vector512<float> s_2;
 
-    [ConditionalFact(typeof(Avx512F), nameof(Avx512F.IsSupported))]
+    [Fact]
     public static void TestEntryPoint()
     {
-        var vr6 = new C0();
-        var vr8 = vr6.F1;
-        var vr9 = Vector512.CreateScalar(vr8);
-        var vr10 = Vector512.CreateScalar(107.15434f);
-        var vr11 = Avx512F.CompareNotEqual(vr9, vr10);
-        var vr12 = Avx512F.BlendVariable(vr11, Avx512F.ReciprocalSqrt14(s_2), s_2);
-        s_2 = Avx512F.GetMantissa(vr12, 0);
-        Vector512<uint> expected = Vector512.Create(4294967295, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216);
-        Assert.Equal(expected, s_2.AsUInt32());
+        if (Avx512F.IsSupported)
+        {
+            var vr6 = new C0();
+            var vr8 = vr6.F1;
+            var vr9 = Vector512.CreateScalar(vr8);
+            var vr10 = Vector512.CreateScalar(107.15434f);
+            var vr11 = Avx512F.CompareNotEqual(vr9, vr10);
+            var vr12 = Avx512F.BlendVariable(vr11, Avx512F.ReciprocalSqrt14(s_2), s_2);
+            s_2 = Avx512F.GetMantissa(vr12, 0);
+            Vector512<uint> expected = Vector512.Create(4294967295, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216, 1065353216);
+            Assert.Equal(expected, s_2.AsUInt32());
+        }
     }
 }

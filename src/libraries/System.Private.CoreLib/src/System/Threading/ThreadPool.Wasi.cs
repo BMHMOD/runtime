@@ -35,9 +35,7 @@ namespace System.Threading
     {
         // Indicates whether the thread pool should yield the thread from the dispatch loop to the runtime periodically so that
         // the runtime may use the thread for processing other work
-#pragma warning disable IDE0060 // Remove unused parameter
-        internal static bool YieldFromDispatchLoop(int currentTickCount) => true;
-#pragma warning restore IDE0060
+        internal static bool YieldFromDispatchLoop => true;
 
         private const bool IsWorkerTrackingEnabledInConfig = false;
 
@@ -77,7 +75,7 @@ namespace System.Threading
 
         public static long CompletedWorkItemCount => 0;
 
-        internal static unsafe void EnsureWorkerRequested()
+        internal static unsafe void RequestWorkerThread()
         {
         }
 
@@ -91,9 +89,9 @@ namespace System.Threading
         {
         }
 
-        internal static ThreadInt64PersistentCounter.ThreadLocalNode? GetOrCreateThreadLocalCompletionCountNode() => null;
+        internal static object? GetOrCreateThreadLocalCompletionCountObject() => null;
 
-        internal static bool NotifyWorkItemComplete(ThreadInt64PersistentCounter.ThreadLocalNode? _1, int _2) => true;
+        internal static bool NotifyWorkItemComplete(object? _1, int _2) => true;
 
         private static RegisteredWaitHandle RegisterWaitForSingleObject(
              WaitHandle? waitObject,

@@ -10,8 +10,6 @@ using System.IO;
 using System.Text;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Threading;
-using Microsoft.DotNet.XUnitExtensions;
 using Xunit;
 
 namespace System.IO.Tests
@@ -21,10 +19,8 @@ namespace System.IO.Tests
         private delegate void ExceptionCode();
         private static bool s_pass = true;
 
-        private static bool IsNtfs =>
-            FileSystemDebugInfo.IsCurrentDriveNTFS();
-
-        [ConditionalFact(nameof(IsNtfs))]
+        [Fact]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/14378")]
         [PlatformSpecific(TestPlatforms.Windows)] // testing mounting volumes and reparse points
         public static void runTest()
         {
@@ -110,7 +106,8 @@ namespace System.IO.Tests
                         }
                         finally
                         {
-                            MountHelper.Unmount(mountedDirName, deleteDirectory: true);
+                            MountHelper.Unmount(mountedDirName);
+                            DeleteDir(mountedDirName, true);
                         }
                     }
                     else
@@ -186,7 +183,8 @@ namespace System.IO.Tests
                         }
                         finally
                         {
-                            MountHelper.Unmount(mountedDirName, deleteDirectory: true);
+                            MountHelper.Unmount(mountedDirName);
+                            DeleteDir(mountedDirName, true);
                         }
                     }
                     else
@@ -260,7 +258,8 @@ namespace System.IO.Tests
                         }
                         finally
                         {
-                            MountHelper.Unmount(mountedDirName, deleteDirectory: true);
+                            MountHelper.Unmount(mountedDirName);
+                            DeleteDir(mountedDirName, true);
                         }
                     }
                     else
@@ -334,7 +333,8 @@ namespace System.IO.Tests
                         }
                         finally
                         {
-                            MountHelper.Unmount(mountedDirName, deleteDirectory: true);
+                            MountHelper.Unmount(mountedDirName);
+                            DeleteDir(mountedDirName, true);
                         }
                     }
                     else
@@ -367,26 +367,8 @@ namespace System.IO.Tests
 
         private static void DeleteDir(string fileName, bool sub)
         {
-            const int MaxAttempts = 10;
-            const int PollIntervalMs = 200;
-            int attempts = MaxAttempts;
-            while (Directory.Exists(fileName))
-            {
-                try
-                {
-                    Directory.Delete(fileName, sub);
-                    return;
-                }
-                catch (IOException) when (attempts > 1)
-                {
-                    // IOException can occur transiently here when the volume is still being
-                    // unmounted (e.g. the reparse point directory is momentarily locked by
-                    // the kernel while the mount is being torn down). Retry with a short
-                    // delay to let the unmount complete.
-                    attempts--;
-                    Thread.Sleep(PollIntervalMs);
-                }
-            }
+            if (Directory.Exists(fileName))
+                Directory.Delete(fileName, sub);
         }
 
         //Checks for error

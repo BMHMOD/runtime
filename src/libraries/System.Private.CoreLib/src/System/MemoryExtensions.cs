@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Buffers;
@@ -1916,12 +1916,6 @@ namespace System
                 ThrowNullLowHighInclusive(lowInclusive, highInclusive);
             }
 
-            // When highInclusive < lowInclusive, the range is invalid and no values can match.
-            if (lowInclusive.CompareTo(highInclusive) > 0)
-            {
-                return -1;
-            }
-
             if (Vector128.IsHardwareAccelerated)
             {
                 if (lowInclusive is byte or sbyte)
@@ -1985,12 +1979,6 @@ namespace System
             if (lowInclusive is null || highInclusive is null)
             {
                 ThrowNullLowHighInclusive(lowInclusive, highInclusive);
-            }
-
-            // When highInclusive < lowInclusive, the range is invalid and all values are outside it.
-            if (lowInclusive.CompareTo(highInclusive) > 0)
-            {
-                return span.IsEmpty ? -1 : 0;
             }
 
             if (Vector128.IsHardwareAccelerated)
@@ -2058,12 +2046,6 @@ namespace System
                 ThrowNullLowHighInclusive(lowInclusive, highInclusive);
             }
 
-            // When highInclusive < lowInclusive, the range is invalid and no values can match.
-            if (lowInclusive.CompareTo(highInclusive) > 0)
-            {
-                return -1;
-            }
-
             if (Vector128.IsHardwareAccelerated)
             {
                 if (lowInclusive is byte or sbyte)
@@ -2127,12 +2109,6 @@ namespace System
             if (lowInclusive is null || highInclusive is null)
             {
                 ThrowNullLowHighInclusive(lowInclusive, highInclusive);
-            }
-
-            // When highInclusive < lowInclusive, the range is invalid and all values are outside it.
-            if (lowInclusive.CompareTo(highInclusive) > 0)
-            {
-                return span.Length - 1;
             }
 
             if (Vector128.IsHardwareAccelerated)
@@ -5014,8 +4990,11 @@ namespace System
             {
                 other = other.Slice(0, span.Length);
             }
-
-            span = span.Slice(0, other.Length);
+            else if (span.Length > other.Length)
+            {
+                span = span.Slice(0, other.Length);
+            }
+            Debug.Assert(span.Length == other.Length);
         }
 
         /// <summary>
@@ -5256,7 +5235,7 @@ namespace System
         /// <param name="options">A bitwise combination of the enumeration values that specifies whether to trim whitespace and include empty ranges.</param>
         /// <returns>The number of ranges written into <paramref name="destination"/>.</returns>
         /// <remarks>This implementation matches the various quirks of string.Split.</remarks>
-        private static unsafe int SplitCore(
+        private static int SplitCore(
             ReadOnlySpan<char> source, Span<Range> destination,
             ReadOnlySpan<char> separatorOrSeparators, ReadOnlySpan<string?> stringSeparators, bool isAny,
             StringSplitOptions options)

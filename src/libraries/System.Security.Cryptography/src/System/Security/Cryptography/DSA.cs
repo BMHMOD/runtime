@@ -219,7 +219,7 @@ namespace System.Security.Cryptography
         /// <exception cref="CryptographicException">
         ///   An error occurred in the hashing or signing operation.
         /// </exception>
-        protected virtual unsafe byte[] SignDataCore(
+        protected virtual byte[] SignDataCore(
             ReadOnlySpan<byte> data,
             HashAlgorithmName hashAlgorithm,
             DSASignatureFormat signatureFormat)
@@ -429,7 +429,7 @@ namespace System.Security.Cryptography
         /// <exception cref="CryptographicException">
         ///   An error occurred in the signing operation.
         /// </exception>
-        protected virtual unsafe byte[] CreateSignatureCore(ReadOnlySpan<byte> hash, DSASignatureFormat signatureFormat)
+        protected virtual byte[] CreateSignatureCore(ReadOnlySpan<byte> hash, DSASignatureFormat signatureFormat)
         {
             Span<byte> signature = stackalloc byte[SignatureStackSize];
 
@@ -610,7 +610,7 @@ namespace System.Security.Cryptography
         /// <exception cref="CryptographicException">
         ///   An error occurred in the signing operation.
         /// </exception>
-        protected virtual unsafe bool TrySignDataCore(
+        protected virtual bool TrySignDataCore(
             ReadOnlySpan<byte> data,
             Span<byte> destination,
             HashAlgorithmName hashAlgorithm,
@@ -772,7 +772,7 @@ namespace System.Security.Cryptography
         /// <exception cref="CryptographicException">
         ///   An error occurred in the hashing or verification operation.
         /// </exception>
-        protected virtual unsafe bool VerifyDataCore(
+        protected virtual bool VerifyDataCore(
             ReadOnlySpan<byte> data,
             ReadOnlySpan<byte> signature,
             HashAlgorithmName hashAlgorithm,

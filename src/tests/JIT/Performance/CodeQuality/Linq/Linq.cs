@@ -6,7 +6,6 @@ using System.Runtime.CompilerServices;
 using System.Collections.Generic;
 using System.Linq;
 using Xunit;
-using TestLibrary;
 
 public class Product
 {
@@ -403,7 +402,6 @@ public class LinqBenchmarks
     }
     #endregion
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/86772", TestPlatforms.Browser | TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
     [Fact]
     public static int TestEntryPoint()
     {

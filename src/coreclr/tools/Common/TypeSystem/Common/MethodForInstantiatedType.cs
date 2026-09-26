@@ -3,8 +3,6 @@
 
 using System;
 
-using Internal.Text;
-
 using Debug = System.Diagnostics.Debug;
 
 namespace Internal.TypeSystem
@@ -155,7 +153,7 @@ namespace Internal.TypeSystem
             }
         }
 
-        public override Utf8Span Name
+        public override ReadOnlySpan<byte> Name
         {
             get
             {

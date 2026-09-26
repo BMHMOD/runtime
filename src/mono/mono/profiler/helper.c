@@ -18,10 +18,10 @@
 #include <errno.h>
 #include <glib.h>
 
-#ifdef HAVE_NETINET_IN_H
+#ifndef HOST_WIN32
 #include <netinet/in.h>
 #endif
-#ifdef HAVE_SYS_SOCKET_H
+#ifndef HOST_WIN32
 #include <sys/socket.h>
 #endif
 #ifdef HOST_WIN32

@@ -14,7 +14,6 @@ public struct S
     long m_fld;
     int m_a, m_b, m_c, m_d;
 
-    [OuterLoop]
     [Fact]
     public static void TestEntryPoint()
     {

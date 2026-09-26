@@ -7,7 +7,7 @@ using System.Collections;
 using Xunit;
 
 
-namespace b51875
+namespace Test
 {
     public struct AA
     {
@@ -27,7 +27,6 @@ namespace b51875
                 return 1;
             return 0;
         }
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

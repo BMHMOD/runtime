@@ -233,7 +233,6 @@ namespace Microsoft.Extensions.Hosting.Tests
 
         [Theory]
         [MemberData(nameof(CreateNoDefaultsBuilderFuncs))]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/126697", typeof(PlatformDetection), nameof(PlatformDetection.IsAppleMobile), nameof(PlatformDetection.IsNativeAot))]
         public void CanConfigureAppConfigurationFromFile(CreateBuilderFunc createBuilder)
         {
             HostApplicationBuilder builder = createBuilder();

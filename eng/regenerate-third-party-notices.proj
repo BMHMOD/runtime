@@ -1,11 +1,8 @@
 <Project Sdk="Microsoft.Build.NoTargets">
 
-  <ItemGroup>
-    <ProjectReference Include="$(RepoTasksDir)installer.tasks\installer.tasks.csproj" />
-  </ItemGroup>
+  <UsingTask TaskName="RegenerateThirdPartyNotices" AssemblyFile="$(InstallerTasksAssemblyPath)" />
 
-  <UsingTask TaskName="RegenerateThirdPartyNotices" AssemblyFile="$(InstallerTasksAssemblyPath)" Runtime="NET" TaskFactory="TaskHostFactory" />
-  <Target Name="RegenerateThirdPartyNotices" DependsOnTargets="ResolveProjectReferences" AfterTargets="Build">
+  <Target Name="RegenerateThirdPartyNotices" AfterTargets="Build">
     <PropertyGroup>
       <TpnFile>$(InstallerProjectRoot)pkg\THIRD-PARTY-NOTICES.TXT</TpnFile>
     </PropertyGroup>

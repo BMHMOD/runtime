@@ -237,17 +237,11 @@ namespace System.Text.Unicode.Tests
                 actualRuneCount = (int)ptrDiff + scalarCountAdjustment;
             }
 
-            int actualIndexOfInvalidSubsequence = Utf16.IndexOfInvalidSubsequence(boundedMemory.Span);
-            bool actualIsValid = Utf16.IsValid(boundedMemory.Span);
-
             // Assert
 
             Assert.Equal(expectedRetVal, actualRetVal);
             Assert.Equal(expectedRuneCount, actualRuneCount);
-            Assert.Equal(expectedUtf8ByteCount, actualUtf8CodeUnitCount);
-
-            Assert.Equal(expectedRetVal, actualIndexOfInvalidSubsequence);
-            Assert.Equal(expectedRetVal < 0, actualIsValid);
+            Assert.Equal(actualUtf8CodeUnitCount, expectedUtf8ByteCount);
         }
 
         private static Lazy<GetPointerToFirstInvalidCharDel> CreateGetPointerToFirstInvalidCharFn()

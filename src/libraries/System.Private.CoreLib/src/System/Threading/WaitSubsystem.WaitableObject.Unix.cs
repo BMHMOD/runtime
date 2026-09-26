@@ -305,7 +305,7 @@ namespace System.Threading
             /// This function does not check for a pending thread interrupt. Callers are expected to do that soon after
             /// acquiring <see cref="s_lock"/>.
             /// </summary>
-            public int Wait_Locked(ThreadWaitInfo waitInfo, int timeoutMilliseconds, bool interruptible, ref LockHolder lockHolder)
+            public int Wait_Locked(ThreadWaitInfo waitInfo, int timeoutMilliseconds, bool interruptible, bool prioritize, ref LockHolder lockHolder)
             {
                 s_lock.VerifyIsLocked();
                 Debug.Assert(waitInfo != null);
@@ -339,7 +339,7 @@ namespace System.Threading
 
                 WaitableObject?[] waitableObjects = waitInfo.GetWaitedObjectArray(1);
                 waitableObjects[0] = this;
-                waitInfo.RegisterWait(1, isWaitForAll: false);
+                waitInfo.RegisterWait(1, prioritize, isWaitForAll: false);
 
                 return
                     waitInfo.Wait(
@@ -355,7 +355,8 @@ namespace System.Threading
                 bool waitForAll,
                 ThreadWaitInfo waitInfo,
                 int timeoutMilliseconds,
-                bool interruptible)
+                bool interruptible,
+                bool prioritize)
             {
                 s_lock.VerifyIsNotLocked();
                 Debug.Assert(waitInfo != null);
@@ -480,7 +481,7 @@ namespace System.Threading
 
                     waitableObjects = null; // no need to clear this anymore, RegisterWait / Wait will take over from here
 
-                    waitInfo.RegisterWait(count, waitForAll);
+                    waitInfo.RegisterWait(count, prioritize, waitForAll);
                     return waitInfo.Wait(timeoutMilliseconds, interruptible, isSleep: false, ref lockHolder);
                 }
                 finally

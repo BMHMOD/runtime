@@ -10,7 +10,6 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using Microsoft.DotNet.CoreSetup.Test;
-using Xunit;
 using static Microsoft.DotNet.CoreSetup.Test.Constants;
 
 namespace Microsoft.DotNet.Cli.Build.Framework
@@ -93,7 +92,7 @@ namespace Microsoft.DotNet.Cli.Build.Framework
             return this;
         }
 
-        public Command Start([CallerMemberName] string caller = "", ITestOutputHelper? testOutput = null)
+        public Command Start([CallerMemberName] string caller = "")
         {
             ThrowIfRunning();
             _running = true;
@@ -132,7 +131,7 @@ namespace Microsoft.DotNet.Cli.Build.Framework
 
             Process.EnableRaisingEvents = true;
 
-            ReportExec(caller, testOutput);
+            ReportExec(caller);
 
             // Retry if we hit ETXTBSY due to Linux race
             // https://github.com/dotnet/runtime/issues/58964
@@ -167,13 +166,9 @@ namespace Microsoft.DotNet.Cli.Build.Framework
         /// </summary>
         /// <param name="timeoutMilliseconds">Time in milliseconds to wait for the command to exit</param>
         /// <returns>Result of the command</returns>
-        public CommandResult WaitForExit(
-            int timeoutMilliseconds = Timeout.Infinite,
-            [CallerMemberName] string caller = "",
-            ITestOutputHelper? testOutput = null
-        )
+        public CommandResult WaitForExit(int timeoutMilliseconds = Timeout.Infinite, [CallerMemberName] string caller = "")
         {
-            ReportWaitOnExit(caller, testOutput);
+            ReportWaitOnExit(caller);
 
             int exitCode;
             if (!Process.WaitForExit(timeoutMilliseconds))
@@ -185,7 +180,7 @@ namespace Microsoft.DotNet.Cli.Build.Framework
                 exitCode = Process.ExitCode;
             }
 
-            ReportExit(exitCode, caller, testOutput);
+            ReportExit(exitCode, caller);
             int pid = Process.Id;
             Process.Dispose();
 
@@ -267,9 +262,9 @@ namespace Microsoft.DotNet.Cli.Build.Framework
             return (DateTime.Now - _initialTime).ToString(TimeSpanFormat);
         }
 
-        private void ReportExec(string testName, ITestOutputHelper? testOutput)
+        private void ReportExec(string testName)
         {
-            testOutput?.WriteLine(
+            Console.WriteLine(
                 $"""
                 [EXEC] [{GetFormattedTime()}] [{testName}]
                        {FormatProcessInfo(Process.StartInfo)}
@@ -277,18 +272,19 @@ namespace Microsoft.DotNet.Cli.Build.Framework
 
         }
 
-        private void ReportWaitOnExit(string testName, ITestOutputHelper? testOutput)
+        private void ReportWaitOnExit(string testName)
         {
-            testOutput?.WriteLine(
+            Console.WriteLine(
                 $"""
                 [WAIT] [{GetFormattedTime()}] [{testName}]
                        PID: {Process.Id} - {FormatProcessInfo(Process.StartInfo)}
                 """);
+
         }
 
-        private void ReportExit(int exitCode, string testName, ITestOutputHelper? testOutput)
+        private void ReportExit(int exitCode, string testName)
         {
-            testOutput?.WriteLine(
+            Console.WriteLine(
                 $"""
                 [EXIT] [{GetFormattedTime()}] [{testName}]
                        PID: {Process.Id} - Exit code: 0x{exitCode:x} - {FormatProcessInfo(Process.StartInfo)}

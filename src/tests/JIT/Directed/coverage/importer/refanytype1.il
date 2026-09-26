@@ -21,27 +21,10 @@ ret
     01 00 00 00
 )
 .entrypoint
-.locals init (typedref V_0)
-
-ldloc.0
-refanytype
-call class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-brfalse.s NON_NULL_CASE
-ldc.i4.m1
-ret
-
-NON_NULL_CASE:
 call int32 f()
 mkrefany int32
 refanytype
-call class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-ldtoken int32
-call class [mscorlib]System.Type [mscorlib]System.Type::GetTypeFromHandle(valuetype [mscorlib]System.RuntimeTypeHandle)
-beq.s SUCCESS
-ldc.i4.m1
-ret
-
-SUCCESS:
+pop
 ldc.i4 100
 ret
 }

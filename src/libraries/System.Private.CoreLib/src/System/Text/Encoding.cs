@@ -320,7 +320,7 @@ namespace System.Text
             return result is null ? EncodingTable.GetEncodings() : EncodingTable.GetEncodings(result);
         }
 
-        public virtual byte[] GetPreamble() => [];
+        public virtual byte[] GetPreamble() => Array.Empty<byte>();
 
         public virtual ReadOnlySpan<byte> Preamble => GetPreamble();
 
@@ -648,7 +648,7 @@ namespace System.Text
                 {
                     int byteCount = GetByteCount(pChar + index, count);
                     if (byteCount == 0)
-                        return [];
+                        return Array.Empty<byte>();
 
                     byte[] bytes = new byte[byteCount];
                     fixed (byte* pBytes = &bytes[0])

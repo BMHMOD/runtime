@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-namespace JitTest_Directed_Arrays_LoopCloning;
-
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
@@ -11,7 +9,6 @@ using Xunit;
 
 public class Program
 {
-    [OuterLoop]
     [Fact]
     public static unsafe int TestEntryPoint()
     {

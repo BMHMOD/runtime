@@ -6,7 +6,7 @@ using System;
 using Xunit;
 
 
-namespace b41990
+namespace Test
 {
     public class AA
     {

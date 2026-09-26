@@ -50,6 +50,20 @@ public:
 
     virtual BOOL DebugSetProcessKillOnExit(bool fKillOnExit) = 0;
 
+    // Create
+    virtual HRESULT CreateProcessUnderDebugger(
+        MachineInfo machineInfo,
+        LPCWSTR lpApplicationName,
+        LPCWSTR lpCommandLine,
+        LPSECURITY_ATTRIBUTES lpProcessAttributes,
+        LPSECURITY_ATTRIBUTES lpThreadAttributes,
+        BOOL bInheritHandles,
+        DWORD dwCreationFlags,
+        LPVOID lpEnvironment,
+        LPCWSTR lpCurrentDirectory,
+        LPSTARTUPINFOW lpStartupInfo,
+        LPPROCESS_INFORMATION lpProcessInformation) = 0;
+
     // Attach
     virtual HRESULT DebugActiveProcess(MachineInfo machineInfo, const ProcessDescriptor& processDescriptor) = 0;
 
@@ -109,12 +123,12 @@ public:
     //    handle for the debuggee process (see below)
     //
     // Notes:
-    //    Handles are a Windows-specific concept. On Unix, the returned value is a debug-pal latch that is only
-    //    valid for debugger-internal process-termination waits. It must not be exposed through
-    //    ICorDebugProcess::GetHandle.
+    //    Handles are a Windows-specific concept.  For Mac debugging, the handle returned by this function is
+    //    only valid for waiting on process termination.  This is ok for now because the only cases where a
+    //    real process handle is needed are related to interop-debugging, which isn't supported on the Mac.
     //
 
-    virtual WaitHandle *GetProcessHandle() = 0;
+    virtual HANDLE GetProcessHandle() = 0;
 
     //
     // Terminate the debuggee process.
@@ -131,10 +145,13 @@ public:
 
     virtual BOOL TerminateProcess(UINT32 exitCode) = 0;
 
-    //
-    // Used by debugger side (RS) to cleanup the target (LS) resources
-    //
-    virtual void CleanupTargetProcess() = 0;
+#ifdef TARGET_UNIX
+    // Used by debugger side (RS) to cleanup the target (LS) named pipes
+    // and semaphores when the debugger detects the debuggee process  exited.
+    virtual void CleanupTargetProcess()
+    {
+    }
+#endif
 };
 
 //
@@ -175,3 +192,4 @@ BOOL IsExceptionEvent(const DEBUG_EVENT * pEvent, BOOL * pfFirstChance, const EX
 INativeEventPipeline * NewPipelineForThisPlatform();
 
 #endif // _NATIVE_PIPELINE_H
+

@@ -33,8 +33,6 @@ namespace System.Text.Json.Serialization.Metadata
                 new IAsyncEnumerableConverterFactory(),
                 // IEnumerable should always be second to last since they can convert any IEnumerable.
                 new IEnumerableConverterFactory(),
-                // Union converter should be before Object since it converts [JsonUnion] types.
-                new JsonUnionConverterFactory(),
                 // Object should always be last since it converts any type.
                 new ObjectConverterFactory()
             ];
@@ -42,15 +40,11 @@ namespace System.Text.Json.Serialization.Metadata
 
         private static Dictionary<Type, JsonConverter> GetDefaultSimpleConverters()
         {
-            const int NumberOfSimpleConverters = 35;
+            const int NumberOfSimpleConverters = 31;
             var converters = new Dictionary<Type, JsonConverter>(NumberOfSimpleConverters);
 
             // Use a dictionary for simple converters.
             // When adding to this, update NumberOfSimpleConverters above.
-            //
-            // When adding/removing a built-in converter here, also update
-            // gen/JsonSourceGenerator.Parser.cs::GetSupportedJsonValueTypes so the union
-            // ambiguity diagnostic (SYSLIB1227) agrees with JsonTypeInfo.BuildUnionValueTypeMap.
             Add(JsonMetadataServices.BooleanConverter);
             Add(JsonMetadataServices.ByteConverter);
             Add(JsonMetadataServices.ByteArrayConverter);
@@ -83,12 +77,6 @@ namespace System.Text.Json.Serialization.Metadata
 #if NET
             Add(JsonMetadataServices.Int128Converter);
             Add(JsonMetadataServices.UInt128Converter);
-#endif
-#if NET11_0_OR_GREATER
-            Add(JsonMetadataServices.BFloat16Converter);
-            Add(JsonMetadataServices.Decimal32Converter);
-            Add(JsonMetadataServices.Decimal64Converter);
-            Add(JsonMetadataServices.Decimal128Converter);
 #endif
             Add(JsonMetadataServices.UriConverter);
             Add(JsonMetadataServices.VersionConverter);
@@ -124,7 +112,7 @@ namespace System.Text.Json.Serialization.Metadata
                 }
 
                 // Since the object and IEnumerable converters cover all types, we should have a converter.
-                Debug.Assert(converter is not null);
+                Debug.Assert(converter != null);
                 return converter;
             }
         }
@@ -159,10 +147,10 @@ namespace System.Text.Json.Serialization.Metadata
             JsonConverter? converter = options.GetConverterFromList(typeToConvert);
 
             // Priority 2: Attempt to get converter from [JsonConverter] on the type being converted.
-            if (resolveJsonConverterAttribute && converter is null)
+            if (resolveJsonConverterAttribute && converter == null)
             {
                 JsonConverterAttribute? converterAttribute = typeToConvert.GetUniqueCustomAttribute<JsonConverterAttribute>(inherit: false);
-                if (converterAttribute is not null)
+                if (converterAttribute != null)
                 {
                     converter = GetConverterFromAttribute(converterAttribute, typeToConvert: typeToConvert, memberInfo: null, options);
                 }
@@ -194,29 +182,13 @@ namespace System.Text.Json.Serialization.Metadata
             {
                 // Allow the attribute to create the converter.
                 converter = converterAttribute.CreateConverter(typeToConvert);
-                if (converter is null)
+                if (converter == null)
                 {
                     ThrowHelper.ThrowInvalidOperationException_SerializationConverterOnAttributeNotCompatible(declaringType, memberInfo, typeToConvert);
                 }
             }
             else
             {
-                // Handle open generic converter types (e.g., OptionConverter<> on Option<T>).
-                // If the converter type is an open generic and the type to convert is a closed generic
-                // with matching type arity, construct the closed converter type.
-                if (converterType.IsGenericTypeDefinition)
-                {
-                    if (typeToConvert.IsGenericType &&
-                        converterType.GetGenericArguments().Length == typeToConvert.GetGenericArguments().Length)
-                    {
-                        converterType = converterType.MakeGenericType(typeToConvert.GetGenericArguments());
-                    }
-                    else
-                    {
-                        ThrowHelper.ThrowInvalidOperationException_SerializationConverterOnAttributeOpenGenericNotCompatible(declaringType, memberInfo, converterType);
-                    }
-                }
-
                 ConstructorInfo? ctor = converterType.GetConstructor(Type.EmptyTypes);
                 if (!typeof(JsonConverter).IsAssignableFrom(converterType) || ctor == null || !ctor.IsPublic)
                 {
@@ -226,7 +198,7 @@ namespace System.Text.Json.Serialization.Metadata
                 converter = (JsonConverter)Activator.CreateInstance(converterType)!;
             }
 
-            Debug.Assert(converter is not null);
+            Debug.Assert(converter != null);
             if (!converter.CanConvert(typeToConvert))
             {
                 Type? underlyingType = Nullable.GetUnderlyingType(typeToConvert);

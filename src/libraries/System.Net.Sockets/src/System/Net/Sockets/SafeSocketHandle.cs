@@ -96,7 +96,7 @@ namespace System.Net.Sockets
             try
             {
 #endif
-                bool shouldClose = !IsInvalid && TryOwnClose();
+                bool shouldClose = TryOwnClose();
 
                 if (NetEventSource.Log.IsEnabled()) NetEventSource.Info(this, $"abortive={abortive}, shouldClose ={shouldClose}");
 
@@ -176,6 +176,10 @@ namespace System.Net.Sockets
 
             if (IsInvalid)
             {
+                // CloseAsIs musn't wait for a release.
+                TryOwnClose();
+
+                // Mark handle as invalid, so it won't be released.
                 SetHandleAsInvalid();
             }
         }

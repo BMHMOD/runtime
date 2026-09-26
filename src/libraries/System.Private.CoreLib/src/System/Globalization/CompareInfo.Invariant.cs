@@ -21,7 +21,7 @@ namespace System.Globalization
             byte[] keyData;
             if (source.Length == 0)
             {
-                keyData = [];
+                keyData = Array.Empty<byte>();
             }
             else
             {

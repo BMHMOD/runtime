@@ -8,9 +8,6 @@
 // Debug: Outputs -2472766155
 // Release: Outputs 1822201141
 
-
-namespace Runtime_92537;
-
 using System.Runtime.CompilerServices;
 using Xunit;
 

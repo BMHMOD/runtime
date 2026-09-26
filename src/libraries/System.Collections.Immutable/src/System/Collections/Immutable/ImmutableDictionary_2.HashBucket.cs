@@ -64,7 +64,7 @@ namespace System.Collections.Immutable
                 {
                     if (this.IsEmpty)
                     {
-                        ThrowHelper.ThrowInvalidOperationException();
+                        throw new InvalidOperationException();
                     }
 
                     return _firstValue;

@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Microsoft.Win32;
 
@@ -13,29 +12,27 @@ namespace System.Diagnostics.Eventing.Reader
     /// </summary>
     public class EventLogWatcher : IDisposable
     {
-        public event EventHandler<EventRecordWrittenEventArgs>? EventRecordWritten;
+        public event EventHandler<EventRecordWrittenEventArgs> EventRecordWritten;
 
         private readonly EventLogQuery _eventQuery;
-        private readonly EventBookmark? _bookmark;
+        private readonly EventBookmark _bookmark;
         private readonly bool _readExistingEvents;
 
-        private EventLogHandle? _handle;
+        private EventLogHandle _handle;
         private readonly IntPtr[] _eventsBuffer;
         private int _numEventsInBuffer;
-
-        [MemberNotNullWhen(true, nameof(_handle))]
-        private bool IsSubscribing { get; set; }
+        private bool _isSubscribing;
         private int _callbackThreadId;
-        private AutoResetEvent? _subscriptionWaitHandle;
-        private AutoResetEvent? _unregisterDoneHandle;
-        private RegisteredWaitHandle? _registeredWaitHandle;
+        private AutoResetEvent _subscriptionWaitHandle;
+        private AutoResetEvent _unregisterDoneHandle;
+        private RegisteredWaitHandle _registeredWaitHandle;
 
         /// <summary>
         /// Maintains cached display / metadata information returned from
         /// EventRecords that were obtained from this reader.
         /// </summary>
         private readonly ProviderMetadataCachedInformation cachedMetadataInformation;
-        private EventLogException? asyncException;
+        private EventLogException asyncException;
 
         public EventLogWatcher(string path)
             : this(new EventLogQuery(path, PathType.LogName), null, false)
@@ -47,12 +44,12 @@ namespace System.Diagnostics.Eventing.Reader
         {
         }
 
-        public EventLogWatcher(EventLogQuery eventQuery, EventBookmark? bookmark)
+        public EventLogWatcher(EventLogQuery eventQuery, EventBookmark bookmark)
             : this(eventQuery, bookmark, false)
         {
         }
 
-        public EventLogWatcher(EventLogQuery eventQuery, EventBookmark? bookmark, bool readExistingEvents)
+        public EventLogWatcher(EventLogQuery eventQuery, EventBookmark bookmark, bool readExistingEvents)
         {
             ArgumentNullException.ThrowIfNull(eventQuery);
 
@@ -79,15 +76,15 @@ namespace System.Diagnostics.Eventing.Reader
         {
             get
             {
-                return IsSubscribing;
+                return _isSubscribing;
             }
             set
             {
-                if (value && !IsSubscribing)
+                if (value && !_isSubscribing)
                 {
                     StartSubscribing();
                 }
-                else if (!value && IsSubscribing)
+                else if (!value && _isSubscribing)
                 {
                     StopSubscribing();
                 }
@@ -99,7 +96,7 @@ namespace System.Diagnostics.Eventing.Reader
             // C:\public\System.Diagnostics.Eventing\Microsoft\Win32\SafeHandles;
 
             // Need to set isSubscribing to false before waiting for completion of callback.
-            IsSubscribing = false;
+            _isSubscribing = false;
 
             if (_registeredWaitHandle != null)
             {
@@ -146,10 +143,9 @@ namespace System.Diagnostics.Eventing.Reader
             }
         }
 
-        [MemberNotNull(nameof(_handle))]
         internal void StartSubscribing()
         {
-            if (IsSubscribing)
+            if (_isSubscribing)
             {
                 throw new InvalidOperationException();
             }
@@ -194,7 +190,7 @@ namespace System.Diagnostics.Eventing.Reader
                     flag);
             }
 
-            IsSubscribing = true;
+            _isSubscribing = true;
 
             RequestEvents();
 
@@ -206,7 +202,7 @@ namespace System.Diagnostics.Eventing.Reader
                 false);
         }
 
-        internal void SubscribedEventsAvailableCallback(object? state, bool timedOut)
+        internal void SubscribedEventsAvailableCallback(object state, bool timedOut)
         {
             _callbackThreadId = Environment.CurrentManagedThreadId;
             try
@@ -230,7 +226,7 @@ namespace System.Diagnostics.Eventing.Reader
 
             do
             {
-                if (!IsSubscribing)
+                if (!_isSubscribing)
                 {
                     break;
                 }
@@ -270,7 +266,7 @@ namespace System.Diagnostics.Eventing.Reader
 
             for (int i = 0; i < _numEventsInBuffer; i++)
             {
-                if (!IsSubscribing)
+                if (!_isSubscribing)
                 {
                     break;
                 }

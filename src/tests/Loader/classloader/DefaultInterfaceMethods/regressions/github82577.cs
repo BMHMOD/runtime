@@ -2,12 +2,10 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 
 public class Program
 {
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static int TestEntryPoint()
     {

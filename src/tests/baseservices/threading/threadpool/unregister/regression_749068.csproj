@@ -5,7 +5,4 @@
   <ItemGroup>
     <Compile Include="regression_749068.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

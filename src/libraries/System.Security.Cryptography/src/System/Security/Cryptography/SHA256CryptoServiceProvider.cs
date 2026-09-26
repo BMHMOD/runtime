@@ -22,7 +22,7 @@ namespace System.Security.Cryptography
             HashSizeValue = HashSizeInBits;
         }
 
-        public override unsafe void Initialize()
+        public override void Initialize()
         {
             if (_running)
             {

@@ -8,8 +8,6 @@ public class Test_test448035
 {
     int countdown;
 
-    public Test_test448035() { }
-
     Test_test448035(int n) 
     {
         countdown = n;

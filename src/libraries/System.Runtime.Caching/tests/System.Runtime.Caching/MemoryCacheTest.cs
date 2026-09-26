@@ -185,7 +185,7 @@ namespace MonoTests.System.Runtime.Caching
         }
 
         // Negative case for "physicalMemoryLimitPercentage" on non-supporting OS's
-        [ConditionalFact(typeof(MemoryCacheTest), nameof(DoesNotSupportPhysicalMemoryMonitor))]
+        [ConditionalFact(nameof(DoesNotSupportPhysicalMemoryMonitor))]
         public void PhysicalMemoryLimitNotSupported()
         {
             var config = new NameValueCollection();
@@ -1159,7 +1159,7 @@ namespace MonoTests.System.Runtime.Caching
             }
         }
 
-        [ConditionalFact(typeof(MemoryCacheTest), nameof(SupportsPhysicalMemoryMonitor))]
+        [ConditionalFact(nameof(SupportsPhysicalMemoryMonitor))]
         public void TestExpiredGetValues()
         {
             var config = new NameValueCollection();
@@ -1501,7 +1501,7 @@ namespace MonoTests.System.Runtime.Caching
     {
         public static bool SupportsPhysicalMemoryMonitor => MemoryCacheTest.SupportsPhysicalMemoryMonitor;
 
-        [ConditionalFact(typeof(MemoryCacheTestExpires4), nameof(SupportsPhysicalMemoryMonitor))]
+        [ConditionalFact(nameof(SupportsPhysicalMemoryMonitor))]
         public async Task TestCacheShrink()
         {
             const int HEAP_RESIZE_THRESHOLD = 8192 + 2;
@@ -1560,7 +1560,7 @@ namespace MonoTests.System.Runtime.Caching
     {
         public static bool SupportsPhysicalMemoryMonitor => MemoryCacheTest.SupportsPhysicalMemoryMonitor;
 
-        [ConditionalFact(typeof(MemoryCacheTestExpires5), nameof(SupportsPhysicalMemoryMonitor))]
+        [ConditionalFact(nameof(SupportsPhysicalMemoryMonitor))]
         public async Task TestCacheExpiryOrdering()
         {
             var config = new NameValueCollection();

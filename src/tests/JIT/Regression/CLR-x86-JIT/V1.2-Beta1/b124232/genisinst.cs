@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b124232;
-
 using System;
 using Xunit;
 
@@ -31,7 +28,6 @@ class C2
 }
 public class Test_genisinst
 {
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

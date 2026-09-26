@@ -29,19 +29,7 @@ int64_t minipal_hires_tick_frequency()
 
 int64_t minipal_lowres_ticks()
 {
-    // GetTickCount64 uses fixed resolution of 10-16ms for backward compatibility. Use
-    // QueryUnbiasedInterruptTime instead which becomes more accurate if the underlying system
-    // resolution is improved. This helps responsiveness in the case an app is trying to opt
-    // into things like multimedia scenarios and additionally does not include "bias" from time
-    // the system is spent asleep or in hibernation.
-
-    const ULONGLONG TicksPerMillisecond = 10000;
-
-    ULONGLONG unbiasedTime;
-    BOOL ret;
-    ret = QueryUnbiasedInterruptTime(&unbiasedTime);
-    assert(ret); // The function is documented to only fail if a null-ptr is passed in
-    return (int64_t)(unbiasedTime / TicksPerMillisecond);
+    return GetTickCount64();
 }
 
 uint64_t minipal_get_system_time()
@@ -97,13 +85,17 @@ int64_t minipal_hires_ticks(void)
 {
 #if HAVE_CLOCK_GETTIME_NSEC_NP
     return (int64_t)clock_gettime_nsec_np(CLOCK_UPTIME_RAW);
-#else
+#elif HAVE_CLOCK_MONOTONIC
     struct timespec ts;
-    int result;
-    result = clock_gettime(CLOCK_MONOTONIC, &ts);
-    assert(result == 0 && "clock_gettime(CLOCK_MONOTONIC) failed");
+    int result = clock_gettime(CLOCK_MONOTONIC, &ts);
+    if (result != 0)
+    {
+        assert(!"clock_gettime(CLOCK_MONOTONIC) failed");
+    }
 
     return ((int64_t)(ts.tv_sec) * (int64_t)(tccSecondsToNanoSeconds)) + (int64_t)(ts.tv_nsec);
+#else
+    #error "minipal_hires_ticks requires clock_gettime_nsec_np or clock_gettime to be supported."
 #endif
 }
 
@@ -111,7 +103,7 @@ int64_t minipal_lowres_ticks(void)
 {
 #if HAVE_CLOCK_GETTIME_NSEC_NP
     return  (int64_t)clock_gettime_nsec_np(CLOCK_UPTIME_RAW) / (int64_t)(tccMilliSecondsToNanoSeconds);
-#else
+#elif HAVE_CLOCK_MONOTONIC
     struct timespec ts;
 
     // emscripten exposes CLOCK_MONOTONIC_COARSE but doesn't implement it
@@ -125,15 +117,19 @@ int64_t minipal_lowres_ticks(void)
     const clockid_t clockType = CLOCK_MONOTONIC;
 #endif
 
-    int result;
-    result = clock_gettime(clockType, &ts);
+    int result = clock_gettime(clockType, &ts);
+    if (result != 0)
+    {
 #if HAVE_CLOCK_MONOTONIC_COARSE && !defined(__EMSCRIPTEN__)
-    assert(result == 0 && "clock_gettime(CLOCK_MONOTONIC_COARSE) failed");
+        assert(!"clock_gettime(CLOCK_MONOTONIC_COARSE) failed");
 #else
-    assert(result == 0 && "clock_gettime(CLOCK_MONOTONIC) failed");
+        assert(!"clock_gettime(CLOCK_MONOTONIC) failed");
 #endif
+    }
 
     return ((int64_t)(ts.tv_sec) * (int64_t)(tccSecondsToMilliSeconds)) + ((int64_t)(ts.tv_nsec) / (int64_t)(tccMilliSecondsToNanoSeconds));
+#else
+    #error "minipal_lowres_ticks requires clock_gettime_nsec_np or clock_gettime to be supported."
 #endif
 }
 

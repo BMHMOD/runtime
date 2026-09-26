@@ -37,7 +37,6 @@ namespace ILCompiler
         private readonly VectorOfTFieldLayoutAlgorithm _vectorOfTFieldLayoutAlgorithm;
         private readonly VectorFieldLayoutAlgorithm _vectorFieldLayoutAlgorithm;
         private readonly Int128FieldLayoutAlgorithm _int128FieldLayoutAlgorithm;
-        private readonly DecimalFieldLayoutAlgorithm _decimalFieldLayoutAlgorithm;
         private readonly TypeWithRepeatedFieldsFieldLayoutAlgorithm _typeWithRepeatedFieldsFieldLayoutAlgorithm;
 
         private TypeDesc[] _arrayOfTInterfaces;
@@ -54,16 +53,12 @@ namespace ILCompiler
         {
             _genericsMode = genericsMode;
 
-            _virtualMethodAlgorithm = new AsyncAwareVirtualMethodResolutionAlgorithm(this);
-
             _vectorOfTFieldLayoutAlgorithm = new VectorOfTFieldLayoutAlgorithm(_metadataFieldLayoutAlgorithm);
             _vectorFieldLayoutAlgorithm = new VectorFieldLayoutAlgorithm(_metadataFieldLayoutAlgorithm);
             _int128FieldLayoutAlgorithm = new Int128FieldLayoutAlgorithm(_metadataFieldLayoutAlgorithm);
-            _decimalFieldLayoutAlgorithm = new DecimalFieldLayoutAlgorithm(_metadataFieldLayoutAlgorithm);
             _typeWithRepeatedFieldsFieldLayoutAlgorithm = new TypeWithRepeatedFieldsFieldLayoutAlgorithm(_metadataFieldLayoutAlgorithm);
 
             _delegateInfoHashtable = new DelegateInfoHashtable(delegateFeatures);
-            _continuationTypeHashtable = new ContinuationTypeHashtable(this);
 
             _genericCycleDetector = new LazyGenericsSupport.GenericCycleDetector(genericCycleDepthCutoff, genericCycleBreadthCutoff);
 
@@ -118,8 +113,6 @@ namespace ILCompiler
                 return _vectorFieldLayoutAlgorithm;
             else if (Int128FieldLayoutAlgorithm.IsIntegerType(type))
                 return _int128FieldLayoutAlgorithm;
-            else if (DecimalFieldLayoutAlgorithm.IsDecimalFloatingPointType(type))
-                return _decimalFieldLayoutAlgorithm;
             else if (type is TypeWithRepeatedFields)
                 return _typeWithRepeatedFieldsFieldLayoutAlgorithm;
             else
@@ -213,6 +206,10 @@ namespace ILCompiler
             if (type.IsDelegate)
             {
                 return GetAllMethodsForDelegate(type, virtualOnly);
+            }
+            else if (type.IsEnum)
+            {
+                return GetAllMethodsForEnum(type, virtualOnly);
             }
             else if (type.IsValueType)
             {

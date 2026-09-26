@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 interface IFoo<in T>
 {
@@ -25,7 +24,6 @@ public class Program : IFoo<object>
     static string CallStatic<T, U>() where T : IFoo<U> => T.DoStatic();
     static string CallStatic2<T, U>() where T : IFoo2<U> => T.DoStatic();
 
-    [ActiveIssue("needs triage", TestPlatforms.tvOS)]
     [Fact]
     public static int TestEntryPoint()
     {

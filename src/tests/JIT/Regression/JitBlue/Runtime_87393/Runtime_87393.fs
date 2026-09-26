@@ -4,8 +4,6 @@
 namespace Runtime_87393
 
 open System.Runtime.CompilerServices
-open Xunit
-open Microsoft.DotNet.XUnitExtensions
 
 [<AbstractClass>]
 type Foo() =
@@ -32,17 +30,8 @@ type Bar() as this =
 
 module Main =
 
-    [<Fact>]
-    [<SkipOnMono("Not supported on Mono runtime")>]
-    [<ActiveIssue("Disabled on NativeAOT", typeof<TestLibrary.Utilities>, [| "IsNativeAot" |])>]
-    [<SkipOnCoreClr("Tail calls with GC stress", RuntimeTestModes.AnyGCStress)>]
-    let main () =
-        let f : Foo = Bar()
-        let v = f.M 0 65000 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-        Assert.Equal(2112532500, v)
-
     [<EntryPoint>]
-    let entryPoint _argv =
+    let main _argv =
         let f : Foo = Bar()
         let v = f.M 0 65000 0 0 0 0 0 0 0 0 0 0 0 0 0 0
         if v = 2112532500 then
@@ -51,3 +40,4 @@ module Main =
         else
             printfn "FAIL: Result was %A" v
             -1
+

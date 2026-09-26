@@ -1,8 +1,8 @@
 {
-  "version": 6,
+  "version": 2,
   "cmakeMinimumRequired": {
     "major": 3,
-    "minor": 26
+    "minor": 20
   },
   "configurePresets": [
     {
@@ -10,36 +10,54 @@
       "hidden": true,
       "generator": "Ninja",
       "binaryDir": "${sourceDir}/../../artifacts/obj/coreclr/${presetName}",
-      "installDir": "${sourceDir}/../../artifacts/bin/coreclr/${presetName}"
+      "cacheVariables": {
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/../../artifacts/bin/coreclr/${presetName}"
+      }
     },
     {
       "name": "windows-base",
       "hidden": true,
       "inherits": "base",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Windows"
+      "cacheVariables": {
+        "CLR_CMAKE_TARGET_OS": "windows",
+        "CLI_CMAKE_FALLBACK_OS": "win10"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "hostOS": [
+            "Windows"
+          ]
+        }
       }
     },
     {
       "name": "osx-base",
       "hidden": true,
       "inherits": "base",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Darwin"
+      "cacheVariables": {
+        "CLR_CMAKE_TARGET_OS": "darwin"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "hostOS": [
+            "macOS"
+          ]
+        }
       }
     },
     {
       "name": "linux-base",
       "hidden": true,
       "inherits": "base",
-      "condition": {
-        "type": "equals",
-        "lhs": "${hostSystemName}",
-        "rhs": "Linux"
+      "cacheVariables": {
+        "CLR_CMAKE_TARGET_OS": "linux"
+      },
+      "vendor": {
+        "microsoft.com/VisualStudioSettings/CMake/1.0": {
+          "hostOS": [
+            "Linux"
+          ]
+        }
       }
     },
     {

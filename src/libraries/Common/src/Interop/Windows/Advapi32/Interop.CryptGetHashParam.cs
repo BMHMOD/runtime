@@ -18,7 +18,6 @@ internal static partial class Interop
             HP_TLS1PRF_SEED = 0x0007,  // seed for TLS1 PRF
         }
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Advapi32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static partial bool CryptGetHashParam(
@@ -28,7 +27,6 @@ internal static partial class Interop
             ref int pdwDataLen,
             int dwFlags);
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Advapi32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static partial bool CryptSetHashParam(SafeHashHandle hHash, CryptHashProperty dwParam, byte[] buffer, int dwFlags);

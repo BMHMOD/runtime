@@ -5,8 +5,9 @@
 #include <clrdata.h>
 #include <cor.h>
 #include <cordebug.h>
+#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
-#include <holder.h>
+#include <arrayholder.h>
 #include "machoreader.h"
 
 #if TARGET_64BIT
@@ -71,7 +72,7 @@ TryGetSymbol(ICorDebugDataTarget* dataTarget, uint64_t baseAddress, const char* 
 }
 
 //--------------------------------------------------------------------
-// MachO module
+// MachO module 
 //--------------------------------------------------------------------
 
 MachOModule::MachOModule(MachOReader& reader, mach_vm_address_t baseAddress, std::string* name) :
@@ -122,7 +123,7 @@ MachOModule::TryLookupSymbol(const char* symbolName, uint64_t* symbolValue)
         _ASSERTE(m_nlists != nullptr);
         _ASSERTE(m_strtabAddress != 0);
 
-        // First, search just the "external" export symbols
+        // First, search just the "external" export symbols 
         if (TryLookupSymbol(m_dysymtabCommand->iextdefsym, m_dysymtabCommand->nextdefsym, symbolName, symbolValue))
         {
             m_reader.Trace("SYM: Found '%s' in external symbols\n", symbolName);
@@ -378,7 +379,7 @@ MachOReader::EnumerateModules(mach_vm_address_t dyldInfoAddress)
     }
     void* imageInfosAddress = (void*)dyldInfo.infoArray;
     size_t imageInfosSize = dyldInfo.infoArrayCount * sizeof(dyld_image_info);
-    NewArrayHolder<dyld_image_info> imageInfos = new (std::nothrow) dyld_image_info[dyldInfo.infoArrayCount];
+    ArrayHolder<dyld_image_info> imageInfos = new (std::nothrow) dyld_image_info[dyldInfo.infoArrayCount];
     if (imageInfos == nullptr)
     {
         Trace("ERROR: Failed to allocate %zu byte image infos\n", imageInfosSize);

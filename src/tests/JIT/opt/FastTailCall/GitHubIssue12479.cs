@@ -76,7 +76,6 @@ public class GitHubIssue12479
         
     }
 
-    [SkipOnCoreClr("This test is sensitive to JIT optimizations.", RuntimeTestModes.AnyJitOptimizationStress)]
     [Fact]
     public static int TestEntryPoint()
     {

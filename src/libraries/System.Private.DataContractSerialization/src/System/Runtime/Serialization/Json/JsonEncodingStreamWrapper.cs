@@ -122,12 +122,15 @@ namespace System.Runtime.Serialization.Json
             try
             {
                 SupportedEncoding expectedEnc = GetSupportedEncoding(encoding);
-                SupportedEncoding dataEnc = DetectEncoding(buffer.AsSpan(offset, count), out int bomLength);
-
-                // Skip past any byte order mark; it is not part of the document.
-                offset += bomLength;
-                count -= bomLength;
-
+                SupportedEncoding dataEnc;
+                if (count < 2)
+                {
+                    dataEnc = SupportedEncoding.UTF8;
+                }
+                else
+                {
+                    dataEnc = ReadEncoding(buffer[offset], buffer[offset + 1]);
+                }
                 if ((expectedEnc != SupportedEncoding.None) && (expectedEnc != dataEnc))
                 {
                     ThrowExpectedEncodingMismatch(expectedEnc, dataEnc);
@@ -317,53 +320,26 @@ namespace System.Runtime.Serialization.Json
             }
         }
 
-        // Determines the encoding of a JSON document from its leading bytes. A leading byte order
-        // mark, when present, authoritatively selects the encoding and its length is reported via
-        // bomLength so callers can skip past it. When no BOM is present, the encoding is inferred
-        // from the position of the zero byte in the leading (always ASCII) JSON character. Both the
-        // stream and the buffer code paths funnel through this single method so the detection logic
-        // lives in one place.
-        private static SupportedEncoding DetectEncoding(ReadOnlySpan<byte> data, out int bomLength)
+        private static SupportedEncoding ReadEncoding(byte b1, byte b2)
         {
-            bomLength = 0;
-
-            // Not enough characters for a BOM
-            if (data.Length < 2)
+            if (b1 == 0x00 && b2 != 0x00)
             {
-                // A single-byte (or empty) JSON document is necessarily UTF-8.
+                return SupportedEncoding.UTF16BE;
+            }
+            else if (b1 != 0x00 && b2 == 0x00)
+            {
+                // 857 It's possible to misdetect UTF-32LE as UTF-16LE, but that's OK.
+                return SupportedEncoding.UTF16LE;
+            }
+            else if (b1 == 0x00 && b2 == 0x00)
+            {
+                // UTF-32BE not supported
+                throw new XmlException(SR.JsonInvalidBytes);
+            }
+            else
+            {
                 return SupportedEncoding.UTF8;
             }
-
-            switch ((data[0], data[1]))
-            {
-                // Detect known BOMs
-                case (0xFF, 0xFE):
-                    bomLength = 2;
-                    return SupportedEncoding.UTF16LE;
-                case (0xFE, 0xFF):
-                    bomLength = 2;
-                    return SupportedEncoding.UTF16BE;
-                case (0xEF, 0xBB):
-                    if (data.Length >= 3 && data[2] == 0xBF)
-                    {
-                        bomLength = 3;
-                        return SupportedEncoding.UTF8;
-                    }
-                    break;
-
-                // No byte order mark or inference from the leading ASCII character.
-                case (0x00, not 0x00):
-                    return SupportedEncoding.UTF16BE;
-                case (not 0x00, 0x00):
-                    return SupportedEncoding.UTF16LE;
-
-                // UTF-32BE not supported
-                case (0x00, 0x00):
-                    throw new XmlException(SR.JsonInvalidBytes);
-            }
-
-            // No BOM detected or inferred. Assume UTF8
-            return SupportedEncoding.UTF8;
         }
 
         private static void ThrowExpectedEncodingMismatch(SupportedEncoding expEnc, SupportedEncoding actualEnc)
@@ -497,23 +473,31 @@ namespace System.Runtime.Serialization.Json
 
         private SupportedEncoding ReadEncoding()
         {
+            int b1 = _stream.ReadByte();
+            int b2 = _stream.ReadByte();
+
             EnsureByteBuffer();
 
-            // Read whatever bytes are immediately available, up to the three occupied by the longest
-            // byte order mark. A single Read is used deliberately instead of ReadAtLeast: Read performs
-            // one underlying read and returns however many bytes were available. If it's enough for
-            // BOM detection, we will try to determine encoding. If not, we continue BOM-less.
-            // `_stream` here is buffered, so `Read()` should be able to return a full BOM if it's there.
-            // We need 3 bytes for full ASCII/UTF-8/16 detection.
-            Span<byte> leading = stackalloc byte[3];
-            int read = _stream.Read(leading);
+            SupportedEncoding e;
 
-            SupportedEncoding e = DetectEncoding(leading.Slice(0, read), out int bomLength);
-
-            // Preserve any bytes that follow the byte order mark; they belong to the document.
-            int preserve = read - bomLength;
-            leading.Slice(bomLength, preserve).CopyTo(_bytes);
-            _byteCount = preserve;
+            if (b1 == -1)
+            {
+                e = SupportedEncoding.UTF8;
+                _byteCount = 0;
+            }
+            else if (b2 == -1)
+            {
+                e = SupportedEncoding.UTF8;
+                _bytes[0] = (byte)b1;
+                _byteCount = 1;
+            }
+            else
+            {
+                e = ReadEncoding((byte)b1, (byte)b2);
+                _bytes[0] = (byte)b1;
+                _bytes[1] = (byte)b2;
+                _byteCount = 2;
+            }
 
             return e;
         }

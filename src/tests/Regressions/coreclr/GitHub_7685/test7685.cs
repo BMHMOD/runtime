@@ -3,7 +3,6 @@
 using System;
 using System.Reflection;
 using Xunit;
-using TestLibrary;
 
 public class Test7685
 {
@@ -14,7 +13,6 @@ public class Test7685
     static RectangleLSmall passedLongSmallStruct;
     static RectangleNestedF passedNestedSmallFStruct;
      
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static int TestEntryPoint()
     {

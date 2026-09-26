@@ -158,7 +158,6 @@ namespace R3Contention
 
     public static class App
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

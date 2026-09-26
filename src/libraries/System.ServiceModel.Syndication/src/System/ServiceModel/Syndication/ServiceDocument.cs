@@ -3,12 +3,10 @@
 
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics.CodeAnalysis;
 using System.Xml;
 
 namespace System.ServiceModel.Syndication
 {
-    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)]
     public class ServiceDocument : IExtensibleSyndicationObject
     {
         private ExtensibleSyndicationObject _extensions;

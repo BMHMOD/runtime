@@ -32,7 +32,7 @@ namespace System.ComponentModel.Design.Tests
             stream.Seek(position, SeekOrigin.Begin);
         }
 
-        [ConditionalTheory(typeof(DesigntimeLicenseContextSerializerTests), nameof(AreBinaryFormatterAndRemoteExecutorSupportedOnThisPlatform))]
+        [ConditionalTheory(nameof(AreBinaryFormatterAndRemoteExecutorSupportedOnThisPlatform))]
         [InlineData(false, "key")]
         [InlineData(true, "key")]
         [InlineData(false, "")]
@@ -77,7 +77,7 @@ namespace System.ComponentModel.Design.Tests
             }, key, options).Dispose();
         }
 
-        [ConditionalTheory(typeof(DesigntimeLicenseContextSerializerTests), nameof(AreBinaryFormatterAndRemoteExecutorSupportedOnThisPlatform))]
+        [ConditionalTheory(nameof(AreBinaryFormatterAndRemoteExecutorSupportedOnThisPlatform))]
         [InlineData("key")]
         [InlineData("")]
         public static void SerializeWithBinaryFormatter_DeserializeWithBinaryWriter(string key)

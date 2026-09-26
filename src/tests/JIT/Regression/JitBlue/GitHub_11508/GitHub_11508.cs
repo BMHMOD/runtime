@@ -30,7 +30,6 @@ namespace TestApp
     public class Program
     {
         [MethodImpl(MethodImplOptions.NoOptimization)]
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

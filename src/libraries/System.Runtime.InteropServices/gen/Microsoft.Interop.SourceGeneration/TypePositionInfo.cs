@@ -48,12 +48,11 @@ namespace Microsoft.Interop
     {
         public const int UnsetIndex = int.MinValue;
         public const int ReturnIndex = UnsetIndex + 1;
-        public const int ErrorIndex = UnsetIndex + 2;
-        public const int ExceptionIndex = ErrorIndex;
+        public const int ExceptionIndex = UnsetIndex + 2;
 
         public static bool IsSpecialIndex(int index)
         {
-            return index is UnsetIndex or ReturnIndex or ErrorIndex;
+            return index is UnsetIndex or ReturnIndex or ExceptionIndex;
         }
 
         public static int IncrementIndex(int index)
@@ -71,10 +70,11 @@ namespace Microsoft.Interop
 
         public ByValueContentsMarshalKind ByValueContentsMarshalKind { get; init; }
 
+        public (Location? InLocation, Location? OutLocation) ByValueMarshalAttributeLocations { get; init; }
+
         public bool IsManagedReturnPosition { get => ManagedIndex == ReturnIndex; }
         public bool IsNativeReturnPosition { get => NativeIndex == ReturnIndex; }
-        public bool IsErrorHandlingPosition { get; init; }
-        public bool IsManagedIdentifierSynthetic => IsSpecialIndex(ManagedIndex);
+        public bool IsManagedExceptionPosition { get => ManagedIndex == ExceptionIndex; }
 
         public int ManagedIndex { get; init; } = UnsetIndex;
         public int NativeIndex { get; init; } = UnsetIndex;
@@ -87,11 +87,14 @@ namespace Microsoft.Interop
 
         public static TypePositionInfo CreateForParameter(IParameterSymbol paramSymbol, MarshallingInfo marshallingInfo, Compilation compilation)
         {
+            var (byValueContentsMarshalKind, inLocation, outLocation) = GetByValueContentsMarshalKind(paramSymbol.GetAttributes(), compilation);
+
             var typeInfo = new TypePositionInfo(ManagedTypeInfo.CreateTypeInfoForTypeSymbol(paramSymbol.Type), marshallingInfo)
             {
                 InstanceIdentifier = ParseToken(paramSymbol.Name).IsReservedKeyword() ? $"@{paramSymbol.Name}" : paramSymbol.Name,
                 RefKind = paramSymbol.RefKind,
-                ByValueContentsMarshalKind = GetByValueContentsMarshalKind(paramSymbol.GetAttributes(), compilation),
+                ByValueContentsMarshalKind = byValueContentsMarshalKind,
+                ByValueMarshalAttributeLocations = (inLocation, outLocation),
                 ScopedKind = paramSymbol.ScopedKind,
                 IsExplicitThis = ((ParameterSyntax?)paramSymbol.DeclaringSyntaxReferences.FirstOrDefault()?.GetSyntax())?.Modifiers.Any(SyntaxKind.ThisKeyword) ?? false
             };
@@ -104,47 +107,36 @@ namespace Microsoft.Interop
             if (info.ManagedIndex is UnsetIndex)
                 return Location.None;
 
-            if (info.ManagedIndex is ReturnIndex or ErrorIndex)
+            if (info.ManagedIndex is ReturnIndex or ExceptionIndex)
                 return methodSymbol.Locations[0];
 
             return methodSymbol.Parameters[info.ManagedIndex].Locations[0];
         }
 
-        private static ByValueContentsMarshalKind GetByValueContentsMarshalKind(IEnumerable<AttributeData> attributes, Compilation compilation)
+        private static (ByValueContentsMarshalKind, Location? inAttribute, Location? outAttribute) GetByValueContentsMarshalKind(IEnumerable<AttributeData> attributes, Compilation compilation)
         {
             INamedTypeSymbol outAttributeType = compilation.GetTypeByMetadataName(TypeNames.System_Runtime_InteropServices_OutAttribute)!;
             INamedTypeSymbol inAttributeType = compilation.GetTypeByMetadataName(TypeNames.System_Runtime_InteropServices_InAttribute)!;
 
             ByValueContentsMarshalKind marshalKind = ByValueContentsMarshalKind.Default;
+            Location? inAttributeLocation = null;
+            Location? outAttributeLocation = null;
 
             foreach (AttributeData attr in attributes)
             {
                 if (SymbolEqualityComparer.Default.Equals(attr.AttributeClass, outAttributeType))
                 {
                     marshalKind |= ByValueContentsMarshalKind.Out;
+                    outAttributeLocation = attr.ApplicationSyntaxReference.SyntaxTree.GetLocation(attr.ApplicationSyntaxReference.Span);
                 }
                 else if (SymbolEqualityComparer.Default.Equals(attr.AttributeClass, inAttributeType))
                 {
                     marshalKind |= ByValueContentsMarshalKind.In;
+                    inAttributeLocation = attr.ApplicationSyntaxReference.SyntaxTree.GetLocation(attr.ApplicationSyntaxReference.Span);
                 }
-
             }
 
-            return marshalKind;
+            return (marshalKind, inAttributeLocation, outAttributeLocation);
         }
     }
-
-    public enum ErrorHandlingLocation
-    {
-        None = -1,
-        ReturnValue = 0,
-        LastParameter = 1,
-        HiddenReturnValue = 2,
-        HiddenLastParameter = 3,
-    }
-
-    public sealed record ErrorHandlingInfo(
-        ManagedTypeInfo ManagedType,
-        MarshallingInfo MarshallingInfo,
-        ErrorHandlingLocation Location);
 }

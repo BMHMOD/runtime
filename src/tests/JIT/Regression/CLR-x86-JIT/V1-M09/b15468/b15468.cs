@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b15468
+namespace DefaultNamespace
 {
     //@BEGINRENAME; Verify this renames
     //@ENDRENAME; Verify this renames
@@ -11,7 +11,6 @@ namespace b15468
 
     public class unsignedNegative
     {
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

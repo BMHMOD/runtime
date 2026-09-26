@@ -4,7 +4,6 @@
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 // Repro case for https://github.com/dotnet/coreclr/pull/17398
 
@@ -15,8 +14,6 @@ public class X
     string s;
 
     public override string ToString() => s;
-
-    public X() { }
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     X(int x)
@@ -67,7 +64,6 @@ public class X
         }
     }
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static int TestEntryPoint()
     {

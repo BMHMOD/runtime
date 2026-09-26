@@ -113,7 +113,6 @@ namespace System.Text.Json.Nodes.Tests
             JsonValue jValue = JsonNode.Parse("\"MyString\"").AsValue();
 
             Assert.True(jValue.TryGetValue(out string _));
-            Assert.True(jValue.TryGetValue(out object _));
             Assert.False(jValue.TryGetValue(out char _));
             Assert.False(jValue.TryGetValue(out byte _));
             Assert.False(jValue.TryGetValue(out short _));
@@ -148,7 +147,6 @@ namespace System.Text.Json.Nodes.Tests
             Assert.True(jValue.TryGetValue(out float _));
             Assert.True(jValue.TryGetValue(out double _));
             Assert.True(jValue.TryGetValue(out decimal _));
-            Assert.True(jValue.TryGetValue(out object _));
             Assert.False(jValue.TryGetValue(out bool _));
             Assert.False(jValue.TryGetValue(out string _));
             Assert.False(jValue.TryGetValue(out char _));
@@ -213,7 +211,6 @@ namespace System.Text.Json.Nodes.Tests
             JsonValue jValue = JsonNode.Parse("true").AsValue();
 
             Assert.True(jValue.TryGetValue(out bool _));
-            Assert.True(jValue.TryGetValue(out object _));
             Assert.False(jValue.TryGetValue(out byte _));
             Assert.False(jValue.TryGetValue(out short _));
             Assert.False(jValue.TryGetValue(out int _));
@@ -230,48 +227,6 @@ namespace System.Text.Json.Nodes.Tests
             Assert.False(jValue.TryGetValue(out DateTime _));
             Assert.False(jValue.TryGetValue(out DateTimeOffset _));
             Assert.False(jValue.TryGetValue(out Guid _));
-        }
-
-        [Theory]
-        [InlineData("\"Hello World!\"")]
-        [InlineData("42")]
-        [InlineData("true")]
-        [InlineData("false")]
-        public static void GetValue_Object(string json)
-        {
-            JsonValue jValue = JsonSerializer.Deserialize<JsonValue>(json);
-
-            object result = jValue.GetValue<object>();
-            Assert.NotNull(result);
-            Assert.IsType<JsonElement>(result);
-        }
-
-        [Fact]
-        public static void TryGetValue_NullableTypes_Deserialized()
-        {
-            // String primitive (JsonValueOfJsonString): JsonElement? should work
-            JsonValue stringValue = JsonSerializer.Deserialize<JsonValue>("\"Hello\"");
-            Assert.True(stringValue.TryGetValue(out JsonElement? _));
-
-            // Bool primitive (JsonValueOfJsonBool): JsonElement? and bool? should work
-            JsonValue boolValue = JsonSerializer.Deserialize<JsonValue>("true");
-            Assert.True(boolValue.TryGetValue(out JsonElement? _));
-            Assert.True(boolValue.TryGetValue(out bool? _));
-
-            // Number primitive (JsonValueOfJsonNumber): JsonElement? and numeric nullable types should work
-            JsonValue numberValue = JsonSerializer.Deserialize<JsonValue>("42");
-            Assert.True(numberValue.TryGetValue(out JsonElement? _));
-            Assert.True(numberValue.TryGetValue(out int? _));
-            Assert.True(numberValue.TryGetValue(out long? _));
-            Assert.True(numberValue.TryGetValue(out double? _));
-            Assert.True(numberValue.TryGetValue(out short? _));
-            Assert.True(numberValue.TryGetValue(out decimal? _));
-            Assert.True(numberValue.TryGetValue(out byte? _));
-            Assert.True(numberValue.TryGetValue(out float? _));
-            Assert.True(numberValue.TryGetValue(out uint? _));
-            Assert.True(numberValue.TryGetValue(out ushort? _));
-            Assert.True(numberValue.TryGetValue(out ulong? _));
-            Assert.True(numberValue.TryGetValue(out sbyte? _));
         }
 
         [Theory]
@@ -655,7 +610,7 @@ namespace System.Text.Json.Nodes.Tests
         public static void GetValueKind_NumberHandling(JsonNumberHandling numberHandling, JsonValueKind expectedKind)
         {
             JsonSerializerOptions options = new(JsonSerializerOptions.Default) { NumberHandling = numberHandling };
-            JsonTypeInfo<int> typeInfo = options.GetTypeInfo<int>();
+            JsonTypeInfo<int> typeInfo = (JsonTypeInfo<int>)options.GetTypeInfo(typeof(int));
             JsonValue value = JsonValue.Create(42, typeInfo);
             Assert.Equal(expectedKind, value.GetValueKind());
         }
@@ -994,7 +949,7 @@ namespace System.Text.Json.Nodes.Tests
         [Fact]
         public static void JsonValue_CreateWithJsonTypeInfo()
         {
-            JsonTypeInfo<int> typeInfo = JsonSerializerOptions.Default.GetTypeInfo<int>();
+            JsonTypeInfo<int> typeInfo = (JsonTypeInfo<int>)JsonSerializerOptions.Default.GetTypeInfo(typeof(int));
             
             JsonValue value = JsonValue.Create(42, typeInfo);
             Assert.Equal(42, value.GetValue<int>());
@@ -1003,7 +958,7 @@ namespace System.Text.Json.Nodes.Tests
         [Fact]
         public static void JsonValue_CreateWithJsonTypeInfoAndOptions()
         {
-            JsonTypeInfo<string> typeInfo = JsonSerializerOptions.Default.GetTypeInfo<string>();
+            JsonTypeInfo<string> typeInfo = (JsonTypeInfo<string>)JsonSerializerOptions.Default.GetTypeInfo(typeof(string));
             var nodeOptions = new JsonNodeOptions { PropertyNameCaseInsensitive = true };
             
             JsonValue value = JsonValue.Create("test", typeInfo, nodeOptions);

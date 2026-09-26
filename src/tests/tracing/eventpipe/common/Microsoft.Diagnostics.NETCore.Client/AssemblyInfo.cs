@@ -7,6 +7,5 @@ using System.Runtime.CompilerServices;
 
 [assembly: InternalsVisibleTo("common")]
 [assembly: InternalsVisibleTo("enabledisable")]
-[assembly: InternalsVisibleTo("eventpipe_common")]
 [assembly: AssemblyVersionAttribute("99.99.99.99")]
 #endif

@@ -8,9 +8,5 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Abstractions
     /// </summary>
     public abstract class FileInfoBase : FileSystemInfoBase
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="FileInfoBase" /> class.
-        /// </summary>
-        protected FileInfoBase() { }
     }
 }

@@ -1,5 +1,4 @@
 <Project Sdk="Microsoft.Build.NoTargets">
-
   <PropertyGroup>
     <IsPackable>true</IsPackable>
     <EnablePackageValidation>false</EnablePackageValidation>
@@ -9,7 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.DotNet.Build.Tasks.Templating" Version="$(MicrosoftDotNetBuildTasksTemplatingVersion)" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.DotNet.Build.Tasks.Templating" Version="$(MicrosoftDotNetBuildTasksTemplatingVersion)" />
   </ItemGroup>
 
   <ItemGroup>
@@ -25,6 +24,7 @@
   <Target Name="ReplaceTemplateParametersInILTargetsTemplate"
           Inputs="$(MSBuildThisFileFullPath);$(ILTargetsTemplateFile)"
           Outputs="$(ILTargetsOutputFile)">
+
     <GenerateFileFromTemplate TemplateFile="$(ILTargetsTemplateFile)"
                               OutputPath="$(ILTargetsOutputFile)"
                               Properties="IlAsmVersion=$(Version)" />

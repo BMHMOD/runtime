@@ -64,6 +64,7 @@ PCODE FuncPtrStubs::GetFuncPtrStub(MethodDesc * pMD, PrecodeType type)
     {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(ThrowOutOfMemory(););
     }
     CONTRACTL_END
 
@@ -77,7 +78,6 @@ PCODE FuncPtrStubs::GetFuncPtrStub(MethodDesc * pMD, PrecodeType type)
     {
         return pPrecode->GetEntryPoint();
     }
-    GCX_PREEMP();
 
     PCODE target = (PCODE)NULL;
     bool setTargetAfterAddingToHashTable = false;
@@ -151,6 +151,8 @@ PCODE FuncPtrStubs::GetFuncPtrStub(MethodDesc * pMD, PrecodeType type)
 
     if (setTargetAfterAddingToHashTable)
     {
+        GCX_PREEMP();
+
         _ASSERTE(pMD->IsVersionableWithVtableSlotBackpatch());
 
         PCODE temporaryEntryPoint = pMD->GetTemporaryEntryPoint();

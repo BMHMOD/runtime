@@ -5,7 +5,7 @@ using Mono.Linker.Tests.Cases.Expectations.Metadata;
 
 namespace Mono.Linker.Tests.Cases.UnreachableBlock
 {
-    [SkipUnresolved(true)]
+    [SetupLinkerArgument("--skip-unresolved", "true")]
     [Define("IL_ASSEMBLY_AVAILABLE")]
     [SetupCompileBefore("library.dll", new[] { "Dependencies/EndScopeOnMethod.il" })]
     public class EndScopeOnMethoEnd

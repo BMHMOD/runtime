@@ -2,15 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-namespace JitTest_Directed_newarr_newarr;
-
 using System;
 using Xunit;
-using TestLibrary;
 
 public class AA
 {
-    [ActiveIssue("needs triage", TestRuntimes.Mono)]
     [Fact]
     public static int TestEntryPoint()
     {

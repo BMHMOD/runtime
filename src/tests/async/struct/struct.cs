@@ -32,6 +32,7 @@ public class Async2Struct
         AssertEqual(100, s.Value);
     }
 
+
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void AssertEqual(int expected, int val)
     {

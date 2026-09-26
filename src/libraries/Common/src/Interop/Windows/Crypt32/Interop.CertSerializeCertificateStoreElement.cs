@@ -8,7 +8,6 @@ internal static partial class Interop
 {
     internal static partial class Crypt32
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Crypt32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static partial bool CertSerializeCertificateStoreElement(SafeCertContextHandle pCertContext, int dwFlags, byte[]? pbElement, ref int pcbElement);

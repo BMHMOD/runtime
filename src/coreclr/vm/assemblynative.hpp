@@ -24,15 +24,17 @@ public:
     static Assembly* LoadFromPEImage(AssemblyBinder* pBinder, PEImage *pImage, bool excludeAppPaths = false);
 
     // static FCALLs
-    FCDECL0(static FC_BOOL_RET, IsTracingEnabled);
+    static FCDECL0(FC_BOOL_RET, IsTracingEnabled);
 
     //
     // instance FCALLs
     //
 
-    FCDECL1(static FC_BOOL_RET, GetIsDynamic, Assembly* pAssembly);
+    static
+    FCDECL1(FC_BOOL_RET, GetIsDynamic, Assembly* pAssembly);
 
-    FCDECL1(static FC_BOOL_RET, GetIsCollectible, Assembly* pAssembly);
+    static
+    FCDECL1(FC_BOOL_RET, GetIsCollectible, Assembly* pAssembly);
 };
 
 extern "C" uint32_t QCALLTYPE AssemblyNative_GetAssemblyCount();
@@ -115,7 +117,7 @@ extern "C" void QCALLTYPE AssemblyNative_PrepareForAssemblyLoadContextRelease(IN
 
 extern "C" void QCALLTYPE AssemblyNative_InternalLoad(NativeAssemblyNameParts* pAssemblyName, QCall::ObjectHandleOnStack requestingAssembly, QCall::StackCrawlMarkHandle stackMark,BOOL fThrowOnFileNotFound, QCall::ObjectHandleOnStack assemblyLoadContext, QCall::ObjectHandleOnStack retAssembly);
 
-extern "C" void QCALLTYPE AssemblyNative_LoadFromPath(INT_PTR ptrNativeAssemblyBinder, LPCWSTR pwzILPath, QCall::ObjectHandleOnStack retLoadedAssembly);
+extern "C" void QCALLTYPE AssemblyNative_LoadFromPath(INT_PTR ptrNativeAssemblyBinder, LPCWSTR pwzILPath, LPCWSTR pwzNIPath, QCall::ObjectHandleOnStack retLoadedAssembly);
 
 extern "C" void QCALLTYPE AssemblyNative_LoadFromStream(INT_PTR ptrNativeAssemblyBinder, INT_PTR ptrAssemblyArray, INT32 cbAssemblyArrayLength, INT_PTR ptrSymbolArray, INT32 cbSymbolArrayLength, QCall::ObjectHandleOnStack retLoadedAssembly);
 #ifdef TARGET_WINDOWS
@@ -132,7 +134,7 @@ extern "C" void QCALLTYPE AssemblyNative_TraceResolvingHandlerInvoked(LPCWSTR as
 
 extern "C" void QCALLTYPE AssemblyNative_TraceAssemblyResolveHandlerInvoked(LPCWSTR assemblyName, LPCWSTR handlerName, LPCWSTR resultAssemblyName, LPCWSTR resultAssemblyPath);
 
-extern "C" void QCALLTYPE AssemblyNative_TraceAssemblyLoadFromResolveHandlerInvoked(LPCWSTR assemblyName, BOOL isTrackedAssembly, LPCWSTR requestingAssemblyPath, LPCWSTR requestedAssemblyPath);
+extern "C" void QCALLTYPE AssemblyNative_TraceAssemblyLoadFromResolveHandlerInvoked(LPCWSTR assemblyName, bool isTrackedAssembly, LPCWSTR requestingAssemblyPath, LPCWSTR requestedAssemblyPath);
 
 extern "C" void QCALLTYPE AssemblyNative_TraceSatelliteSubdirectoryPathProbed(LPCWSTR filePath, HRESULT hr);
 
@@ -147,7 +149,6 @@ extern "C" void QCALLTYPE AssemblyName_InitializeAssemblySpec(NativeAssemblyName
 struct CallbackContext final
 {
     OBJECTREF _currAssembly;
-    OBJECTREF _groupType;
     OBJECTREF _externalTypeMap;
     OBJECTREF _proxyTypeMap;
     OBJECTREF _creationException;
@@ -167,20 +168,6 @@ extern "C" void QCALLTYPE TypeMapLazyDictionary_ProcessAttributes(
     QCall::TypeHandle pTypeGroup,
     BOOL (*newExternalTypeEntry)(CallbackContext* context, ProcessAttributesCallbackArg* arg),
     BOOL (*newProxyTypeEntry)(CallbackContext* context, ProcessAttributesCallbackArg* arg),
-    BOOL (*newPrecachedExternalTypeMap)(CallbackContext* context),
-    BOOL (*newPrecachedProxyTypeMap)(CallbackContext* context),
     CallbackContext* context);
-
-extern "C" TADDR QCALLTYPE TypeMapLazyDictionary_FindPrecachedExternalTypeMapEntry(
-    QCall::ModuleHandle pModule,
-    QCall::TypeHandle pGroupType,
-    LPCUTF8 key
-);
-
-extern "C" TADDR QCALLTYPE TypeMapLazyDictionary_FindPrecachedProxyTypeMapEntry(
-    QCall::ModuleHandle pModule,
-    QCall::TypeHandle pGroupType,
-    QCall::TypeHandle pType
-);
 
 #endif

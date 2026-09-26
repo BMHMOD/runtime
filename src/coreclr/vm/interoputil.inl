@@ -11,6 +11,7 @@ inline BOOL ComInterfaceSlotIs(IUnknown* pUnk, int slot, LPVOID pvFunction)
     {
         NOTHROW;
         GC_NOTRIGGER;
+        FORBID_FAULT;
         MODE_ANY;
         PRECONDITION(CheckPointer(pUnk));
     }
@@ -18,7 +19,7 @@ inline BOOL ComInterfaceSlotIs(IUnknown* pUnk, int slot, LPVOID pvFunction)
 
     LPVOID pvRetVal = (*((LPVOID**)pUnk))[slot];
 
-    return pvRetVal == (LPVOID)GetEEFuncEntryPoint(pvFunction);
+    return (pvRetVal == (LPVOID)GetEEFuncEntryPoint(pvFunction));
 }
 
 //Helpers
@@ -54,21 +55,21 @@ inline BOOL IsStandardTearOff(IUnknown* pUnk)
 // Convert an IUnknown to CCW, does not handle aggregation and ICustomQI.
 FORCEINLINE ComCallWrapper* MapIUnknownToWrapper(IUnknown* pUnk)
 {
-    CONTRACTL
+    CONTRACT (ComCallWrapper*)
     {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(CheckPointer(pUnk, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (IsStandardTearOff(pUnk))
-        return ComCallWrapper::GetWrapperFromIP(pUnk);
+        RETURN ComCallWrapper::GetWrapperFromIP(pUnk);
 
     if (IsSimpleTearOff(pUnk) || IsInnerUnknown(pUnk))
-        return SimpleComCallWrapper::GetWrapperFromIP(pUnk)->GetMainWrapper();
+        RETURN SimpleComCallWrapper::GetWrapperFromIP(pUnk)->GetMainWrapper();
 
-    return NULL;
+    RETURN NULL;
 }
 #endif // !DACCESS_COMPILE

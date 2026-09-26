@@ -9,8 +9,6 @@ using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using System.Text;
 
-using Internal.Text;
-
 using Debug = System.Diagnostics.Debug;
 
 namespace Internal.TypeSystem.Ecma
@@ -317,7 +315,7 @@ namespace Internal.TypeSystem.Ecma
             return bucketHeads;
         }
 
-        private TypeDefinitionHandle FindDefinedType(int hashCode, Utf8Span nameSpace, Utf8Span name)
+        private TypeDefinitionHandle FindDefinedType(int hashCode, ReadOnlySpan<byte> nameSpace, ReadOnlySpan<byte> name)
         {
             MetadataReader reader = _metadataReader;
 
@@ -368,7 +366,7 @@ namespace Internal.TypeSystem.Ecma
             return bucketHeads;
         }
 
-        private ExportedTypeHandle FindExportedType(int hashCode, Utf8Span nameSpace, Utf8Span name)
+        private ExportedTypeHandle FindExportedType(int hashCode, ReadOnlySpan<byte> nameSpace, ReadOnlySpan<byte> name)
         {
             MetadataReader reader = _metadataReader;
 
@@ -389,7 +387,7 @@ namespace Internal.TypeSystem.Ecma
             return default;
         }
 
-        public sealed override object GetType(Utf8Span nameSpace, Utf8Span name, NotFoundBehavior notFoundBehavior)
+        public sealed override object GetType(ReadOnlySpan<byte> nameSpace, ReadOnlySpan<byte> name, NotFoundBehavior notFoundBehavior)
         {
             int hashCode = VersionResilientHashCode.NameHashCode(nameSpace, name);
 
@@ -572,10 +570,9 @@ namespace Internal.TypeSystem.Ecma
             TypeSpecification typeSpecification = _metadataReader.GetTypeSpecification(handle);
 
             BlobReader signatureReader = _metadataReader.GetBlobReader(typeSpecification.Signature);
-
             EcmaSignatureParser parser = new EcmaSignatureParser(this, signatureReader, NotFoundBehavior.ReturnResolutionFailure);
 
-            TypeDesc parsedType = parser.ParseTypeSpec(handle);
+            TypeDesc parsedType = parser.ParseType();
             if (parsedType == null)
                 return parser.ResolutionFailure;
             else
@@ -691,14 +688,14 @@ namespace Internal.TypeSystem.Ecma
             else
             if (resolutionScope is MetadataType)
             {
-                ReadOnlySpan<byte> typeName = _metadataReader.GetStringBytes(typeReference.Name);
+                string typeName = _metadataReader.GetString(typeReference.Name);
                 if (!typeReference.Namespace.IsNil)
-                    typeName = _metadataReader.GetStringBytes(typeReference.Namespace).Append("."u8, typeName);
+                    typeName = _metadataReader.GetString(typeReference.Namespace) + "." + typeName;
                 MetadataType result = ((MetadataType)(resolutionScope)).GetNestedType(typeName);
                 if (result != null)
                     return result;
 
-                return ResolutionFailure.GetTypeLoadResolutionFailure(Encoding.UTF8.GetString(typeName), ((MetadataType)resolutionScope).Module);
+                return ResolutionFailure.GetTypeLoadResolutionFailure(typeName, ((MetadataType)resolutionScope).Module);
             }
 
             // TODO
@@ -739,10 +736,10 @@ namespace Internal.TypeSystem.Ecma
             else
             if (implementation is MetadataType type)
             {
-                ReadOnlySpan<byte> name = _metadataReader.GetStringBytes(exportedType.Name);
+                string name = _metadataReader.GetString(exportedType.Name);
                 var nestedType = type.GetNestedType(name);
                 if (nestedType == null)
-                    return ResolutionFailure.GetTypeLoadResolutionFailure(Encoding.UTF8.GetString(name), this);
+                    return ResolutionFailure.GetTypeLoadResolutionFailure(name, this);
                 return nestedType;
             }
             else if (implementation is ResolutionFailure)

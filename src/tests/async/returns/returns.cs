@@ -17,8 +17,7 @@ public class Async2Returns
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static async Task Returns(C c)
     {
-        int count = TestLibrary.Utilities.IsCoreClrInterpreter ? 200 : 20000;
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < 20000; i++)
         {
             S<long> val = await ReturnsStruct();
 

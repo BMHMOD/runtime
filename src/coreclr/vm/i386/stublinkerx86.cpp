@@ -82,6 +82,7 @@ class X86NearJump : public InstructionFormat
         {
             STATIC_CONTRACT_NOTHROW;
             STATIC_CONTRACT_GC_NOTRIGGER;
+            STATIC_CONTRACT_FORBID_FAULT;
 
 
             if (fExternal)
@@ -132,6 +133,7 @@ static BYTE gX86NearJump[sizeof(X86NearJump)];
     {
         THROWS;
         GC_NOTRIGGER;
+        INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
 
@@ -819,20 +821,20 @@ VOID StubLinkerCPU::X86EmitEspOffset(BYTE opcode,
 // Get X86Reg indexes of argument registers based on offset into ArgumentRegister
 X86Reg GetX86ArgumentRegisterFromOffset(size_t ofs)
 {
-    CONTRACTL
+    CONTRACT(X86Reg)
     {
         NOTHROW;
         GC_NOTRIGGER;
 
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
-    #define ARGUMENT_REGISTER(reg) if (ofs == offsetof(ArgumentRegisters, reg)) return  k##reg ;
+    #define ARGUMENT_REGISTER(reg) if (ofs == offsetof(ArgumentRegisters, reg)) RETURN  k##reg ;
     ENUM_ARGUMENT_REGISTERS();
     #undef ARGUMENT_REGISTER
 
     _ASSERTE(0);//Can't get here.
-    return kEBP;
+    RETURN kEBP;
 }
 
 
@@ -869,7 +871,6 @@ bool StubLinkerCPU::EmitUnboxMethodStub(MethodDesc* pUnboxMD)
     //
     X86EmitAddReg(THIS_kREG, sizeof(void*));
     EmitTailJumpToMethod(pUnboxMD);
-    SetTargetMethod(pUnboxMD);
     return true;
 }
 
@@ -943,7 +944,6 @@ bool StubLinkerCPU::EmitInstantiatingMethodStub(MethodDesc* pMD, void* extra)
     }
 
     EmitTailJumpToMethod(pMD);
-    SetTargetMethod(pMD);
 
     return true;
 #endif // UNIX_X86_ABI

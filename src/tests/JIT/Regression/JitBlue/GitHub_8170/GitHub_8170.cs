@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-namespace GitHub_8170;
-
 using System.Runtime.CompilerServices;
 using Xunit;
 
@@ -19,7 +16,6 @@ public static class C
         return (uint)(l % 10000000);
     }
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

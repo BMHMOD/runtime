@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Xml;
 using System.Xml.Serialization;
@@ -51,16 +50,12 @@ namespace System.ServiceModel.Syndication
             _contentBuffer.Close();
         }
 
-        [RequiresUnreferencedCode(SyndicationFeedFormatter.RequiresUnreferencedCodeWarning)]
-        [RequiresDynamicCode(SyndicationFeedFormatter.RequiresDynamicCodeWarning)]
         public XmlSyndicationContent(string type, object dataContractExtension, XmlObjectSerializer dataContractSerializer)
         {
             _type = string.IsNullOrEmpty(type) ? Atom10Constants.XmlMediaType : type;
             Extension = new SyndicationElementExtension(dataContractExtension, dataContractSerializer);
         }
 
-        [RequiresUnreferencedCode(SyndicationFeedFormatter.RequiresUnreferencedCodeWarning)]
-        [RequiresDynamicCode(SyndicationFeedFormatter.RequiresDynamicCodeWarning)]
         public XmlSyndicationContent(string type, object xmlSerializerExtension, XmlSerializer serializer)
         {
             _type = string.IsNullOrEmpty(type) ? Atom10Constants.XmlMediaType : type;
@@ -95,12 +90,8 @@ namespace System.ServiceModel.Syndication
             return _contentBuffer.GetReader(0);
         }
 
-        [RequiresUnreferencedCode(SyndicationFeedFormatter.RequiresUnreferencedCodeWarning)]
-        [RequiresDynamicCode(SyndicationFeedFormatter.RequiresDynamicCodeWarning)]
         public TContent ReadContent<TContent>() => ReadContent<TContent>((DataContractSerializer)null);
 
-        [RequiresUnreferencedCode(SyndicationFeedFormatter.RequiresUnreferencedCodeWarning)]
-        [RequiresDynamicCode(SyndicationFeedFormatter.RequiresDynamicCodeWarning)]
         public TContent ReadContent<TContent>(XmlObjectSerializer dataContractSerializer)
         {
             dataContractSerializer ??= new DataContractSerializer(typeof(TContent));
@@ -120,8 +111,6 @@ namespace System.ServiceModel.Syndication
             }
         }
 
-        [RequiresUnreferencedCode(SyndicationFeedFormatter.RequiresUnreferencedCodeWarning)]
-        [RequiresDynamicCode(SyndicationFeedFormatter.RequiresDynamicCodeWarning)]
         public TContent ReadContent<TContent>(XmlSerializer serializer)
         {
             serializer ??= new XmlSerializer(typeof(TContent));

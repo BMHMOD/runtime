@@ -44,7 +44,7 @@ public class HandlerRefuses
         SetHandler();
     }
 
-    [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+    [Fact]
     public static void Test1()
     {
         shouldReturnFalseFromFilter = false;

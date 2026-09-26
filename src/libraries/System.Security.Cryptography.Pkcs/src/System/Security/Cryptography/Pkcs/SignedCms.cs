@@ -210,18 +210,30 @@ namespace System.Security.Cryptography.Pkcs
 
             static byte[] CopyContent(ReadOnlySpan<byte> encodedMessage)
             {
-                ValueAsnReader reader = new ValueAsnReader(encodedMessage, AsnEncodingRules.BER);
-
-                // Windows (and thus NetFx) reads the leading data and ignores extra.
-                // So use the Decode overload which doesn't throw on extra data.
-                ValueContentInfoAsn.Decode(ref reader, out ValueContentInfoAsn contentInfo);
-
-                if (contentInfo.ContentType != Oids.Pkcs7Signed)
+                unsafe
                 {
-                    throw new CryptographicException(SR.Cryptography_Cms_InvalidMessageType);
-                }
+                    fixed (byte* pin = encodedMessage)
+                    {
+                        using (var manager = new PointerMemoryManager<byte>(pin, encodedMessage.Length))
+                        {
+                            AsnValueReader reader = new AsnValueReader(encodedMessage, AsnEncodingRules.BER);
 
-                return contentInfo.Content.ToArray();
+                            // Windows (and thus NetFx) reads the leading data and ignores extra.
+                            // So use the Decode overload which doesn't throw on extra data.
+                            ContentInfoAsn.Decode(
+                                ref reader,
+                                manager.Memory,
+                                out ContentInfoAsn contentInfo);
+
+                            if (contentInfo.ContentType != Oids.Pkcs7Signed)
+                            {
+                                throw new CryptographicException(SR.Cryptography_Cms_InvalidMessageType);
+                            }
+
+                            return contentInfo.Content.ToArray();
+                        }
+                    }
+                }
             }
         }
 

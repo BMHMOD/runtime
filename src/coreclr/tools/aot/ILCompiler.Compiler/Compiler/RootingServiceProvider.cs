@@ -4,7 +4,6 @@
 using ILCompiler.DependencyAnalysis;
 using ILCompiler.DependencyAnalysisFramework;
 
-using Internal.Text;
 using Internal.TypeSystem;
 
 using Debug = System.Diagnostics.Debug;
@@ -24,13 +23,13 @@ namespace ILCompiler
             _rootAdder = rootAdder;
         }
 
-        public void AddCompilationRoot(MethodDesc method, string reason, Utf8String exportName, bool exportHidden = false)
+        public void AddCompilationRoot(MethodDesc method, string reason, string exportName = null, bool exportHidden = false)
         {
             MethodDesc canonMethod = method.GetCanonMethodTarget(CanonicalFormKind.Specific);
             IMethodNode methodEntryPoint = _factory.MethodEntrypoint(canonMethod);
             _rootAdder(methodEntryPoint, reason);
 
-            if (!exportName.IsNull)
+            if (exportName != null)
             {
                 exportName = _factory.NameMangler.NodeMangler.ExternMethod(exportName, method);
                 _factory.NodeAliases.Add(methodEntryPoint, (exportName, exportHidden));
@@ -141,9 +140,9 @@ namespace ILCompiler
             }
         }
 
-        public void RootReadOnlyDataBlob(byte[] data, int alignment, string reason, Utf8String exportName, bool exportHidden)
+        public void RootReadOnlyDataBlob(byte[] data, int alignment, string reason, string exportName, bool exportHidden)
         {
-            var blob = _factory.ReadOnlyDataBlob(Utf8String.Concat("__readonlydata_"u8, exportName.AsSpan()), data, alignment);
+            var blob = _factory.ReadOnlyDataBlob("__readonlydata_" + exportName, data, alignment);
             _rootAdder(blob, reason);
             exportName = _factory.NameMangler.NodeMangler.ExternVariable(exportName);
             _factory.NodeAliases.Add(blob, (exportName, exportHidden));

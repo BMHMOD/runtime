@@ -8,7 +8,6 @@ namespace Nullstone
     public class Test
     {
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

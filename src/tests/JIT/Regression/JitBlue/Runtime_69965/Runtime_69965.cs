@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-namespace Runtime_69965;
-
 using System.Numerics;
 using System.Runtime.Intrinsics;
 using System.Runtime.InteropServices;

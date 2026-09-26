@@ -1,18 +1,6 @@
 // Copyright (c) .NET Foundation and contributors. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
-#if ILTRIM
-extern alias TypeSystem;
-using TypeSystemEntity = TypeSystem::Internal.TypeSystem.TypeSystemEntity;
-using TypeDesc = TypeSystem::Internal.TypeSystem.TypeDesc;
-using DefType = TypeSystem::Internal.TypeSystem.DefType;
-using MethodDesc = TypeSystem::Internal.TypeSystem.MethodDesc;
-using FieldDesc = TypeSystem::Internal.TypeSystem.FieldDesc;
-using IAssemblyDesc = TypeSystem::Internal.TypeSystem.IAssemblyDesc;
-#else
-using Internal.TypeSystem;
-#endif
-
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
@@ -23,6 +11,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using ILCompiler;
 using ILCompiler.Logging;
+using Internal.TypeSystem;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Linker.Tests.Cases.Expectations.Assertions;
@@ -31,9 +20,8 @@ using Xunit;
 
 namespace Mono.Linker.Tests.TestCasesRunner
 {
-    public partial class ResultChecker
+    public class ResultChecker
     {
-#if !ILTRIM
         private readonly BaseAssemblyResolver _originalsResolver;
         private readonly ReaderParameters _originalReaderParameters;
         private readonly ReaderParameters _linkedReaderParameters;
@@ -209,7 +197,6 @@ namespace Mono.Linker.Tests.TestCasesRunner
         {
             // PE verifier is done here in ILLinker, but that's not possible with NativeAOT
         }
-#endif
 
         private void VerifyLoggedMessages(AssemblyDefinition original, TrimmingTestLogger logger, bool checkRemainingErrors)
         {
@@ -237,11 +224,7 @@ namespace Mono.Linker.Tests.TestCasesRunner
 
                 foreach (var attr in attrProvider.CustomAttributes)
                 {
-#if ILTRIM
-                    if (!IsProducedByLinker(attr))
-#else
                     if (!IsProducedByNativeAOT(attr))
-#endif
                         continue;
 
                     switch (attr.AttributeType.Name)
@@ -565,7 +548,6 @@ namespace Mono.Linker.Tests.TestCasesRunner
             }
         }
 
-#if !ILTRIM
         private static bool HasAttribute(ICustomAttributeProvider caProvider, string attributeName)
         {
             return TryGetCustomAttribute(caProvider, attributeName, out var _);
@@ -604,6 +586,5 @@ namespace Mono.Linker.Tests.TestCasesRunner
             return Enumerable.Empty<CustomAttribute>();
         }
 #nullable restore
-#endif
     }
 }

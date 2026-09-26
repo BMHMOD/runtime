@@ -7,15 +7,15 @@ using System.Diagnostics;
 using Internal.Text;
 using Internal.TypeSystem;
 using Internal.NativeFormat;
-using Internal.Runtime;
 
 namespace ILCompiler.DependencyAnalysis
 {
     /// <summary>
     /// Hashtable of all exact (non-canonical) generic method instantiations compiled in the module.
     /// </summary>
-    public sealed class ExactMethodInstantiationsNode : ObjectNode, ISymbolDefinitionNode
+    public sealed class ExactMethodInstantiationsNode : ObjectNode, ISymbolDefinitionNode, INodeWithSize
     {
+        private int? _size;
         private ExternalReferencesTableNode _externalReferences;
 
         public ExactMethodInstantiationsNode(ExternalReferencesTableNode externalReferences)
@@ -28,6 +28,7 @@ namespace ILCompiler.DependencyAnalysis
             sb.Append(nameMangler.CompilationUnitPrefix).Append("__exact_method_instantiations"u8);
         }
 
+        int INodeWithSize.Size => _size.Value;
         public int Offset => 0;
         public override bool IsShareable => false;
         public override ObjectNodeSection GetSection(NodeFactory factory) => _externalReferences.GetSection(factory);
@@ -47,6 +48,7 @@ namespace ILCompiler.DependencyAnalysis
             VertexHashtable hashtable = new VertexHashtable();
             Section nativeSection = nativeWriter.NewSection();
             nativeSection.Place(hashtable);
+
 
             foreach (MethodDesc method in factory.MetadataManager.GetExactMethodHashtableEntries())
             {
@@ -71,20 +73,11 @@ namespace ILCompiler.DependencyAnalysis
                     arguments.Append(nativeWriter.GetUnsignedConstant(_externalReferences.GetIndex(argNode)));
                 }
 
-                int flags = 0;
-                MethodDesc methodForMetadata = GetMethodForMetadata(method, out bool isAsyncVariant, out bool isReturnDroppingAsyncThunk);
-                if (isAsyncVariant)
-                    flags |= GenericMethodsHashtableConstants.IsAsyncVariant; // Same flag as the other hashtable! Readers are shared.
-                if (isReturnDroppingAsyncThunk)
-                    flags |= GenericMethodsHashtableConstants.IsReturnDroppingAsyncThunk;
-
-                int token = factory.MetadataManager.GetMetadataHandleForMethod(factory, methodForMetadata);
-
-                int flagsAndToken = (token & MetadataManager.MetadataOffsetMask) | flags;
+                int token = factory.MetadataManager.GetMetadataHandleForMethod(factory, method.GetTypicalMethodDefinition());
 
                 // Get the vertex for the completed method signature
 
-                Vertex methodSignature = nativeWriter.GetTuple(declaringType, nativeWriter.GetUnsignedConstant((uint)flagsAndToken), arguments);
+                Vertex methodSignature = nativeWriter.GetTuple(declaringType, nativeWriter.GetUnsignedConstant((uint)token), arguments);
 
                 // Make the generic method entry vertex
 
@@ -96,6 +89,8 @@ namespace ILCompiler.DependencyAnalysis
             }
 
             byte[] streamBytes = nativeWriter.Save();
+
+            _size = streamBytes.Length;
 
             return new ObjectData(streamBytes, Array.Empty<Relocation>(), 1, new ISymbolDefinitionNode[] { this });
         }
@@ -117,27 +112,7 @@ namespace ILCompiler.DependencyAnalysis
             foreach (var arg in method.Instantiation)
                 dependencies.Add(new DependencyListEntry(factory.NecessaryTypeSymbol(arg), "Exact method instantiation entry"));
 
-            factory.MetadataManager.GetNativeLayoutMetadataDependencies(ref dependencies, factory, GetMethodForMetadata(method, out _, out _));
-        }
-
-        private static MethodDesc GetMethodForMetadata(MethodDesc method, out bool isAsyncVariant, out bool isReturnDroppingAsyncThunk)
-        {
-            MethodDesc result = method.GetTypicalMethodDefinition();
-            if (result is ReturnDroppingAsyncThunk rdThunk)
-            {
-                isAsyncVariant = false;
-                isReturnDroppingAsyncThunk = true;
-                return rdThunk.AsyncVariantTarget.Target;
-            }
-            if (result is AsyncMethodVariant asyncVariant)
-            {
-                isAsyncVariant = true;
-                isReturnDroppingAsyncThunk = false;
-                return asyncVariant.Target;
-            }
-            isAsyncVariant = false;
-            isReturnDroppingAsyncThunk = false;
-            return result;
+            factory.MetadataManager.GetNativeLayoutMetadataDependencies(ref dependencies, factory, method.GetTypicalMethodDefinition());
         }
 
         protected internal override int Phase => (int)ObjectNodePhase.Ordered;

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using TestLibrary;
 using Xunit;
 
 namespace HFATest
@@ -20,7 +19,6 @@ namespace HFATest
         const double CONST_FLOAT64 = (double)77.0;
 
         [Fact]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/123946", typeof(TestLibrary.PlatformDetection), nameof(TestLibrary.PlatformDetection.PlatformDoesNotSupportNativeTestAssets))]
         public static int TestEntryPoint()
         {
 

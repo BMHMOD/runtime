@@ -7,7 +7,6 @@ using System.Diagnostics.CodeAnalysis;
 using System.Formats.Cbor;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography.Tests;
 using Microsoft.IdentityModel.Tokens;
 using Test.Cryptography;
@@ -61,14 +60,7 @@ namespace System.Security.Cryptography.Cose.Tests
                 parametersLocalCopy.D = null;
             }
 
-            // The Apple Security framework intermittently fails with OSStatus error -50 when creating
-            // EC keys. Retry a few times to make the test robust against this transient failure.
-            ECDsa? result = null;
-            RetryHelper.Execute(
-                () => result = ECDsa.Create(parametersLocalCopy),
-                maxAttempts: 3,
-                retryWhen: e => RuntimeInformation.IsOSPlatform(OSPlatform.OSX) && e is CryptographicException { HResult: -50 });
-            return result!;
+            return ECDsa.Create(parametersLocalCopy);
         }
 
         private static RSA CreateRSA(bool includePrivateKey)

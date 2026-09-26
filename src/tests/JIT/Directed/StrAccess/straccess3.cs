@@ -5,8 +5,6 @@
 //random length and random content string
 //IndexOutOfRangeException
 
-namespace JitTest_Directed_StrAccess_straccess3;
-
 using System;
 using Xunit;
 using System.Runtime.CompilerServices;

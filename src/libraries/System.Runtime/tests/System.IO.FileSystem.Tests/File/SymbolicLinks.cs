@@ -50,7 +50,7 @@ namespace System.IO.Tests
         [PlatformSpecific(TestPlatforms.Windows)]
         public void UnsupportedLink_ReturnsNull()
         {
-            string unsupportedLinkPath = MountHelper.GetAppExecLinkPath();
+            string unsupportedLinkPath = GetAppExecLinkPath();
             if (unsupportedLinkPath is null)
             {
                 return;

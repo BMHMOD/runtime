@@ -14,7 +14,6 @@ using System.IO;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Xml;
-using Microsoft.DotNet.RemoteExecutor;
 using Xunit;
 
 namespace System.Security.Cryptography.Xml.Tests
@@ -663,27 +662,8 @@ namespace System.Security.Cryptography.Xml.Tests
             }
         }
 
-#if NET
         [Fact]
-        public void DecryptData_CipherReference_IdUri_Default()
-        {
-            DecryptData_CipherReference_IdUri(allowDangerousTransform: false);
-        }
-
-        [ConditionalTheory(typeof(RemoteExecutor), nameof(RemoteExecutor.IsSupported))]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void DecryptData_CipherReference_IdUri_AppContext(bool allowDangerousTransform)
-        {
-            RemoteExecutor.Invoke(static (string allowDangerousTransformString) =>
-            {
-                bool allowDangerousTransform = bool.Parse(allowDangerousTransformString);
-                AppContext.SetSwitch("System.Security.Cryptography.Xml.AllowDangerousEncryptedXmlTransforms", allowDangerousTransform);
-                DecryptData_CipherReference_IdUri(allowDangerousTransform);
-            }, allowDangerousTransform.ToString()).Dispose();
-        }
-
-        private static void DecryptData_CipherReference_IdUri(bool allowDangerousTransform)
+        public void DecryptData_CipherReference_IdUri()
         {
             XmlDocument doc = new XmlDocument();
             doc.PreserveWhitespace = true;
@@ -720,20 +700,11 @@ namespace System.Security.Cryptography.Xml.Tests
 
                 if (PlatformDetection.IsXmlDsigXsltTransformSupported)
                 {
-                    if (!allowDangerousTransform)
-                    {
-                        CryptographicException ex = Assert.Throws<CryptographicException>(() => exml.DecryptData(ed, aes));
-                        Assert.Equal("The specified cryptographic transform is not supported.", ex.Message);
-                    }
-                    else
-                    {
-                        string decryptedXmlString = Encoding.UTF8.GetString(exml.DecryptData(ed, aes));
-                        Assert.Equal(xml, decryptedXmlString);
-                    }
+                    string decryptedXmlString = Encoding.UTF8.GetString(exml.DecryptData(ed, aes));
+                    Assert.Equal(xml, decryptedXmlString);
                 }
             }
         }
-#endif
 
         [Fact]
         public void EncryptData_DataNull()

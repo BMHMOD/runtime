@@ -14,13 +14,11 @@ using Mono.Linker.Tests.Cases.Reflection.Dependencies.Library;
 [assembly: TypeMapAssociation<UnusedTypeMapUniverse>(typeof(ProxySource2), typeof(ProxyTarget2))]
 [assembly: TypeMapAssemblyTarget<UsedTypeMapUniverse>("library2")]
 
-[assembly: TypeMap<UsedWithoutAssemblyTargetUniverse>("UnimportantString", typeof(TargetTypeUnconditional3))]
-
 namespace Mono.Linker.Tests.Cases.Reflection.Dependencies
 {
     public class TypeMapReferencedAssembly
     {
-        public static void Run()
+        public static void Main()
         {
             // Mark expected trim targets
             _ = new TrimTarget1();
@@ -31,13 +29,11 @@ namespace Mono.Linker.Tests.Cases.Reflection.Dependencies
             // Mark expected type map universe
             _ = TypeMapping.GetOrCreateExternalTypeMapping<UsedTypeMapUniverse>();
             _ = TypeMapping.GetOrCreateProxyTypeMapping<UsedTypeMapUniverse>();
-            _ = TypeMapping.GetOrCreateExternalTypeMapping<UsedWithoutAssemblyTargetUniverse>();
         }
     }
 
     public class UsedTypeMapUniverse;
     public class UnusedTypeMapUniverse;
-    public class UsedWithoutAssemblyTargetUniverse;
 }
 
 namespace Mono.Linker.Tests.Cases.Reflection.Dependencies.Library
@@ -52,5 +48,4 @@ namespace Mono.Linker.Tests.Cases.Reflection.Dependencies.Library
     public class ProxyTarget2;
     public class TrimTarget1;
     public class TrimTarget2;
-    public class TargetTypeUnconditional3;
 }

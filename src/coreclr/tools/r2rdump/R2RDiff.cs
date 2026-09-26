@@ -133,7 +133,7 @@ namespace R2RDump
         /// </summary>
         private void DiffPESections()
         {
-            ShowDiff(GetImageSectionMap(_leftDumper.Reader), GetImageSectionMap(_rightDumper.Reader), "PE sections");
+            ShowDiff(GetPESectionMap(_leftDumper.Reader), GetPESectionMap(_rightDumper.Reader), "PE sections");
         }
 
         /// <summary>
@@ -312,13 +312,20 @@ namespace R2RDump
         }
 
         /// <summary>
-        /// Get the sections for a given R2R image.
+        /// Read the PE file section map for a given R2R image.
         /// </summary>
         /// <param name="reader">R2R image to scan</param>
         /// <returns></returns>
-        private Dictionary<string, int> GetImageSectionMap(ReadyToRunReader reader)
+        private Dictionary<string, int> GetPESectionMap(ReadyToRunReader reader)
         {
-            return reader.CompositeReader.GetSections();
+            Dictionary<string, int> sectionMap = new Dictionary<string, int>();
+
+            foreach (SectionHeader sectionHeader in reader.CompositeReader.PEHeaders.SectionHeaders)
+            {
+                sectionMap.Add(sectionHeader.Name, sectionHeader.SizeOfRawData);
+            }
+
+            return sectionMap;
         }
 
         /// <summary>

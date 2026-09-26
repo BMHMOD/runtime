@@ -5,20 +5,22 @@ using System.Collections.Generic;
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.CalleeSavedRegisters))]
-internal partial class CalleeSavedRegisters : IData<CalleeSavedRegisters>
+internal class CalleeSavedRegisters : IData<CalleeSavedRegisters>
 {
-    [CustomInit(nameof(InitRegisters))] public partial IReadOnlyDictionary<string, TargetNUInt> Registers { get; }
+    static CalleeSavedRegisters IData<CalleeSavedRegisters>.Create(Target target, TargetPointer address)
+        => new CalleeSavedRegisters(target, address);
 
-    private partial IReadOnlyDictionary<string, TargetNUInt> InitRegisters(Target target, TargetPointer address)
+    public CalleeSavedRegisters(Target target, TargetPointer address)
     {
         Target.TypeInfo type = target.GetTypeInfo(DataType.CalleeSavedRegisters);
-        Dictionary<string, TargetNUInt> registers = new(type.Fields.Count);
+        Dictionary<string, TargetNUInt> registers = new Dictionary<string, TargetNUInt>(type.Fields.Count);
         foreach ((string name, Target.FieldInfo field) in type.Fields)
         {
             TargetNUInt value = target.ReadNUInt(address + (ulong)field.Offset);
             registers.Add(name, value);
         }
-        return registers;
+        Registers = registers;
     }
+
+    public IReadOnlyDictionary<string, TargetNUInt> Registers { get; }
 }

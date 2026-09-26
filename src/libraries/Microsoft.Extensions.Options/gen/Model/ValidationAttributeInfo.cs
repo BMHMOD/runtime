@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace Microsoft.Extensions.Options.Generators
 {
-    internal sealed record class ValidationAttributeInfo(string AttributeName, bool IsAsyncValidationAttribute)
+    internal sealed record class ValidationAttributeInfo(string AttributeName)
     {
         public List<string> ConstructorArguments { get; } = new();
         public Dictionary<string, string> Properties { get; } = new();

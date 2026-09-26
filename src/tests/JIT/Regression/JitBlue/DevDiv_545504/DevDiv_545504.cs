@@ -11,9 +11,6 @@
 //   thus missing this case.
 // - The fix was to move this analysis just prior to actual register allocation.
 
-
-namespace DevDiv_545504;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;

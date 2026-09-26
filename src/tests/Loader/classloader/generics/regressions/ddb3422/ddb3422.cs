@@ -5,7 +5,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 public interface IFoo { }
 
@@ -21,7 +20,6 @@ public class Derived : GenericBase<IFoo>, IGenericBase<IFoo> {
 // If this line is re-added, the dll verifies
 //   public override void M<Z>() { }
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint()
     {

@@ -267,10 +267,11 @@ namespace System.Net
                 if (NetEventSource.Log.IsEnabled()) NetEventSource.Info(this, "Calling Interop.HttpApi.HttpSendHttpResponse flags:" + flags);
                 if (StatusDescription.Length > 0)
                 {
-                    byte[] statusDescriptionBytes = Encoding.Latin1.GetBytes(StatusDescription);
+                    byte[] statusDescriptionBytes = new byte[WebHeaderEncoding.GetByteCount(StatusDescription)];
                     fixed (byte* pStatusDescription = &statusDescriptionBytes[0])
                     {
                         _nativeResponse.ReasonLength = (ushort)statusDescriptionBytes.Length;
+                        WebHeaderEncoding.GetBytes(StatusDescription, 0, statusDescriptionBytes.Length, statusDescriptionBytes, 0);
                         _nativeResponse.pReason = (sbyte*)pStatusDescription;
                         fixed (Interop.HttpApi.HTTP_RESPONSE* pResponse = &_nativeResponse)
                         {
@@ -524,16 +525,18 @@ $"flags: {flags} _boundaryType: {_boundaryType} _contentLength: {_contentLength}
                             for (int headerValueIndex = 0; headerValueIndex < headerValues.Length; headerValueIndex++)
                             {
                                 //Add Name
-                                bytes = Encoding.Latin1.GetBytes(headerName);
+                                bytes = new byte[WebHeaderEncoding.GetByteCount(headerName)];
                                 unknownHeaders[headers.UnknownHeaderCount].NameLength = (ushort)bytes.Length;
+                                WebHeaderEncoding.GetBytes(headerName, 0, bytes.Length, bytes, 0);
                                 gcHandle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
                                 pinnedHeaders.Add(gcHandle);
                                 unknownHeaders[headers.UnknownHeaderCount].pName = (sbyte*)gcHandle.AddrOfPinnedObject();
 
                                 //Add Value
                                 headerValue = headerValues[headerValueIndex];
-                                bytes = Encoding.Latin1.GetBytes(headerValue);
+                                bytes = new byte[WebHeaderEncoding.GetByteCount(headerValue)];
                                 unknownHeaders[headers.UnknownHeaderCount].RawValueLength = (ushort)bytes.Length;
+                                WebHeaderEncoding.GetBytes(headerValue, 0, bytes.Length, bytes, 0);
                                 gcHandle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
                                 pinnedHeaders.Add(gcHandle);
                                 unknownHeaders[headers.UnknownHeaderCount].pRawValue = (sbyte*)gcHandle.AddrOfPinnedObject();
@@ -546,8 +549,9 @@ $"flags: {flags} _boundaryType: {_boundaryType} _contentLength: {_contentLength}
                             if (NetEventSource.Log.IsEnabled()) NetEventSource.Info(this, $"HttpResponseHeader[{lookup}]:{((HttpResponseHeader)lookup)} headerValue:{headerValue}");
                             if (headerValue != null)
                             {
-                                bytes = Encoding.Latin1.GetBytes(headerValue);
+                                bytes = new byte[WebHeaderEncoding.GetByteCount(headerValue)];
                                 pKnownHeaders[lookup].RawValueLength = (ushort)bytes.Length;
+                                WebHeaderEncoding.GetBytes(headerValue, 0, bytes.Length, bytes, 0);
                                 gcHandle = GCHandle.Alloc(bytes, GCHandleType.Pinned);
                                 pinnedHeaders.Add(gcHandle);
                                 pKnownHeaders[lookup].pRawValue = (sbyte*)gcHandle.AddrOfPinnedObject();

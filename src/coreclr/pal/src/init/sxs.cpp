@@ -89,6 +89,8 @@ AllocatePalThread(CPalThread **ppThread)
     // possibly release it.
     (void)g_pObjectManager->RevokeHandle(pThread, hThread);
 
+    PROCAddThread(pThread, pThread);
+
     // Unmask the activation signal so that GC can suspend this thread
     UnmaskActivationSignal();
 

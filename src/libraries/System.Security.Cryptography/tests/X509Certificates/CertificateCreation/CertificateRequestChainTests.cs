@@ -489,7 +489,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests.CertificateCreatio
             }
         }
 
-        [ConditionalFact(typeof(CertificateRequestChainTests), nameof(PlatformSupportsPss))]
+        [ConditionalFact(nameof(PlatformSupportsPss))]
         public static void CreateChain_RSAPSS()
         {
             using (RSA rootKey = RSA.Create())

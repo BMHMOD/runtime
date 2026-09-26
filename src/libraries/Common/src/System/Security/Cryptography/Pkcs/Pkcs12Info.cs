@@ -107,8 +107,8 @@ namespace System.Security.Cryptography.Pkcs
             List<ContentInfoAsn> authSafeData = new List<ContentInfoAsn>();
             try
             {
-                ValueAsnReader authSafeReader = new ValueAsnReader(authSafeBytes.Span, AsnEncodingRules.BER);
-                ValueAsnReader sequenceReader = authSafeReader.ReadSequence();
+                AsnValueReader authSafeReader = new AsnValueReader(authSafeBytes.Span, AsnEncodingRules.BER);
+                AsnValueReader sequenceReader = authSafeReader.ReadSequence();
 
                 authSafeReader.ThrowIfNotEmpty();
                 while (sequenceReader.HasData)

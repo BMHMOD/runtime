@@ -12,9 +12,6 @@
 
 #pragma warning disable
 
-
-namespace Bool_And_Op_cs_do;
-
 using System;
 using Xunit;
 public class testout1
@@ -81,7 +78,6 @@ public class testout1
         return (True_Sum * 2) - False_Sum;
     }
   
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

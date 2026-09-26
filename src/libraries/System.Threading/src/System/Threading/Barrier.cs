@@ -397,8 +397,6 @@ namespace System.Threading
         /// </exception>
         /// <exception cref="System.ObjectDisposedException">The current instance has already been
         /// disposed.</exception>
-        /// <exception cref="BarrierPostPhaseException">An exception is thrown from the post-phase action
-        /// of the barrier when all remaining participants have arrived.</exception>
         public void RemoveParticipant()
         {
             RemoveParticipants(1);
@@ -416,8 +414,6 @@ namespace System.Threading
         /// </exception>
         /// <exception cref="System.ObjectDisposedException">The current instance has already been
         /// disposed.</exception>
-        /// <exception cref="BarrierPostPhaseException">An exception is thrown from the post-phase action
-        /// of the barrier when all remaining participants have arrived.</exception>
         public void RemoveParticipants(int participantCount)
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
@@ -479,8 +475,6 @@ namespace System.Threading
         /// </exception>
         /// <exception cref="System.ObjectDisposedException">The current instance has already been
         /// disposed.</exception>
-        /// <exception cref="BarrierPostPhaseException">An exception is thrown from the post-phase action
-        /// of a <see cref="Barrier"/> after all participating threads have called SignalAndWait.</exception>
 #if !FEATURE_WASM_MANAGED_THREADS
         [UnsupportedOSPlatform("browser")]
 #endif
@@ -504,8 +498,6 @@ namespace System.Threading
         /// canceled.</exception>
         /// <exception cref="System.ObjectDisposedException">The current instance has already been
         /// disposed.</exception>
-        /// <exception cref="BarrierPostPhaseException">An exception is thrown from the post-phase action
-        /// of a <see cref="Barrier"/> after all participating threads have called SignalAndWait.</exception>
 #if !FEATURE_WASM_MANAGED_THREADS
         [UnsupportedOSPlatform("browser")]
 #endif
@@ -538,8 +530,6 @@ namespace System.Threading
         /// </exception>
         /// <exception cref="System.ObjectDisposedException">The current instance has already been
         /// disposed.</exception>
-        /// <exception cref="BarrierPostPhaseException">An exception is thrown from the post-phase action
-        /// of a <see cref="Barrier"/> after all participating threads have called SignalAndWait.</exception>
 #if !FEATURE_WASM_MANAGED_THREADS
         [UnsupportedOSPlatform("browser")]
 #endif
@@ -570,8 +560,6 @@ namespace System.Threading
         /// canceled.</exception>
         /// <exception cref="System.ObjectDisposedException">The current instance has already been
         /// disposed.</exception>
-        /// <exception cref="BarrierPostPhaseException">An exception is thrown from the post-phase action
-        /// of a <see cref="Barrier"/> after all participating threads have called SignalAndWait.</exception>
 #if !FEATURE_WASM_MANAGED_THREADS
         [UnsupportedOSPlatform("browser")]
 #endif
@@ -602,8 +590,6 @@ namespace System.Threading
         /// </exception>
         /// <exception cref="System.ObjectDisposedException">The current instance has already been
         /// disposed.</exception>
-        /// <exception cref="BarrierPostPhaseException">An exception is thrown from the post-phase action
-        /// of a <see cref="Barrier"/> after all participating threads have called SignalAndWait.</exception>
 #if !FEATURE_WASM_MANAGED_THREADS
         [UnsupportedOSPlatform("browser")]
 #endif
@@ -633,8 +619,6 @@ namespace System.Threading
         /// canceled.</exception>
         /// <exception cref="System.ObjectDisposedException">The current instance has already been
         /// disposed.</exception>
-        /// <exception cref="BarrierPostPhaseException">An exception is thrown from the post-phase action
-        /// of a <see cref="Barrier"/> after all participating threads have called SignalAndWait.</exception>
 #if !FEATURE_WASM_MANAGED_THREADS
         [UnsupportedOSPlatform("browser")]
 #endif

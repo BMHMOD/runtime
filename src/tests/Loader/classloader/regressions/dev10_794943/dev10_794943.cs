@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 struct A<T> { }
 struct B<T> { }
@@ -28,7 +27,6 @@ class Problem : Base<object>, Interface<object>
 
 public class Test_dev10_794943
 {
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint()
     {

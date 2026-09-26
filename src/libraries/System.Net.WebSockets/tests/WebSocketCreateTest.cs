@@ -43,6 +43,12 @@ namespace System.Net.WebSockets.Tests
         [SkipOnPlatform(TestPlatforms.Browser, "System.Net.Sockets is not supported on this platform.")]
         public async Task WebSocketProtocol_CreateFromConnectedStream_CanSendReceiveData(Uri echoUri)
         {
+            if (PlatformDetection.IsWindows7)
+            {
+                // https://github.com/dotnet/runtime/issues/31382
+                return;
+            }
+
             using (var client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
             {
                 bool secure = echoUri.Scheme == "wss";
@@ -230,6 +236,12 @@ namespace System.Net.WebSockets.Tests
         [SkipOnPlatform(TestPlatforms.Browser, "System.Net.Sockets is not supported on this platform.")]
         public async Task WebSocketProtocol_CreateFromConnectedStream_CloseAsyncClosesStream(Uri echoUri, bool explicitCloseAsync)
         {
+            if (PlatformDetection.IsWindows7)
+            {
+                // https://github.com/dotnet/runtime/issues/31382
+                return;
+            }
+
             using (var client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp))
             {
                 bool secure = echoUri.Scheme == "wss";

@@ -84,21 +84,17 @@ namespace System.Formats.Tar
         /// <summary>
         /// The ID of the group that owns the file represented by this entry.
         /// </summary>
-        /// <remarks>This field is only supported in Unix platforms. For PAX entries, setting this property updates the corresponding <c>gid</c> extended attribute in <see cref="PaxTarEntry.ExtendedAttributes"/>.</remarks>
+        /// <remarks>This field is only supported in Unix platforms.</remarks>
         public int Gid
         {
             get => _header._gid;
-            set
-            {
-                _header._gid = value;
-                _header.SyncNumericExtendedAttribute(TarHeader.PaxEaGid, value, TarHeader.Octal8ByteFieldMaxValue);
-            }
+            set => _header._gid = value;
         }
 
         /// <summary>
         /// A timestamps that represents the last time the contents of the file represented by this entry were modified.
         /// </summary>
-        /// <remarks>In Unix platforms, this timestamp is commonly known as <c>mtime</c>. For PAX entries, setting this property updates the corresponding <c>mtime</c> extended attribute in <see cref="PaxTarEntry.ExtendedAttributes"/>.</remarks>
+        /// <remarks>In Unix platforms, this timestamp is commonly known as <c>mtime</c>.</remarks>
         /// <exception cref="ArgumentOutOfRangeException">The specified value is larger than <see cref="DateTimeOffset.UnixEpoch"/> when using <see cref="TarEntryFormat.V7"/> or <see cref="TarEntryFormat.Ustar"/>.</exception>
         public DateTimeOffset ModificationTime
         {
@@ -110,7 +106,6 @@ namespace System.Formats.Tar
                     ArgumentOutOfRangeException.ThrowIfLessThan(value, DateTimeOffset.UnixEpoch);
                 }
                 _header._mTime = value;
-                _header.SyncTimestampExtendedAttribute(TarHeader.PaxEaMTime, value);
             }
         }
 
@@ -118,12 +113,11 @@ namespace System.Formats.Tar
         /// When the <see cref="EntryType"/> indicates an entry that can contain data, this property returns the length in bytes of such data.
         /// </summary>
         /// <remarks>The entry type that commonly contains data is <see cref="TarEntryType.RegularFile"/> (or <see cref="TarEntryType.V7RegularFile"/> in the <see cref="TarEntryFormat.V7"/> format). Other uncommon entry types that can also contain data are: <see cref="TarEntryType.ContiguousFile"/>, <see cref="TarEntryType.DirectoryList"/>, <see cref="TarEntryType.MultiVolume"/> and <see cref="TarEntryType.SparseFile"/>.</remarks>
-        public long Length => _header._gnuSparseDataStream?.Length ?? (_header._dataStream is not null ? _header._dataStream.Length : _header._size);
+        public long Length => _header._dataStream != null ? _header._dataStream.Length : _header._size;
 
         /// <summary>
         /// When the <see cref="EntryType"/> indicates a <see cref="TarEntryType.SymbolicLink"/> or a <see cref="TarEntryType.HardLink"/>, this property returns the link target path of such link.
         /// </summary>
-        /// <remarks>For PAX entries, setting this property updates the corresponding <c>linkpath</c> extended attribute in <see cref="PaxTarEntry.ExtendedAttributes"/>.</remarks>
         /// <exception cref="InvalidOperationException">The entry type is not <see cref="TarEntryType.HardLink"/> or <see cref="TarEntryType.SymbolicLink"/>.</exception>
         /// <exception cref="ArgumentNullException">The specified value is <see langword="null"/>.</exception>
         /// <exception cref="ArgumentException">The specified value is empty.</exception>
@@ -138,7 +132,6 @@ namespace System.Formats.Tar
                 }
                 ArgumentException.ThrowIfNullOrEmpty(value);
                 _header._linkName = value;
-                _header.SyncStringExtendedAttribute(TarHeader.PaxEaLinkName, value);
             }
         }
 
@@ -164,7 +157,6 @@ namespace System.Formats.Tar
         /// <summary>
         /// Represents the name of the entry, which includes the relative path and the filename.
         /// </summary>
-        /// <remarks>For PAX entries, setting this property updates the corresponding <c>path</c> extended attribute in <see cref="PaxTarEntry.ExtendedAttributes"/>.</remarks>
         public string Name
         {
             get => _header._name;
@@ -172,22 +164,17 @@ namespace System.Formats.Tar
             {
                 ArgumentException.ThrowIfNullOrEmpty(value);
                 _header._name = value;
-                _header.SyncStringExtendedAttribute(TarHeader.PaxEaName, value);
             }
         }
 
         /// <summary>
         /// The ID of the user that owns the file represented by this entry.
         /// </summary>
-        /// <remarks>This field is only supported in Unix platforms. For PAX entries, setting this property updates the corresponding <c>uid</c> extended attribute in <see cref="PaxTarEntry.ExtendedAttributes"/>.</remarks>
+        /// <remarks>This field is only supported in Unix platforms.</remarks>
         public int Uid
         {
             get => _header._uid;
-            set
-            {
-                _header._uid = value;
-                _header.SyncNumericExtendedAttribute(TarHeader.PaxEaUid, value, TarHeader.Octal8ByteFieldMaxValue);
-            }
+            set => _header._uid = value;
         }
 
         /// <summary>
@@ -217,8 +204,7 @@ namespace System.Formats.Tar
             {
                 throw new InvalidOperationException(SR.Format(SR.TarEntryTypeNotSupportedForExtracting, EntryType));
             }
-            // HardLink entries are rejected above. hardLinkMode will not be used.
-            ExtractToFileInternal(destinationFileName, linkTargetPath: null, overwrite, TarHardLinkMode.PreserveLink);
+            ExtractToFileInternal(destinationFileName, linkTargetPath: null, overwrite);
         }
 
         /// <summary>
@@ -252,8 +238,7 @@ namespace System.Formats.Tar
             {
                 return Task.FromException(new InvalidOperationException(SR.Format(SR.TarEntryTypeNotSupportedForExtracting, EntryType)));
             }
-            // HardLink entries are rejected above. hardLinkMode will not be used.
-            return ExtractToFileInternalAsync(destinationFileName, linkTargetPath: null, overwrite, TarHardLinkMode.PreserveLink, cancellationToken);
+            return ExtractToFileInternalAsync(destinationFileName, linkTargetPath: null, overwrite, cancellationToken);
         }
 
         /// <summary>
@@ -267,7 +252,7 @@ namespace System.Formats.Tar
         /// <exception cref="IOException">An I/O problem occurred.</exception>
         public Stream? DataStream
         {
-            get => (Stream?)_header._gnuSparseDataStream ?? _header._dataStream;
+            get => _header._dataStream;
             set
             {
                 if (!IsDataStreamSetterSupported())
@@ -285,15 +270,11 @@ namespace System.Formats.Tar
                     // This entry came from a reader, so if the underlying stream is unseekable, we need to
                     // manually advance the stream pointer to the next header before doing the substitution
                     // The original stream will get disposed when the reader gets disposed.
-                    ValueTask vt = _readerOfOrigin.AdvanceDataStreamIfNeededCoreAsync<SyncReadWriteAdapter>(CancellationToken.None);
-                    Debug.Assert(vt.IsCompleted, "Synchronous AdvanceDataStreamIfNeeded completed asynchronously.");
-                    vt.GetAwaiter().GetResult();
+                    _readerOfOrigin.AdvanceDataStreamIfNeeded();
                     // We only do this once
                     _readerOfOrigin = null;
                 }
 
-                _header._gnuSparseDataStream?.Dispose();
-                _header._gnuSparseDataStream = null;
                 _header._dataStream?.Dispose();
 
                 _header._dataStream = value;
@@ -319,7 +300,7 @@ namespace System.Formats.Tar
         internal abstract bool IsDataStreamSetterSupported();
 
         // Extracts the current entry to a location relative to the specified directory.
-        internal void ExtractRelativeToDirectory(string destinationDirectoryPath, bool overwrite, SortedDictionary<string, UnixFileMode>? pendingModes, Stack<(string, DateTimeOffset)> directoryModificationTimes, TarHardLinkMode hardLinkMode)
+        internal void ExtractRelativeToDirectory(string destinationDirectoryPath, bool overwrite, SortedDictionary<string, UnixFileMode>? pendingModes, Stack<(string, DateTimeOffset)> directoryModificationTimes)
         {
             (string destinationFullPath, string? linkTargetPath) = GetDestinationAndLinkPaths(destinationDirectoryPath);
 
@@ -332,12 +313,12 @@ namespace System.Formats.Tar
             {
                 // If it is a file, create containing directory.
                 TarHelpers.CreateDirectory(Path.GetDirectoryName(destinationFullPath)!, mode: null, pendingModes);
-                ExtractToFileInternal(destinationFullPath, linkTargetPath, overwrite, hardLinkMode);
+                ExtractToFileInternal(destinationFullPath, linkTargetPath, overwrite);
             }
         }
 
         // Asynchronously extracts the current entry to a location relative to the specified directory.
-        internal Task ExtractRelativeToDirectoryAsync(string destinationDirectoryPath, bool overwrite, SortedDictionary<string, UnixFileMode>? pendingModes, Stack<(string, DateTimeOffset)> directoryModificationTimes, TarHardLinkMode hardLinkMode, CancellationToken cancellationToken)
+        internal Task ExtractRelativeToDirectoryAsync(string destinationDirectoryPath, bool overwrite, SortedDictionary<string, UnixFileMode>? pendingModes, Stack<(string, DateTimeOffset)> directoryModificationTimes, CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested)
             {
@@ -356,7 +337,7 @@ namespace System.Formats.Tar
             {
                 // If it is a file, create containing directory.
                 TarHelpers.CreateDirectory(Path.GetDirectoryName(destinationFullPath)!, mode: null, pendingModes);
-                return ExtractToFileInternalAsync(destinationFullPath, linkTargetPath, overwrite, hardLinkMode, cancellationToken);
+                return ExtractToFileInternalAsync(destinationFullPath, linkTargetPath, overwrite, cancellationToken);
             }
         }
 
@@ -370,7 +351,7 @@ namespace System.Formats.Tar
             string? fileDestinationPath = GetFullDestinationPath(
                                                 destinationDirectoryPath,
                                                 Path.IsPathFullyQualified(name) ? name : Path.Join(destinationDirectoryPath, name));
-            if (fileDestinationPath is null || FilePathEscapesDirectory(destinationDirectoryPath, fileDestinationPath))
+            if (fileDestinationPath == null)
             {
                 throw new IOException(SR.Format(SR.TarExtractingResultsFileOutside, name, destinationDirectoryPath));
             }
@@ -381,17 +362,10 @@ namespace System.Formats.Tar
                 // LinkName is an absolute path, or path relative to the fileDestinationPath directory.
                 // We don't check if the LinkName is empty. In that case, creation of the link will fail because link targets can't be empty.
                 string linkName = ArchivingUtils.SanitizeEntryFilePath(LinkName, preserveDriveRoot: true);
-                // On Windows, reject rooted-but-not-fully-qualified symlink targets (e.g., "\Windows\win.ini").
-                // Unlike files, symlink targets are resolved at access time, not extraction time,
-                // so Path.GetFullPath here cannot reliably predict what drive the OS will resolve them against.
-                if (OperatingSystem.IsWindows() && Path.IsPathRooted(linkName) && !Path.IsPathFullyQualified(linkName))
-                {
-                    throw new IOException(SR.Format(SR.TarExtractingResultsLinkOutside, linkName, destinationDirectoryPath));
-                }
                 string? linkDestination = GetFullDestinationPath(
                                             destinationDirectoryPath,
                                             Path.IsPathFullyQualified(linkName) ? linkName : Path.Join(Path.GetDirectoryName(fileDestinationPath), linkName));
-                if (linkDestination is null || FilePathEscapesDirectory(destinationDirectoryPath, linkDestination))
+                if (linkDestination is null)
                 {
                     throw new IOException(SR.Format(SR.TarExtractingResultsLinkOutside, linkName, destinationDirectoryPath));
                 }
@@ -406,7 +380,7 @@ namespace System.Formats.Tar
                 string? linkDestination = GetFullDestinationPath(
                                             destinationDirectoryPath,
                                             Path.Join(destinationDirectoryPath, linkName));
-                if (linkDestination is null || FilePathEscapesDirectory(destinationDirectoryPath, linkDestination))
+                if (linkDestination is null)
                 {
                     throw new IOException(SR.Format(SR.TarExtractingResultsLinkOutside, linkName, destinationDirectoryPath));
                 }
@@ -415,106 +389,6 @@ namespace System.Formats.Tar
             }
 
             return (fileDestinationPath, linkTargetPath);
-        }
-
-        // Prevent an archive from escaping the extraction root through symlinks that were created by earlier entries in the same archive.
-        // This protection applies only to links introduced by the archive itself. It is not intended to defend against preexisting symlinks
-        // already present on disk before extraction
-        private static bool FilePathEscapesDirectory(string destinationDirectoryPath, string fileDestinationPath)
-        {
-            // Windows is case insensitive while Linux is case sensitive
-            // This ensures the comparison is consistent with how the OS would resolve the paths
-            StringComparison pathComparison = OperatingSystem.IsWindows()
-                ? StringComparison.OrdinalIgnoreCase
-                : StringComparison.Ordinal;
-
-            string resolvedDest = ResolvePhysicalPath(destinationDirectoryPath);
-
-            // Use the logical destination path for computing the relative path
-            string logicalDest = Path.GetFullPath(destinationDirectoryPath);
-            string logicalPrefix = logicalDest.EndsWith(Path.DirectorySeparatorChar)
-                ? logicalDest
-                : logicalDest + Path.DirectorySeparatorChar;
-
-            string destPrefix = resolvedDest.EndsWith(Path.DirectorySeparatorChar)
-                ? resolvedDest
-                : resolvedDest + Path.DirectorySeparatorChar;
-
-            // Normalize file path (resolves .. and . but not symlinks)
-            string normalizedFile = Path.GetFullPath(fileDestinationPath);
-
-            // Guard with StartsWith before computing relative path
-            if (!normalizedFile.StartsWith(logicalPrefix, pathComparison) &&
-                !normalizedFile.Equals(logicalDest, pathComparison))
-            {
-                return true;
-            }
-
-            // Walk relative components, resolving symlinks at each step
-            string relative = normalizedFile.Substring(logicalPrefix.Length)
-                .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-
-            string[] components = relative.Split(new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar },
-                StringSplitOptions.RemoveEmptyEntries);
-
-            string current = resolvedDest;
-
-            foreach (string component in components)
-            {
-                current = Path.Combine(current, component);
-                current = ResolveSymlink(current);
-
-                string normalizedCurrent = Path.GetFullPath(current);
-                if (!normalizedCurrent.StartsWith(destPrefix, pathComparison) &&
-                    !normalizedCurrent.Equals(resolvedDest, pathComparison))
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        private static string ResolveSymlink(string path)
-        {
-            var info = new FileInfo(path);
-
-            // Check LinkTarget first so dangling symlinks/junctions (whose final target doesn't exist yet)
-            // are still resolved to their raw target, rather than being treated as a non-link.
-            if (info.LinkTarget is null)
-            {
-                return Path.GetFullPath(path);
-            }
-
-            FileSystemInfo target = info.ResolveLinkTarget(returnFinalTarget: true) ?? info;
-            return target.FullName;
-        }
-
-        // Resolves the full path of the specified path, resolving symlinks at each step.
-        // This is needed to mitigate malicious entries in the archive that could lead to writing files outside of the intended directory.
-        private static string ResolvePhysicalPath(string path)
-        {
-            string fullPath = Path.GetFullPath(path);
-            string? root = Path.GetPathRoot(fullPath);
-
-            if (root is null)
-            {
-                return fullPath;
-            }
-
-            string[] components = fullPath.Substring(root.Length)
-                .Split(new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
-            string current = root;
-            foreach (string component in components)
-            {
-                current = Path.Combine(current, component);
-                if (Path.Exists(current))
-                {
-                    current = ResolveSymlink(current);
-                }
-            }
-
-            return current;
         }
 
         // Returns the full destination path if the path is the destinationDirectory or a subpath. Otherwise, returns null.
@@ -529,7 +403,7 @@ namespace System.Formats.Tar
         }
 
         // Extracts the current entry into the filesystem, regardless of the entry type.
-        private void ExtractToFileInternal(string filePath, string? linkTargetPath, bool overwrite, TarHardLinkMode hardLinkMode)
+        private void ExtractToFileInternal(string filePath, string? linkTargetPath, bool overwrite)
         {
             VerifyDestinationPath(filePath, overwrite);
 
@@ -539,12 +413,12 @@ namespace System.Formats.Tar
             }
             else
             {
-                CreateNonRegularFile(filePath, linkTargetPath, hardLinkMode);
+                CreateNonRegularFile(filePath, linkTargetPath);
             }
         }
 
         // Asynchronously extracts the current entry into the filesystem, regardless of the entry type.
-        private Task ExtractToFileInternalAsync(string filePath, string? linkTargetPath, bool overwrite, TarHardLinkMode hardLinkMode, CancellationToken cancellationToken)
+        private Task ExtractToFileInternalAsync(string filePath, string? linkTargetPath, bool overwrite, CancellationToken cancellationToken)
         {
             if (cancellationToken.IsCancellationRequested)
             {
@@ -558,12 +432,12 @@ namespace System.Formats.Tar
             }
             else
             {
-                CreateNonRegularFile(filePath, linkTargetPath, hardLinkMode);
+                CreateNonRegularFile(filePath, linkTargetPath);
                 return Task.CompletedTask;
             }
         }
 
-        private void CreateNonRegularFile(string filePath, string? linkTargetPath, TarHardLinkMode hardLinkMode)
+        private void CreateNonRegularFile(string filePath, string? linkTargetPath)
         {
             Debug.Assert(EntryType is not (TarEntryType.RegularFile or TarEntryType.V7RegularFile or TarEntryType.ContiguousFile));
 
@@ -594,15 +468,7 @@ namespace System.Formats.Tar
 
                 case TarEntryType.HardLink:
                     Debug.Assert(!string.IsNullOrEmpty(linkTargetPath));
-                    if (hardLinkMode == TarHardLinkMode.CopyContents)
-                    {
-                        // Overwrite is already handled by VerifyDestinationPath.
-                        File.Copy(linkTargetPath, filePath);
-                    }
-                    else
-                    {
-                        ExtractAsHardLink(linkTargetPath, filePath);
-                    }
+                    ExtractAsHardLink(linkTargetPath, filePath);
                     break;
 
                 case TarEntryType.BlockDevice:
@@ -671,19 +537,8 @@ namespace System.Formats.Tar
             // Rely on FileStream's ctor for further checking destinationFileName parameter
             using (FileStream fs = new FileStream(destinationFileName, CreateFileStreamOptions(isAsync: false)))
             {
-                if (_header._gnuSparseDataStream is GnuSparseStream { Position: 0 } sparseStream)
-                {
-                    // Sparse-aware extraction: write only the populated segments, seeking over holes
-                    // so file systems can leave them as actual sparse holes (NTFS once marked sparse;
-                    // most Unix file systems do this automatically).
-                    TryMarkFileSparse(fs);
-                    sparseStream.CopyPopulatedDataTo(fs);
-                }
-                else
-                {
-                    // Important: The DataStream will be written from its current position
-                    DataStream?.CopyTo(fs);
-                }
+                // Important: The DataStream will be written from its current position
+                DataStream?.CopyTo(fs);
             }
 
             AttemptSetLastWriteTime(destinationFileName, ModificationTime);
@@ -701,12 +556,7 @@ namespace System.Formats.Tar
             FileStream fs = new FileStream(destinationFileName, CreateFileStreamOptions(isAsync: true));
             await using (fs.ConfigureAwait(false))
             {
-                if (_header._gnuSparseDataStream is GnuSparseStream { Position: 0 } sparseStream)
-                {
-                    TryMarkFileSparse(fs);
-                    await sparseStream.CopyPopulatedDataToAsync(fs, cancellationToken).ConfigureAwait(false);
-                }
-                else if (DataStream != null)
+                if (DataStream != null)
                 {
                     // Important: The DataStream will be written from its current position
                     await DataStream.CopyToAsync(fs, cancellationToken).ConfigureAwait(false);
@@ -735,20 +585,16 @@ namespace System.Formats.Tar
                 Access = FileAccess.Write,
                 Mode = FileMode.CreateNew,
                 Share = FileShare.None,
-                // Skip preallocation for GNU sparse entries: the entry's Length is the expanded
-                // (real) size, while the archive only contains the much smaller packed data.
-                // Preallocating to the expanded size would reserve disk space that bears no
-                // relation to the archive contents and can fail surprisingly on small volumes.
-                PreallocationSize = _header._gnuSparseDataStream is null ? Length : 0,
+                PreallocationSize = Length,
                 Options = isAsync ? FileOptions.Asynchronous : FileOptions.None
             };
 
             if (!OperatingSystem.IsWindows())
             {
-                const UnixFileMode OwnershipPermissions =
-                   UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
-                   UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
-                   UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute;
+                 const UnixFileMode OwnershipPermissions =
+                    UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                    UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute |
+                    UnixFileMode.OtherRead | UnixFileMode.OtherWrite |  UnixFileMode.OtherExecute;
 
                 // Restore permissions.
                 // For security, limit to ownership permissions, and respect umask (through UnixCreateMode).

@@ -7,7 +7,6 @@
 using System;
 using System.IO;
 using Xunit;
-using TestLibrary;
 
 public class FLAG
 {
@@ -34,7 +33,6 @@ public struct A
 
 public class Test_CctorZeroVal01
 {
- [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
 	[Fact]
 	public static int TestEntryPoint()
 	{

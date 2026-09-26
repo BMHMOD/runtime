@@ -3,9 +3,20 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.FramedMethodFrame))]
-internal partial class FramedMethodFrame : IData<FramedMethodFrame>
+internal class FramedMethodFrame : IData<FramedMethodFrame>
 {
-    [Field] public partial TargetPointer TransitionBlockPtr { get; }
-    [Field] public partial TargetPointer MethodDescPtr { get; }
+    static FramedMethodFrame IData<FramedMethodFrame>.Create(Target target, TargetPointer address)
+        => new FramedMethodFrame(target, address);
+
+    public FramedMethodFrame(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.FramedMethodFrame);
+        TransitionBlockPtr = target.ReadPointer(address + (ulong)type.Fields[nameof(TransitionBlockPtr)].Offset);
+        MethodDescPtr = target.ReadPointer(address + (ulong)type.Fields[nameof(MethodDescPtr)].Offset);
+        Address = address;
+    }
+
+    public TargetPointer Address { get; }
+    public TargetPointer TransitionBlockPtr { get; }
+    public TargetPointer MethodDescPtr { get; }
 }

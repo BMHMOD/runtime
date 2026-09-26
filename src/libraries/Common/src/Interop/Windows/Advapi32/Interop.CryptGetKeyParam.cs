@@ -17,7 +17,6 @@ internal static partial class Interop
             KP_KEYLEN = 9
         }
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Advapi32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static partial bool CryptGetKeyParam(

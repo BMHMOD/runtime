@@ -1,6 +1,5 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
-
 // ================================================================================
 // Standard primitive types for CLR code
 //
@@ -216,6 +215,9 @@ static_assert(sizeof(CLR_BOOL) == 1);
 #define CLR_BOOL_MAX    BOOL_MAX
 #define CLR_BOOL_MIN    BOOL_MIN
 
+#define CLR_NAN_32 0xFFC00000
+#define CLR_NAN_64 0xFFF8000000000000LL
+
 // ================================================================================
 // Simple utility functions
 // ================================================================================
@@ -276,7 +278,7 @@ inline UINT64 AlignUp(UINT64 value, UINT alignment)
     return (value+alignment-1)&~(UINT64)(alignment-1);
 }
 
-#if defined(__APPLE__) || defined(__wasm__) || defined(__OpenBSD__)
+#if defined(__APPLE__) || defined(__wasm__)
 inline SIZE_T AlignUp(SIZE_T value, UINT alignment)
 {
     STATIC_CONTRACT_LEAF;
@@ -317,7 +319,7 @@ inline uintptr_t AlignDown(uintptr_t value, UINT alignment)
 }
 #endif
 
-#if defined(__APPLE__) || defined(__OpenBSD__)
+#ifdef __APPLE__
 inline SIZE_T AlignDown(SIZE_T value, UINT alignment)
 {
     STATIC_CONTRACT_LEAF;
@@ -346,7 +348,7 @@ inline UINT AlignmentPad(UINT64 value, UINT alignment)
     return (UINT) (AlignUp(value, alignment) - value);
 }
 
-#if defined(__APPLE__) || defined(__wasm__) || defined(__OpenBSD__)
+#if defined(__APPLE__) || defined(__wasm__)
 inline UINT AlignmentPad(SIZE_T value, UINT alignment)
 {
     STATIC_CONTRACT_WRAPPER;
@@ -379,7 +381,7 @@ inline UINT AlignmentTrim(UINT64 value, UINT alignment)
     return ((UINT)value)&(alignment-1);
 }
 
-#if defined(__APPLE__) || defined(__wasm__) || defined(__OpenBSD__)
+#if defined(__APPLE__) || defined(__wasm__)
 inline UINT AlignmentTrim(SIZE_T value, UINT alignment)
 {
     STATIC_CONTRACT_LEAF;

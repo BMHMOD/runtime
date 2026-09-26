@@ -19,7 +19,8 @@ namespace System.Diagnostics.Eventing.Reader
 
             string[] paths;
 
-            if (propertyQueries is ICollection<string> coll)
+            ICollection<string> coll = propertyQueries as ICollection<string>;
+            if (coll != null)
             {
                 paths = new string[coll.Count];
                 coll.CopyTo(paths, 0);

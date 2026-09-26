@@ -85,21 +85,19 @@ bool runner_t::probe(const pal::string_t& relative_path, int64_t* offset, int64_
 bool runner_t::locate(const pal::string_t& relative_path, pal::string_t& full_path, bool& extracted_to_disk) const
 {
     const bundle::file_entry_t* entry = probe(relative_path);
-    
+
     if (entry == nullptr)
     {
-        extracted_to_disk = false;
+        full_path.clear();
         return false;
     }
 
     assert(!entry->is_disabled());
 
     extracted_to_disk = entry->needs_extraction();
-    if (extracted_to_disk)
-    {
-        full_path.assign(extraction_path());
-        append_path(&full_path, relative_path.c_str());
-    }
+    full_path.assign(extracted_to_disk ? extraction_path() : base_path());
+
+    append_path(&full_path, relative_path.c_str());
 
     return true;
 }

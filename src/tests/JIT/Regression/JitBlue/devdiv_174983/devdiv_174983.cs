@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace devdiv_174983;
-
 using System;
 using Xunit;
 
@@ -15,7 +12,6 @@ public class Test_devdiv_174983
 
     public static int l;
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

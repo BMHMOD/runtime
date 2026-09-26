@@ -1,6 +1,7 @@
 // Copyright (c) .NET Foundation and contributors. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
+using System.IO;
 using ILLink.Shared;
 using Mono.Cecil;
 
@@ -8,18 +9,18 @@ namespace Mono.Linker.Steps
 {
     public class RootAssemblyInput : BaseStep
     {
-        readonly string assemblyName;
+        readonly string fileName;
         readonly AssemblyRootMode rootMode;
 
-        public RootAssemblyInput(string assemblyName, AssemblyRootMode rootMode)
+        public RootAssemblyInput(string fileName, AssemblyRootMode rootMode)
         {
-            this.assemblyName = assemblyName;
+            this.fileName = fileName;
             this.rootMode = rootMode;
         }
 
         protected override void Process()
         {
-            AssemblyDefinition? assembly = LoadAssemblyByName();
+            AssemblyDefinition? assembly = LoadAssemblyFile();
             if (assembly == null)
                 return;
 
@@ -48,13 +49,6 @@ namespace Mono.Linker.Steps
                     if (ep == null)
                     {
                         Context.LogError(null, DiagnosticId.RootAssemblyDoesNotHaveEntryPoint, assembly.Name.ToString());
-                        return;
-                    }
-
-                    var existingEntryPointAssembly = Annotations.GetEntryPointAssembly();
-                    if (existingEntryPointAssembly is not null && existingEntryPointAssembly != assembly)
-                    {
-                        Context.LogError(null, DiagnosticId.MultipleEntryPointRoots, assembly.Name.ToString(), existingEntryPointAssembly.Name.ToString());
                         return;
                     }
 
@@ -104,11 +98,23 @@ namespace Mono.Linker.Steps
             }
         }
 
-        AssemblyDefinition? LoadAssemblyByName()
+        AssemblyDefinition? LoadAssemblyFile()
         {
-            var assembly = Context.TryResolve(assemblyName);
+            AssemblyDefinition? assembly;
+
+            if (File.Exists(fileName))
+            {
+                assembly = Context.Resolver.GetAssembly(fileName);
+                Context.Resolver.CacheAssembly(assembly);
+                return assembly;
+            }
+
+            //
+            // Quirks mode for netcore to support passing ambiguous assembly name
+            //
+            assembly = Context.TryResolve(fileName);
             if (assembly == null)
-                Context.LogError(null, DiagnosticId.RootAssemblyCouldNotBeFound, assemblyName);
+                Context.LogError(null, DiagnosticId.RootAssemblyCouldNotBeFound, fileName);
 
             return assembly;
         }

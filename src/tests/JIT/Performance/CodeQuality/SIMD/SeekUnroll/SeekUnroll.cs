@@ -5,7 +5,6 @@ using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 public static class SeekUnroll
 {
@@ -97,9 +96,6 @@ public static class SeekUnroll
     // Set of indices to pass to Test(int)
     static int[] IndicesToTest = new int[] { 1, 3, 11, 19, 27 };
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/86772", TestPlatforms.Browser | TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/54906", TestPlatforms.Android)]
-    [ActiveIssue("System.IO.FileNotFoundException: Could not load file or assembly 'xunit.assert, Version=2.4.1.0, Culture=neutral, PublicKeyToken=8d05b1bb7a6fdb6c' or one of its dependencies.", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
     [Fact]
     public static int TestEntryPoint()
     {

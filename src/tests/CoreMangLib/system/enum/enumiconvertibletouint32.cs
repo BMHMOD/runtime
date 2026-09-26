@@ -188,7 +188,6 @@ public class EnumIConvertibleToUint32
     #endregion
     #endregion
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

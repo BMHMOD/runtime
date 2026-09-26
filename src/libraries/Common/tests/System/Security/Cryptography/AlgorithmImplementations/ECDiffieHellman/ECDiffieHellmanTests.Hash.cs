@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Generic;
-using System.Security.Cryptography.Tests;
-using Microsoft.DotNet.XUnitExtensions;
 using Test.Cryptography;
 using Xunit;
 
@@ -12,7 +10,7 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
     public partial class ECDiffieHellmanTests
     {
         [Fact]
-        public void HashDerivation_OtherKeyRequired()
+        public static void HashDerivation_OtherKeyRequired()
         {
             using (ECDiffieHellman ecdh = ECDiffieHellmanFactory.Create())
             {
@@ -21,10 +19,9 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
             }
         }
 
-        [Fact]
-        public void HashDerivation_SameSizeOtherKeyRequired() => ForEachMismatchedKeySize(HashDerivation_SameSizeOtherKeyRequiredImpl);
-
-        private void HashDerivation_SameSizeOtherKeyRequiredImpl(int aliceSize, int bobSize)
+        [Theory]
+        [MemberData(nameof(MismatchedKeysizes))]
+        public static void HashDerivation_SameSizeOtherKeyRequired(int aliceSize, int bobSize)
         {
             using (ECDiffieHellman alice = ECDiffieHellmanFactory.Create(aliceSize))
             using (ECDiffieHellman bob = ECDiffieHellmanFactory.Create(bobSize))
@@ -36,7 +33,7 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
         }
 
         [Fact]
-        public void HashDerivation_AlgorithmRequired()
+        public static void HashDerivation_AlgorithmRequired()
         {
             using (ECDiffieHellman ecdh = ECDiffieHellmanFactory.Create())
             using (ECDiffieHellmanPublicKey publicKey = ecdh.PublicKey)
@@ -46,10 +43,9 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
             }
         }
 
-        [Fact]
-        public void HashDerivation() => ForEachKeySize(HashDerivationImpl);
-
-        private void HashDerivationImpl(int keySize)
+        [Theory]
+        [MemberData(nameof(EveryKeysize))]
+        public static void HashDerivation(int keySize)
         {
             using (ECDiffieHellman alice = ECDiffieHellmanFactory.Create(keySize))
             using (ECDiffieHellman bob = ECDiffieHellmanFactory.Create(keySize))
@@ -64,7 +60,7 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
         }
 
         [Fact]
-        public void HashDerivationVariesOnPublicKey()
+        public static void HashDerivationVariesOnPublicKey()
         {
             using (ECDiffieHellman alice = ECDiffieHellmanFactory.Create())
             using (ECDiffieHellman bob = ECDiffieHellmanFactory.Create())
@@ -81,7 +77,7 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
         }
 
         [Fact]
-        public void HashDerivationVariesOnAlgorithm()
+        public static void HashDerivationVariesOnAlgorithm()
         {
             using (ECDiffieHellman alice = ECDiffieHellmanFactory.Create())
             using (ECDiffieHellman bob = ECDiffieHellmanFactory.Create())
@@ -95,10 +91,9 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
             }
         }
 
-        [Fact]
-        public void SymmetricDerivation_HashPrepend() => ForEachKeySize(SymmetricDerivation_HashPrependImpl);
-
-        private void SymmetricDerivation_HashPrependImpl(int keySize)
+        [Theory]
+        [MemberData(nameof(EveryKeysize))]
+        public static void SymmetricDerivation_HashPrepend(int keySize)
         {
             byte[] prefix = new byte[10];
 
@@ -115,7 +110,7 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
         }
 
         [Fact]
-        public void HashDerivationVariesOnPrepend()
+        public static void HashDerivationVariesOnPrepend()
         {
             byte[] alicePrefix = new byte[10];
             byte[] bobPrefix = new byte[alicePrefix.Length];
@@ -133,10 +128,9 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
             }
         }
 
-        [Fact]
-        public void SymmetricDerivation_HashAppend() => ForEachKeySize(SymmetricDerivation_HashAppendImpl);
-
-        private void SymmetricDerivation_HashAppendImpl(int keySize)
+        [Theory]
+        [MemberData(nameof(EveryKeysize))]
+        public static void SymmetricDerivation_HashAppend(int keySize)
         {
             byte[] suffix = new byte[10];
 
@@ -153,7 +147,7 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
         }
 
         [Fact]
-        public void HashDerivationVariesOnAppend()
+        public static void HashDerivationVariesOnAppend()
         {
             byte[] aliceSuffix = new byte[10];
             byte[] bobSuffix = new byte[aliceSuffix.Length];
@@ -172,7 +166,7 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
         }
 
         [Fact]
-        public void HashDerivationIsStable()
+        public static void HashDerivationIsStable()
         {
             using (ECDiffieHellman alice = ECDiffieHellmanFactory.Create())
             using (ECDiffieHellman bob = ECDiffieHellmanFactory.Create())
@@ -186,7 +180,7 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
         }
 
         [Fact]
-        public void SimpleHashMethodForwardsNull()
+        public static void SimpleHashMethodForwardsNull()
         {
             using (ECDiffieHellman ecdh = ECDiffieHellmanFactory.Create())
             using (ECDiffieHellmanPublicKey publicKey = ecdh.PublicKey)
@@ -199,7 +193,7 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
         }
 
         [Fact]
-        public void DeriveKeyMaterialEquivalentToDeriveKeyFromHash()
+        public static void DeriveKeyMaterialEquivalentToDeriveKeyFromHash()
         {
             using (ECDiffieHellman ecdh = ECDiffieHellmanFactory.Create())
             using (ECDiffieHellmanPublicKey publicKey = ecdh.PublicKey)
@@ -261,53 +255,50 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
                 "7DB5520A5D6351595FC286CD53509D964FBB152C289F072581CB5E16EBF319E8",
             };
 
-            // SHA3 test cases - skipped at runtime if not supported
-
-            // Created with:
-            // (echo -n -e '\x01\x03\0x05'; openssl pkeyutl -derive -inkey private.key -peerkey public.key; echo -n -e '\x02\x04\0x06\0x08') | openssl dgst -sha3-256
-            yield return new object[]
+            if (ECDiffieHellmanFactory.SupportsSha3)
             {
-                HashAlgorithmName.SHA3_256,
-                "010305",
-                "02040608",
-                "2AF6DA738DADF26607513ECB56451B5A476C7D42CFEC89872791B7A6C136A4F9",
-            };
+                // Created with:
+                // (echo -n -e '\x01\x03\0x05'; openssl pkeyutl -derive -inkey private.key -peerkey public.key; echo -n -e '\x02\x04\0x06\0x08') | openssl dgst -sha3-256
+                yield return new object[]
+                {
+                    HashAlgorithmName.SHA3_256,
+                    "010305",
+                    "02040608",
+                    "2AF6DA738DADF26607513ECB56451B5A476C7D42CFEC89872791B7A6C136A4F9",
+                };
 
-            // Created with:
-            // (echo -n -e '\x01\x03\0x05'; openssl pkeyutl -derive -inkey private.key -peerkey public.key; echo -n -e '\x02\x04\0x06\0x08') | openssl dgst -sha3-384
-            yield return new object[]
-            {
-                HashAlgorithmName.SHA3_384,
-                "010305",
-                "02040608",
-                "EE9C10A3E60EA06296699195B3E338575DA529BA167A7520CA8BF50C86C4A08AB153DD7B97ADEE58CE5A9CAAC2F52ED1",
-            };
+                // Created with:
+                // (echo -n -e '\x01\x03\0x05'; openssl pkeyutl -derive -inkey private.key -peerkey public.key; echo -n -e '\x02\x04\0x06\0x08') | openssl dgst -sha3-384
+                yield return new object[]
+                {
+                    HashAlgorithmName.SHA3_384,
+                    "010305",
+                    "02040608",
+                    "EE9C10A3E60EA06296699195B3E338575DA529BA167A7520CA8BF50C86C4A08AB153DD7B97ADEE58CE5A9CAAC2F52ED1",
+                };
 
-            // Created with:
-            // (echo -n -e '\x01\x03\0x05'; openssl pkeyutl -derive -inkey private.key -peerkey public.key; echo -n -e '\x02\x04\0x06\0x08') | openssl dgst -sha3-512
-            yield return new object[]
-            {
-                HashAlgorithmName.SHA3_512,
-                "010305",
-                "02040608",
-                "3614398AFC4A09B0490E095A7901FEA3C9C217E742064A371F2E04D6363EF864" +
-                    "FE52EEEEA976FEC3FF98DE55D1E78E864F009FD834E1D301FA069BD44F6ECD52",
-            };
+                // Created with:
+                // (echo -n -e '\x01\x03\0x05'; openssl pkeyutl -derive -inkey private.key -peerkey public.key; echo -n -e '\x02\x04\0x06\0x08') | openssl dgst -sha3-512
+                yield return new object[]
+                {
+                    HashAlgorithmName.SHA3_512,
+                    "010305",
+                    "02040608",
+                    "3614398AFC4A09B0490E095A7901FEA3C9C217E742064A371F2E04D6363EF864" +
+                        "FE52EEEEA976FEC3FF98DE55D1E78E864F009FD834E1D301FA069BD44F6ECD52",
+                };
+            }
         }
 
+#if NET
         [Theory]
         [MemberData(nameof(HashDerivationTestCases))]
-        public void HashDerivation_KnownResults(
+        public static void HashDerivation_KnownResults(
             HashAlgorithmName hashAlgorithm,
             string prependBytes,
             string appendBytes,
             string answerBytes)
         {
-            if (hashAlgorithm.Name.StartsWith("SHA3", StringComparison.Ordinal) && !ECDiffieHellmanFactory.SupportsSha3)
-            {
-                return;
-            }
-
             byte[] prepend = prependBytes?.HexToByteArray();
             byte[] append = appendBytes?.HexToByteArray();
             byte[] answer = answerBytes.HexToByteArray();
@@ -321,5 +312,6 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
 
             Assert.Equal(answer, output);
         }
+#endif
     }
 }

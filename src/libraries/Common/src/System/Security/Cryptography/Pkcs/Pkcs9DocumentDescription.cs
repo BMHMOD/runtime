@@ -81,6 +81,6 @@ namespace System.Security.Cryptography.Pkcs
             return PkcsHelpers.EncodeOctetString(octets);
         }
 
-        private string? _lazyDocumentDescription;
+        private volatile string? _lazyDocumentDescription;
     }
 }

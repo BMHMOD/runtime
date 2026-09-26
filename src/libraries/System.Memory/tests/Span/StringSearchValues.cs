@@ -516,7 +516,7 @@ namespace System.Memory.Tests.Span
             helper.TestRandomInputs();
         }
 
-        [ConditionalFact(typeof(StringSearchValuesTests), nameof(CanTestInvariantCulture))]
+        [ConditionalFact(nameof(CanTestInvariantCulture))]
         [SkipOnPlatform(TestPlatforms.LinuxBionic, "Remote executor has problems with exit codes")]
         public static void TestIndexOfAny_RandomInputs_InvariantCulture()
         {
@@ -528,7 +528,7 @@ namespace System.Memory.Tests.Span
             });
         }
 
-        [ConditionalFact(typeof(StringSearchValuesTests), nameof(CanTestNls))]
+        [ConditionalFact(nameof(CanTestNls))]
         public static void TestIndexOfAny_RandomInputs_Nls()
         {
             RunUsingNLS(static () =>

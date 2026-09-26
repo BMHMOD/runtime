@@ -7,7 +7,6 @@ internal static partial class Interop
 {
     internal static partial class NtDll
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.NtDll)]
         internal static unsafe partial uint NtQuerySystemInformation(int SystemInformationClass, void* SystemInformation, uint SystemInformationLength, uint* ReturnLength);
 

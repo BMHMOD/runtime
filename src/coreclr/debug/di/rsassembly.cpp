@@ -17,6 +17,7 @@
 #endif
 
 #include "corpriv.h"
+#include "../../dlls/mscorrc/resource.h"
 #include <limits.h>
 
 
@@ -24,12 +25,14 @@
  * Assembly class
  * ------------------------------------------------------------------------- */
 CordbAssembly::CordbAssembly(CordbAppDomain *       pAppDomain,
-                             VMPTR_Assembly         vmAssembly)
+                             VMPTR_Assembly         vmAssembly,
+                             VMPTR_DomainAssembly   vmDomainAssembly)
 
     : CordbBase(pAppDomain->GetProcess(),
                 VmPtrToCookie(vmAssembly),
                 enumCordbAssembly),
       m_vmAssembly(vmAssembly),
+      m_vmDomainAssembly(vmDomainAssembly),
       m_pAppDomain(pAppDomain)
 {
     _ASSERTE(!vmAssembly.IsNull());
@@ -77,19 +80,19 @@ void CordbAssembly::Neuter()
 // Callback helper for code:CordbAssembly::DbgAssertAssemblyDeleted
 //
 // Arguments
-//    vmAssembly - assembly in the enumeration
+//    vmDomainAssembly - domain file in the enumeration
 //    pUserData - pointer to the CordbAssembly that we just got an exit event for.
 //
 
 // static
-void CordbAssembly::DbgAssertAssemblyDeletedCallback(VMPTR_Assembly vmAssembly, void * pUserData)
+void CordbAssembly::DbgAssertAssemblyDeletedCallback(VMPTR_DomainAssembly vmDomainAssembly, void * pUserData)
 {
     CordbAssembly * pThis = reinterpret_cast<CordbAssembly * >(pUserData);
     INTERNAL_DAC_CALLBACK(pThis->GetProcess());
 
-    VMPTR_Assembly vmAssemblyDeleted = pThis->m_vmAssembly;
+    VMPTR_DomainAssembly vmAssemblyDeleted = pThis->m_vmDomainAssembly;
 
-    CONSISTENCY_CHECK_MSGF((vmAssemblyDeleted != vmAssembly),
+    CONSISTENCY_CHECK_MSGF((vmAssemblyDeleted != vmDomainAssembly),
         ("An Assembly Unload event was sent, but the assembly still shows up in the enumeration.\n vmAssemblyDeleted=%p\n",
         VmPtrToCookie(vmAssemblyDeleted)));
 }
@@ -99,14 +102,15 @@ void CordbAssembly::DbgAssertAssemblyDeletedCallback(VMPTR_Assembly vmAssembly, 
 //
 // Notes:
 //   See code:IDacDbiInterface#Enumeration for rules that we're asserting.
-//   This is a debug only method.
+//   This is a debug only method. It's conceptually similar to
+//   code:CordbProcess::DbgAssertAppDomainDeleted.
 //
 void CordbAssembly::DbgAssertAssemblyDeleted()
 {
-    IfFailThrow(GetProcess()->GetDAC()->EnumerateAssembliesInAppDomain(
+    GetProcess()->GetDAC()->EnumerateAssembliesInAppDomain(
         GetAppDomain()->GetADToken(),
         CordbAssembly::DbgAssertAssemblyDeletedCallback,
-        this));
+        this);
 }
 #endif // _DEBUG
 
@@ -130,6 +134,11 @@ HRESULT CordbAssembly::GetProcess(ICorDebugProcess **ppProcess)
 //
 // Return Value:
 //    S_OK
+//
+// Notes:
+//   On the debugger right-side we currently consider every assembly to belong
+//   to a single AppDomain, and create multiple CordbAssembly instances (one
+//   per AppDomain) to represent domain-neutral assemblies.
 //
 HRESULT CordbAssembly::GetAppDomain(ICorDebugAppDomain **ppAppDomain)
 {
@@ -237,8 +246,7 @@ HRESULT CordbAssembly::GetName(ULONG32 cchName,
         if (!m_strAssemblyFileName.IsSet())
         {
             IDacDbiInterface * pDac = m_pProcess->GetDAC(); // throws
-            BOOL fNonEmpty;
-            IfFailThrow(pDac->GetAssemblyPath(m_vmAssembly, &m_strAssemblyFileName, &fNonEmpty)); // throws
+            BOOL fNonEmpty = pDac->GetAssemblyPath(m_vmAssembly, &m_strAssemblyFileName); // throws
             _ASSERTE(m_strAssemblyFileName.IsSet());
 
 
@@ -278,8 +286,31 @@ HRESULT CordbAssembly::IsFullyTrusted( BOOL *pbFullyTrusted )
     ATT_REQUIRE_STOPPED_MAY_FAIL(GetProcess());
     VALIDATE_POINTER_TO_OBJECT(pbFullyTrusted, BOOL*);
 
-    // All assemblies in CoreCLR are fully trusted.
-    *pbFullyTrusted = TRUE;
-    return S_OK;
+    if (m_vmDomainAssembly.IsNull())
+        return E_UNEXPECTED;
+
+    // Check for cached result
+    if( m_foptIsFullTrust.HasValue() )
+    {
+        *pbFullyTrusted = m_foptIsFullTrust.GetValue();
+        return S_OK;
+    }
+
+    HRESULT hr = S_OK;
+    EX_TRY
+    {
+
+        CordbProcess * pProcess = m_pAppDomain->GetProcess();
+        IDacDbiInterface * pDac = pProcess->GetDAC();
+
+        BOOL fIsFullTrust = pDac->IsAssemblyFullyTrusted(m_vmDomainAssembly);
+
+        // Once the trust level of an assembly is known, it cannot change.
+        m_foptIsFullTrust = fIsFullTrust;
+
+        *pbFullyTrusted = fIsFullTrust;
+    }
+    EX_CATCH_HRESULT(hr);
+    return hr;
 }
 

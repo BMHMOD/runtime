@@ -6,8 +6,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-[assembly:DisableRuntimeMarshalling]
-
 namespace SharedLibrary
 {
     public class ClassLibrary

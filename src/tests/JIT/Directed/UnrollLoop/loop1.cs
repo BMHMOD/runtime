@@ -4,7 +4,7 @@
 
 using System;
 using Xunit;
-namespace JitTest_Directed_UnrollLoop_loop1
+namespace A
 {
     public class B
     {
@@ -162,7 +162,6 @@ namespace JitTest_Directed_UnrollLoop_loop1
             return sum + i;
         }
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {
@@ -251,3 +250,4 @@ namespace JitTest_Directed_UnrollLoop_loop1
         }
     }
 }
+

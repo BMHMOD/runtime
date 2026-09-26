@@ -7,11 +7,9 @@ using System.Reflection;
 using System.Reflection.Emit;
 using System.Threading;
 using Xunit;
-using TestLibrary;
 
 public static class Program
 {
-    [ActiveIssue("timeout", TestPlatforms.Any)]
     [Fact]
     public static void TestEntryPoint()
     {

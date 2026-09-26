@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 interface I<S> { string Method(S param); string Method<M>(S param); }
 
@@ -71,7 +70,6 @@ public class Test_ConstrainedMethods
         return instance.Method<object>("mystring");
     }
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static int TestEntryPoint()
     {

@@ -74,7 +74,7 @@ public class UnhandledTrivial
         }
     }
 
-    [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+    [Fact]
     public static void SetTwiceFailsUserThread()
     {
         // in a user thread
@@ -96,7 +96,7 @@ public class UnhandledTrivial
         th.Join();
     }
 
-    [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+    [Fact]
     public static void SetTwiceFailsTPWorkitem()
     {
         // in a threadpool workitem
@@ -115,7 +115,7 @@ public class UnhandledTrivial
         });
     }
 
-    [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+    [Fact]
     public static void SetTwiceFailsInTask()
     {
         // in a task
@@ -161,7 +161,7 @@ public class UnhandledTrivial
         }
     }
 
-    [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+    [Fact]
     public static void SetTwiceFailsInFinalizer()
     {
         // in a finalizer

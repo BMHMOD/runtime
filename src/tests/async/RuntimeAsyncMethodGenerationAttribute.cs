@@ -4,7 +4,7 @@
 namespace System.Runtime.CompilerServices;
 
 [AttributeUsage(AttributeTargets.Method)]
-internal class RuntimeAsyncMethodGenerationAttribute(bool runtimeAsync) : Attribute
+public class RuntimeAsyncMethodGenerationAttribute(bool runtimeAsync) : Attribute
 {
     public bool RuntimeAsync { get; } = runtimeAsync;
 }

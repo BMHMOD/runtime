@@ -2,7 +2,6 @@ using System;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using Xunit;
-using TestLibrary;
 
 namespace ClrIssueRepro
 {
@@ -35,7 +34,6 @@ namespace ClrIssueRepro
 
     public class Program
     {
-        [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
         [Fact]
         public static int TestEntryPoint()
         {

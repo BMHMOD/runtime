@@ -33,7 +33,7 @@ internal static partial class Interop
                 if (rv >= 0)
                 {
                     // success
-                    return groups.Slice(0, rv).Contains(gid);
+                    return groups.Slice(0, rv).IndexOf(gid) >= 0;
                 }
                 else if (rv == -1 && Interop.Sys.GetLastError() == Interop.Error.EINVAL)
                 {

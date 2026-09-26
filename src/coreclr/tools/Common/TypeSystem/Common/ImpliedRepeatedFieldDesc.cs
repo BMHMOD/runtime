@@ -3,8 +3,6 @@
 
 using System;
 
-using Internal.Text;
-
 namespace Internal.TypeSystem
 {
     public sealed partial class ImpliedRepeatedFieldDesc : FieldDesc
@@ -44,6 +42,6 @@ namespace Internal.TypeSystem
 
         public override MarshalAsDescriptor GetMarshalAsDescriptor() => _underlyingFieldDesc.GetMarshalAsDescriptor();
 
-        public override Utf8Span Name => System.Text.Encoding.UTF8.GetBytes($"{_underlyingFieldDesc.GetName()}[{FieldIndex}]");
+        public override ReadOnlySpan<byte> Name => System.Text.Encoding.UTF8.GetBytes($"{_underlyingFieldDesc.GetName()}[{FieldIndex}]");
     }
 }

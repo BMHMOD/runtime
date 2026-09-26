@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Reflection.Metadata;
 
 using Internal;
-using Internal.Text;
 using Internal.TypeSystem;
 
 using TypeHashingAlgorithms = Internal.NativeFormat.TypeHashingAlgorithms;
@@ -38,7 +37,7 @@ namespace ILCompiler
 
             public override IAssemblyDesc Assembly => this;
 
-            public Utf8Span Name => "System.Private.CompilerGenerated"u8;
+            public ReadOnlySpan<byte> Name => "System.Private.CompilerGenerated"u8;
 
             public CompilerGeneratedAssembly(TypeSystemContext context)
                 : base(context, null)
@@ -61,7 +60,7 @@ namespace ILCompiler
                 return new AssemblyNameInfo("System.Private.CompilerGenerated");
             }
 
-            public override object GetType(Utf8Span nameSpace, Utf8Span name, NotFoundBehavior notFoundBehavior)
+            public override object GetType(ReadOnlySpan<byte> nameSpace, ReadOnlySpan<byte> name, NotFoundBehavior notFoundBehavior)
             {
                 Debug.Fail("Resolving a TypeRef in the compiler generated assembly?");
                 throw new NotImplementedException();
@@ -89,7 +88,7 @@ namespace ILCompiler
                 }
             }
 
-            public override Utf8Span Name
+            public override ReadOnlySpan<byte> Name
             {
                 get
                 {
@@ -105,7 +104,7 @@ namespace ILCompiler
                 }
             }
 
-            public override Utf8Span Namespace
+            public override ReadOnlySpan<byte> Namespace
             {
                 get
                 {
@@ -163,7 +162,7 @@ namespace ILCompiler
                 return Array.Empty<MetadataType>();
             }
 
-            public override MetadataType GetNestedType(Utf8Span name)
+            public override MetadataType GetNestedType(string name)
             {
                 return null;
             }
@@ -173,7 +172,7 @@ namespace ILCompiler
                 return Array.Empty<MethodImplRecord>();
             }
 
-            public override MethodImplRecord[] FindMethodsImplWithMatchingDeclName(Utf8Span name)
+            public override MethodImplRecord[] FindMethodsImplWithMatchingDeclName(ReadOnlySpan<byte> name)
             {
                 return Array.Empty<MethodImplRecord>();
             }

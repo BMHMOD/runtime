@@ -54,11 +54,14 @@ namespace System.Net.Mime
         // This should be called before ANY direct write to Buffer.
         private void EnsureSpaceInBuffer(int moreBytes)
         {
-            if ((uint)(_currentBufferUsed + moreBytes) >= (uint)Buffer.Length)
+            int newsize = Buffer.Length;
+            while (_currentBufferUsed + moreBytes >= newsize)
             {
-                // Use uint arithmetic to avoid overflow; the allocation will throw if the size is too large.
-                uint newsize = Math.Max((uint)_currentBufferUsed + (uint)moreBytes + 1, Math.Min((uint)Array.MaxLength, 2 * (uint)Buffer.Length));
+                newsize *= 2;
+            }
 
+            if (newsize > Buffer.Length)
+            {
                 //try to resize- if the machine doesn't have the memory to resize just let it throw
                 byte[] tempBuffer = new byte[newsize];
 

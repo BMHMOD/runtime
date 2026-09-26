@@ -247,7 +247,7 @@ exit:
         return 0;
     }
 
-    int LogMethod(void* pCode, size_t codeSize, const char* symbol, void* debugInfo, void* unwindInfo, bool reportCodeBlock)
+    int LogMethod(void* pCode, size_t codeSize, const char* symbol, void* debugInfo, void* unwindInfo)
     {
         int result = 0;
 
@@ -257,9 +257,7 @@ exit:
 
             JitCodeLoadRecord record;
 
-            size_t reportedCodeSize = reportCodeBlock ? codeSize : 0;
-
-            size_t bytesRemaining = sizeof(JitCodeLoadRecord) + symbolLen + 1 + reportedCodeSize;
+            size_t bytesRemaining = sizeof(JitCodeLoadRecord) + symbolLen + 1 + codeSize;
 
             record.header.timestamp = GetTimeStampNS();
             record.vma = (uint64_t) pCode;
@@ -271,11 +269,14 @@ exit:
                 // ToDo insert debugInfo and unwindInfo record items immediately before the JitCodeLoadRecord.
                 { &record, sizeof(JitCodeLoadRecord) },
                 { (void *)symbol, symbolLen + 1 },
-                { pCode, reportedCodeSize },
+                { pCode, codeSize },
             };
             size_t itemsCount = sizeof(items) / sizeof(items[0]);
 
             size_t itemsWritten = 0;
+
+            if (result != 0)
+                return FatalError();
 
             if (!enabled)
                 goto exit;
@@ -389,9 +390,9 @@ PAL_PerfJitDump_IsStarted()
 
 int
 PALAPI
-PAL_PerfJitDump_LogMethod(void* pCode, size_t codeSize, const char* symbol, void* debugInfo, void* unwindInfo, bool reportCodeBlock)
+PAL_PerfJitDump_LogMethod(void* pCode, size_t codeSize, const char* symbol, void* debugInfo, void* unwindInfo)
 {
-    return GetState().LogMethod(pCode, codeSize, symbol, debugInfo, unwindInfo, reportCodeBlock);
+    return GetState().LogMethod(pCode, codeSize, symbol, debugInfo, unwindInfo);
 }
 
 int
@@ -419,7 +420,7 @@ PAL_PerfJitDump_IsStarted()
 
 int
 PALAPI
-PAL_PerfJitDump_LogMethod(void* pCode, size_t codeSize, const char* symbol, void* debugInfo, void* unwindInfo, bool reportCodeBlock)
+PAL_PerfJitDump_LogMethod(void* pCode, size_t codeSize, const char* symbol, void* debugInfo, void* unwindInfo)
 {
     return 0;
 }

@@ -4,7 +4,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using Xunit;
@@ -16,7 +15,6 @@ namespace SourceGenerators.Tests
         /// <summary>
         /// Asserts for structural equality, returning a path to the mismatching data when not equal.
         /// </summary>
-        [RequiresUnreferencedCode("Checks structural equality using reflection")]
         public static void AssertStructurallyEqual<T>(T expected, T actual)
         {
             CheckAreEqualCore(expected, actual, new());

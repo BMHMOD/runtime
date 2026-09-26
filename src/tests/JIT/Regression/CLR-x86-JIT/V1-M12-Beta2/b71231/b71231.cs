@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b71231;
-
 using System;
 using Xunit;
 
@@ -15,7 +12,6 @@ public class X
     static ushort us_8712 = 8712;
     static ushort us_973 = 973;
 
-    [OuterLoop]
     [Fact]
     public static void TestEntryPoint()
     {

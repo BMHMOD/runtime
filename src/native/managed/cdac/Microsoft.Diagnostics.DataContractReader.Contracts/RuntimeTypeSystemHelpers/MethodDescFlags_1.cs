@@ -15,8 +15,7 @@ internal static class MethodDescFlags_1
         HasNonVtableSlot = 0x0008,
         HasMethodImpl = 0x0010,
         HasNativeCodeSlot = 0x0020,
-        HasAsyncMethodData = 0x0040,
-        Static = 0x0080,
+        HasAsyncMethodData = 0x040,
         #endregion Optional slots
     }
 

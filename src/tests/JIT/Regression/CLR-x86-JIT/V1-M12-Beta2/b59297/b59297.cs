@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b59297;
-
 using System;
 using Xunit;
 
@@ -17,7 +14,7 @@ public class PerfNotIf
     bool m_i;
 
 
-    public PerfNotIf()
+    PerfNotIf()
     {
         m_i = true;
         /* JVM
@@ -45,7 +42,6 @@ public class PerfNotIf
         return i;
     }
 
-    [OuterLoop]
     [Fact]
     public static void TestEntryPoint()
     {

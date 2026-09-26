@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-namespace JitTest_Generics_Instantiation_Classes_Baseclass04;
-
 using System;
 using Xunit;
 
@@ -80,7 +78,6 @@ public class Test_Baseclass04
 
     }
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

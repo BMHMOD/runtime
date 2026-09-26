@@ -3,8 +3,6 @@
 
 #pragma once
 
-#include <minipal/types.h>
-
 #ifndef __cplusplus
 #include <stdbool.h>
 #endif
@@ -30,7 +28,7 @@
 #endif
 
 #if defined(TARGET_ANDROID)
-static inline void MINIPAL_ATTR_FORMAT_PRINTF(2, 3)
+static inline void
 do_abort_unless (bool condition, const char* fmt, ...)
 {
     if (condition) {

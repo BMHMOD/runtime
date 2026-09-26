@@ -4,7 +4,6 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <new>
 
 #include <minipal/cpufeatures.h>
 
@@ -39,10 +38,6 @@ DLL_EXPORT int JitCompileMethod(
     catch (CorInfoExceptionClass *pException)
     {
         *ppException = pException;
-    }
-    catch (const std::bad_alloc&)
-    {
-        return CORJIT_OUTOFMEM;
     }
 
     return 1;

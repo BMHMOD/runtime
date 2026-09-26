@@ -1,10 +1,19 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.ProbeExtensionResult))]
-internal sealed partial class ProbeExtensionResult : IData<ProbeExtensionResult>
+internal sealed class ProbeExtensionResult : IData<ProbeExtensionResult>
 {
-    [Field] public partial int Type { get; }
+    static ProbeExtensionResult IData<ProbeExtensionResult>.Create(Target target, TargetPointer address) => new ProbeExtensionResult(target, address);
+    public ProbeExtensionResult(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.ProbeExtensionResult);
+
+        Type = target.Read<int>(address + (ulong)type.Fields[nameof(Type)].Offset);
+    }
+
+    public int Type { get; init; }
 }

@@ -422,13 +422,19 @@ namespace System
         public static bool TryParse([NotNullWhen(true)] string? s, NumberStyles style, IFormatProvider? provider, out float result)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Number.TryParseFloat(s.AsSpan(), style, NumberFormatInfo.GetInstance(provider), out result, out _);
+
+            if (s == null)
+            {
+                result = 0;
+                return false;
+            }
+            return Number.TryParseFloat(s.AsSpan(), style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
         public static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider? provider, out float result)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Number.TryParseFloat(s, style, NumberFormatInfo.GetInstance(provider), out result, out _);
+            return Number.TryParseFloat(s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
         //
@@ -710,26 +716,8 @@ namespace System
         /// <inheritdoc cref="IFloatingPoint{TSelf}.GetSignificandBitLength()" />
         int IFloatingPoint<float>.GetSignificandBitLength() => 24;
 
-        internal bool TryWriteExponentBigEndian(Span<byte> destination, out int bytesWritten)
-        {
-            if (destination.Length >= sizeof(sbyte))
-            {
-                destination[0] = (byte)Exponent;
-                bytesWritten = sizeof(sbyte);
-                return true;
-            }
-
-            bytesWritten = 0;
-            return false;
-        }
-
         /// <inheritdoc cref="IFloatingPoint{TSelf}.TryWriteExponentBigEndian(Span{byte}, out int)" />
         bool IFloatingPoint<float>.TryWriteExponentBigEndian(Span<byte> destination, out int bytesWritten)
-        {
-            return TryWriteExponentBigEndian(destination, out bytesWritten);
-        }
-
-        internal bool TryWriteExponentLittleEndian(Span<byte> destination, out int bytesWritten)
         {
             if (destination.Length >= sizeof(sbyte))
             {
@@ -745,14 +733,10 @@ namespace System
         /// <inheritdoc cref="IFloatingPoint{TSelf}.TryWriteExponentLittleEndian(Span{byte}, out int)" />
         bool IFloatingPoint<float>.TryWriteExponentLittleEndian(Span<byte> destination, out int bytesWritten)
         {
-            return TryWriteExponentLittleEndian(destination, out bytesWritten);
-        }
-
-        internal bool TryWriteSignificandBigEndian(Span<byte> destination, out int bytesWritten)
-        {
-            if (BinaryPrimitives.TryWriteUInt32BigEndian(destination, Significand))
+            if (destination.Length >= sizeof(sbyte))
             {
-                bytesWritten = sizeof(uint);
+                destination[0] = (byte)Exponent;
+                bytesWritten = sizeof(sbyte);
                 return true;
             }
 
@@ -763,12 +747,7 @@ namespace System
         /// <inheritdoc cref="IFloatingPoint{TSelf}.TryWriteSignificandBigEndian(Span{byte}, out int)" />
         bool IFloatingPoint<float>.TryWriteSignificandBigEndian(Span<byte> destination, out int bytesWritten)
         {
-            return TryWriteSignificandBigEndian(destination, out bytesWritten);
-        }
-
-        internal bool TryWriteSignificandLittleEndian(Span<byte> destination, out int bytesWritten)
-        {
-            if (BinaryPrimitives.TryWriteUInt32LittleEndian(destination, Significand))
+            if (BinaryPrimitives.TryWriteUInt32BigEndian(destination, Significand))
             {
                 bytesWritten = sizeof(uint);
                 return true;
@@ -781,7 +760,14 @@ namespace System
         /// <inheritdoc cref="IFloatingPoint{TSelf}.TryWriteSignificandLittleEndian(Span{byte}, out int)" />
         bool IFloatingPoint<float>.TryWriteSignificandLittleEndian(Span<byte> destination, out int bytesWritten)
         {
-            return TryWriteSignificandLittleEndian(destination, out bytesWritten);
+            if (BinaryPrimitives.TryWriteUInt32LittleEndian(destination, Significand))
+            {
+                bytesWritten = sizeof(uint);
+                return true;
+            }
+
+            bytesWritten = 0;
+            return false;
         }
 
         //
@@ -1426,23 +1412,15 @@ namespace System
 
             if (typeof(TOther) == typeof(byte))
             {
-#if MONO
-                byte actualResult = (value >= byte.MaxValue) ? byte.MaxValue :
-                                    (value <= byte.MinValue) ? byte.MinValue : (byte)value;
-#else
-                byte actualResult = (byte)value;
-#endif
+                var actualResult = (value >= byte.MaxValue) ? byte.MaxValue :
+                                   (value <= byte.MinValue) ? byte.MinValue : (byte)value;
                 result = (TOther)(object)actualResult;
                 return true;
             }
             else if (typeof(TOther) == typeof(char))
             {
-#if MONO
                 char actualResult = (value >= char.MaxValue) ? char.MaxValue :
                                     (value <= char.MinValue) ? char.MinValue : (char)value;
-#else
-                char actualResult = (char)value;
-#endif
                 result = (TOther)(object)actualResult;
                 return true;
             }
@@ -1456,12 +1434,8 @@ namespace System
             }
             else if (typeof(TOther) == typeof(ushort))
             {
-#if MONO
                 ushort actualResult = (value >= ushort.MaxValue) ? ushort.MaxValue :
                                       (value <= ushort.MinValue) ? ushort.MinValue : (ushort)value;
-#else
-                ushort actualResult = (ushort)value;
-#endif
                 result = (TOther)(object)actualResult;
                 return true;
             }
@@ -1510,27 +1484,6 @@ namespace System
                 result = default;
                 return false;
             }
-        }
-
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(string, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial([NotNullWhen(true)] string? s, NumberStyles style, IFormatProvider? provider, out float result, out int charsConsumed)
-        {
-            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Number.TryParseFloat(s.AsSpan(), style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out result, out charsConsumed);
-        }
-
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(ReadOnlySpan{char}, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider? provider, out float result, out int charsConsumed)
-        {
-            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Number.TryParseFloat(s, style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out result, out charsConsumed);
-        }
-
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(ReadOnlySpan{byte}, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial(ReadOnlySpan<byte> utf8Text, NumberStyles style, IFormatProvider? provider, out float result, out int bytesConsumed)
-        {
-            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Number.TryParseFloat(utf8Text, style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out result, out bytesConsumed);
         }
 
         //
@@ -1888,17 +1841,23 @@ namespace System
             return result;
         }
 
-        // Multiplying by `head` alone is enough here, without the rest of the triple that `double`
-        // needs: the constant being inexact is under `2^-54.6` relative and the single rounding of
-        // the product is `2^-53`, together under `2^-28.6` of a `float` ulp, while no significand
-        // brings the exact value nearer than `2^-26.5` ulp to the boundary between two results
-        // (`2^-26.470` for `DegreesToRadians`, `2^-24.5` for `RadiansToDegrees`).
-
         /// <inheritdoc cref="ITrigonometricFunctions{TSelf}.DegreesToRadians(TSelf)" />
-        public static float DegreesToRadians(float degrees) => (float)(degrees * double.DegreesToRadiansHead);
+        public static float DegreesToRadians(float degrees)
+        {
+            // NOTE: Don't change the algorithm without consulting the DIM
+            // which elaborates on why this implementation was chosen
+
+            return (degrees * Pi) / 180.0f;
+        }
 
         /// <inheritdoc cref="ITrigonometricFunctions{TSelf}.RadiansToDegrees(TSelf)" />
-        public static float RadiansToDegrees(float radians) => (float)(radians * double.RadiansToDegreesHead);
+        public static float RadiansToDegrees(float radians)
+        {
+            // NOTE: Don't change the algorithm without consulting the DIM
+            // which elaborates on why this implementation was chosen
+
+            return (radians * 180.0f) / Pi;
+        }
 
         /// <inheritdoc cref="ITrigonometricFunctions{TSelf}.Sin(TSelf)" />
         [Intrinsic]
@@ -2221,15 +2180,15 @@ namespace System
         /// <inheritdoc cref="INumberBase{TSelf}.Parse(ReadOnlySpan{byte}, NumberStyles, IFormatProvider?)" />
         public static float Parse(ReadOnlySpan<byte> utf8Text, NumberStyles style = NumberStyles.Float | NumberStyles.AllowThousands, IFormatProvider? provider = null)
         {
-            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
+            NumberFormatInfo.ValidateParseStyleInteger(style);
             return Number.ParseFloat<byte, float>(utf8Text, style, NumberFormatInfo.GetInstance(provider));
         }
 
         /// <inheritdoc cref="INumberBase{TSelf}.TryParse(ReadOnlySpan{byte}, NumberStyles, IFormatProvider?, out TSelf)" />
         public static bool TryParse(ReadOnlySpan<byte> utf8Text, NumberStyles style, IFormatProvider? provider, out float result)
         {
-            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Number.TryParseFloat(utf8Text, style, NumberFormatInfo.GetInstance(provider), out result, out _);
+            NumberFormatInfo.ValidateParseStyleInteger(style);
+            return Number.TryParseFloat(utf8Text, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
         /// <inheritdoc cref="IUtf8SpanParsable{TSelf}.Parse(ReadOnlySpan{byte}, IFormatProvider?)" />

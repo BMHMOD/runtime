@@ -8,9 +8,6 @@
 //  We want to hit PendingArgsStack::pasEnumGCoffs
 //                 PendingArgsStack::pasEnumGCoffsCount
 
-
-namespace b338014;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
@@ -34,7 +31,6 @@ public class My
         return null;
     }
 
-    [OuterLoop]
     [Fact]
     public static void TestEntryPoint()
     {

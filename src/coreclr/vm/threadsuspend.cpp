@@ -1,6 +1,5 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
-
 //
 // threadsuspend.CPP
 //
@@ -18,15 +17,11 @@
 #include <minipal/memorybarrierprocesswide.h>
 #include <minipal/time.h>
 
+#ifdef FEATURE_EH_FUNCLETS
 #include "exinfo.h"
+#endif
 
 #define HIJACK_NONINTERRUPTIBLE_THREADS
-
-#if defined(TARGET_ARM64)
-extern "C" void* PacSignPtr(void* ptr, void* sp);
-extern "C" void* PacAuthPtr(void* ptr, void* sp);
-extern "C" void* PacStripPtr(void* ptr);
-#endif // TARGET_ARM64
 
 bool ThreadSuspend::s_fSuspendRuntimeInProgress = false;
 
@@ -306,7 +301,7 @@ Thread::SuspendThreadResult Thread::SuspendThread(BOOL fOneTryOnly, DWORD *pdwSu
                         "Thread::SuspendThread[%p]:  EIP=%p. nCnt=%d. result=%d.\n"
                         "\t\t\t\t\t\t\t\t\t     forbidSuspend=%d. coop=%d. state=%x.\n",
                         this, GetIP(&ctx), nCnt, dwSuspendCount,
-                        (LONG)this->m_dwForbidSuspendThread, (ULONG)this->m_fPreemptiveGCDisabled, this->GetState());
+                        (LONG)this->m_dwForbidSuspendThread, (ULONG)this->m_fPreemptiveGCDisabled, this->GetSnapshotState());
 
                     // Enable a preemptive assert in diagnostic mode: before we
                     // resume the target thread to get its current state in the debugger
@@ -508,6 +503,7 @@ static inline BOOL CheckSuspended(Thread *pThread)
     CONTRACTL_END;
 
     _ASSERTE(GetThreadNULLOk() != pThread);
+    _ASSERTE(CheckPointer(pThread));
 
 #ifndef DISABLE_THREADSUSPEND
     DWORD dwSuspendCount;
@@ -536,7 +532,7 @@ BOOL EEGetThreadContext(Thread *pThread, CONTEXT *pContext)
     BOOL ret =  pThread->GetThreadContext(pContext);
 
     STRESS_LOG6(LF_SYNC, LL_INFO1000, "Got thread context ret = %d EIP = %p ESP = %p EBP = %p, pThread = %p, ContextFlags = 0x%x\n",
-        ret, (void*)GetIP(pContext), (void*)GetSP(pContext), (void*)GetFP(pContext), pThread, pContext->ContextFlags);
+        ret, GetIP(pContext), GetSP(pContext), GetFP(pContext), pThread, pContext->ContextFlags);
 
     return ret;
 
@@ -557,7 +553,7 @@ BOOL EESetThreadContext(Thread *pThread, const CONTEXT *pContext)
     BOOL ret = pThread->SetThreadContext(pContext);
 
     STRESS_LOG6(LF_SYNC, LL_INFO1000, "Set thread context ret = %d EIP = %p ESP = %p EBP = %p, pThread = %p, ContextFlags = 0x%x\n",
-        ret, (void*)GetIP((CONTEXT*)pContext), (void*)GetSP((CONTEXT*)pContext), (void*)GetFP((CONTEXT*)pContext), pThread, pContext->ContextFlags);
+        ret, GetIP((CONTEXT*)pContext), GetSP((CONTEXT*)pContext), GetFP((CONTEXT*)pContext), pThread, pContext->ContextFlags);
 
     return ret;
 }
@@ -666,6 +662,21 @@ static StackWalkAction TAStackCrawlCallBackWorker(CrawlFrame* pCf, StackCrawlCon
     EE_ILEXCEPTION_CLAUSE EHClause;
 
     StackWalkAction action = SWA_CONTINUE;
+#ifndef FEATURE_EH_FUNCLETS
+    // On X86, the EH encoding for catch clause is completely mess.
+    // If catch clause is in its own basic block, the end of catch includes everything in the basic block.
+    // For nested catch, the end of catch may include several jmp instructions after JIT_EndCatch call.
+    // To better decide if we are inside a nested catch, we check if offs-1 is in more than one catch clause.
+    DWORD countInCatch = 0;
+    BOOL fAtJitEndCatch = FALSE;
+    if (pData->pAbortee == GetThread() &&
+        pData->pAbortee->ThrewControlForThread() == Thread::InducedThreadRedirectAtEndOfCatch &&
+        GetControlPC(pCf->GetRegisterSet()) == (PCODE)GetIP(pData->pAbortee->GetAbortContext()))
+    {
+        fAtJitEndCatch = TRUE;
+        offs -= 1;
+    }
+#endif  // !FEATURE_EH_FUNCLETS
 
     for(ULONG i=0; i < EHCount; i++)
     {
@@ -686,6 +697,20 @@ static StackWalkAction TAStackCrawlCallBackWorker(CrawlFrame* pCf, StackCrawlCon
         if (offs >= EHClause.HandlerStartPC &&
             offs < EHClause.HandlerEndPC)
         {
+#ifndef FEATURE_EH_FUNCLETS
+            if (fAtJitEndCatch)
+            {
+                // On X86, JIT's EH info may include the instruction after JIT_EndCatch inside the same catch
+                // clause if it is in the same basic block.
+                // So for this case, the offs is in at least one catch handler, but since we are at the end of
+                // catch, this one should not be counted.
+                countInCatch ++;
+                if (countInCatch == 1)
+                {
+                    continue;
+                }
+            }
+#endif // !FEATURE_EH_FUNCLETS
             pData->fWithinEHClause = true;
             // We're within an EH clause. If we're asking about CERs too then stop the stack walk if we've reached a conclusive
             // result or continue looking otherwise. Else we can stop the stackwalk now.
@@ -701,6 +726,14 @@ static StackWalkAction TAStackCrawlCallBackWorker(CrawlFrame* pCf, StackCrawlCon
     }
     }
 
+#ifndef FEATURE_EH_FUNCLETS
+#ifdef _DEBUG
+    if (fAtJitEndCatch)
+    {
+        _ASSERTE (countInCatch > 0);
+    }
+#endif   // _DEBUG
+#endif   // !FEATURE_EH_FUNCLETS
     return action;
 }
 
@@ -930,10 +963,12 @@ BOOL Thread::ReadyForAsyncException()
         return FALSE;
     }
 
+#ifdef FEATURE_EH_FUNCLETS
     if (IsAbortPrevented())
     {
         return FALSE;
     }
+#endif // FEATURE_EH_FUNCLETS
 
     REGDISPLAY rd;
 
@@ -1063,7 +1098,7 @@ BOOL Thread::IsRudeAbort()
     }
     CONTRACTL_END;
 
-    return IsAbortRequested() && (m_AbortType == EEPolicy::TA_Rude);
+    return (IsAbortRequested() && (m_AbortType == EEPolicy::TA_Rude));
 }
 
 //
@@ -1200,7 +1235,7 @@ Thread::UserAbort(EEPolicy::ThreadAbortTypes abortType, DWORD timeout)
             exceptObj = CLRException::GetThrowableFromException(&eeExcept);
         }
 
-        RaiseTheExceptionInternalOnly(exceptObj);
+        RaiseTheExceptionInternalOnly(exceptObj, FALSE);
     }
 
     _ASSERTE(this != pCurThread);      // Aborting another thread.
@@ -1370,7 +1405,7 @@ Thread::UserAbort(EEPolicy::ThreadAbortTypes abortType, DWORD timeout)
         // Two more cases can be folded in here as well.  If the thread is unstarted, it'll
         // abort when we start it.
         //
-        // If the thread is debug suspended (DebugSyncSuspended) -- we're out of luck.  Set the bit and
+        // If the thread is user suspended (SyncSuspended) -- we're out of luck.  Set the bit and
         // hope for the best on resume.
         //
         if ((m_State & TS_AbortInitiated) && !IsRudeAbort())
@@ -1389,10 +1424,6 @@ Thread::UserAbort(EEPolicy::ThreadAbortTypes abortType, DWORD timeout)
         else
 #endif // FEATURE_THREAD_ACTIVATION
         {
-#ifdef TARGET_UNIX
-            _ASSERTE_MSG(false, "Thread::UserAbort: Activation injection is required on Unix platforms");
-            UNREACHABLE();
-#else // TARGET_UNIX
             BOOL fOutOfRuntime = FALSE;
             BOOL fNeedStackCrawl = FALSE;
 
@@ -1456,10 +1487,10 @@ Thread::UserAbort(EEPolicy::ThreadAbortTypes abortType, DWORD timeout)
                 break;
             }
 
-            // If a thread is stopped under a managed debugger, it will have both
-            // TS_DebugSuspendPending and TS_DebugSyncSuspended, regardless of whether
+            // If Threads is stopped under a managed debugger, it will have both
+            // TS_DebugSuspendPending and TS_SyncSuspended, regardless of whether
             // the thread is actually suspended or not.
-            if (m_State & TS_DebugSyncSuspended)
+            if (m_State & TS_SyncSuspended)
             {
 #ifndef DISABLE_THREADSUSPEND
                 ResumeThread();
@@ -1489,9 +1520,31 @@ Thread::UserAbort(EEPolicy::ThreadAbortTypes abortType, DWORD timeout)
                                 | TS_Detached
                                 | TS_Unstarted)));
 
+#if defined(TARGET_X86) && !defined(FEATURE_EH_FUNCLETS)
+            // TODO WIN64: consider this if there is a way to detect of managed code on stack.
+            if ((m_pFrame == FRAME_TOP)
+                && (GetFirstCOMPlusSEHRecord(this) == EXCEPTION_CHAIN_END)
+            )
+            {
+#ifndef DISABLE_THREADSUSPEND
+                ResumeThread();
+#endif
+#ifdef _DEBUG
+                m_dwAbortPoint = 8;
+#endif
+
+                return S_OK;
+            }
+#endif // TARGET_X86
+
+
             if (!m_fPreemptiveGCDisabled)
             {
-                if ((m_pFrame != FRAME_TOP) && m_pFrame->IsTransitionToNativeFrame())
+                if ((m_pFrame != FRAME_TOP) && m_pFrame->IsTransitionToNativeFrame()
+#if defined(TARGET_X86) && !defined(FEATURE_EH_FUNCLETS)
+                    && ((size_t) GetFirstCOMPlusSEHRecord(this) > ((size_t) m_pFrame) - 20)
+#endif // TARGET_X86
+                    )
                 {
                     fOutOfRuntime = TRUE;
                 }
@@ -1543,7 +1596,7 @@ Thread::UserAbort(EEPolicy::ThreadAbortTypes abortType, DWORD timeout)
 
             // If the thread is in sleep, wait, or join interrupt it
             // However, we do NOT want to interrupt if the thread is already processing an exception
-            if (m_State & TS_WaitSleepJoin)
+            if (m_State & TS_Interruptible)
             {
                 UserInterrupt(TI_Abort);        // if the user wakes up because of this, it will read the
                                                 // abort requested bit and initiate the abort
@@ -1569,7 +1622,6 @@ Thread::UserAbort(EEPolicy::ThreadAbortTypes abortType, DWORD timeout)
 LPrepareRetry:
 
             checkForAbort.Release();
-#endif // TARGET_UNIX
         }
 
         // Don't do a Sleep.  It's possible that the thread we are trying to abort is
@@ -1578,7 +1630,7 @@ LPrepareRetry:
         // will time out, but it will pump if we need it to.
         if (pCurThread)
         {
-            pCurThread->DoReentrantWaitWithRetry(pCurThread->GetThreadHandle(), ABORT_POLL_TIMEOUT, WaitMode_Alertable);
+            pCurThread->Join(ABORT_POLL_TIMEOUT, TRUE);
         }
         else
         {
@@ -1614,7 +1666,7 @@ LPrepareRetry:
 
             if (pCurThread)
             {
-                pCurThread->DoReentrantWaitWithRetry(pCurThread->GetThreadHandle(), 100, WaitMode_Alertable);
+                pCurThread->Join(100, TRUE);
             }
             else
             {
@@ -2130,8 +2182,8 @@ void Thread::RareDisablePreemptiveGC()
                 LOG((LF_CORDB, LL_INFO1000, "[0x%x] SUSPEND: debug suspended while switching to coop mode.\n", GetThreadId()));
             }
 #endif
-            // unsets TS_DebugSuspendPending | TS_DebugSyncSuspended
-            WaitForDebugSuspend();
+            // unsets TS_DebugSuspendPending | TS_SyncSuspended
+            WaitSuspendEvents();
 
             // disable preemptive gc.
             m_fPreemptiveGCDisabled.StoreWithoutBarrier(1);
@@ -2143,10 +2195,6 @@ void Thread::RareDisablePreemptiveGC()
 
         if (ThreadStore::IsTrappingThreadsForSuspension())
         {
-            // Mark that this thread is trapped for suspension.
-            // Used by the sample profiler to determine this thread was in managed code.
-            SetThreadState(TS_SuspensionTrapped);
-
             EnablePreemptiveGC();
 
 #ifdef PROFILING_SUPPORTED
@@ -2186,9 +2234,6 @@ void Thread::RareDisablePreemptiveGC()
             // disable preemptive gc.
             m_fPreemptiveGCDisabled.StoreWithoutBarrier(1);
 
-            // Clear the suspension trapped flag now that we're resuming.
-            ResetThreadState(TS_SuspensionTrapped);
-
             // check again if we have something to do
             continue;
         }
@@ -2226,7 +2271,7 @@ void Thread::HandleThreadAbort ()
 
     if (ReadyForAbort())
     {
-        ResetThreadState ((ThreadState)(TS_Interrupted | TS_WaitSleepJoin));
+        ResetThreadState ((ThreadState)(TS_Interrupted | TS_Interruptible));
         // We are going to abort.  Abort satisfies Thread.Interrupt requirement.
         InterlockedExchange (&m_UserInterrupt, 0);
 
@@ -2259,7 +2304,7 @@ void Thread::HandleThreadAbort ()
             exceptObj = CLRException::GetThrowableFromException(&eeExcept);
         }
 
-        RaiseTheExceptionInternalOnly(exceptObj);
+        RaiseTheExceptionInternalOnly(exceptObj, FALSE);
     }
 
     ::SetLastError(lastError);
@@ -2272,7 +2317,7 @@ void Thread::PreWorkForThreadAbort()
     SetAbortInitiated();
     // if an abort and interrupt happen at the same time (e.g. on a sleeping thread),
     // the abort is favored. But we do need to reset the interrupt bits.
-    ResetThreadState((ThreadState)(TS_WaitSleepJoin | TS_Interrupted));
+    ResetThreadState((ThreadState)(TS_Interruptible | TS_Interrupted));
     ResetUserInterrupted();
 }
 
@@ -2326,6 +2371,9 @@ void Thread::PerformPreemptiveGC()
         GCX_COOP();
         m_bGCStressing = TRUE;
 
+        // BUG(github #10318) - when not using allocation contexts, the alloc lock
+        // must be acquired here. Until fixed, this assert prevents random heap corruption.
+        _ASSERTE(GCHeapUtilities::UseThreadAllocationContexts());
         GCHeapUtilities::GetGCHeap()->StressHeap(&t_runtime_thread_locals.alloc_context.m_GCAllocContext);
         m_bGCStressing = FALSE;
     }
@@ -2554,7 +2602,7 @@ int RedirectedHandledJITCaseExceptionFilter(
     SetLastError(dwLastError);
 
     // Resume execution at point where thread was originally redirected
-    return EXCEPTION_CONTINUE_EXECUTION;
+    return (EXCEPTION_CONTINUE_EXECUTION);
 }
 #endif // TARGET_X86
 
@@ -2588,6 +2636,8 @@ extern "C" PCONTEXT __stdcall GetCurrentSavedRedirectContext()
 
 void Thread::RestoreContextSimulated(Thread* pThread, CONTEXT* pCtx, void* pFrame, DWORD dwLastError)
 {
+    pThread->HandleThreadAbort();        // Might throw an exception.
+
     // A counter to avoid a nasty case where an
     // up-stack filter throws another exception
     // causing our filter to be run again for
@@ -2648,7 +2698,7 @@ void __stdcall Thread::RedirectedHandledJITCase(RedirectReason reason)
     if (Thread::UseRedirectForGcStress() && (reason == RedirectReason_GCStress))
     {
         _ASSERTE(pThread->PreemptiveGCDisabledOther());
-        DoGcStress(frame.GetContext(), NativeCodeVersion());
+        DoGcStress(frame.GetContext(), NULL);
     }
     else
 #endif // HAVE_GCCOVER && USE_REDIRECT_FOR_GCSTRESS
@@ -2671,6 +2721,16 @@ void __stdcall Thread::RedirectedHandledJITCase(RedirectReason reason)
     // Once we get here the suspension is over!
     // We will restore the state as it was at the point of redirection
     // and continue normal execution.
+
+#ifdef TARGET_X86
+    if (!g_pfnRtlRestoreContext)
+    {
+        RestoreContextSimulated(pThread, pCtx, &frame, dwLastError);
+
+        // we never return to the caller.
+        UNREACHABLE();
+    }
+#endif // TARGET_X86
 
     UINT_PTR uAbortAddr;
     UINT_PTR uResumePC = (UINT_PTR)GetIP(pCtx);
@@ -2696,16 +2756,6 @@ void __stdcall Thread::RedirectedHandledJITCase(RedirectReason reason)
 
         SetIP(pCtx, uAbortAddr);
     }
-
-#ifdef TARGET_X86
-    if (!g_pfnRtlRestoreContext)
-    {
-        RestoreContextSimulated(pThread, pCtx, &frame, dwLastError);
-
-        // we never return to the caller.
-        UNREACHABLE();
-    }
-#endif // TARGET_X86
 
     // Unlink the frame in preparation for resuming in managed code
     frame.Pop();
@@ -2835,7 +2885,7 @@ BOOL Thread::RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt)
     // that we would need while allocating.
     // Other ways and attempts at suspending may yet succeed, but this redirection cannot continue.
     if (!pCtx)
-        return FALSE;
+        return (FALSE);
 
     //////////////////////////////////////
     // Get and save the thread's context
@@ -2864,10 +2914,10 @@ BOOL Thread::RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt)
     _ASSERTE(bRes && "Failed to GetThreadContext in RedirectThreadAtHandledJITCase - aborting redirect.");
 
     if (!bRes)
-        return FALSE;
+        return (FALSE);
 
     if (!IsContextSafeToRedirect(pCtx))
-        return FALSE;
+        return (FALSE);
 
     ////////////////////////////////////////////////////
     // Now redirect the thread to the helper function
@@ -2893,10 +2943,14 @@ BOOL Thread::RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt)
 #ifdef _DEBUG
         // In some rare cases the stack pointer may be outside the stack limits.
         // SetThreadContext would fail assuming that we are trying to bypass CFG.
+        //
+        // NB: the check here is slightly more strict than what OS requires,
+        //     but it is simple and uses only documented parts of TEB
+        auto pTeb = this->GetTEB();
         void* stackPointer = (void*)GetSP(pCtx);
-        if ((stackPointer < this->GetCachedStackLimit()) || (stackPointer > this->GetCachedStackBase()))
+        if ((stackPointer < pTeb->StackLimit) || (stackPointer > pTeb->StackBase))
         {
-            return FALSE;
+            return (FALSE);
         }
 
         _ASSERTE(!"Failed to SetThreadContext in RedirectThreadAtHandledJITCase - aborting redirect.");
@@ -2916,7 +2970,7 @@ BOOL Thread::RedirectThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt)
     //////////////////////////////////////////////////
     // Indicate whether or not the redirect succeeded
 
-    return bRes;
+    return (bRes);
 }
 
 BOOL Thread::CheckForAndDoRedirect(PFN_REDIRECTTARGET pRedirectTarget)
@@ -2937,7 +2991,7 @@ BOOL Thread::CheckForAndDoRedirect(PFN_REDIRECTTARGET pRedirectTarget)
     fRes = RedirectThreadAtHandledJITCase(pRedirectTarget);
     LOG((LF_GC, LL_INFO1000, "RedirectThreadAtHandledJITCase %s.\n", fRes ? "SUCCEEDED" : "FAILED"));
 
-    return fRes;
+    return (fRes);
 }
 
 BOOL Thread::RedirectCurrentThreadAtHandledJITCase(PFN_REDIRECTTARGET pTgt, CONTEXT *pCurrentThreadCtx)
@@ -3644,7 +3698,7 @@ int RedirectedThrowControlExceptionFilter(
     SetCurrentSEHRecord(pCurSEH);
 
     // Resume execution at point where thread was originally redirected
-    return EXCEPTION_CONTINUE_EXECUTION;
+    return (EXCEPTION_CONTINUE_EXECUTION);
 }
 
 void RedirectedThrowControl()
@@ -3722,6 +3776,8 @@ ThrowControlForThread(
 
     STRESS_LOG0(LF_SYNC, LL_INFO100, "ThrowControlForThread Aborting\n");
 
+#ifdef FEATURE_EH_FUNCLETS
+
     GCX_COOP();
 
     EXCEPTION_RECORD exceptionRecord = {0};
@@ -3732,6 +3788,12 @@ ThrowControlForThread(
     OBJECTREF throwable = ExInfo::CreateThrowable(&exceptionRecord, TRUE);
     pfef->GetExceptionContext()->ContextFlags |= CONTEXT_EXCEPTION_ACTIVE;
     DispatchManagedException(throwable, pfef->GetExceptionContext());
+#else // FEATURE_EH_FUNCLETS
+    // Here we raise an exception.
+    INSTALL_MANAGED_EXCEPTION_DISPATCHER
+    RaiseComPlusException();
+    UNINSTALL_MANAGED_EXCEPTION_DISPATCHER
+#endif // FEATURE_EH_FUNCLETS
 }
 
 #if defined(FEATURE_HIJACK) && !defined(TARGET_UNIX)
@@ -3937,7 +3999,7 @@ bool Thread::SysStartSuspendForDebug(AppDomain *pAppDomain)
 #endif
 
         // Don't try to suspend threads that you've left suspended.
-        if (thread->HasDebuggerControlledThreadState(Thread::DCTS_UserSuspend))
+        if (thread->m_StateNC & TSNC_DebuggerUserSuspend)
             continue;
 
         if (thread == pCurThread)
@@ -4114,7 +4176,7 @@ bool Thread::SysStartSuspendForDebug(AppDomain *pAppDomain)
 // This can be safely called if we're already suspended.
 bool Thread::SysSweepThreadsForDebug(bool forceSync)
 {
-    CONTRACTL {
+    CONTRACT(bool) {
         NOTHROW;
         DISABLED(GC_TRIGGERS); // WaitUntilConcurrentGCComplete toggle GC mode, disabled because called by unmanaged thread
 
@@ -4124,8 +4186,9 @@ bool Thread::SysSweepThreadsForDebug(bool forceSync)
         PRECONDITION(GetThreadNULLOk() == NULL);
 
         // Iff we return true, then we have the TSL (or the aux lock used in workarounds).
+        POSTCONDITION(ThreadStore::HoldingThreadStore());
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     _ASSERTE(!forceSync); // deprecated parameter
 
@@ -4274,8 +4337,7 @@ Label_MarkThreadAsSynced:
         {
             // If that was the last thread, then the CLR is synced.
             // We return while own the thread store lock. We return true now, which indicates this to the caller.
-            _ASSERTE(ThreadStore::HoldingThreadStore());
-            return true;
+            RETURN true;
         }
         continue;
 
@@ -4283,15 +4345,13 @@ Label_MarkThreadAsSynced:
 
     if (m_DebugWillSyncCount < 0)
     {
-        _ASSERTE(ThreadStore::HoldingThreadStore());
-        return true;
+        RETURN true;
     }
 
-    // The CLR is not yet synced. We release the suspend-in-progress flag and return false.
+    // The CLR is not yet synced. We release the threadstore lock and return false.
     hldSuspendRuntimeInProgress.Release();
 
-    _ASSERTE(ThreadStore::HoldingThreadStore());
-    return false;
+    RETURN false;
 }
 
 void Thread::SysResumeFromDebug(AppDomain *pAppDomain)
@@ -4311,7 +4371,7 @@ void Thread::SysResumeFromDebug(AppDomain *pAppDomain)
         return;
     }
 
-    LOG((LF_CORDB, LL_INFO1000, "RESUME: starting resume AD:%p.\n", pAppDomain));
+    LOG((LF_CORDB, LL_INFO1000, "RESUME: starting resume AD:0x%x.\n", pAppDomain));
 
 
     // Make sure we completed the previous sync
@@ -4324,7 +4384,7 @@ void Thread::SysResumeFromDebug(AppDomain *pAppDomain)
     {
         // If the user wants to keep the thread suspended, then
         // don't release the thread.
-        if (!(thread->HasDebuggerControlledThreadState(Thread::DCTS_UserSuspend)))
+        if (!(thread->m_StateNC & TSNC_DebuggerUserSuspend))
         {
             // If we are still trying to suspend this thread, forget about it.
             if (thread->m_State & TS_DebugSuspendPending)
@@ -4349,8 +4409,8 @@ void Thread::SysResumeFromDebug(AppDomain *pAppDomain)
         {
             // Thread will remain suspended due to a request from the debugger.
 
-            LOG((LF_CORDB,LL_INFO10000,"Didn't unsuspend thread %p"
-                 "(ID:0x%x)\n", thread, thread->GetThreadId()));
+            LOG((LF_CORDB,LL_INFO10000,"Didn't unsuspend thread 0x%x"
+                "(ID:0x%x)\n", thread, thread->GetThreadId()));
             LOG((LF_CORDB,LL_INFO10000,"Suspending:0x%x\n",
                 thread->m_State & TS_DebugSuspendPending));
             _ASSERTE((thread->m_State & TS_DebugWillSync) == 0);
@@ -4363,9 +4423,9 @@ void Thread::SysResumeFromDebug(AppDomain *pAppDomain)
 
 /*
  *
- * WaitForDebugSuspendHelper
+ * WaitSuspendEventsHelper
  *
- * This function is a simple helper function for WaitForDebugSuspend.  It is needed
+ * This function is a simple helper function for WaitSuspendEvents.  It is needed
  * because of the EX_TRY macro.  This macro does an alloca(), which allocates space
  * off the stack, not free'ing it.  Thus, doing a EX_TRY in a loop can easily result
  * in a stack overflow error.  By factoring out the EX_TRY into a separate function,
@@ -4378,7 +4438,7 @@ void Thread::SysResumeFromDebug(AppDomain *pAppDomain)
  *   true if meant to continue, else false.
  *
  */
-BOOL Thread::WaitForDebugSuspendHelper(void)
+BOOL Thread::WaitSuspendEventsHelper(void)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
@@ -4393,13 +4453,13 @@ BOOL Thread::WaitForDebugSuspendHelper(void)
 
             while (oldState & TS_DebugSuspendPending) {
 
-                ThreadState newState = (ThreadState)(oldState | TS_DebugSyncSuspended);
+                ThreadState newState = (ThreadState)(oldState | TS_SyncSuspended);
                 if (InterlockedCompareExchange((LONG *)&m_State, newState, oldState) == (LONG)oldState)
                 {
                     result = m_DebugSuspendEvent.Wait(INFINITE,FALSE);
 #if _DEBUG
                     newState = m_State;
-                    _ASSERTE(!(newState & TS_DebugSyncSuspended));
+                    _ASSERTE(!(newState & TS_SyncSuspended));
 #endif
                     break;
                 }
@@ -4417,18 +4477,18 @@ BOOL Thread::WaitForDebugSuspendHelper(void)
 
 
 // There's a bit of a workaround here
-void Thread::WaitForDebugSuspend()
+void Thread::WaitSuspendEvents()
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
 
     _ASSERTE(!PreemptiveGCDisabled());
-    _ASSERTE((m_State & TS_DebugSyncSuspended) == 0);
+    _ASSERTE((m_State & TS_SyncSuspended) == 0);
 
     // Let us do some useful work before suspending ourselves.
     while (TRUE)
     {
-        WaitForDebugSuspendHelper();
+        WaitSuspendEventsHelper();
 
         ThreadState oldState = m_State;
 
@@ -4441,7 +4501,7 @@ void Thread::WaitForDebugSuspend()
             //
             // Construct the destination state we desire - all suspension bits turned off.
             //
-            ThreadState newState = (ThreadState)(oldState & ~(TS_DebugSuspendPending | TS_DebugSyncSuspended));
+            ThreadState newState = (ThreadState)(oldState & ~(TS_DebugSuspendPending | TS_SyncSuspended));
 
             if (InterlockedCompareExchange((LONG *)&m_State, newState, oldState) == (LONG)oldState)
             {
@@ -4468,9 +4528,6 @@ struct ExecutionState
     bool            m_IsInterruptible;  // is this code interruptible?
     MethodDesc     *m_pFD;              // current function/method we're executing
     VOID          **m_ppvRetAddrPtr;    // pointer to return address in frame
-#if defined(TARGET_ARM64)
-    VOID           *m_pSpForPacSign;    // stack pointer value that was used to sign LR with PACIASP
-#endif
     DWORD           m_RelOffset;        // relative offset at which we're currently executing in this fcn
     IJitManager    *m_pJitManager;
     METHODTOKEN     m_MethodToken;
@@ -4478,10 +4535,8 @@ struct ExecutionState
     ExecutionState()
     {
         LIMITED_METHOD_CONTRACT;
-#if defined(TARGET_X86)
+#ifdef TARGET_X86
         m_FirstPass = true;
-#elif defined(TARGET_ARM64)
-        m_pSpForPacSign = nullptr;
 #endif
     }
 };
@@ -4544,41 +4599,6 @@ void Thread::HijackThread(ExecutionState *esb X86_ARG(ReturnKind returnKind) X86
     // Remember the place that the return would have gone
     m_pvHJRetAddr = *esb->m_ppvRetAddrPtr;
 
-#if defined(TARGET_ARM64)
-    m_pSpForPacSign = esb->m_pSpForPacSign;
-#endif
-
-#ifndef TARGET_X86
-    // Except for x86, no registers are scanned as part of the HijackFrame on top of the stack.
-    // This still allows scanning of the return value because the registers in question are
-    // scanned as part of the calling method's roots. The problem arises if we are returning to
-    // the interpreter. The return value is not rooted here but also not yet present on the
-    // interpreter frame to have it detected by the GC.
-    PCODE hijackedReturnAddress = (PCODE)(TADDR)m_pvHJRetAddr;
-#if defined(TARGET_ARM64)
-    // We strip the return address here as it's only used for comparison and
-    // not being used to branch execution to.
-    hijackedReturnAddress = (PCODE)PacStripPtr((void*)hijackedReturnAddress);
-#endif // TARGET_ARM64
-
-    if (IsCallDescrWorkerInternalReturnAddress(hijackedReturnAddress))
-    {
-        return;
-    }
-#if defined(FEATURE_INTERPRETER) || defined(_DEBUG)
-    EECodeInfo codeInfo(hijackedReturnAddress);
-    if (!codeInfo.IsValid())
-    {
-#ifndef FEATURE_INTERPRETER
-        _ASSERTE(!"Unknown managed code callsite");
-#endif
-        STRESS_LOG2(LF_SYNC, LL_INFO100, "Thread::HijackThread(%p): Early out - return address %p is not jitted code.\n", this, (void *)hijackedReturnAddress);
-        return;
-    }
-#endif // FEATURE_INTERPRETER || _DEBUG
-
-#endif // !TARGET_X86
-
     IS_VALID_CODE_PTR((FARPROC) (TADDR)m_pvHJRetAddr);
     // TODO [DAVBR]: For the full fix for VsWhidbey 450273, the below
     // may be uncommented once isLegalManagedCodeCaller works properly
@@ -4590,13 +4610,6 @@ void Thread::HijackThread(ExecutionState *esb X86_ARG(ReturnKind returnKind) X86
     m_HijackedFunction = esb->m_pFD;
 
     // Bash the stack to return to one of our stubs
-#if defined(TARGET_ARM64)
-    if (m_pSpForPacSign != nullptr)
-    {
-        pvHijackAddr = PacSignPtr(pvHijackAddr, m_pSpForPacSign);
-    }
-#endif // TARGET_ARM64
-
     *esb->m_ppvRetAddrPtr = pvHijackAddr;
     SetThreadState(TS_Hijacked);
 }
@@ -4660,7 +4673,7 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
             // current EIP for the penultimate stack frame.
             pES->m_ppvRetAddrPtr = (void **) GetRegdisplayPCTAddr(pRDT);
 
-            STRESS_LOG2(LF_SYNC, LL_INFO1000, "Partially Int case hijack address = %p val = %p\n", pES->m_ppvRetAddrPtr, *pES->m_ppvRetAddrPtr);
+            STRESS_LOG2(LF_SYNC, LL_INFO1000, "Partially Int case hijack address = 0x%x val = 0x%x\n", pES->m_ppvRetAddrPtr, *pES->m_ppvRetAddrPtr);
         }
         return action;
     }
@@ -4676,15 +4689,12 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
         pES->m_pFD = pCF->GetFunction();
         pES->m_MethodToken = pCF->GetMethodToken();
         pES->m_ppvRetAddrPtr = 0;
-#if defined(TARGET_ARM64)
-        pES->m_pSpForPacSign = nullptr;
-#endif
         pES->m_IsInterruptible = pCF->IsGcSafe();
         pES->m_RelOffset = pCF->GetRelOffset();
         pES->m_pJitManager = pCF->GetJitManager();
 
         STRESS_LOG3(LF_SYNC, LL_INFO1000, "Stopped in Jitted code at pc = %p sp = %p fullyInt=%d\n",
-            (void*)GetControlPC(pCF->GetRegisterSet()), (void*)GetRegdisplaySP(pCF->GetRegisterSet()), pES->m_IsInterruptible);
+            GetControlPC(pCF->GetRegisterSet()), GetRegdisplaySP(pCF->GetRegisterSet()), pES->m_IsInterruptible);
 
 #if defined(FEATURE_CONSERVATIVE_GC) && !defined(USE_GC_INFO_DECODER)
         if (g_pConfig->GetGCConservative())
@@ -4707,6 +4717,7 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
             // return address for hijacking.
             if (!pES->m_IsInterruptible)
             {
+#ifdef FEATURE_EH_FUNCLETS
                 PREGDISPLAY pRDT = pCF->GetRegisterSet();
                 _ASSERTE(pRDT != NULL);
 
@@ -4782,9 +4793,6 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
                         pES->m_ppvRetAddrPtr = (void **) pRDT->pCallerContextPointers->Ra;
 #else
                         pES->m_ppvRetAddrPtr = (void **) pRDT->pCallerContextPointers->Lr;
-#if defined(TARGET_ARM64)
-                        pES->m_pSpForPacSign = (void *)pRDT->CallerContextSpForPacSign;
-#endif // TARGET_ARM64
 #endif
                     }
 #elif defined(TARGET_X86)
@@ -4797,6 +4805,11 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
                     PORTABILITY_ASSERT("Platform NYI");
 #endif // _TARGET_???_
                 }
+#else // FEATURE_EH_FUNCLETS
+                // peel off the next frame to expose the return address on the stack
+                pES->m_FirstPass = FALSE;
+                action = SWA_CONTINUE;
+#endif // !FEATURE_EH_FUNCLETS
             }
 #endif // HIJACK_NONINTERRUPTIBLE_THREADS
         }
@@ -4805,9 +4818,9 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
     else
     {
 #ifdef TARGET_X86
-        STRESS_LOG2(LF_SYNC, LL_INFO1000, "Not in Jitted code at EIP = %p, &EIP = %p\n", (void*)GetControlPC(pCF->GetRegisterSet()), (void*)GetRegdisplayPCTAddr(pCF->GetRegisterSet()));
+        STRESS_LOG2(LF_SYNC, LL_INFO1000, "Not in Jitted code at EIP = %p, &EIP = %p\n", GetControlPC(pCF->GetRegisterSet()), GetRegdisplayPCTAddr(pCF->GetRegisterSet()));
 #else
-        STRESS_LOG1(LF_SYNC, LL_INFO1000, "Not in Jitted code at pc = %p\n", (void*)GetControlPC(pCF->GetRegisterSet()));
+        STRESS_LOG1(LF_SYNC, LL_INFO1000, "Not in Jitted code at pc = %p\n", GetControlPC(pCF->GetRegisterSet()));
 #endif
         notJittedCase = true;
     }
@@ -4826,12 +4839,9 @@ StackWalkAction SWCB_GetExecutionState(CrawlFrame *pCF, VOID *pData)
     return action;
 }
 
-HijackFrame::HijackFrame(LPVOID returnAddress, Thread *thread, HijackArgs *args ARM64_ARG(LPVOID spForPacSign))
+HijackFrame::HijackFrame(LPVOID returnAddress, Thread *thread, HijackArgs *args)
            : Frame(FrameIdentifier::HijackFrame),
              m_ReturnAddress((TADDR)returnAddress),
-#if defined(TARGET_ARM64)
-             m_SpForPacSign((TADDR)spForPacSign),
-#endif
              m_Thread(thread),
              m_Args(args)
 {
@@ -4862,17 +4872,12 @@ void STDCALL OnHijackWorker(HijackArgs * pArgs)
 
     thread->ResetThreadState(Thread::TS_Hijacked);
 
-    // Keep the actual resume address in the saved LR slot. HijackFrame
-    // authenticates the return address on demand for stackwalk/GC, but
-    // OnHijackTripThread will later return via the saved LR in HijackArgs.
+    // Fix up our caller's stack, so it can resume from the hijack correctly
     pArgs->ReturnAddress = (size_t)thread->m_pvHJRetAddr;
-#if defined(TARGET_ARM64)
-    pArgs->SpForPacSign = (size_t)thread->m_pSpForPacSign;
-#endif // TARGET_ARM64
 
     // Build a frame so that stack crawling can proceed from here back to where
     // we will resume execution.
-    HijackFrame frame(thread->m_pvHJRetAddr, thread, pArgs ARM64_ARG(thread->m_pSpForPacSign));
+    HijackFrame frame((void *)pArgs->ReturnAddress, thread, pArgs);
 
 #ifdef _DEBUG
     BOOL GCOnTransition = FALSE;
@@ -4903,7 +4908,13 @@ static bool GetReturnAddressHijackInfo(EECodeInfo *pCodeInfo X86_ARG(ReturnKind 
 {
     X86_ONLY(*hasAsyncRet = false);
     GCInfoToken gcInfoToken = pCodeInfo->GetGCInfoToken();
-    return pCodeInfo->GetCodeManager()->GetReturnAddressHijackInfo(gcInfoToken X86_ARG(returnKind) X86_ARG(hasAsyncRet));
+    if (!pCodeInfo->GetCodeManager()->GetReturnAddressHijackInfo(gcInfoToken X86_ARG(returnKind)))
+        return false;
+
+    MethodDesc* pMD = pCodeInfo->GetMethodDesc();
+    X86_ONLY(*hasAsyncRet = pMD->IsAsyncMethod());
+
+    return true;
 }
 
 #ifndef TARGET_UNIX
@@ -5372,7 +5383,7 @@ void Thread::UnmarkForSuspension(ULONG mask)
 
 //----------------------------------------------------------------------------
 
-void ThreadSuspend::RestartEE(BOOL SuspendSucceeded)
+void ThreadSuspend::RestartEE(BOOL bFinishedGC, BOOL SuspendSucceeded)
 {
     ThreadSuspend::s_fSuspended = false;
 #ifdef TIME_SUSPEND
@@ -5392,9 +5403,12 @@ void ThreadSuspend::RestartEE(BOOL SuspendSucceeded)
 #endif //TARGET_ARM || TARGET_ARM64
 
     //
-    // SyncClean::CleanUp reclaims resources that are safe to free only
-    // when no threads are running managed code. Since the EE is
-    // suspended at this point, we know it's safe to clean up here.
+    // SyncClean holds a list of things to be cleaned up when it's possible.
+    // SyncClean uses the GC mode to synchronize access to this list.  Threads must be
+    // in COOP mode to add things to the list, and the list can only be cleaned up
+    // while no threads are adding things.
+    // Since we know that no threads are in COOP mode at this point (because the EE is
+    // suspended), we clean up the list here.
     //
     SyncClean::CleanUp();
 
@@ -5679,7 +5693,7 @@ retry_for_debugger:
             "***** Giving up on current GC suspension due to debugger *****\n"));
 
         // Mark that we're done with the gc, so that the debugger can proceed.
-        RestartEE(false /* SuspendSucceeded */);
+        RestartEE(FALSE, FALSE);
 
         LOG((LF_GCROOTS | LF_GC | LF_CORDB, LL_INFO10, "The EE is free now...\n"));
 
@@ -5717,17 +5731,16 @@ retry_for_debugger:
 //          It is unsafe to use blocking APIs or allocate in this method.
 BOOL CheckActivationSafePoint(SIZE_T ip)
 {
-    Thread *pThread = GetThreadAsyncSafe();
+    Thread *pThread = GetThreadNULLOk();
 
     // The criteria for safe activation is to be running managed code.
     // Also we are not interested in handling interruption if we are already in preemptive mode nor if we are single stepping
     BOOL isActivationSafePoint = pThread != NULL &&
         (pThread->m_StateNC & Thread::TSNC_DebuggerIsStepping) == 0 &&
         pThread->PreemptiveGCDisabled() &&
-        (ExecutionManager::GetScanFlags(pThread) != ExecutionManager::ScanReaderLock) &&
-        ExecutionManager::IsManagedCodeNoLock(ip);
+        ExecutionManager::IsManagedCode(ip);
 
-    if (!isActivationSafePoint && pThread != NULL)
+    if (!isActivationSafePoint)
     {
         pThread->m_hasPendingActivation = false;
     }
@@ -5802,7 +5815,6 @@ void HandleSuspensionForInterruptedThread(CONTEXT *interruptedContext)
 
         pThread->PulseGCMode();
 
-        INSTALL_RESUME_AFTER_CATCH_HANDLER_WITH_FRAME(&frame);
         INSTALL_MANAGED_EXCEPTION_DISPATCHER;
         INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
@@ -5810,7 +5822,6 @@ void HandleSuspensionForInterruptedThread(CONTEXT *interruptedContext)
 
         UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
         UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
-        UNINSTALL_RESUME_AFTER_CATCH_HANDLER_WITH_FRAME;
 
         frame.Pop(pThread);
     }
@@ -5850,7 +5861,7 @@ void HandleSuspensionForInterruptedThread(CONTEXT *interruptedContext)
             return;
         }
 
-        // Calling this turns off the GC_TRIGGERS/THROWS contract in LoadTypeHandle.
+        // Calling this turns off the GC_TRIGGERS/THROWS/INJECT_FAULT contract in LoadTypeHandle.
         // We should not trigger any loads for unresolved types.
         ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
 
@@ -5858,6 +5869,7 @@ void HandleSuspensionForInterruptedThread(CONTEXT *interruptedContext)
         // This is necessary to allow the signature parsing functions to work without triggering any loads.
         StackWalkerWalkingThreadHolder threadStackWalking(pThread);
 
+        // Hijack the return address to point to the appropriate routine based on the method's return type.
         pThread->HijackThread(&executionState X86_ARG(returnKind) X86_ARG(hasAsyncRet));
     }
 }
@@ -5931,11 +5943,8 @@ bool Thread::InjectActivation(ActivationReason reason)
             hThread,
             (ULONG_PTR)reason,
             SpecialUserModeApcWithContextFlags);
-    if (!success)
-    {
-        m_hasPendingActivation = false;
-    }
-    return success;
+    _ASSERTE(success);
+    return true;
 #elif defined(TARGET_UNIX)
     _ASSERTE((reason == ActivationReason::SuspendForGC) || (reason == ActivationReason::ThreadAbort) || (reason == ActivationReason::SuspendForDebugger));
 

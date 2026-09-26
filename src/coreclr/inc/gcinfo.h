@@ -37,7 +37,7 @@ const unsigned   this_OFFSET_FLAG  = 0x2;  // the offset is "this"
 // The current GCInfo Version
 //-----------------------------------------------------------------------------
 
-#define GCINFO_VERSION 5
+#define GCINFO_VERSION 4
 
 #ifdef SOS_INCLUDE
 extern bool IsRuntimeVersionAtLeast(DWORD major);
@@ -46,11 +46,7 @@ inline int GCInfoVersion()
     // In SOS we only care about ability to parse/dump the GC Info.
     // Since v2 and v3 had the same file format and v1 is no longer supported,
     // we can assume that everything before net10.0 uses GCInfo v3.
-    if (IsRuntimeVersionAtLeast(11))
-        return 5;
-    if (IsRuntimeVersionAtLeast(10))
-        return 4;
-    return 3;
+    return IsRuntimeVersionAtLeast(10) ? 4 : 3;
 }
 #endif
 
@@ -84,9 +80,6 @@ struct GCInfoToken
     // Keep this in sync with GetR2RGCInfoVersion in cDac (ExecutionManagerCore.ReadyToRunJitManager.cs)
     static uint32_t ReadyToRunVersionToGcInfoVersion(uint32_t readyToRunMajorVersion, uint32_t readyToRunMinorVersion)
     {
-        if (readyToRunMajorVersion >= 21)
-            return 5;
-
         if (readyToRunMajorVersion >= 11)
             return 4;
 

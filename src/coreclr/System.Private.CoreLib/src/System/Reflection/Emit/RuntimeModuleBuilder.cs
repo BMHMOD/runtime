@@ -129,7 +129,7 @@ namespace System.Reflection.Emit
             Debug.Assert(method != null);
 
             RuntimeModuleBuilder thisModule = this;
-            int result = GetMemberRefOfMethodInfo(new QCallModule(ref thisModule), tr, IRuntimeMethodInfo.GetValue(method));
+            int result = GetMemberRefOfMethodInfo(new QCallModule(ref thisModule), tr, ((IRuntimeMethodInfo)method).Value);
             GC.KeepAlive(method);
             return result;
         }
@@ -139,7 +139,7 @@ namespace System.Reflection.Emit
             Debug.Assert(method != null);
 
             RuntimeModuleBuilder thisModule = this;
-            int result = GetMemberRefOfMethodInfo(new QCallModule(ref thisModule), tr, IRuntimeMethodInfo.GetValue(method));
+            int result = GetMemberRefOfMethodInfo(new QCallModule(ref thisModule), tr, ((IRuntimeMethodInfo)method).Value);
             GC.KeepAlive(method);
             return result;
         }

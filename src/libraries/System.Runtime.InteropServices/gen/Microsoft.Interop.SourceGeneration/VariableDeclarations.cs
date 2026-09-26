@@ -24,7 +24,7 @@ namespace Microsoft.Interop
                 if (info.IsManagedReturnPosition)
                     continue;
 
-                if (info.RefKind == RefKind.Out && !info.IsErrorHandlingPosition)
+                if (info.RefKind == RefKind.Out)
                 {
                     initializations.Add(MarshallerHelpers.DefaultInit(info, context));
                 }
@@ -44,21 +44,6 @@ namespace Microsoft.Interop
             {
                 // Declare variables for invoke return value
                 AppendVariableDeclarations(variables, marshallers.NativeReturnMarshaller, context, initializeToDefault: initializeDeclarations);
-            }
-
-            foreach (IBoundMarshallingGenerator errorMarshaller in marshallers.SignatureMarshallers)
-            {
-                TypePositionInfo errorInfo = errorMarshaller.TypeInfo;
-                if (errorInfo is
-                    {
-                        IsErrorHandlingPosition: true,
-                        ManagedIndex: TypePositionInfo.ErrorIndex,
-                    }
-                    && !ReferenceEquals(errorMarshaller, marshallers.NativeReturnMarshaller))
-                {
-                    string managed = context.GetIdentifiers(errorInfo).managed;
-                    variables.Add(Declare(errorInfo.ManagedType.Syntax, managed, initializeDeclarations));
-                }
             }
 
             return new VariableDeclarations
@@ -181,7 +166,7 @@ namespace Microsoft.Interop
 
                     // Declare a separate managed identifier when a separate managed and native identifier is needed
                     // and the marshaller is not the "managed exception" marshaller (whose managed identifier is defined by the catch clause).
-                    if (boundaryBehavior != ValueBoundaryBehavior.ManagedIdentifier && !marshaller.TypeInfo.IsErrorHandlingPosition)
+                    if (boundaryBehavior != ValueBoundaryBehavior.ManagedIdentifier && !marshaller.TypeInfo.IsManagedExceptionPosition)
                     {
                         statementsToUpdate.Add(Declare(
                             marshaller.TypeInfo.ManagedType.Syntax,

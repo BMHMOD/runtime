@@ -3,9 +3,6 @@
 
 // Found by Antigen
 // Reduced from 24.98 KB to 779 B.
-
-namespace Runtime_106380;
-
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.Arm;
 using Xunit;
@@ -22,10 +19,13 @@ public class Runtime_106380
             return;
         }
     }
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestEntryPoint()
     {
-        new Runtime_106380().Method0();
+        if (AdvSimd.IsSupported)
+        {
+            new Runtime_106380().Method0();
+        }
     }
 }
 

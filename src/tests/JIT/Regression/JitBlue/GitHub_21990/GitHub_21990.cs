@@ -573,7 +573,6 @@ public class Test_GitHub_21990
         return (s.i9782 - 16) * x * TestGenericContext<GenericClass<T>>(x - 1);
     }
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/46622", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoInterpreter))]
     [Fact]
     [ActiveIssue("https://github.com/dotnet/runtime/issues/46622", typeof(PlatformDetection), nameof(PlatformDetection.IsAppleMobile))]
     public static int TestEntryPoint()

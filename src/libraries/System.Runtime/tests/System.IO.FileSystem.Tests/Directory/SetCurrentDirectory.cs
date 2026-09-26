@@ -53,7 +53,7 @@ namespace System.IO.Tests
         {
             private static bool CanCreateSymbolicLinksAndRemoteExecutorSupported => MountHelper.CanCreateSymbolicLinks && RemoteExecutor.IsSupported;
 
-            [ConditionalFact(typeof(Directory_SetCurrentDirectory_SymLink), nameof(CanCreateSymbolicLinksAndRemoteExecutorSupported))]
+            [ConditionalFact(nameof(CanCreateSymbolicLinksAndRemoteExecutorSupported))]
             public void SetToPathContainingSymLink()
             {
                 RemoteExecutor.Invoke(() =>

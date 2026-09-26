@@ -13,11 +13,10 @@ using System;
 using System.Runtime.CompilerServices;
 using Xunit;
 
-namespace JitTest_Directed_CheckedCtor_Generic_Test_CSharp_Peer_3
+namespace Test
 {
     public static class App
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {
@@ -40,3 +39,4 @@ namespace JitTest_Directed_CheckedCtor_Generic_Test_CSharp_Peer_3
         private DerivedClass(Func<int> arg) : base(arg) { }
     }
 }
+

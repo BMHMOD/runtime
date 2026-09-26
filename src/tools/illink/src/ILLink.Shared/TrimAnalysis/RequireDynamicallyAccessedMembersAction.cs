@@ -25,22 +25,15 @@ namespace ILLink.Shared.TrimAnalysis
 
             foreach (var uniqueValue in value.AsEnumerable())
             {
-                GenericParameterValue? maybeGenericParam = uniqueValue switch
-                {
-                    GenericParameterValue gpv => gpv,
-                    NullableUnwrappedGenericParameterValue nug => nug.GenericParameter,
-                    _ => null
-                };
-
                 if (targetValue.DynamicallyAccessedMemberTypes == DynamicallyAccessedMemberTypes.PublicParameterlessConstructor
-                    && maybeGenericParam is not null
-                    && maybeGenericParam.GenericParameter.HasDefaultConstructorConstraint())
+                    && uniqueValue is GenericParameterValue genericParam
+                    && genericParam.GenericParameter.HasDefaultConstructorConstraint())
                 {
                     // We allow a new() constraint on a generic parameter to satisfy DynamicallyAccessedMemberTypes.PublicParameterlessConstructor
                 }
                 else if (targetValue.DynamicallyAccessedMemberTypes == DynamicallyAccessedMemberTypes.PublicFields
-                    && maybeGenericParam is not null
-                    && maybeGenericParam.GenericParameter.HasEnumConstraint())
+                    && uniqueValue is GenericParameterValue maybeEnumConstrainedGenericParam
+                    && maybeEnumConstrainedGenericParam.GenericParameter.HasEnumConstraint())
                 {
                     // We allow a System.Enum constraint on a generic parameter to satisfy DynamicallyAccessedMemberTypes.PublicFields
                 }

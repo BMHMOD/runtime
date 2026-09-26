@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b14367
+namespace DefaultNamespace
 {
     //@BEGINRENAME; Verify this renames
     //@ENDRENAME; Verify this renames
@@ -58,7 +58,6 @@ namespace b14367
         internal static V2[] V2Array = new V2[Length];
         //	static V3[] V3Array = new V3[Length];
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

@@ -34,7 +34,6 @@ namespace JitTest
             Console.WriteLine("buffer " + num.ToString() + " is OK");
         }
 
-        [OuterLoop]
         [Fact]
         public static unsafe void TestEntryPoint()
         {

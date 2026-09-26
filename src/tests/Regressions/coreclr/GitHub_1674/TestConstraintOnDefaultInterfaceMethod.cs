@@ -5,13 +5,11 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
-using TestLibrary;
 
 namespace TestConstraint
 {
     public class TestConstraintOnDefaultInterfaceMethod
     {
-        [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
         [Fact]
         public static void TestEntryPoint()
         {

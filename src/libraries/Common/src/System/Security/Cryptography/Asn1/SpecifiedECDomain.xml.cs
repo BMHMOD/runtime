@@ -9,25 +9,14 @@ using System.Runtime.InteropServices;
 namespace System.Security.Cryptography.Asn1
 {
     [StructLayout(LayoutKind.Sequential)]
-    internal ref partial struct ValueSpecifiedECDomain
+    internal partial struct SpecifiedECDomain
     {
         internal int Version;
-        internal System.Security.Cryptography.Asn1.ValueFieldID FieldID;
-        internal System.Security.Cryptography.Asn1.ValueCurveAsn Curve;
-        internal ReadOnlySpan<byte> Base;
-        internal ReadOnlySpan<byte> Order;
-
-        internal ReadOnlySpan<byte> Cofactor
-        {
-            get;
-            set
-            {
-                HasCofactor = true;
-                field = value;
-            }
-        }
-
-        internal bool HasCofactor { get; private set; }
+        internal System.Security.Cryptography.Asn1.FieldID FieldID;
+        internal System.Security.Cryptography.Asn1.CurveAsn Curve;
+        internal ReadOnlyMemory<byte> Base;
+        internal ReadOnlyMemory<byte> Order;
+        internal ReadOnlyMemory<byte>? Cofactor;
         internal string? Hash;
 
         internal readonly void Encode(AsnWriter writer)
@@ -42,12 +31,12 @@ namespace System.Security.Cryptography.Asn1
             writer.WriteInteger(Version);
             FieldID.Encode(writer);
             Curve.Encode(writer);
-            writer.WriteOctetString(Base);
-            writer.WriteInteger(Order);
+            writer.WriteOctetString(Base.Span);
+            writer.WriteInteger(Order.Span);
 
-            if (HasCofactor)
+            if (Cofactor.HasValue)
             {
-                writer.WriteInteger(Cofactor);
+                writer.WriteInteger(Cofactor.Value.Span);
             }
 
 
@@ -66,19 +55,20 @@ namespace System.Security.Cryptography.Asn1
             writer.PopSequence(tag);
         }
 
-        internal static void Decode(ReadOnlySpan<byte> encoded, AsnEncodingRules ruleSet, out ValueSpecifiedECDomain decoded)
+        internal static SpecifiedECDomain Decode(ReadOnlyMemory<byte> encoded, AsnEncodingRules ruleSet)
         {
-            Decode(Asn1Tag.Sequence, encoded, ruleSet, out decoded);
+            return Decode(Asn1Tag.Sequence, encoded, ruleSet);
         }
 
-        internal static void Decode(Asn1Tag expectedTag, ReadOnlySpan<byte> encoded, AsnEncodingRules ruleSet, out ValueSpecifiedECDomain decoded)
+        internal static SpecifiedECDomain Decode(Asn1Tag expectedTag, ReadOnlyMemory<byte> encoded, AsnEncodingRules ruleSet)
         {
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(encoded, ruleSet);
+                AsnValueReader reader = new AsnValueReader(encoded.Span, ruleSet);
 
-                DecodeCore(ref reader, expectedTag, out decoded);
+                DecodeCore(ref reader, expectedTag, encoded, out SpecifiedECDomain decoded);
                 reader.ThrowIfNotEmpty();
+                return decoded;
             }
             catch (AsnContentException e)
             {
@@ -86,16 +76,16 @@ namespace System.Security.Cryptography.Asn1
             }
         }
 
-        internal static void Decode(scoped ref ValueAsnReader reader, out ValueSpecifiedECDomain decoded)
+        internal static void Decode(ref AsnValueReader reader, ReadOnlyMemory<byte> rebind, out SpecifiedECDomain decoded)
         {
-            Decode(ref reader, Asn1Tag.Sequence, out decoded);
+            Decode(ref reader, Asn1Tag.Sequence, rebind, out decoded);
         }
 
-        internal static void Decode(scoped ref ValueAsnReader reader, Asn1Tag expectedTag, out ValueSpecifiedECDomain decoded)
+        internal static void Decode(ref AsnValueReader reader, Asn1Tag expectedTag, ReadOnlyMemory<byte> rebind, out SpecifiedECDomain decoded)
         {
             try
             {
-                DecodeCore(ref reader, expectedTag, out decoded);
+                DecodeCore(ref reader, expectedTag, rebind, out decoded);
             }
             catch (AsnContentException e)
             {
@@ -103,10 +93,12 @@ namespace System.Security.Cryptography.Asn1
             }
         }
 
-        private static void DecodeCore(scoped ref ValueAsnReader reader, Asn1Tag expectedTag, out ValueSpecifiedECDomain decoded)
+        private static void DecodeCore(ref AsnValueReader reader, Asn1Tag expectedTag, ReadOnlyMemory<byte> rebind, out SpecifiedECDomain decoded)
         {
             decoded = default;
-            ValueAsnReader sequenceReader = reader.ReadSequence(expectedTag);
+            AsnValueReader sequenceReader = reader.ReadSequence(expectedTag);
+            ReadOnlySpan<byte> rebindSpan = rebind.Span;
+            int offset;
             ReadOnlySpan<byte> tmpSpan;
 
 
@@ -115,24 +107,25 @@ namespace System.Security.Cryptography.Asn1
                 sequenceReader.ThrowIfNotEmpty();
             }
 
-            System.Security.Cryptography.Asn1.ValueFieldID.Decode(ref sequenceReader, out decoded.FieldID);
-            System.Security.Cryptography.Asn1.ValueCurveAsn.Decode(ref sequenceReader, out decoded.Curve);
+            System.Security.Cryptography.Asn1.FieldID.Decode(ref sequenceReader, rebind, out decoded.FieldID);
+            System.Security.Cryptography.Asn1.CurveAsn.Decode(ref sequenceReader, rebind, out decoded.Curve);
 
             if (sequenceReader.TryReadPrimitiveOctetString(out tmpSpan))
             {
-                decoded.Base = tmpSpan;
+                decoded.Base = rebindSpan.Overlaps(tmpSpan, out offset) ? rebind.Slice(offset, tmpSpan.Length) : tmpSpan.ToArray();
             }
             else
             {
                 decoded.Base = sequenceReader.ReadOctetString();
             }
 
-            decoded.Order = sequenceReader.ReadIntegerBytes();
+            tmpSpan = sequenceReader.ReadIntegerBytes();
+            decoded.Order = rebindSpan.Overlaps(tmpSpan, out offset) ? rebind.Slice(offset, tmpSpan.Length) : tmpSpan.ToArray();
 
             if (sequenceReader.HasData && sequenceReader.PeekTag().HasSameClassAndValue(Asn1Tag.Integer))
             {
-                decoded.Cofactor = sequenceReader.ReadIntegerBytes();
-                decoded.HasCofactor = true;
+                tmpSpan = sequenceReader.ReadIntegerBytes();
+                decoded.Cofactor = rebindSpan.Overlaps(tmpSpan, out offset) ? rebind.Slice(offset, tmpSpan.Length) : tmpSpan.ToArray();
             }
 
 

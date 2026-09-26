@@ -4,7 +4,6 @@
 using Microsoft.Extensions.Configuration;
 using MockHostTypes;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Threading;
@@ -38,7 +37,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.IsAssignableFrom<IServiceProvider>(factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(BuildWebHostInvalidSignature.Program))]
         public void BuildWebHostPattern__Invalid_CantFindWebHost()
         {
@@ -47,7 +46,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.Null(factory);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(BuildWebHostInvalidSignature.Program))]
         public void BuildWebHostPattern__Invalid_CantFindServiceProvider()
         {
@@ -56,7 +55,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.NotNull(factory);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(CreateWebHostBuilderPatternTestSite.Program))]
         public void CreateWebHostBuilderPattern_CanFindWebHostBuilder()
         {
@@ -66,7 +65,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.IsAssignableFrom<IWebHostBuilder>(factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(CreateWebHostBuilderPatternTestSite.Program))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(IWebHost))]
         public void CreateWebHostBuilderPattern_CanFindServiceProvider()
@@ -77,7 +76,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.IsAssignableFrom<IServiceProvider>(factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(CreateWebHostBuilderInvalidSignature.Program))]
         public void CreateWebHostBuilderPattern__Invalid_CantFindWebHostBuilder()
         {
@@ -86,7 +85,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.Null(factory);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(CreateWebHostBuilderInvalidSignature.Program))]
         public void CreateWebHostBuilderPattern__InvalidReturnType_CanFindServiceProvider()
         {
@@ -96,7 +95,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.Null(factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(CreateHostBuilderPatternTestSite.Program))]
         public void CreateHostBuilderPattern_CanFindHostBuilder()
         {
@@ -106,7 +105,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.IsAssignableFrom<IHostBuilder>(factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(CreateHostBuilderPatternTestSite.Program))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(Host))]
         public void CreateHostBuilderPattern_CanFindServiceProvider()
@@ -117,7 +116,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.IsAssignableFrom<IServiceProvider>(factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(CreateHostBuilderInvalidSignature.Program))]
         public void CreateHostBuilderPattern__Invalid_CantFindHostBuilder()
         {
@@ -126,7 +125,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.Null(factory);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(CreateHostBuilderInvalidSignature.Program))]
         public void CreateHostBuilderPattern__Invalid_CantFindServiceProvider()
         {
@@ -136,7 +135,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.Throws<InvalidOperationException>(() => factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NoSpecialEntryPointPattern.Program))]
         public void NoSpecialEntryPointPattern()
         {
@@ -146,7 +145,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.IsAssignableFrom<IServiceProvider>(factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NoSpecialEntryPointPattern.Program))]
         public void NoSpecialEntryPointPatternHostBuilderConfigureHostBuilderCallbackIsCalled()
         {
@@ -164,58 +163,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.True(called);
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
-        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(ArbitraryDiagnosticEventPatternTestSite.Program))]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void ArbitraryActionsCustomEventCallbackIsCalled(bool stopApplication)
-        {
-            using var callbackCalled = new ManualResetEventSlim(false);
-            object? callbackValue = null;
-            void CustomCallback(object? value)
-            {
-                callbackValue = value;
-                callbackCalled.Set();
-            }
-
-            var arbitraryActions = new Dictionary<string, Action<object?>>
-            {
-                ["CustomEvent"] = CustomCallback
-            };
-
-            var factory = HostFactoryResolver.ResolveHostFactory(
-                typeof(ArbitraryDiagnosticEventPatternTestSite.Program).Assembly,
-                waitTimeout: s_WaitTimeout,
-                stopApplication: stopApplication,
-                arbitraryActions: arbitraryActions);
-
-            Assert.NotNull(factory);
-            using var host = Assert.IsAssignableFrom<IHost>(factory(Array.Empty<string>()));
-            Assert.True(callbackCalled.Wait(s_WaitTimeout));
-            Assert.Equal(42, callbackValue);
-        }
-
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
-        [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(ArbitraryDiagnosticEventPatternTestSite.Program))]
-        public void ArbitraryActionsExceptionIsPropagated()
-        {
-            var arbitraryActions = new Dictionary<string, Action<object?>>
-            {
-                ["CustomEvent"] = _ => throw new InvalidOperationException("arbitrary action failed")
-            };
-
-            var factory = HostFactoryResolver.ResolveHostFactory(
-                typeof(ArbitraryDiagnosticEventPatternTestSite.Program).Assembly,
-                waitTimeout: s_WaitTimeout,
-                stopApplication: true,
-                arbitraryActions: arbitraryActions);
-
-            Assert.NotNull(factory);
-            var exception = Assert.Throws<InvalidOperationException>(() => factory(Array.Empty<string>()));
-            Assert.Equal("arbitrary action failed", exception.Message);
-        }
-
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NoSpecialEntryPointPattern.Program))]
         public void NoSpecialEntryPointPatternBuildsThenThrowsCallsEntryPointCompletedCallback()
         {
@@ -235,7 +183,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.Null(entryPointException);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NoSpecialEntryPointPatternBuildsThenThrows.Program))]
         public void NoSpecialEntryPointPatternBuildsThenThrowsCallsEntryPointCompletedCallbackWithException()
         {
@@ -255,7 +203,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.NotNull(entryPointException);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NoSpecialEntryPointPatternThrows.Program))]
         public void NoSpecialEntryPointPatternThrows()
         {
@@ -265,7 +213,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.Throws<Exception>(() => factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NoSpecialEntryPointPatternExits.Program))]
         public void NoSpecialEntryPointPatternExits()
         {
@@ -275,7 +223,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.Throws<InvalidOperationException>(() => factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NoSpecialEntryPointPatternHangs.Program))]
         public void NoSpecialEntryPointPatternHangs()
         {
@@ -285,7 +233,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.Throws<InvalidOperationException>(() => factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NoSpecialEntryPointPatternMainNoArgs.Program))]
         public void NoSpecialEntryPointPatternMainNoArgs()
         {
@@ -295,7 +243,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.IsAssignableFrom<IServiceProvider>(factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, "Program", "TopLevelStatements")]
         public void TopLevelStatements()
         {
@@ -306,7 +254,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.IsAssignableFrom<IServiceProvider>(factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, "Program", "TopLevelStatementsTestsTimeout")]
         public void TopLevelStatementsTestsTimeout()
         {
@@ -317,7 +265,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.Throws<InvalidOperationException>(() => factory(Array.Empty<string>()));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, "Program", "ApplicationNameSetFromArgument")]
         public void ApplicationNameSetFromArgument()
         {
@@ -332,7 +280,7 @@ namespace Microsoft.Extensions.Hosting.Tests
             Assert.Equal("ApplicationNameSetFromArgument", configuration["applicationName"]);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [DynamicDependency(DynamicallyAccessedMemberTypes.All, typeof(NoSpecialEntryPointPattern.Program))]
         public void NoSpecialEntryPointPatternCanRunInParallel()
         {

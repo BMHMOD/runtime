@@ -2,13 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 
 namespace System.Globalization
 {
     public partial class TextInfo
     {
-        private NullableBool _needsTurkishCasing;
+        private Tristate _needsTurkishCasing = Tristate.NotInitialized;
 
         private static bool NeedsTurkishCasing(string localeName)
         {
@@ -28,11 +27,11 @@ namespace System.Globalization
             }
             else
             {
-                if (_needsTurkishCasing == NullableBool.Undefined)
+                if (_needsTurkishCasing == Tristate.NotInitialized)
                 {
-                    _needsTurkishCasing = NeedsTurkishCasing(_textInfoName) ? NullableBool.True : NullableBool.False;
+                    _needsTurkishCasing = NeedsTurkishCasing(_textInfoName) ? Tristate.True : Tristate.False;
                 }
-                if (_needsTurkishCasing == NullableBool.True)
+                if (_needsTurkishCasing == Tristate.True)
                 {
                     Interop.Globalization.ChangeCaseTurkish(src, srcLen, dstBuffer, dstBufferCapacity, bToUpper);
                 }

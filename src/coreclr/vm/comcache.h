@@ -18,7 +18,6 @@
 typedef HRESULT ( __stdcall __RPC_FAR *PFNCTXCALLBACK)(void __RPC_FAR *pParam);
 
 #include <ctxtcall.h>
-#include "cdacdata.h"
 
 //================================================================
 // Forward declarations.
@@ -49,7 +48,6 @@ class CtxEntry
     friend void Delete<CtxEntry>(CtxEntry *);
 #pragma warning(pop)		// restore original warning levels
 
-    friend struct ::cdac_data<CtxEntry>;
 
 private:
     // Disallow creation and deletion of the CtxEntries.
@@ -94,13 +92,6 @@ private:
     Thread*         m_pSTAThread;           // STA thread associated with the context, if any
 };
 
-template<>
-struct cdac_data<CtxEntry>
-{
-    static constexpr size_t STAThread = offsetof(CtxEntry, m_pSTAThread);
-    static constexpr size_t CtxCookie = offsetof(CtxEntry, m_pCtxCookie);
-};
-
 //==============================================================
 // IUnkEntry: represent a single COM component
 struct IUnkEntry
@@ -109,8 +100,6 @@ struct IUnkEntry
     friend CtxEntry;
     // RCW need to access IUnkEntry
     friend RCW;
-    // cdac_data<RCW> needs access to private fields of IUnkEntry
-    friend struct ::cdac_data<RCW>;
 
 #ifdef _DEBUG
     // Does not throw if m_pUnknown is no longer valid, debug only.
@@ -166,7 +155,7 @@ private :
     void Init(IUnknown* pUnk, BOOL bIsFreeThreaded, Thread *pThread DEBUGARG(RCW *pRCW));
 
     // Release the interface pointer held by the IUnkEntry.
-    VOID ReleaseInterface();
+    VOID ReleaseInterface(RCW *pRCW);
 
     // Free the IUnknown entry. ReleaseInterface must have been called.
     VOID Free();
@@ -263,15 +252,6 @@ struct InterfaceEntry
     // will not try and optimize reads and writes to them.
     Volatile<IE_METHODTABLE_PTR> m_pMT;                  // Interface asked for
     Volatile<IUnknown*>          m_pUnknown;             // Result of query
-
-    friend struct ::cdac_data<InterfaceEntry>;
-};
-
-template<>
-struct cdac_data<InterfaceEntry>
-{
-    static constexpr size_t MethodTable = offsetof(InterfaceEntry, m_pMT);
-    static constexpr size_t Unknown = offsetof(InterfaceEntry, m_pUnknown);
 };
 
 class CtxEntryCacheTraits : public DefaultSHashTraits<CtxEntry *>

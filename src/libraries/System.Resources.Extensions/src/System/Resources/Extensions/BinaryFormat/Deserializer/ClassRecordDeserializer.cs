@@ -41,7 +41,12 @@ internal abstract class ClassRecordDeserializer : ObjectRecordDeserializer
             throw new SerializationException(SR.Format(SR.Serialization_TypeNotSerializable, type));
         }
 
-        object @object = RuntimeHelpers.GetUninitializedObject(type);
+        object @object =
+#if NET
+            RuntimeHelpers.GetUninitializedObject(type);
+#else
+            Runtime.Serialization.FormatterServices.GetUninitializedObject(type);
+#endif
 
         // Invoke any OnDeserializing methods.
         SerializationEvents.GetOnDeserializingForType(type, @object)?.Invoke(deserializer.Options.StreamingContext);

@@ -12,10 +12,10 @@ struct AssemblyNameIndex
 {
     LPCUTF8 Name;
     int32_t Index;
-
+    
     AssemblyNameIndex() : Name(NULL), Index(-1) {}
     AssemblyNameIndex(LPCUTF8 name, int32_t index) : Name(name), Index(index) {}
-
+    
     static AssemblyNameIndex GetNull() { return AssemblyNameIndex(); }
     bool IsNull() const { return Index < 0; }
 };
@@ -57,7 +57,6 @@ public:
 };
 
 class ReadyToRunInfo;
-class ReadyToRunLoadedImage;
 class PEAssembly;
 class PEImage;
 
@@ -84,21 +83,21 @@ private:
     AssemblyBinder *m_pAssemblyBinder;
     ReadyToRunInfo *m_pReadyToRunInfo;
     IMDInternalImport *m_pManifestMetadata;
-    ReadyToRunLoadedImage *m_pImageLayout;
+    PEImageLayout *m_pImageLayout;
     PTR_Assembly *m_pNativeMetadataAssemblyRefMap;
     PTR_ModuleBase m_pNativeManifestModule;
-
+    
     IMAGE_DATA_DIRECTORY *m_pComponentAssemblies;
     uint32_t m_componentAssemblyCount;
     uint32_t m_manifestAssemblyCount;
     SHash<AssemblyNameIndexHashTraits> m_assemblySimpleNameToIndexMap;
-
+    
     Crst m_eagerFixupsLock;
     bool m_eagerFixupsHaveRun;
     bool m_readyToRunCodeDisabled;
 
 private:
-    NativeImage(AssemblyBinder *pAssemblyBinder, ReadyToRunLoadedImage *peImageLayout, LPCUTF8 imageFileName);
+    NativeImage(AssemblyBinder *pAssemblyBinder, PEImageLayout *peImageLayout, LPCUTF8 imageFileName);
 
 protected:
     void Initialize(READYTORUN_HEADER *header, LoaderAllocator *loaderAllocator, AllocMemTracker *pamTracker);
@@ -107,11 +106,11 @@ public:
     ~NativeImage();
 
     static NativeImage *Open(
-        const SString& componentModulePath,
+        Module *componentModule,
         LPCUTF8 nativeImageFileName,
         AssemblyBinder *pAssemblyBinder,
         LoaderAllocator *pLoaderAllocator,
-        bool isPlatformNative);
+        /* out */ bool *isNewNativeImage);
 
     Crst *EagerFixupsLock() { return &m_eagerFixupsLock; }
     bool EagerFixupsHaveRun() const { return m_eagerFixupsHaveRun; }
@@ -126,7 +125,7 @@ public:
     AssemblyBinder *GetAssemblyBinder() const { return m_pAssemblyBinder; }
 
     Assembly *LoadManifestAssembly(uint32_t rowid, Assembly *pParentAssembly);
-
+    
     PTR_READYTORUN_CORE_HEADER GetComponentAssemblyHeader(LPCUTF8 assemblySimpleName);
 
     void CheckAssemblyMvid(Assembly *assembly) const;

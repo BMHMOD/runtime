@@ -29,11 +29,22 @@ namespace System
         {
             return handle._value;
         }
+    }
+}
 
-        // Implementation of CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE
-        internal static unsafe RuntimeTypeHandle GetRuntimeTypeHandleFromMethodTable(MethodTable* pMT)
+namespace Internal.Runtime.CompilerHelpers
+{
+    // Needed by the compiler to lower LDTOKEN
+    internal static class LdTokenHelpers
+    {
+        private static RuntimeTypeHandle GetRuntimeTypeHandle(IntPtr pEEType)
         {
-            return new RuntimeTypeHandle(pMT);
+            return new RuntimeTypeHandle(pEEType);
+        }
+
+        private static Type GetRuntimeType(IntPtr pEEType)
+        {
+            return Type.GetTypeFromHandle(new RuntimeTypeHandle(pEEType));
         }
     }
 }

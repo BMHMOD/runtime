@@ -3,11 +3,20 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.TailCallFrame))]
-internal partial class TailCallFrame : IData<TailCallFrame>
+internal class TailCallFrame : IData<TailCallFrame>
 {
-    [FieldAddress]
-    public partial TargetPointer CalleeSavedRegisters { get; }
+    static TailCallFrame IData<TailCallFrame>.Create(Target target, TargetPointer address)
+        => new TailCallFrame(target, address);
 
-    [Field] public partial TargetCodePointer ReturnAddress { get; }
+    public TailCallFrame(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.TailCallFrame);
+        Address = address;
+        CalleeSavedRegisters = address + (ulong)type.Fields[nameof(CalleeSavedRegisters)].Offset;
+        ReturnAddress = target.ReadPointer(address + (ulong)type.Fields[nameof(ReturnAddress)].Offset);
+    }
+
+    public TargetPointer Address { get; }
+    public TargetPointer CalleeSavedRegisters { get; }
+    public TargetPointer ReturnAddress { get; }
 }

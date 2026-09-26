@@ -49,25 +49,21 @@ namespace ILLink.RoslynAnalyzer.TrimAnalysis
         {
             var location = Operation.Syntax.GetLocation();
             var typeNameResolver = new TypeNameResolver(context.Compilation);
+            var genericArgumentDataFlow = new GenericArgumentDataFlow(context, FeatureContext, typeNameResolver, OwningSymbol, location, reportDiagnostic);
 
-            foreach (var analyzer in context.EnabledRequiresAnalyzers)
+            switch (GenericInstantiation)
             {
-                var genericArgumentDataFlow = new GenericArgumentDataFlow(analyzer, FeatureContext, typeNameResolver, OwningSymbol, location, reportDiagnostic);
+                case INamedTypeSymbol type:
+                    genericArgumentDataFlow.ProcessGenericArgumentDataFlow(type);
+                    break;
 
-                switch (GenericInstantiation)
-                {
-                    case INamedTypeSymbol type:
-                        genericArgumentDataFlow.ProcessGenericArgumentDataFlow(type);
-                        break;
+                case IMethodSymbol method:
+                    genericArgumentDataFlow.ProcessGenericArgumentDataFlow(method);
+                    break;
 
-                    case IMethodSymbol method:
-                        genericArgumentDataFlow.ProcessGenericArgumentDataFlow(method);
-                        break;
-
-                    case IFieldSymbol field:
-                        genericArgumentDataFlow.ProcessGenericArgumentDataFlow(field);
-                        break;
-                }
+                case IFieldSymbol field:
+                    genericArgumentDataFlow.ProcessGenericArgumentDataFlow(field);
+                    break;
             }
         }
     }

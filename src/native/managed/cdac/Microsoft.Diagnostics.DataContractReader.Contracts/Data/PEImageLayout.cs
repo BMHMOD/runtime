@@ -3,11 +3,19 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.PEImageLayout))]
-internal sealed partial class PEImageLayout : IData<PEImageLayout>
+internal sealed class PEImageLayout : IData<PEImageLayout>
 {
-    [Field] public partial TargetPointer Base { get; }
-    [Field] public partial uint Size { get; }
-    [Field] public partial uint Flags { get; }
-    [Field] public partial uint Format { get; }
+    static PEImageLayout IData<PEImageLayout>.Create(Target target, TargetPointer address) => new PEImageLayout(target, address);
+    public PEImageLayout(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.PEImageLayout);
+
+        Base = target.ReadPointer(address + (ulong)type.Fields[nameof(Base)].Offset);
+        Size = target.Read<uint>(address + (ulong)type.Fields[nameof(Size)].Offset);
+        Flags = target.Read<uint>(address + (ulong)type.Fields[nameof(Flags)].Offset);
+    }
+
+    public TargetPointer Base { get; init; }
+    public uint Size { get; init; }
+    public uint Flags { get; init; }
 }

@@ -18,7 +18,7 @@ namespace System.Text.Json.Serialization.Converters
             scoped ref ReadStack state,
             out ReadOnlyMemory<T> value)
         {
-            if (reader.TokenType is JsonTokenType.Null && state.Current.ReturnValue is null)
+            if (reader.TokenType is JsonTokenType.Null)
             {
                 value = default;
                 return true;
@@ -55,7 +55,7 @@ namespace System.Text.Json.Serialization.Converters
 
             JsonConverter<T> elementConverter = GetElementConverter(ref state);
 
-            if (elementConverter.CanUseDirectReadOrWrite && state.Current.NumberHandling is null)
+            if (elementConverter.CanUseDirectReadOrWrite && state.Current.NumberHandling == null)
             {
                 // Fast path that avoids validation and extra indirection.
                 for (; index < value.Length; index++)

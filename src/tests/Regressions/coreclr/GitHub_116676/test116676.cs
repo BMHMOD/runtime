@@ -4,7 +4,6 @@ using System;
 using System.Threading;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 public class Test116676
 {
@@ -18,7 +17,6 @@ public class Test116676
             DoesNotExist(null);
     }
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint()
     {

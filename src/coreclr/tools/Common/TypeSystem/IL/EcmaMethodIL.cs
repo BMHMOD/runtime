@@ -3,7 +3,6 @@
 
 using System;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Reflection.Metadata;
 using System.Reflection.Metadata.Ecma335;
 using System.Threading;
@@ -145,21 +144,17 @@ namespace Internal.IL
     public sealed partial class EcmaMethodILScope : MethodILScope
     {
         private readonly EcmaModule _module;
-        private readonly MethodDesc _method;
+        private readonly EcmaMethod _method;
 
-        public static EcmaMethodILScope Create(MethodDesc method)
+        public static EcmaMethodILScope Create(EcmaMethod method)
         {
             return new EcmaMethodILScope(method);
         }
 
-        private EcmaMethodILScope(MethodDesc method)
+        private EcmaMethodILScope(EcmaMethod method)
         {
-            Debug.Assert(method.IsTypicalMethodDefinition);
             _method = method;
-
-            // We allow MethodDesc so that this is usable with e.g. async variants too,
-            // but the owning module needs to be an EcmaModule.
-            _module = ((EcmaType)method.OwningType).Module;
+            _module = method.Module;
         }
 
         public EcmaModule Module

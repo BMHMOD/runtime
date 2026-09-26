@@ -222,7 +222,7 @@ namespace System.Security.Cryptography.Tests
             }
         }
 
-        [Fact]
+        [ConditionalFact(typeof(MLDsaTestHelpers), nameof(MLDsaTestHelpers.SupportsExportingPrivateKeyPkcs8))]
         public void ImportPrivateKey_CannotReconstructSeed()
         {
             byte[] privateKey;
@@ -289,7 +289,7 @@ namespace System.Security.Cryptography.Tests
             Assert.Equal(testCase.ShouldPass, mldsa.VerifyMu(testCase.Mu, testCase.Signature));
         }
 
-        [Theory]
+        [ConditionalTheory(typeof(MLDsaTestHelpers), nameof(MLDsaTestHelpers.SupportsExportingPrivateKeyPkcs8))]
         [MemberData(nameof(MLDsaTestsData.AllPureMLDsaNistTestCases), MemberType = typeof(MLDsaTestsData))]
         public void NistImportPrivateKeyVerifyExportsAndSignature(MLDsaNistTestCase testCase)
         {
@@ -326,7 +326,7 @@ namespace System.Security.Cryptography.Tests
                 export => AssertExportPkcs8FromPublicKey(() => export(mldsa)));
         }
 
-        [Theory]
+        [ConditionalTheory(typeof(MLDsaTestHelpers), nameof(MLDsaTestHelpers.SupportsExportingPrivateKeyPkcs8))]
         [MemberData(nameof(MLDsaTestsData.IetfMLDsaAlgorithms), MemberType = typeof(MLDsaTestsData))]
         public void ImportPrivateKey_Export(MLDsaKeyInfo info)
         {

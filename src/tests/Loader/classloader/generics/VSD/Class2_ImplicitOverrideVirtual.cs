@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 /*
-using TestLibrary;
 We are testing the following scenario:
 
 
@@ -20,7 +19,6 @@ class D<T> : C<T> {virtual methods}
 
 using System;
 using Xunit;
-using TestLibrary;
 
 
 
@@ -253,7 +251,6 @@ public class Test_Class2_ImplicitOverrideVirtual
 
 
 	
- [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
 	[Fact]
 	public static int TestEntryPoint()
 	{

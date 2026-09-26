@@ -11,9 +11,7 @@
 #include "util.hpp"
 #include "mlinfo.h"
 #include "eeconfig.h"
-
-VARTYPE GetVarTypeForTypeHandle(TypeHandle typeHnd);
-MethodTable* GetNativeMethodTableForVarType(VARTYPE vt, MethodTable* pManagedMT);
+#include "olevariant.h"
 
 // Forward references
 class EEClassLayoutInfo;
@@ -96,16 +94,17 @@ public:
 
     PTR_MethodTable GetNestedNativeMethodTable() const
     {
-        CONTRACTL
+        CONTRACT(PTR_MethodTable)
         {
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
             PRECONDITION(IsNestedType());
+            POSTCONDITION(CheckPointer(RETVAL));
         }
-        CONTRACTL_END;
+        CONTRACT_END;
 
-        return nestedTypeAndCount.m_pNestedType;
+        RETURN nestedTypeAndCount.m_pNestedType;
     }
 
     ULONG GetNumElements() const

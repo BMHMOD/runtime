@@ -53,6 +53,9 @@ namespace System.Runtime.CompilerServices
             return obj;
         }
 
+        [MethodImpl(MethodImplOptions.InternalCall)]
+        private static extern void WriteBarrier(ref object? dst, object? obj);
+
         // IsInstanceOf test used for unusual cases (naked type parameters, variant generic types)
         // Unlike the IsInstanceOfInterface and IsInstanceOfClass functions,
         // this test must deal with all kinds of type tests
@@ -451,7 +454,7 @@ namespace System.Runtime.CompilerServices
                 goto notExactMatch;
 
             doWrite:
-                RuntimeHelpers.WriteBarrier(ref element, obj);
+                WriteBarrier(ref element, obj);
                 return;
 
             assigningNull:
@@ -472,7 +475,7 @@ namespace System.Runtime.CompilerServices
             CastResult result = CastCache.TryGet(s_table!, (nuint)RuntimeHelpers.GetMethodTable(obj), (nuint)elementType);
             if (result == CastResult.CanCast)
             {
-                RuntimeHelpers.WriteBarrier(ref element, obj);
+                WriteBarrier(ref element, obj);
                 return;
             }
 
@@ -490,7 +493,7 @@ namespace System.Runtime.CompilerServices
                 ThrowArrayMismatchException();
             }
 
-            RuntimeHelpers.WriteBarrier(ref element, obj2);
+            WriteBarrier(ref element, obj2);
         }
 
         [DebuggerHidden]
@@ -695,9 +698,7 @@ namespace System.Runtime.CompilerServices
 #endif // FEATURE_TYPEEQUIVALENCE
                 )
             {
-                // The JIT passes (target, source) to match Unbox, but ThrowInvalidCastException
-                // takes (source, target) and names them in that order in the message.
-                CastHelpers.ThrowInvalidCastException(pMT2, pMT1);
+                CastHelpers.ThrowInvalidCastException(pMT1, pMT2);
             }
         }
 

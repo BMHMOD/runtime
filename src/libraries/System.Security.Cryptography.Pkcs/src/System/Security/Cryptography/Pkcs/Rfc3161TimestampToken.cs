@@ -294,7 +294,7 @@ namespace System.Security.Cryptography.Pkcs
 
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(encodedBytes.Span, AsnEncodingRules.BER);
+                AsnValueReader reader = new AsnValueReader(encodedBytes.Span, AsnEncodingRules.BER);
                 int bytesActuallyRead = reader.PeekEncodedValue().Length;
 
                 ContentInfoAsn.Decode(

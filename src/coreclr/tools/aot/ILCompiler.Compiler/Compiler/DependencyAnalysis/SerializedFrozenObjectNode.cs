@@ -34,7 +34,6 @@ namespace ILCompiler.DependencyAnalysis
         {
             sb.Append(nameMangler.CompilationUnitPrefix).Append("__FrozenObj_"u8)
                 .Append(nameMangler.GetMangledTypeName(_owningType))
-                .Append('_')
                 .Append(_allocationSiteId.ToStringInvariant());
         }
 

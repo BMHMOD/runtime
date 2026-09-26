@@ -261,6 +261,12 @@ namespace System
         }
 
         [DoesNotReturn]
+        internal static void ThrowArgument_MinGreaterThanMax()
+        {
+            throw new ArgumentException(SR.Argument_MinGreaterThanMax);
+        }
+
+        [DoesNotReturn]
         internal static void ThrowArithmetic_NaN()
         {
             throw new ArithmeticException(SR.Arithmetic_NaN);

@@ -167,7 +167,7 @@ export function mono_jiterp_free_method_data_interp_entry (imethod: number) {
 // FIXME: move this counter into C and make it thread safe
 export function mono_interp_record_interp_entry (imethod: number) {
     // clear the unbox bit
-    imethod = (imethod & ~0x1) >>> 0;
+    imethod = imethod & ~0x1;
 
     const info = infoTable[imethod];
     // This shouldn't happen but it's not worth crashing over
@@ -198,10 +198,6 @@ export function mono_interp_jit_wasm_entry_trampoline (
     // HACK
     if (argumentCount > maxInlineArgs)
         return 0;
-
-    imethod = imethod >>> 0;
-    method = method as any >>> 0 as any;
-    pParamTypes = pParamTypes as any >>> 0 as any;
 
     const info = new TrampolineInfo(
         imethod, method, argumentCount, pParamTypes,
@@ -269,9 +265,10 @@ function flush_wasm_entry_trampoline_jit_queue () {
 
     // If the function signature contains types that need stackval_from_data, that'll use
     //  some constant slots, so make some extra space
+    const constantSlots = (4 * jitQueue.length) + 1;
     let builder = trampBuilder;
     if (!builder) {
-        trampBuilder = builder = new WasmBuilder();
+        trampBuilder = builder = new WasmBuilder(constantSlots);
 
         builder.defineType(
             "unbox",
@@ -306,7 +303,7 @@ function flush_wasm_entry_trampoline_jit_queue () {
             WasmValtype.void, true
         );
     } else
-        builder.clear();
+        builder.clear(constantSlots);
 
     if (builder.options.wasmBytesLimit <= getCounter(JiterpCounter.BytesGenerated)) {
         return;

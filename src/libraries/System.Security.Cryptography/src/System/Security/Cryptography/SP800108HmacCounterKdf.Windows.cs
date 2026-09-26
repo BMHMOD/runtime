@@ -10,11 +10,20 @@ namespace System.Security.Cryptography
 {
     public sealed partial class SP800108HmacCounterKdf : IDisposable
     {
+        private static readonly bool s_isWindows8OrGreater = OperatingSystem.IsWindowsVersionAtLeast(6, 2);
+
         private static partial SP800108HmacCounterKdfImplementationBase CreateImplementation(
             ReadOnlySpan<byte> key,
             HashAlgorithmName hashAlgorithm)
         {
-            return new SP800108HmacCounterKdfImplementationCng(key, hashAlgorithm);
+            if (s_isWindows8OrGreater)
+            {
+                return new SP800108HmacCounterKdfImplementationCng(key, hashAlgorithm);
+            }
+            else
+            {
+                return new SP800108HmacCounterKdfImplementationManaged(key, hashAlgorithm);
+            }
         }
 
         private static partial byte[] DeriveBytesCore(
@@ -25,7 +34,16 @@ namespace System.Security.Cryptography
             int derivedKeyLengthInBytes)
         {
             byte[] result = new byte[derivedKeyLengthInBytes];
-            SP800108HmacCounterKdfImplementationCng.DeriveBytesOneShot(key, hashAlgorithm, label, context, result);
+
+            if (s_isWindows8OrGreater)
+            {
+                SP800108HmacCounterKdfImplementationCng.DeriveBytesOneShot(key, hashAlgorithm, label, context, result);
+            }
+            else
+            {
+                SP800108HmacCounterKdfImplementationManaged.DeriveBytesOneShot(key, hashAlgorithm, label, context, result);
+            }
+
             return result;
         }
 
@@ -36,7 +54,14 @@ namespace System.Security.Cryptography
             ReadOnlySpan<byte> context,
             Span<byte> destination)
         {
-            SP800108HmacCounterKdfImplementationCng.DeriveBytesOneShot(key, hashAlgorithm, label, context, destination);
+            if (s_isWindows8OrGreater)
+            {
+                SP800108HmacCounterKdfImplementationCng.DeriveBytesOneShot(key, hashAlgorithm, label, context, destination);
+            }
+            else
+            {
+                SP800108HmacCounterKdfImplementationManaged.DeriveBytesOneShot(key, hashAlgorithm, label, context, destination);
+            }
         }
 
         private static partial void DeriveBytesCore(
@@ -46,7 +71,14 @@ namespace System.Security.Cryptography
             ReadOnlySpan<char> context,
             Span<byte> destination)
         {
-            SP800108HmacCounterKdfImplementationCng.DeriveBytesOneShot(key, hashAlgorithm, label, context, destination);
+            if (s_isWindows8OrGreater)
+            {
+                SP800108HmacCounterKdfImplementationCng.DeriveBytesOneShot(key, hashAlgorithm, label, context, destination);
+            }
+            else
+            {
+                SP800108HmacCounterKdfImplementationManaged.DeriveBytesOneShot(key, hashAlgorithm, label, context, destination);
+            }
         }
     }
 }

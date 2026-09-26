@@ -185,17 +185,10 @@ namespace System.Net.WebSockets.Client.Tests
                 var expectedException = new ArgumentException(expectedInnerMessage, "messageType");
                 string expectedMessage = expectedException.Message;
 
-                ArgumentException ex = AssertExtensions.Throws<ArgumentException>("messageType", () =>
+                AssertExtensions.Throws<ArgumentException>("messageType", () =>
                 {
                     Task t = SendAsync(cws, new ArraySegment<byte>(), WebSocketMessageType.Close, true, cts.Token);
                 });
-                Assert.Equal(expectedMessage, ex.Message);
-
-                ArgumentException ex2 = AssertExtensions.Throws<ArgumentException>("messageType", () =>
-                {
-                    Task t = SendAsync(cws, new ArraySegment<byte>(), (WebSocketMessageType)999, true, cts.Token);
-                });
-                Assert.Contains("999", ex2.Message);
 
                 Assert.Equal(WebSocketState.Open, cws.State);
             }

@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
@@ -12,11 +13,27 @@ internal static partial class Interop
         [LibraryImport(Libraries.CryptoNative, EntryPoint = "CryptoNative_BigNumDestroy")]
         internal static partial void BigNumDestroy(IntPtr a);
 
+        [LibraryImport(Libraries.CryptoNative, EntryPoint = "CryptoNative_BigNumFromBinary")]
+        private static unsafe partial SafeBignumHandle BigNumFromBinary(ReadOnlySpan<byte> bigEndianValue, int len);
+
         [LibraryImport(Libraries.CryptoNative, EntryPoint = "CryptoNative_BigNumToBinary")]
-        private static partial int BigNumToBinary(SafeBignumHandle a, Span<byte> to);
+        private static unsafe partial int BigNumToBinary(SafeBignumHandle a, byte* to);
 
         [LibraryImport(Libraries.CryptoNative, EntryPoint = "CryptoNative_GetBigNumBytes")]
         private static partial int GetBigNumBytes(SafeBignumHandle a);
+
+        internal static SafeBignumHandle CreateBignum(ReadOnlySpan<byte> bigEndianValue)
+        {
+            SafeBignumHandle ret = BigNumFromBinary(bigEndianValue, bigEndianValue.Length);
+            if (ret.IsInvalid)
+            {
+                Exception e = CreateOpenSslCryptographicException();
+                ret.Dispose();
+                throw e;
+            }
+
+            return ret;
+        }
 
         internal static byte[]? ExtractBignum(IntPtr bignum, int targetSize)
         {
@@ -51,7 +68,12 @@ internal static partial class Interop
             int offset = targetSize - compactSize;
 
             byte[] buf = new byte[targetSize];
-            BigNumToBinary(bignum, buf.AsSpan(offset));
+
+            fixed (byte* to = buf)
+            {
+                byte* start = to + offset;
+                BigNumToBinary(bignum, start);
+            }
 
             return buf;
         }

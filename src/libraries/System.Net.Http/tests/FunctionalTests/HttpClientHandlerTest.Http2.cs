@@ -129,7 +129,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_StreamResetByServerBeforePrefix_RequestFailsWithGoawayProtocolError()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -181,7 +181,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_ZeroLengthResponseBody_Success()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -283,7 +283,7 @@ namespace System.Net.Http.Functional.Tests
             }, new Http2Options() { UseSsl = false });
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_ServerSendsValidSettingsValues_Success()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -315,7 +315,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalTheory(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalTheory(nameof(SupportsAlpn))]
         [InlineData(SettingId.MaxFrameSize, 16383)]
         [InlineData(SettingId.MaxFrameSize, 162777216)]
         [InlineData(SettingId.InitialWindowSize, 0x80000000)]
@@ -335,7 +335,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_StreamResetByServerBeforeHeadersSent_RequestFails()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -354,7 +354,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_IncorrectServerPreface_RequestFailsWithAppropriateHttpProtocolException()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -372,7 +372,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_StreamResetByServerAfterHeadersSent_RequestFails()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -394,7 +394,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_StreamResetByServerAfterHeadersSent_ResponseHeadersRead_ContentThrows()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -419,7 +419,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_StreamResetByServerAfterPartialBodySent_RequestFails()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -443,7 +443,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GetAsync_StreamRefused_RequestIsRetried()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -478,7 +478,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task PostAsync_StreamRefused_RequestIsRetried()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -518,7 +518,7 @@ namespace System.Net.Http.Functional.Tests
         }
 
         [OuterLoop("Uses delays")]
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GetAsync_SettingsFrameNotSentOnNewConnection_ClientApplies100StreamLimit()
         {
             const int DefaultMaxConcurrentStreams = 100;
@@ -569,7 +569,7 @@ namespace System.Net.Http.Functional.Tests
         }
 
         [OuterLoop("Uses delays")]
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GetAsync_ServerDelaysSendingSettingsThenSetsLowerMaxConcurrentStreamsLimitThenIncreaseIt_ClientAppliesEachLimitChangeProperly()
         {
             const int DefaultMaxConcurrentStreams = 100;
@@ -629,7 +629,7 @@ namespace System.Net.Http.Functional.Tests
         }
 
         [OuterLoop("Uses delays")]
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GetAsync_ServerSendSettingsWithoutMaxConcurrentStreams_ClientAppliesInfiniteLimit()
         {
             const int DefaultMaxConcurrentStreams = 100;
@@ -687,52 +687,10 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalTheory(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
-        [InlineData(false)] // server disconnects without sending SETTINGS
-        [InlineData(true)]  // server sends GOAWAY instead of SETTINGS
-        public async Task ServerDisconnectDuringSetup_PropagatesMeaningfulException(bool sendGoAway)
-        {
-            using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
-            using (HttpClient client = CreateHttpClient())
-            {
-                Task<HttpResponseMessage> sendTask = client.GetAsync(server.Address);
-
-                // Accept connection and read client preface, but do NOT send SETTINGS.
-                Http2LoopbackConnection connection = await server.AcceptConnectionAsync();
-
-                if (sendGoAway)
-                {
-                    // Send GOAWAY instead of SETTINGS, then shut down.
-                    await connection.SendGoAway(0, ProtocolErrors.ENHANCE_YOUR_CALM);
-                    await connection.ShutdownSendAsync();
-
-                    // The client should throw HttpRequestException(HttpProtocolError) wrapping
-                    // HttpProtocolException with the GOAWAY error code.
-                    await AssertProtocolErrorAsync(sendTask, ProtocolErrors.ENHANCE_YOUR_CALM);
-                }
-                else
-                {
-                    // Immediately shut down the connection without sending SETTINGS.
-                    // This simulates a server-side disconnect during HTTP/2 setup.
-                    await connection.ShutdownSendAsync();
-
-                    // The client should throw HttpRequestException(InvalidResponse) wrapping
-                    // HttpIOException(InvalidResponse) -> HttpIOException(ResponseEnded),
-                    // indicating the server disconnected before sending SETTINGS.
-                    HttpRequestException ex = await Assert.ThrowsAsync<HttpRequestException>(() => sendTask);
-                    Assert.Equal(HttpRequestError.InvalidResponse, ex.HttpRequestError);
-                    HttpIOException httpIoEx = Assert.IsAssignableFrom<HttpIOException>(ex.InnerException);
-                    Assert.Equal(HttpRequestError.InvalidResponse, httpIoEx.HttpRequestError);
-                    HttpIOException innerHttpIoEx = Assert.IsAssignableFrom<HttpIOException>(httpIoEx.InnerException);
-                    Assert.Equal(HttpRequestError.ResponseEnded, innerHttpIoEx.HttpRequestError);
-                }
-            }
-        }
-
         // This test is based on RFC 7540 section 6.1:
         // "If a DATA frame is received whose stream identifier field is 0x0, the recipient MUST
         // respond with a connection error (Section 5.4.1) of type PROTOCOL_ERROR."
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task DataFrame_NoStream_ConnectionError()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -758,7 +716,7 @@ namespace System.Net.Http.Functional.Tests
         // This test is based on RFC 7540 section 5.1:
         // "Receiving any frame other than HEADERS or PRIORITY on a stream in this state MUST
         // be treated as a connection error (Section 5.4.1) of type PROTOCOL_ERROR."
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task DataFrame_IdleStream_ConnectionError()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -784,7 +742,7 @@ namespace System.Net.Http.Functional.Tests
         // The spec does not clearly define how a client should behave when it receives unsolicited
         // headers from the server on an idle stream. We fall back to treating this as a connection
         // level error, as we do for other unexpected frames on idle streams.
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task HeadersFrame_IdleStream_ConnectionError()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -851,7 +809,7 @@ namespace System.Net.Http.Functional.Tests
                 (endStream ? FrameFlags.EndStream : FrameFlags.None),
                 0, streamId);
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task ResponseStreamFrames_ContinuationBeforeHeaders_ConnectionError()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -871,7 +829,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task ResponseStreamFrames_DataBeforeHeaders_ConnectionError()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -891,7 +849,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task ResponseStreamFrames_HeadersAfterHeadersWithoutEndHeaders_ConnectionError()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -912,7 +870,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task ResponseStreamFrames_HeadersAfterHeadersAndContinuationWithoutEndHeaders_ConnectionError()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -934,7 +892,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task ResponseStreamFrames_DataAfterHeadersWithoutEndHeaders_ConnectionError()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -955,7 +913,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task ResponseStreamFrames_DataAfterHeadersAndContinuationWithoutEndHeaders_ConnectionError()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -980,7 +938,7 @@ namespace System.Net.Http.Functional.Tests
         // This test is based on RFC 7540 section 6.8:
         // "An endpoint MUST treat a GOAWAY frame with a stream identifier other than 0x0 as a
         // connection error (Section 5.4.1) of type PROTOCOL_ERROR."
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GoAwayFrame_NonzeroStream_ConnectionError()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -1003,7 +961,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GoAwayFrame_NewRequest_NewConnection()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -1034,7 +992,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GoAwayFrame_ServerDisconnect_AbortStreams()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -1061,7 +1019,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GoAwayFrame_RequestWithBody_ServerDisconnect_AbortStreamsAndThrowIOException()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -1093,7 +1051,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GoAwayFrame_RequestServerDisconnects_ThrowsHttpProtocolExceptionWithProperErrorCode()
         {
             await Http2LoopbackServer.CreateClientAndServerAsync(async uri =>
@@ -1119,11 +1077,11 @@ namespace System.Net.Http.Functional.Tests
 
                 // Server sends GOAWAY frame
                 await connection.SendGoAway(streamId, ProtocolErrors.ENHANCE_YOUR_CALM);
-                await connection.ShutdownSendAsync();
+                connection.ShutdownSend();
             });
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GoAwayFrame_UnprocessedStreamFirstRequestFinishedFirst_RequestRestarted()
         {
             // This test case is similar to GoAwayFrame_UnprocessedStreamFirstRequestWaitsUntilSecondFinishes_RequestRestarted
@@ -1168,7 +1126,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GoAwayFrame_UnprocessedStreamFirstRequestWaitsUntilSecondFinishes_RequestRestarted()
         {
             using (await Watchdog.CreateAsync())
@@ -1210,7 +1168,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GoAwayFrame_RequestInFlight_Finished()
         {
             await Http2LoopbackServer.CreateClientAndServerAsync(async uri =>
@@ -1255,7 +1213,7 @@ namespace System.Net.Http.Functional.Tests
                 });
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task DataFrame_TooLong_ConnectionError()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -1275,7 +1233,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalTheory(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalTheory(nameof(SupportsAlpn))]
         [InlineData(true)]
         [InlineData(false)]
         public async Task CompletedResponse_FrameReceived_Ignored(bool sendDataFrame)
@@ -1308,7 +1266,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalTheory(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalTheory(nameof(SupportsAlpn))]
         [InlineData(true)]
         [InlineData(false)]
         public async Task EmptyResponse_FrameReceived_Ignored(bool sendDataFrame)
@@ -1338,7 +1296,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task CompletedResponse_WindowUpdateFrameReceived_Success()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -1407,7 +1365,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalTheory(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalTheory(nameof(SupportsAlpn))]
         [MemberData(nameof(ValidAndInvalidProtocolErrorsAndBool))]
         public async Task ResetResponseStream_FrameReceived_Ignored(ProtocolErrors error, bool dataFrame)
         {
@@ -1465,7 +1423,7 @@ namespace System.Net.Http.Functional.Tests
             return (streamId, connection);
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GoAwayFrame_NoPendingStreams_ConnectionClosed()
         {
             using (await Watchdog.CreateAsync())
@@ -1486,7 +1444,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GoAwayFrame_AllPendingStreamsValid_RequestsSucceedAndConnectionClosed()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -1529,7 +1487,7 @@ namespace System.Net.Http.Functional.Tests
                 await connection.SendResponseDataAsync(streamId3, new byte[5], endStream: true);
 
                 // We will not send any more frames, so send EOF now, and ensure the client handles this properly.
-                await connection.ShutdownSendAsync();
+                connection.ShutdownSend();
 
                 // Receive all responses
                 HttpResponseMessage response1 = await sendTask1;
@@ -1550,7 +1508,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task GoAwayFrame_AbortAllPendingStreams_StreamFailWithExpectedException()
         {
             using (await Watchdog.CreateAsync())
@@ -1658,7 +1616,7 @@ namespace System.Net.Http.Functional.Tests
         }
 
         [OuterLoop("Uses Task.Delay")]
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_FlowControl_ClientDoesNotExceedWindows()
         {
             const int ContentSize = 100_000;
@@ -1750,7 +1708,7 @@ namespace System.Net.Http.Functional.Tests
         }
 
         [OuterLoop("Uses Task.Delay")]
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_InitialWindowSize_ClientDoesNotExceedWindows()
         {
             const int ContentSize = DefaultInitialWindowSize + 1000;
@@ -1862,7 +1820,7 @@ namespace System.Net.Http.Functional.Tests
 
         // Flush behavior is heuristic-based and may change in the future.
         // Try various content sizes here to ensure we are not simply getting lucky with the flush heuristic.
-        [ConditionalTheory(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalTheory(nameof(SupportsAlpn))]
         [InlineData(DefaultInitialWindowSize + 1)]
         [InlineData(DefaultInitialWindowSize + 4 * 1024)]
         [InlineData(DefaultInitialWindowSize + 8 * 1024)]
@@ -1915,7 +1873,7 @@ namespace System.Net.Http.Functional.Tests
 
         // Flush behavior is heuristic-based and may change in the future.
         // Try various content sizes here to ensure we are not simply getting lucky with the flush heuristic.
-        [ConditionalTheory(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalTheory(nameof(SupportsAlpn))]
         [InlineData(DefaultInitialWindowSize + 1)]
         [InlineData(DefaultInitialWindowSize + 4 * 1024)]
         [InlineData(DefaultInitialWindowSize + 8 * 1024)]
@@ -1970,7 +1928,7 @@ namespace System.Net.Http.Functional.Tests
         }
 
         [OuterLoop("Uses Task.Delay")]
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_MaxConcurrentStreams_LimitEnforced()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -2038,7 +1996,7 @@ namespace System.Net.Http.Functional.Tests
         }
 
         [OuterLoop("Uses Task.Delay")]
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_WaitingForStream_Cancellation()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -2087,7 +2045,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_WaitingOnWindowCredit_Cancellation()
         {
             // The goal of this test is to get the client into the state where it has sent the headers,
@@ -2133,7 +2091,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_PendingSend_Cancellation()
         {
             // The goal of this test is to get the client into the state where it is sending content,
@@ -2168,7 +2126,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalTheory(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalTheory(nameof(SupportsAlpn))]
         [OuterLoop("Uses Task.Delay")]
         [InlineData(false)]
         [InlineData(true)]
@@ -2310,7 +2268,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2Connection_Should_Wrap_HttpContent_InvalidOperationException()
         {
             // test for https://github.com/dotnet/runtime/issues/30187
@@ -2337,7 +2295,7 @@ namespace System.Net.Http.Functional.Tests
             });
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2Connection_Should_Not_Wrap_HttpContent_CustomException()
         {
             // Assert existing HttpConnection behaviour in which custom HttpContent exception types are surfaced as-is
@@ -3406,7 +3364,7 @@ namespace System.Net.Http.Functional.Tests
             });
         }
 
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2_ProtocolMismatch_Throws()
         {
             HttpClientHandler handler = CreateHttpClientHandler(allowAllCertificates: true);
@@ -3440,7 +3398,7 @@ namespace System.Net.Http.Functional.Tests
         }
 
         // rfc7540 8.1.2.3.
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2GetAsync_MultipleStatusHeaders_Throws()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -3457,7 +3415,7 @@ namespace System.Net.Http.Functional.Tests
         }
 
         // rfc7540 8.1.2.3.
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2GetAsync_StatusHeaderNotFirst_Throws()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -3475,7 +3433,7 @@ namespace System.Net.Http.Functional.Tests
         }
 
         // rfc7540 8.1.2.3.
-        [ConditionalFact(typeof(HttpClientHandlerTest_Http2), nameof(SupportsAlpn))]
+        [ConditionalFact(nameof(SupportsAlpn))]
         public async Task Http2GetAsync_TrailigPseudo_Throw()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())

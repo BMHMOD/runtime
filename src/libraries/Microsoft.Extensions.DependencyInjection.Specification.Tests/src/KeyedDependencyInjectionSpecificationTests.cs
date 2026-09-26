@@ -1139,7 +1139,7 @@ namespace Microsoft.Extensions.DependencyInjection.Specification
             public object GetService(Type serviceType) => throw new NotImplementedException();
         }
 
-#if NET
+#if NET10_0_OR_GREATER
         [Fact]
         public void ResolveKeyedServiceWithFromServiceKeyAttribute()
         {

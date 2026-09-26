@@ -9,10 +9,10 @@ using System.Runtime.InteropServices;
 namespace System.Security.Cryptography.Asn1
 {
     [StructLayout(LayoutKind.Sequential)]
-    internal ref partial struct ValueRSAPublicKeyAsn
+    internal partial struct RSAPublicKeyAsn
     {
-        internal ReadOnlySpan<byte> Modulus;
-        internal ReadOnlySpan<byte> PublicExponent;
+        internal ReadOnlyMemory<byte> Modulus;
+        internal ReadOnlyMemory<byte> PublicExponent;
 
         internal readonly void Encode(AsnWriter writer)
         {
@@ -23,24 +23,25 @@ namespace System.Security.Cryptography.Asn1
         {
             writer.PushSequence(tag);
 
-            writer.WriteInteger(Modulus);
-            writer.WriteInteger(PublicExponent);
+            writer.WriteInteger(Modulus.Span);
+            writer.WriteInteger(PublicExponent.Span);
             writer.PopSequence(tag);
         }
 
-        internal static void Decode(ReadOnlySpan<byte> encoded, AsnEncodingRules ruleSet, out ValueRSAPublicKeyAsn decoded)
+        internal static RSAPublicKeyAsn Decode(ReadOnlyMemory<byte> encoded, AsnEncodingRules ruleSet)
         {
-            Decode(Asn1Tag.Sequence, encoded, ruleSet, out decoded);
+            return Decode(Asn1Tag.Sequence, encoded, ruleSet);
         }
 
-        internal static void Decode(Asn1Tag expectedTag, ReadOnlySpan<byte> encoded, AsnEncodingRules ruleSet, out ValueRSAPublicKeyAsn decoded)
+        internal static RSAPublicKeyAsn Decode(Asn1Tag expectedTag, ReadOnlyMemory<byte> encoded, AsnEncodingRules ruleSet)
         {
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(encoded, ruleSet);
+                AsnValueReader reader = new AsnValueReader(encoded.Span, ruleSet);
 
-                DecodeCore(ref reader, expectedTag, out decoded);
+                DecodeCore(ref reader, expectedTag, encoded, out RSAPublicKeyAsn decoded);
                 reader.ThrowIfNotEmpty();
+                return decoded;
             }
             catch (AsnContentException e)
             {
@@ -48,16 +49,16 @@ namespace System.Security.Cryptography.Asn1
             }
         }
 
-        internal static void Decode(scoped ref ValueAsnReader reader, out ValueRSAPublicKeyAsn decoded)
+        internal static void Decode(ref AsnValueReader reader, ReadOnlyMemory<byte> rebind, out RSAPublicKeyAsn decoded)
         {
-            Decode(ref reader, Asn1Tag.Sequence, out decoded);
+            Decode(ref reader, Asn1Tag.Sequence, rebind, out decoded);
         }
 
-        internal static void Decode(scoped ref ValueAsnReader reader, Asn1Tag expectedTag, out ValueRSAPublicKeyAsn decoded)
+        internal static void Decode(ref AsnValueReader reader, Asn1Tag expectedTag, ReadOnlyMemory<byte> rebind, out RSAPublicKeyAsn decoded)
         {
             try
             {
-                DecodeCore(ref reader, expectedTag, out decoded);
+                DecodeCore(ref reader, expectedTag, rebind, out decoded);
             }
             catch (AsnContentException e)
             {
@@ -65,13 +66,18 @@ namespace System.Security.Cryptography.Asn1
             }
         }
 
-        private static void DecodeCore(scoped ref ValueAsnReader reader, Asn1Tag expectedTag, out ValueRSAPublicKeyAsn decoded)
+        private static void DecodeCore(ref AsnValueReader reader, Asn1Tag expectedTag, ReadOnlyMemory<byte> rebind, out RSAPublicKeyAsn decoded)
         {
             decoded = default;
-            ValueAsnReader sequenceReader = reader.ReadSequence(expectedTag);
+            AsnValueReader sequenceReader = reader.ReadSequence(expectedTag);
+            ReadOnlySpan<byte> rebindSpan = rebind.Span;
+            int offset;
+            ReadOnlySpan<byte> tmpSpan;
 
-            decoded.Modulus = sequenceReader.ReadIntegerBytes();
-            decoded.PublicExponent = sequenceReader.ReadIntegerBytes();
+            tmpSpan = sequenceReader.ReadIntegerBytes();
+            decoded.Modulus = rebindSpan.Overlaps(tmpSpan, out offset) ? rebind.Slice(offset, tmpSpan.Length) : tmpSpan.ToArray();
+            tmpSpan = sequenceReader.ReadIntegerBytes();
+            decoded.PublicExponent = rebindSpan.Overlaps(tmpSpan, out offset) ? rebind.Slice(offset, tmpSpan.Length) : tmpSpan.ToArray();
 
             sequenceReader.ThrowIfNotEmpty();
         }

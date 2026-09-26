@@ -4,15 +4,10 @@
 #ifndef __APPHOST_WINDOWS_H__
 #define __APPHOST_WINDOWS_H__
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-void apphost_buffer_errors(void);
-void apphost_write_buffered_errors(int error_code);
-
-#ifdef __cplusplus
+namespace apphost
+{
+    void buffer_errors();
+    void write_buffered_errors(int error_code);
 }
-#endif
 
 #endif // __APPHOST_WINDOWS_H__

@@ -8,7 +8,6 @@ internal static partial class Interop
 {
     internal static partial class Dsrole
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Dsrole)]
         public static partial int DsRoleFreeMemory(IntPtr buffer);
     }

@@ -3,7 +3,7 @@
 
 using System;
 using System.IO;
-using System.Text.RegularExpressions;
+using System.Net.WebSockets;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
@@ -71,6 +71,28 @@ internal sealed class DevServerStartup
 
         app.UseWebSockets();
 
+        if (options.OnConsoleConnected is not null)
+        {
+            app.Use(async (ctx, next) =>
+            {
+                if (ctx.Request.Path.StartsWithSegments("/console"))
+                {
+                    if (!ctx.WebSockets.IsWebSocketRequest)
+                    {
+                        ctx.Response.StatusCode = 400;
+                        return;
+                    }
+
+                    using WebSocket socket = await ctx.WebSockets.AcceptWebSocketAsync();
+                    await options.OnConsoleConnected(socket);
+                }
+                else
+                {
+                    await next(ctx);
+                }
+            });
+        }
+
         app.UseEndpoints(endpoints =>
         {
             endpoints.MapStaticAssets(options.StaticWebAssetsEndpointsPath);
@@ -97,22 +119,12 @@ internal sealed class DevServerStartup
 
             // Add general-purpose file upload endpoint when DEVSERVER_UPLOAD_PATH is set
             string? fileUploadPath = Environment.GetEnvironmentVariable("DEVSERVER_UPLOAD_PATH");
-            string? fileUploadPattern = Environment.GetEnvironmentVariable("DEVSERVER_UPLOAD_PATTERN");
-            if (!string.IsNullOrEmpty(fileUploadPath) && !string.IsNullOrEmpty(fileUploadPattern))
+            if (!string.IsNullOrEmpty(fileUploadPath))
             {
                 // Ensure the upload directory exists
                 if (!Directory.Exists(fileUploadPath))
                 {
                     Directory.CreateDirectory(fileUploadPath!);
-                }
-                Regex fileFilter;
-                try
-                {
-                    fileFilter = new Regex(fileUploadPattern!, RegexOptions.Compiled | RegexOptions.CultureInvariant);
-                }
-                catch (Exception ex)
-                {
-                    throw new InvalidOperationException($"DEVSERVER_UPLOAD_PATTERN value '{fileUploadPattern}' is not a valid regular expression: {ex.Message}", ex);
                 }
 
                 // Route with filename parameter
@@ -124,12 +136,10 @@ internal sealed class DevServerStartup
                         var routeValues = context.Request.RouteValues;
                         string? rawFileName = routeValues["filename"]?.ToString();
 
-                        // skip upload if no name provided or invalid
-                        if (string.IsNullOrEmpty(rawFileName) || !fileFilter.IsMatch(rawFileName!))
+                        // Generate a unique name if none provided
+                        if (string.IsNullOrEmpty(rawFileName))
                         {
-                            context.Response.StatusCode = 403; // Forbidden
-                            await context.Response.WriteAsync("Invalid or missing filename for upload.");
-                            return;
+                            rawFileName = $"upload_{Guid.NewGuid():N}";
                         }
 
                         // Sanitize filename - IMPORTANT: Only use GetFileName to strip any path components

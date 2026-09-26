@@ -52,7 +52,7 @@ namespace Mono.Linker
                 return false;
 
             typeResolutionRecords = new List<TypeResolutionRecord>();
-            typeReference = ResolveTypeName(referencingAssembly, parsedTypeName, typeResolutionRecords, fallbackToCoreLib: true);
+            typeReference = ResolveTypeName(referencingAssembly, parsedTypeName, typeResolutionRecords);
             return typeReference != null;
 
             static bool IsFullyQualified(TypeName typeName)

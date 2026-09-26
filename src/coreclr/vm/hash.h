@@ -119,11 +119,51 @@ public:
 //------------------------------------------------------------------------------
 typedef  BOOL (*CompareFnPtr)(UPTR,UPTR);
 
-class ComparePtr final
+class Compare
 {
+protected:
+    Compare()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        m_ptr = NULL;
+    }
 public:
     CompareFnPtr m_ptr;
 
+    Compare(CompareFnPtr ptr)
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        _ASSERTE(ptr != NULL);
+        m_ptr = ptr;
+    }
+
+    virtual ~Compare()
+    {
+        LIMITED_METHOD_CONTRACT;
+    }
+
+    virtual UPTR CompareHelper(UPTR val1, UPTR storedval)
+    {
+        WRAPPER_NO_CONTRACT;
+
+#ifndef _DEBUG
+        CONTRACTL
+        {
+            DISABLED(THROWS);       // This is not a bug, we cannot decide, since the function ptr called may be either.
+            DISABLED(GC_NOTRIGGER); // This is not a bug, we cannot decide, since the function ptr called may be either.
+        }
+        CONTRACTL_END;
+#endif // !_DEBUG
+
+        return (*m_ptr)(val1,storedval);
+    }
+};
+
+class ComparePtr : public Compare
+{
+public:
     ComparePtr (CompareFnPtr ptr)
     {
         LIMITED_METHOD_CONTRACT;
@@ -132,7 +172,7 @@ public:
         m_ptr = ptr;
     }
 
-    UPTR CompareHelper(UPTR val1, UPTR storedval)
+    virtual UPTR CompareHelper(UPTR val1, UPTR storedval)
     {
         WRAPPER_NO_CONTRACT;
 
@@ -203,18 +243,29 @@ public:
     {
         WRAPPER_NO_CONTRACT;
 
-        Init(0, fAsyncMode, pLock);
+        Init(0, (Compare *)NULL,fAsyncMode, pLock);
     }
     // Init
     void Init(DWORD cbInitialSize, BOOL fAsyncMode, LockOwner *pLock)
     {
         WRAPPER_NO_CONTRACT;
 
-        Init(cbInitialSize, (ComparePtr*)NULL, fAsyncMode, pLock);
+        Init(cbInitialSize, (Compare*)NULL, fAsyncMode, pLock);
+    }
+    // Init
+    void Init(CompareFnPtr ptr, BOOL fAsyncMode, LockOwner *pLock)
+    {
+        WRAPPER_NO_CONTRACT;
+
+        Init(0, ptr, fAsyncMode, pLock);
     }
 
+    // Init method
+    void Init(DWORD cbInitialSize, CompareFnPtr ptr, BOOL fAsyncMode, LockOwner *pLock);
+
+
     //Init method
-    void Init(DWORD cbInitialSize, ComparePtr* pCompare, BOOL fAsyncMode, LockOwner *pLock);
+    void Init(DWORD cbInitialSize, Compare* pCompare, BOOL fAsyncMode, LockOwner *pLock);
 
     // check to see if the value is already in the Hash Table
     // key should be > DELETED
@@ -228,13 +279,19 @@ public:
 
     void InsertValue(UPTR key, UPTR value);
 
+    // Replace the value if present
+    // returns the previous value, or INVALIDENTRY if not present
+    // does not insert a new value under any circumstances
+
+    UPTR ReplaceValue(UPTR key, UPTR value);
+
     // mark the entry as deleted and return the stored value
     // returns INVALIDENTRY, if not found
     UPTR DeleteValue (UPTR key, UPTR value);
 
     // for unique keys, use this function to get the value that is
     // stored in the hash table, returns INVALIDENTRY if key not found
-    UPTR LookupValueByUniqueKey(UPTR key);
+    UPTR Gethash(UPTR key);
 
     // Called only when all threads are frozed, like during GC
     // for a SINGLE user mode, call compact after every delete
@@ -290,9 +347,11 @@ private:
 
     // compute the new size, based on the number of free slots
     // available, compact or expand
-    UPTR            NewSize() const;
+    UPTR            NewSize();
     // create a new bucket array and rehash the non-deleted entries
     void            Rehash();
+    static DWORD    GetSize(PTR_Bucket rgBuckets);
+    static void     SetSize(Bucket* rgBuckets, size_t size);
     PTR_Bucket      Buckets();
     UPTR            CompareValues(const UPTR value1, const UPTR value2);
 
@@ -300,7 +359,7 @@ private:
     // H(key, i) = H1(key) + i * H2(key), where 0 <= i < numBuckets
     static void     HashFunction(const UPTR key, const UINT numBuckets, UINT &seed, UINT &incr);
 
-    ComparePtr*     m_pCompare;         // compare object to be used in lookup
+    Compare*        m_pCompare;         // compare object to be used in lookup
     SIZE_T          m_iPrimeIndex;      // current size (index into prime array)
     PTR_Bucket      m_rgBuckets;        // array of buckets
 
@@ -572,6 +631,30 @@ public:
         m_HashMap.InsertValue (key, value);
     }
 
+    // Replace the value if present
+    // returns the previous value, or INVALIDENTRY if not present
+    // does not insert a new value under any circumstances
+
+    LPVOID ReplaceValue(UPTR key, LPVOID pv)
+    {
+        WRAPPER_NO_CONTRACT;
+
+        key = SanitizeKey(key);
+
+        // gmalloc allocator, always allocates 8 byte aligned
+        // so we can shift out the lowest bit
+        // ptr right shift by 1
+        UPTR value = (UPTR)pv;
+        _ASSERTE((value & 0x1) == 0);
+        value>>=1;
+        UPTR val = m_HashMap.ReplaceValue (key, value);
+        if (val != (UPTR) INVALIDENTRY)
+        {
+            val<<=1;
+        }
+        return (LPVOID)val;
+    }
+
     // mark the entry as deleted and return the stored value
     // returns INVALIDENTRY if not found
     LPVOID DeleteValue (UPTR key,LPVOID pv)
@@ -593,13 +676,13 @@ public:
 
     // for unique keys, use this function to get the value that is
     // stored in the hash table, returns INVALIDENTRY if key not found
-    LPVOID LookupValueByUniqueKey(UPTR key)
+    LPVOID Gethash(UPTR key)
     {
         WRAPPER_NO_CONTRACT;
 
         key = SanitizeKey(key);
 
-        UPTR val = m_HashMap.LookupValueByUniqueKey(key);
+        UPTR val = m_HashMap.Gethash(key);
         if (val != (UPTR) INVALIDENTRY)
         {
             val <<= 1;
@@ -709,5 +792,16 @@ public:
     }
 #endif // DACCESS_COMPILE
 };
+
+//---------------------------------------------------------------------
+//  inline Bucket*& NextObsolete (Bucket* rgBuckets)
+//  get the next obsolete bucket in the chain
+inline
+Bucket*& NextObsolete (Bucket* rgBuckets)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return *(Bucket**)&((size_t*)rgBuckets)[1];
+}
 
 #endif // !_HASH_H_

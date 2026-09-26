@@ -11,16 +11,20 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Tests.TestUtility
     internal class MockDirectoryInfo : DirectoryInfoBase
     {
         public MockDirectoryInfo(
+            FileSystemOperationRecorder recorder,
             DirectoryInfoBase parentDirectory,
             string fullName,
             string name,
             string[] paths)
         {
             ParentDirectory = parentDirectory;
+            Recorder = recorder;
             FullName = fullName;
             Name = name;
             Paths = paths;
         }
+
+        public FileSystemOperationRecorder Recorder { get; }
 
         public override string FullName { get; }
 
@@ -32,6 +36,8 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Tests.TestUtility
 
         public override IEnumerable<FileSystemInfoBase> EnumerateFileSystemInfos()
         {
+            Recorder.Add("EnumerateFileSystemInfos", new { FullName, Name });
+
             var names = new HashSet<string>();
 
             foreach (var path in Paths)
@@ -49,6 +55,7 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Tests.TestUtility
                 if (endPath == endSegment)
                 {
                     yield return new MockFileInfo(
+                        recorder: Recorder,
                         parentDirectory: this,
                         fullName: path,
                         name: path.Substring(beginSegment, endSegment - beginSegment));
@@ -60,6 +67,7 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Tests.TestUtility
                     {
                         names.Add(name);
                         yield return new MockDirectoryInfo(
+                            recorder: Recorder,
                             parentDirectory: this,
                             fullName: path.Substring(0, endSegment + 1),
                             name: name,
@@ -82,12 +90,14 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Tests.TestUtility
                 var indexOfPenultimateSlash = FullName.LastIndexOf('\\', FullName.Length - 2);
                 var fullName = FullName.Substring(0, indexOfPenultimateSlash + 1);
                 return new MockDirectoryInfo(
+                    recorder: Recorder,
                     parentDirectory: this,
                     fullName: FullName.Substring(0, indexOfPenultimateSlash + 1),
                     name: name,
                     paths: Paths);
             }
             return new MockDirectoryInfo(
+                recorder: Recorder,
                 parentDirectory: this,
                 fullName: FullName + name + "\\",
                 name: name,
@@ -97,6 +107,7 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Tests.TestUtility
         public override FileInfoBase GetFile(string name)
         {
             return new MockFileInfo(
+                recorder: Recorder,
                 parentDirectory: this,
                 fullName: FullName + name,
                 name: name);

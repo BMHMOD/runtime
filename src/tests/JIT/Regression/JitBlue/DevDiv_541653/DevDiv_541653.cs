@@ -13,9 +13,6 @@
 //   the loop over the lclVars sees only the second half, and asserts because it doesn't
 //   expect to ever encounter an interval in the second half (it should have been skipped).
 
-
-namespace DevDiv_541653;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;

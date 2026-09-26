@@ -645,7 +645,7 @@ public:
 
             if (agg->Replacements.size() >= PHYSICAL_PROMOTION_MAX_PROMOTIONS_PER_STRUCT)
             {
-                JITDUMP("  Promoted %zu fields in V%02u; will not promote more\n", agg->Replacements.size(), lclNum);
+                JITDUMP("  Promoted %zu fields in V%02u; will not promote more\n", agg->Replacements.size());
                 break;
             }
         }
@@ -1204,9 +1204,10 @@ public:
             // need fewer than 5 iterations.
             for (int iters = 0; iters < 10; iters++)
             {
-                for (const CandidateStore& candidateStore : m_candidateStores.BottomUpOrder())
+                for (int i = 0; i < m_candidateStores.Height(); i++)
                 {
-                    GenTreeLclVarCommon* store = candidateStore.Store;
+                    const CandidateStore& candidateStore = m_candidateStores.BottomRef(i);
+                    GenTreeLclVarCommon*  store          = candidateStore.Store;
 
                     assert(store->TypeIs(TYP_STRUCT));
                     assert(store->Data()->gtEffectiveVal()->OperIsLocalRead());
@@ -3000,7 +3001,7 @@ bool Promotion::IsCandidateForPhysicalPromotion(LclVarDsc* dsc)
 //   Find the effective user given an ancestor stack.
 //
 // Returns:
-//   The user of the value or null if nothing uses the value.
+//   The user, or null if all users are commas.
 //
 GenTree* Promotion::EffectiveUser(Compiler::GenTreeStack& ancestors)
 {
@@ -3010,14 +3011,9 @@ GenTree* Promotion::EffectiveUser(Compiler::GenTreeStack& ancestors)
         GenTree* ancestor = ancestors.Top(userIndex);
         GenTree* child    = ancestors.Top(userIndex - 1);
 
-        if (!ancestor->OperIs(GT_COMMA))
+        if (!ancestor->OperIs(GT_COMMA) || (ancestor->gtGetOp2() != child))
         {
             return ancestor;
-        }
-
-        if (ancestor->gtGetOp1() == child)
-        {
-            return nullptr;
         }
 
         userIndex++;

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Configuration.Assemblies;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -14,12 +13,9 @@ namespace System.Reflection
     //
     internal unsafe struct NativeAssemblyNameParts
     {
-        /// <safety>Holds only a pointer value addressing a character buffer; reading or writing the field never dereferences it, so field access alone cannot read or write that buffer (any dereference requires an unsafe context).</safety>
         public char* _pName;
         public ushort _major, _minor, _build, _revision;
-        /// <safety>Holds only a pointer value addressing a character buffer; reading or writing the field never dereferences it, so field access alone cannot read or write that buffer (any dereference requires an unsafe context).</safety>
         public char* _pCultureName;
-        /// <safety>Holds only a pointer value addressing a public-key-or-token byte buffer; reading or writing the field never dereferences it, so field access alone cannot read or write that buffer (any dereference requires an unsafe context).</safety>
         public byte* _pPublicKeyOrToken;
         public int _cbPublicKeyOrToken;
         public AssemblyNameFlags _flags;
@@ -148,47 +144,26 @@ namespace System.Reflection
             return ProcessorArchitecture.None;
         }
 
-        [UnmanagedCallersOnly]
-        private static unsafe void ParseAsAssemblySpec(char* pAssemblyName, void* pAssemblySpec, Exception* pException)
+        private static unsafe void ParseAsAssemblySpec(char* pAssemblyName, void* pAssemblySpec)
         {
-            try
+            AssemblyNameParser.AssemblyNameParts parts = AssemblyNameParser.Parse(MemoryMarshal.CreateReadOnlySpanFromNullTerminated(pAssemblyName));
+
+            fixed (char* pName = parts._name)
+            fixed (char* pCultureName = parts._cultureName)
+            fixed (byte* pPublicKeyOrToken = parts._publicKeyOrToken)
             {
-                AssemblyNameParser.AssemblyNameParts parts = AssemblyNameParser.Parse(MemoryMarshal.CreateReadOnlySpanFromNullTerminated(pAssemblyName));
+                NativeAssemblyNameParts nameParts = default;
 
-                fixed (char* pName = parts._name)
-                fixed (char* pCultureName = parts._cultureName)
-                fixed (byte* pPublicKeyOrToken = parts._publicKeyOrToken)
-                {
-                    NativeAssemblyNameParts nameParts = default;
+                nameParts._flags = parts._flags;
+                nameParts._pName = pName;
+                nameParts._pCultureName = pCultureName;
 
-                    nameParts._flags = parts._flags;
-                    nameParts._pName = pName;
-                    nameParts._pCultureName = pCultureName;
+                nameParts._pPublicKeyOrToken = pPublicKeyOrToken;
+                nameParts._cbPublicKeyOrToken = (parts._publicKeyOrToken != null) ? parts._publicKeyOrToken.Length : 0;
 
-                    nameParts._pPublicKeyOrToken = pPublicKeyOrToken;
-                    nameParts._cbPublicKeyOrToken = (parts._publicKeyOrToken != null) ? parts._publicKeyOrToken.Length : 0;
+                nameParts.SetVersion(parts._version, defaultValue: ushort.MaxValue);
 
-                    nameParts.SetVersion(parts._version, defaultValue: ushort.MaxValue);
-
-                    InitializeAssemblySpec(&nameParts, pAssemblySpec);
-                }
-            }
-            catch (Exception ex)
-            {
-                *pException = ex;
-            }
-        }
-
-        [UnmanagedCallersOnly]
-        private static unsafe void CreateAssemblyName(AssemblyName* pResult, NativeAssemblyNameParts* pParts, Exception* pException)
-        {
-            try
-            {
-                *pResult = new AssemblyName(pParts);
-            }
-            catch (Exception ex)
-            {
-                *pException = ex;
+                InitializeAssemblySpec(&nameParts, pAssemblySpec);
             }
         }
 

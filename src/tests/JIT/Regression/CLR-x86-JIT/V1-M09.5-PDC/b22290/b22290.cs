@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b22290
+namespace DefaultNamespace
 {
     public class DD
     {
@@ -11,7 +11,6 @@ namespace b22290
         {
             return new float[7];
         }
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

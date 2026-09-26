@@ -276,11 +276,13 @@ class AVX512BitonicISA(BitonicISA):
 #define BITONIC_SORT_AVX512_{t.upper()}_H
 
 
-#if defined(__clang__)
+#ifdef __GNUC__
+#ifdef __clang__
 #pragma clang attribute push (__attribute__((target("avx512f"))), apply_to = any(function))
-#elif defined(__GNUC__)
+#else
 #pragma GCC push_options
 #pragma GCC target("avx512f")
+#endif
 #endif
 
 #include <immintrin.h>
@@ -315,10 +317,12 @@ public:
 #undef s2d
 #undef d2s
 
-#if defined(__clang__)
+#ifdef __GNUC__
+#ifdef __clang__
 #pragma clang attribute pop
-#elif defined(__GNUC__)
+#else
 #pragma GCC pop_options
+#endif
 #endif
 #endif
 """

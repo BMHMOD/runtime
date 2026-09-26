@@ -697,9 +697,8 @@ namespace SuperPMICollection
             // If someone already has one of the COMPlus_JitName/DOTNET_JitName/COMPlus_JitPath/DOTNET_JitPath variables set,
             // We don't want to override that. Perhaps someone is already doing a SuperPMI collection and invokes this
             // program as part of a full test path in which this program exists.
-            // This test is also incompatible with the RunCrossGen2 infra, so skip in that case too.
 
-            string[] checkVars = { "COMPlus_JitName", "DOTNET_JitName", "COMPlus_JitPath", "DOTNET_JitPath", "RunCrossGen2" };
+            string[] checkVars = { "COMPlus_JitName", "DOTNET_JitName", "COMPlus_JitPath", "DOTNET_JitPath" };
             foreach (string varName in checkVars)
             {
                 string envVar = System.Environment.GetEnvironmentVariable(varName);

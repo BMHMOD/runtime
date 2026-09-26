@@ -78,12 +78,6 @@ void DECLSPEC_NORETURN implLimitation()
 }
 
 /*****************************************************************************/
-void DECLSPEC_NORETURN implReadyToRunUnsupported()
-{
-    fatal(CORJIT_R2R_UNSUPPORTED);
-}
-
-/*****************************************************************************/
 void DECLSPEC_NORETURN NOMEM()
 {
 #if MEASURE_FATAL
@@ -280,7 +274,7 @@ extern "C" void assertAbort(const char* why, const char* file, unsigned line)
                     env->compiler->info.compMethodHash(), env->compiler->compGetTieringName(/* short name */ true));
         msg = buff;
     }
-    fflush(jitstdout());
+    printf(""); // null string means flush
 
 #if FUNC_INFO_LOGGING
     if (Compiler::compJitFuncInfoFile != nullptr)

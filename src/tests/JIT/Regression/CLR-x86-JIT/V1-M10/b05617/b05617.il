@@ -40,7 +40,7 @@ stloc.0
  sub
  sub
  or
-ldc.i8 4294967043
+ldc.i8 4294967086
 conv.u4
 sub
 

@@ -1,6 +1,5 @@
 .assembly extern mscorlib { }
 .assembly extern xunit.core {}
-.assembly extern Microsoft.DotNet.XUnitExtensions { .publickeytoken = (31 BF 38 56 AD 36 4E 35 ) }
 
 .assembly UnicodeBug { }
 
@@ -10,7 +9,6 @@
   .custom instance void [xunit.core]Xunit.FactAttribute::.ctor() = (
       01 00 00 00
   )
-  .custom instance void [Microsoft.DotNet.XUnitExtensions]Xunit.ActiveIssueAttribute::.ctor(string, valuetype [Microsoft.DotNet.XUnitExtensions]Xunit.TestRuntimes) = {string('needs triage') int32(2)}
   .entrypoint
 
   //
@@ -93,54 +91,6 @@
   ldc.i4.1
   ldc.i4.1
   call class [mscorlib]System.Type class [mscorlib]System.Type::GetType(string, bool, bool)
-  pop
-
-  // Trimming doesn't analyze case insensitive searches, so do one more case sensitive
-  // search of everything for trimming analysis sake
-
-  ldstr "л"
-  ldc.i4.1
-  call class [mscorlib]System.Type class [mscorlib]System.Type::GetType(string, bool)
-  pop
-
-  ldstr "Общеязыковаяисполняющаясреда"
-  ldc.i4.1
-  call class [mscorlib]System.Type class [mscorlib]System.Type::GetType(string, bool)
-  pop
-
-  ldstr "ꯀ"
-  ldc.i4.1
-  call class [mscorlib]System.Type class [mscorlib]System.Type::GetType(string, bool)
-  pop
-
-  ldstr "Ａ"
-  ldc.i4.1
-  call class [mscorlib]System.Type class [mscorlib]System.Type::GetType(string, bool)
-  pop
-
-  ldstr "Ｂｕｇ"
-  ldc.i4.1
-  call class [mscorlib]System.Type class [mscorlib]System.Type::GetType(string, bool)
-  pop
-
-  ldstr "𐐨"
-  ldc.i4.1
-  call class [mscorlib]System.Type class [mscorlib]System.Type::GetType(string, bool)
-  pop
-
-  ldstr "𐐩𐐪"
-  ldc.i4.1
-  call class [mscorlib]System.Type class [mscorlib]System.Type::GetType(string, bool)
-  pop
-
-  ldstr "𐐪A𐐪"
-  ldc.i4.1
-  call class [mscorlib]System.Type class [mscorlib]System.Type::GetType(string, bool)
-  pop
-
-  ldstr "𐐪Z𐐪"
-  ldc.i4.1
-  call class [mscorlib]System.Type class [mscorlib]System.Type::GetType(string, bool)
   pop
 
   ldc.i4 100

@@ -7,7 +7,6 @@ internal static unsafe partial class Interop
 {
     internal static partial class Kernel32
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Kernel32, EntryPoint = "GetCommandLineW")]
         internal static partial char* GetCommandLine();
     }

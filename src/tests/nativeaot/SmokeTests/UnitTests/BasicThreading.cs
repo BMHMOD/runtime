@@ -22,13 +22,8 @@ class BasicThreading
         if (ThreadStaticAlignmentTest.Run() != Pass)
             return Fail;
 
-        if (!OperatingSystem.IsAndroid())
-        {
-            // Disabled on Android: https://github.com/dotnet/runtime/issues/121451
-
-            if (ThreadTest.Run() != Pass)
-                return Fail;
-        }
+        if (ThreadTest.Run() != Pass)
+            return Fail;
 
         if (TimerTest.Run() != Pass)
             return Fail;

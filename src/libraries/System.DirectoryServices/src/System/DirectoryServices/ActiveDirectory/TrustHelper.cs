@@ -28,6 +28,7 @@ namespace System.DirectoryServices.ActiveDirectory
 
         internal static unsafe bool GetTrustedDomainInfoStatus(DirectoryContext context, string? sourceName, string targetName, Interop.Advapi32.TRUST_ATTRIBUTE attribute, bool isForest)
         {
+            SafeLsaPolicyHandle? handle = null;
             IntPtr buffer = (IntPtr)0;
             bool impersonated = false;
             IntPtr target = (IntPtr)0;
@@ -43,7 +44,7 @@ namespace System.DirectoryServices.ActiveDirectory
                 try
                 {
                     // get the policy handle first
-                    using var handle = Utils.GetPolicyHandle(serverName);
+                    handle = Utils.GetPolicyHandle(serverName);
 
                     // get the target name
                     global::Interop.UNICODE_STRING trustedDomainName;
@@ -122,6 +123,7 @@ namespace System.DirectoryServices.ActiveDirectory
 
         internal static unsafe void SetTrustedDomainInfoStatus(DirectoryContext context, string? sourceName, string targetName, Interop.Advapi32.TRUST_ATTRIBUTE attribute, bool status, bool isForest)
         {
+            SafeLsaPolicyHandle? handle = null;
             IntPtr buffer = (IntPtr)0;
             IntPtr newInfo = (IntPtr)0;
             bool impersonated = false;
@@ -137,7 +139,7 @@ namespace System.DirectoryServices.ActiveDirectory
                 try
                 {
                     // get the policy handle first
-                    using var handle = Utils.GetPolicyHandle(serverName);
+                    handle = Utils.GetPolicyHandle(serverName);
 
                     // get the target name
                     global::Interop.UNICODE_STRING trustedDomainName;
@@ -249,6 +251,7 @@ namespace System.DirectoryServices.ActiveDirectory
 
         internal static unsafe void DeleteTrust(DirectoryContext sourceContext, string? sourceName, string? targetName, bool isForest)
         {
+            SafeLsaPolicyHandle? policyHandle = null;
             bool impersonated = false;
             IntPtr target = (IntPtr)0;
             string? serverName = null;
@@ -263,7 +266,7 @@ namespace System.DirectoryServices.ActiveDirectory
                 try
                 {
                     // get the policy handle
-                    using var policyHandle = Utils.GetPolicyHandle(serverName);
+                    policyHandle = Utils.GetPolicyHandle(serverName);
 
                     // get the target name
                     global::Interop.UNICODE_STRING trustedDomainName;
@@ -324,6 +327,7 @@ namespace System.DirectoryServices.ActiveDirectory
 
         internal static void VerifyTrust(DirectoryContext context, string? sourceName, string? targetName, bool isForest, TrustDirection direction, bool forceSecureChannelReset, string? preferredTargetServer)
         {
+            SafeLsaPolicyHandle? policyHandle = null;
             int win32Error = 0;
             IntPtr data = (IntPtr)0;
             IntPtr ptr = (IntPtr)0;
@@ -342,7 +346,7 @@ namespace System.DirectoryServices.ActiveDirectory
                 try
                 {
                     // get the policy handle
-                    using var policyHandle = Utils.GetPolicyHandle(policyServerName);
+                    policyHandle = Utils.GetPolicyHandle(policyServerName);
 
                     // get the target name
                     global::Interop.UNICODE_STRING trustedDomainName;
@@ -442,6 +446,7 @@ namespace System.DirectoryServices.ActiveDirectory
             IntPtr unmanagedPassword = (IntPtr)0;
             IntPtr info = (IntPtr)0;
             IntPtr domainHandle = (IntPtr)0;
+            SafeLsaPolicyHandle? policyHandle = null;
             IntPtr unmanagedAuthData = (IntPtr)0;
             bool impersonated = false;
             string? serverName = null;
@@ -512,7 +517,7 @@ namespace System.DirectoryServices.ActiveDirectory
 
                     // do impersonation and get policy handle
                     impersonated = Utils.Impersonate(sourceContext);
-                    using var policyHandle = Utils.GetPolicyHandle(serverName);
+                    policyHandle = Utils.GetPolicyHandle(serverName);
 
                     uint result = Interop.Advapi32.LsaCreateTrustedDomainEx(policyHandle, tdi, AuthInfoEx, TRUSTED_SET_POSIX | TRUSTED_SET_AUTH, out domainHandle);
                     if (result != 0)
@@ -555,6 +560,7 @@ namespace System.DirectoryServices.ActiveDirectory
 
         internal static unsafe string UpdateTrust(DirectoryContext context, string? sourceName, string? targetName, string password, bool isForest)
         {
+            SafeLsaPolicyHandle? handle = null;
             IntPtr buffer = (IntPtr)0;
             IntPtr newBuffer = (IntPtr)0;
             bool impersonated = false;
@@ -575,7 +581,7 @@ namespace System.DirectoryServices.ActiveDirectory
                 try
                 {
                     // get the policy handle first
-                    using var handle = Utils.GetPolicyHandle(serverName);
+                    handle = Utils.GetPolicyHandle(serverName);
 
                     // get the target name
                     global::Interop.UNICODE_STRING trustedDomainName;
@@ -685,6 +691,7 @@ namespace System.DirectoryServices.ActiveDirectory
 
         internal static unsafe void UpdateTrustDirection(DirectoryContext context, string? sourceName, string? targetName, string password, bool isForest, TrustDirection newTrustDirection)
         {
+            SafeLsaPolicyHandle? handle = null;
             IntPtr buffer = (IntPtr)0;
             IntPtr newBuffer = (IntPtr)0;
             bool impersonated = false;
@@ -704,7 +711,7 @@ namespace System.DirectoryServices.ActiveDirectory
                 try
                 {
                     // get the policy handle first
-                    using var handle = Utils.GetPolicyHandle(serverName);
+                    handle = Utils.GetPolicyHandle(serverName);
 
                     // get the target name
                     global::Interop.UNICODE_STRING trustedDomainName;
@@ -1009,7 +1016,6 @@ namespace System.DirectoryServices.ActiveDirectory
                 }
                 finally
                 {
-                    policyHandle?.Dispose();
                     if (impersonated)
                         Utils.Revert();
                 }

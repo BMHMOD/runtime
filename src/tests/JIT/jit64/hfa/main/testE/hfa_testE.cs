@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using TestLibrary;
 using Xunit;
 
 namespace HFATest
@@ -20,7 +19,6 @@ namespace HFATest
 #pragma warning restore 0414
 
         [Fact]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/123946", typeof(TestLibrary.PlatformDetection), nameof(TestLibrary.PlatformDetection.PlatformDoesNotSupportNativeTestAssets))]
         public static int TestEntryPoint()
         {
 

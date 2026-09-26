@@ -20,7 +20,7 @@ class CodeSeqSM // Represent a particular run of the state machine
                 // under multithreadeded environment.
 {
 public:
-    Compiler* m_compiler;
+    Compiler* pComp;
 
     const SMState*       States;
     const JumpTableCell* JumpTableCells;

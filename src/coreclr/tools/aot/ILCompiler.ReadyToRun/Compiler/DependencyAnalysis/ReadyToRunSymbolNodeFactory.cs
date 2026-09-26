@@ -8,8 +8,6 @@ using Internal.JitInterface;
 using Internal.TypeSystem;
 using Internal.TypeSystem.Ecma;
 using Internal.ReadyToRunConstants;
-using Internal.Text;
-using System.Diagnostics;
 
 namespace ILCompiler.DependencyAnalysis
 {
@@ -53,28 +51,21 @@ namespace ILCompiler.DependencyAnalysis
 
         private void CreateNodeCaches()
         {
-            _importStrings = new NodeCache<ModuleToken, Import>(key =>
+            _importStrings = new NodeCache<ModuleToken, ISymbolNode>(key =>
             {
                 return new StringImport(_codegenNodeFactory.StringImports, key);
             });
 
-            _r2rHelpers = new NodeCache<ReadyToRunHelperKey, Import>(CreateReadyToRunHelper);
+            _r2rHelpers = new NodeCache<ReadyToRunHelperKey, ISymbolNode>(CreateReadyToRunHelper);
 
-            _instructionSetSupportFixups = new NodeCache<string, Import>(key =>
+            _instructionSetSupportFixups = new NodeCache<string, ISymbolNode>(key =>
             {
                 return new PrecodeHelperImport(
                     _codegenNodeFactory,
                     new ReadyToRunInstructionSetSupportSignature(key));
             });
 
-            _resumptionStubEntryPointFixups = new NodeCache<MethodWithGCInfo, Import>(key =>
-            {
-                return new PrecodeHelperImport(
-                    _codegenNodeFactory,
-                    new ResumptionStubEntryPointSignature(key));
-            });
-
-            _fieldAddressCache = new NodeCache<FieldWithToken, Import>(key =>
+            _fieldAddressCache = new NodeCache<FieldWithToken, ISymbolNode>(key =>
             {
                 return new DelayLoadHelperImport(
                     _codegenNodeFactory,
@@ -84,7 +75,7 @@ namespace ILCompiler.DependencyAnalysis
                 );
             });
 
-            _fieldOffsetCache = new NodeCache<FieldWithToken, Import>(key =>
+            _fieldOffsetCache = new NodeCache<FieldWithToken, ISymbolNode>(key =>
             {
                 return new PrecodeHelperImport(
                     _codegenNodeFactory,
@@ -92,7 +83,7 @@ namespace ILCompiler.DependencyAnalysis
                 );
             });
 
-            _fieldBaseOffsetCache = new NodeCache<TypeDesc, Import>(key =>
+            _fieldBaseOffsetCache = new NodeCache<TypeDesc, ISymbolNode>(key =>
             {
                 return new PrecodeHelperImport(
                     _codegenNodeFactory,
@@ -100,7 +91,7 @@ namespace ILCompiler.DependencyAnalysis
                 );
             });
 
-            _rvaFieldAddressCache = new NodeCache<FieldWithToken, Import>(key =>
+            _rvaFieldAddressCache = new NodeCache<FieldWithToken, ISymbolNode>(key =>
             {
                 return new PrecodeHelperImport(
                     _codegenNodeFactory,
@@ -108,7 +99,7 @@ namespace ILCompiler.DependencyAnalysis
                 );
             });
 
-            _checkFieldOffsetCache = new NodeCache<FieldWithToken, Import>(key =>
+            _checkFieldOffsetCache = new NodeCache<FieldWithToken, ISymbolNode>(key =>
             {
                 return new PrecodeHelperImport(
                     _codegenNodeFactory,
@@ -116,7 +107,7 @@ namespace ILCompiler.DependencyAnalysis
                 );
             });
 
-            _dispatchCells = new NodeCache<MethodAndCallSite, Import>(cellKey =>
+            _interfaceDispatchCells = new NodeCache<MethodAndCallSite, ISymbolNode>(cellKey =>
             {
                 return new DelayLoadHelperMethodImport(
                     _codegenNodeFactory,
@@ -131,7 +122,7 @@ namespace ILCompiler.DependencyAnalysis
                     cellKey.CallingMethod);
             });
 
-            _delegateCtors = new NodeCache<TypeAndMethod, Import>(ctorKey =>
+            _delegateCtors = new NodeCache<TypeAndMethod, ISymbolNode>(ctorKey =>
             {
                 IMethodNode targetMethodNode = _codegenNodeFactory.MethodEntrypoint(
                     ctorKey.Method,
@@ -146,7 +137,7 @@ namespace ILCompiler.DependencyAnalysis
                     new DelegateCtorSignature(ctorKey.Type, targetMethodNode, ctorKey.Method));
             });
 
-            _checkTypeLayoutCache = new NodeCache<TypeDesc, Import>(key =>
+            _checkTypeLayoutCache = new NodeCache<TypeDesc, ISymbolNode>(key =>
             {
                 return new PrecodeHelperImport(
                     _codegenNodeFactory,
@@ -154,14 +145,14 @@ namespace ILCompiler.DependencyAnalysis
                 );
             });
 
-            _virtualFunctionOverrideCache = new NodeCache<VirtualResolutionFixupSignature, Import>(key =>
+            _virtualFunctionOverrideCache = new NodeCache<VirtualResolutionFixupSignature, ISymbolNode>(key =>
             {
                 return new PrecodeHelperImport(_codegenNodeFactory, key);
             });
 
             _ilBodyFixupsCache = new NodeCache<ILBodyFixupSignature, Import>(key => new PrecodeHelperImport(_codegenNodeFactory.ILBodyPrecodeImports, key));
 
-            _genericLookupHelpers = new NodeCache<GenericLookupKey, Import>(key =>
+            _genericLookupHelpers = new NodeCache<GenericLookupKey, ISymbolNode>(key =>
             {
                 return new DelayLoadHelperImport(
                     _codegenNodeFactory,
@@ -176,7 +167,7 @@ namespace ILCompiler.DependencyAnalysis
                         key.MethodContext));
             });
 
-            _pInvokeTargetNodes = new NodeCache<PInvokeTargetKey, Import>(key =>
+            _pInvokeTargetNodes = new NodeCache<PInvokeTargetKey, ISymbolNode>(key =>
             {
                 return new PrecodeHelperImport(
                     _codegenNodeFactory,
@@ -185,33 +176,11 @@ namespace ILCompiler.DependencyAnalysis
                         key.MethodWithToken,
                         isInstantiatingStub: false));
             });
-
-            _continuationTypeFixups = new NodeCache<AsyncContinuationType, ISymbolNode>((key) =>
-            {
-                return new PrecodeHelperImport(
-                    _codegenNodeFactory,
-                    _codegenNodeFactory.TypeSignature(ReadyToRunFixupKind.ContinuationLayout, key)
-                );
-            });
-
-            _ecmaModuleFixupCache = new NodeCache<IEcmaModule, Import>(key =>
-            {
-                return new PrecodeHelperImport(
-                    _codegenNodeFactory,
-                    new ReadyToRunModuleSignature(key));
-            });
         }
 
-        private NodeCache<AsyncContinuationType, ISymbolNode> _continuationTypeFixups;
+        private NodeCache<ModuleToken, ISymbolNode> _importStrings;
 
-        public ISymbolNode ContinuationTypeSymbol(AsyncContinuationType key)
-        {
-            return _continuationTypeFixups.GetOrAdd(key);
-        }
-
-        private NodeCache<ModuleToken, Import> _importStrings;
-
-        public Import StringLiteral(ModuleToken moduleToken)
+        public ISymbolNode StringLiteral(ModuleToken moduleToken)
         {
             return _importStrings.GetOrAdd(moduleToken);
         }
@@ -243,9 +212,9 @@ namespace ILCompiler.DependencyAnalysis
             }
         }
 
-        private NodeCache<ReadyToRunHelperKey, Import> _r2rHelpers;
+        private NodeCache<ReadyToRunHelperKey, ISymbolNode> _r2rHelpers;
 
-        private Import CreateReadyToRunHelper(ReadyToRunHelperKey key)
+        private ISymbolNode CreateReadyToRunHelper(ReadyToRunHelperKey key)
         {
             switch (key.Id)
             {
@@ -276,9 +245,6 @@ namespace ILCompiler.DependencyAnalysis
                 case ReadyToRunHelperId.TypeHandle:
                     return CreateTypeHandleHelper((TypeDesc)key.Target);
 
-                case ReadyToRunHelperId.DeclaringTypeHandle:
-                    return CreateDeclaringTypeHandleHelper((MethodWithToken)key.Target);
-
                 case ReadyToRunHelperId.MethodHandle:
                     return CreateMethodHandleHelper((MethodWithToken)key.Target);
 
@@ -299,21 +265,20 @@ namespace ILCompiler.DependencyAnalysis
             }
         }
 
-        public Import CreateReadyToRunHelper(ReadyToRunHelperId id, object target)
+        public ISymbolNode CreateReadyToRunHelper(ReadyToRunHelperId id, object target)
         {
             return _r2rHelpers.GetOrAdd(new ReadyToRunHelperKey(id, target));
         }
 
-        private NodeCache<string, Import> _instructionSetSupportFixups;
-        private NodeCache<MethodWithGCInfo, Import> _resumptionStubEntryPointFixups;
+        private NodeCache<string, ISymbolNode> _instructionSetSupportFixups;
 
-        public Import PerMethodInstructionSetSupportFixup(InstructionSetSupport instructionSetSupport)
+        public ISymbolNode PerMethodInstructionSetSupportFixup(InstructionSetSupport instructionSetSupport)
         {
             string key = ReadyToRunInstructionSetSupportSignature.ToInstructionSetSupportString(instructionSetSupport);
             return _instructionSetSupportFixups.GetOrAdd(key);
         }
 
-        private Import CreateNewHelper(TypeDesc type)
+        private ISymbolNode CreateNewHelper(TypeDesc type)
         {
             return new DelayLoadHelperImport(
                 _codegenNodeFactory,
@@ -322,7 +287,7 @@ namespace ILCompiler.DependencyAnalysis
                 new NewObjectFixupSignature(type));
         }
 
-        private Import CreateNewArrayHelper(ArrayType type)
+        private ISymbolNode CreateNewArrayHelper(ArrayType type)
         {
             return new DelayLoadHelperImport(
                 _codegenNodeFactory,
@@ -331,7 +296,7 @@ namespace ILCompiler.DependencyAnalysis
                 new NewArrayFixupSignature(type));
         }
 
-        private Import CreateGCStaticBaseHelper(TypeDesc type)
+        private ISymbolNode CreateGCStaticBaseHelper(TypeDesc type)
         {
             return new DelayLoadHelperImport(
                 _codegenNodeFactory,
@@ -340,7 +305,7 @@ namespace ILCompiler.DependencyAnalysis
                 _codegenNodeFactory.TypeSignature(ReadyToRunFixupKind.StaticBaseGC, type));
         }
 
-        private Import CreateNonGCStaticBaseHelper(TypeDesc type)
+        private ISymbolNode CreateNonGCStaticBaseHelper(TypeDesc type)
         {
             return new DelayLoadHelperImport(
                 _codegenNodeFactory,
@@ -349,7 +314,7 @@ namespace ILCompiler.DependencyAnalysis
                 _codegenNodeFactory.TypeSignature(ReadyToRunFixupKind.StaticBaseNonGC, type));
         }
 
-        private Import CreateThreadGcStaticBaseHelper(TypeDesc type)
+        private ISymbolNode CreateThreadGcStaticBaseHelper(TypeDesc type)
         {
             return new DelayLoadHelperImport(
                 _codegenNodeFactory,
@@ -358,7 +323,7 @@ namespace ILCompiler.DependencyAnalysis
                 _codegenNodeFactory.TypeSignature(ReadyToRunFixupKind.ThreadStaticBaseGC, type));
         }
 
-        private Import CreateThreadNonGcStaticBaseHelper(TypeDesc type)
+        private ISymbolNode CreateThreadNonGcStaticBaseHelper(TypeDesc type)
         {
             return new DelayLoadHelperImport(
                 _codegenNodeFactory,
@@ -367,7 +332,7 @@ namespace ILCompiler.DependencyAnalysis
                 _codegenNodeFactory.TypeSignature(ReadyToRunFixupKind.ThreadStaticBaseNonGC, type));
         }
 
-        private Import CreateIsInstanceOfHelper(TypeDesc type)
+        private ISymbolNode CreateIsInstanceOfHelper(TypeDesc type)
         {
             return new DelayLoadHelperImport(
                 _codegenNodeFactory,
@@ -376,7 +341,7 @@ namespace ILCompiler.DependencyAnalysis
                 _codegenNodeFactory.TypeSignature(ReadyToRunFixupKind.IsInstanceOf, type));
         }
 
-        private Import CreateCastClassHelper(TypeDesc type)
+        private ISymbolNode CreateCastClassHelper(TypeDesc type)
         {
             return new DelayLoadHelperImport(
                 _codegenNodeFactory,
@@ -385,24 +350,14 @@ namespace ILCompiler.DependencyAnalysis
                 _codegenNodeFactory.TypeSignature(ReadyToRunFixupKind.ChkCast, type));
         }
 
-        private Import CreateTypeHandleHelper(TypeDesc type)
+        private ISymbolNode CreateTypeHandleHelper(TypeDesc type)
         {
             return new PrecodeHelperImport(
                 _codegenNodeFactory,
                 _codegenNodeFactory.TypeSignature(ReadyToRunFixupKind.TypeHandle, type));
         }
 
-        private Import CreateDeclaringTypeHandleHelper(MethodWithToken method)
-        {
-            return new PrecodeHelperImport(
-                _codegenNodeFactory,
-                _codegenNodeFactory.MethodSignature(
-                    ReadyToRunFixupKind.DeclaringTypeHandle,
-                    method,
-                    isInstantiatingStub: false));
-        }
-
-        private Import CreateMethodHandleHelper(MethodWithToken method)
+        private ISymbolNode CreateMethodHandleHelper(MethodWithToken method)
         {
             bool useInstantiatingStub = method.Method.GetCanonMethodTarget(CanonicalFormKind.Specific) != method.Method;
 
@@ -414,14 +369,14 @@ namespace ILCompiler.DependencyAnalysis
                     isInstantiatingStub: useInstantiatingStub));
         }
 
-        private Import CreateFieldHandleHelper(FieldWithToken field)
+        private ISymbolNode CreateFieldHandleHelper(FieldWithToken field)
         {
             return new PrecodeHelperImport(
                 _codegenNodeFactory,
                 new FieldFixupSignature(ReadyToRunFixupKind.FieldHandle, field, _codegenNodeFactory));
         }
 
-        private Import CreateCctorTrigger(TypeDesc type)
+        private ISymbolNode CreateCctorTrigger(TypeDesc type)
         {
             return new DelayLoadHelperImport(
                 _codegenNodeFactory,
@@ -430,7 +385,7 @@ namespace ILCompiler.DependencyAnalysis
                 _codegenNodeFactory.TypeSignature(ReadyToRunFixupKind.CctorTrigger, type));
         }
 
-        private Import CreateTypeDictionary(TypeDesc type)
+        private ISymbolNode CreateTypeDictionary(TypeDesc type)
         {
             return new PrecodeHelperImport(
                 _codegenNodeFactory,
@@ -438,62 +393,62 @@ namespace ILCompiler.DependencyAnalysis
             );
         }
 
-        private Import CreateMethodDictionary(MethodWithToken method)
+        private ISymbolNode CreateMethodDictionary(MethodWithToken method)
         {
             return new PrecodeHelperImport(
                 _codegenNodeFactory,
                 _codegenNodeFactory.MethodSignature(
-                    ReadyToRunFixupKind.MethodDictionary,
+                    ReadyToRunFixupKind.MethodDictionary, 
                     method,
                     isInstantiatingStub: true));
         }
 
-        private NodeCache<FieldWithToken, Import> _fieldAddressCache;
+        private NodeCache<FieldWithToken, ISymbolNode> _fieldAddressCache;
 
-        public Import FieldAddress(FieldWithToken fieldWithToken)
+        public ISymbolNode FieldAddress(FieldWithToken fieldWithToken)
         {
             return _fieldAddressCache.GetOrAdd(fieldWithToken);
         }
 
-        private NodeCache<FieldWithToken, Import> _fieldOffsetCache;
+        private NodeCache<FieldWithToken, ISymbolNode> _fieldOffsetCache;
 
-        public Import FieldOffset(FieldWithToken fieldWithToken)
+        public ISymbolNode FieldOffset(FieldWithToken fieldWithToken)
         {
             return _fieldOffsetCache.GetOrAdd(fieldWithToken);
         }
 
-        private NodeCache<FieldWithToken, Import> _checkFieldOffsetCache;
+        private NodeCache<FieldWithToken, ISymbolNode> _checkFieldOffsetCache;
 
-        public Import CheckFieldOffset(FieldWithToken fieldWithToken)
+        public ISymbolNode CheckFieldOffset(FieldWithToken fieldWithToken)
         {
             return _checkFieldOffsetCache.GetOrAdd(fieldWithToken);
         }
 
-        private NodeCache<TypeDesc, Import> _fieldBaseOffsetCache;
+        private NodeCache<TypeDesc, ISymbolNode> _fieldBaseOffsetCache;
 
-        public Import FieldBaseOffset(TypeDesc typeDesc)
+        public ISymbolNode FieldBaseOffset(TypeDesc typeDesc)
         {
             return _fieldBaseOffsetCache.GetOrAdd(typeDesc);
         }
 
-        private NodeCache<FieldWithToken, Import> _rvaFieldAddressCache;
+        private NodeCache<FieldWithToken, ISymbolNode> _rvaFieldAddressCache;
 
-        public Import RvaFieldAddress(FieldWithToken fieldWithToken)
+        public ISymbolNode RvaFieldAddress(FieldWithToken fieldWithToken)
         {
             return _rvaFieldAddressCache.GetOrAdd(fieldWithToken);
         }
 
-        private NodeCache<MethodAndCallSite, Import> _dispatchCells = new NodeCache<MethodAndCallSite, Import>();
+        private NodeCache<MethodAndCallSite, ISymbolNode> _interfaceDispatchCells = new NodeCache<MethodAndCallSite, ISymbolNode>();
 
-        public Import DispatchCell(MethodWithToken method, MethodDesc callingMethod)
+        public ISymbolNode InterfaceDispatchCell(MethodWithToken method, MethodDesc callingMethod)
         {
             MethodAndCallSite cellKey = new MethodAndCallSite(method, null);
-            return _dispatchCells.GetOrAdd(cellKey);
+            return _interfaceDispatchCells.GetOrAdd(cellKey);
         }
 
-        private NodeCache<TypeAndMethod, Import> _delegateCtors = new NodeCache<TypeAndMethod, Import>();
+        private NodeCache<TypeAndMethod, ISymbolNode> _delegateCtors = new NodeCache<TypeAndMethod, ISymbolNode>();
 
-        public Import DelegateCtor(TypeDesc delegateType, MethodWithToken method)
+        public ISymbolNode DelegateCtor(TypeDesc delegateType, MethodWithToken method)
         {
             TypeAndMethod ctorKey = new TypeAndMethod(
                 delegateType,
@@ -504,36 +459,28 @@ namespace ILCompiler.DependencyAnalysis
             return _delegateCtors.GetOrAdd(ctorKey);
         }
 
-        private NodeCache<TypeDesc, Import> _checkTypeLayoutCache;
+        private NodeCache<TypeDesc, ISymbolNode> _checkTypeLayoutCache;
 
-        public Import CheckTypeLayout(TypeDesc type)
+        public ISymbolNode CheckTypeLayout(TypeDesc type)
         {
             return _checkTypeLayoutCache.GetOrAdd(type);
         }
 
-        private NodeCache<VirtualResolutionFixupSignature, Import> _virtualFunctionOverrideCache;
+        private NodeCache<VirtualResolutionFixupSignature, ISymbolNode> _virtualFunctionOverrideCache;
 
-        public Import CheckVirtualFunctionOverride(MethodWithToken declMethod, TypeDesc implType, MethodWithToken implMethod, bool checkOnly = false)
+        public ISymbolNode CheckVirtualFunctionOverride(MethodWithToken declMethod, TypeDesc implType, MethodWithToken implMethod)
         {
-            ReadyToRunFixupKind fixupKind = (checkOnly || !_verifyTypeAndFieldLayout) ?
-                ReadyToRunFixupKind.Check_VirtualFunctionOverride :
-                ReadyToRunFixupKind.Verify_VirtualFunctionOverride;
-            return _virtualFunctionOverrideCache.GetOrAdd(_codegenNodeFactory.VirtualResolutionFixupSignature(fixupKind, declMethod, implType, implMethod));
+            return _virtualFunctionOverrideCache.GetOrAdd(_codegenNodeFactory.VirtualResolutionFixupSignature(
+                _verifyTypeAndFieldLayout ? ReadyToRunFixupKind.Verify_VirtualFunctionOverride : ReadyToRunFixupKind.Check_VirtualFunctionOverride,
+                declMethod, implType, implMethod));
         }
 
         private NodeCache<ILBodyFixupSignature, Import> _ilBodyFixupsCache;
-        public Import CheckILBodyFixupSignature(MethodDesc method)
+        public Import CheckILBodyFixupSignature(EcmaMethod method)
         {
-            Debug.Assert(method.IsTypicalMethodDefinition);
             return _ilBodyFixupsCache.GetOrAdd(_codegenNodeFactory.ILBodyFixupSignature(
                 _verifyTypeAndFieldLayout ? ReadyToRunFixupKind.Verify_IL_Body : ReadyToRunFixupKind.Check_IL_Body,
                 method));
-        }
-
-        private NodeCache<IEcmaModule, Import> _ecmaModuleFixupCache;
-        public Import ModuleLookup(IEcmaModule module)
-        {
-            return _ecmaModuleFixupCache.GetOrAdd(module);
         }
 
         struct MethodAndCallSite : IEquatable<MethodAndCallSite>
@@ -615,9 +562,9 @@ namespace ILCompiler.DependencyAnalysis
             }
         }
 
-        private NodeCache<GenericLookupKey, Import> _genericLookupHelpers;
+        private NodeCache<GenericLookupKey, ISymbolNode> _genericLookupHelpers;
 
-        public Import GenericLookupHelper(
+        public ISymbolNode GenericLookupHelper(
             CORINFO_RUNTIME_LOOKUP_KIND runtimeLookupKind,
             ReadyToRunHelperId helperId,
             object helperArgument,
@@ -632,13 +579,6 @@ namespace ILCompiler.DependencyAnalysis
                         helperArgument,
                         methodContext);
 
-                case ReadyToRunHelperId.DeclaringTypeHandle:
-                    return GenericLookupMethodHelper(
-                        runtimeLookupKind,
-                        ReadyToRunFixupKind.DeclaringTypeHandle,
-                        (MethodWithToken)helperArgument,
-                        methodContext);
-
                 case ReadyToRunHelperId.MethodHandle:
                     return GenericLookupMethodHelper(
                         runtimeLookupKind,
@@ -651,6 +591,20 @@ namespace ILCompiler.DependencyAnalysis
                         runtimeLookupKind,
                         ReadyToRunFixupKind.MethodEntry,
                         (MethodWithToken)helperArgument,
+                        methodContext);
+
+                case ReadyToRunHelperId.MethodDictionary:
+                    return GenericLookupMethodHelper(
+                        runtimeLookupKind,
+                        ReadyToRunFixupKind.MethodHandle,
+                        (MethodWithToken)helperArgument,
+                        methodContext);
+
+                case ReadyToRunHelperId.TypeDictionary:
+                    return GenericLookupTypeHelper(
+                        runtimeLookupKind,
+                        ReadyToRunFixupKind.TypeDictionary,
+                        (TypeDesc)helperArgument,
                         methodContext);
 
                 case ReadyToRunHelperId.VirtualDispatchCell:
@@ -672,7 +626,7 @@ namespace ILCompiler.DependencyAnalysis
             }
         }
 
-        private Import GenericLookupTypeHelper(
+        private ISymbolNode GenericLookupTypeHelper(
             CORINFO_RUNTIME_LOOKUP_KIND runtimeLookupKind,
             ReadyToRunFixupKind fixupKind,
             object helperArgument,
@@ -696,7 +650,7 @@ namespace ILCompiler.DependencyAnalysis
             return _genericLookupHelpers.GetOrAdd(key);
         }
 
-        private Import GenericLookupFieldHelper(
+        private ISymbolNode GenericLookupFieldHelper(
             CORINFO_RUNTIME_LOOKUP_KIND runtimeLookupKind,
             ReadyToRunFixupKind fixupKind,
             FieldWithToken fieldArgument,
@@ -706,7 +660,7 @@ namespace ILCompiler.DependencyAnalysis
             return _genericLookupHelpers.GetOrAdd(key);
         }
 
-        private Import GenericLookupMethodHelper(
+        private ISymbolNode GenericLookupMethodHelper(
             CORINFO_RUNTIME_LOOKUP_KIND runtimeLookupKind,
             ReadyToRunFixupKind fixupKind,
             MethodWithToken methodArgument,
@@ -743,21 +697,16 @@ namespace ILCompiler.DependencyAnalysis
             }
         }
 
-        private NodeCache<PInvokeTargetKey, Import> _pInvokeTargetNodes = new NodeCache<PInvokeTargetKey, Import>();
+        private NodeCache<PInvokeTargetKey, ISymbolNode> _pInvokeTargetNodes = new NodeCache<PInvokeTargetKey, ISymbolNode>();
 
-        public Import GetIndirectPInvokeTargetNode(MethodWithToken methodWithToken)
+        public ISymbolNode GetIndirectPInvokeTargetNode(MethodWithToken methodWithToken)
         {
             return _pInvokeTargetNodes.GetOrAdd(new PInvokeTargetKey(methodWithToken, isIndirect: true));
         }
 
-        public Import GetPInvokeTargetNode(MethodWithToken methodWithToken)
+        public ISymbolNode GetPInvokeTargetNode(MethodWithToken methodWithToken)
         {
             return _pInvokeTargetNodes.GetOrAdd(new PInvokeTargetKey(methodWithToken, isIndirect: false));
-        }
-
-        internal Import ResumptionStubEntryPoint(MethodWithGCInfo resumptionStub)
-        {
-            return _resumptionStubEntryPointFixups.GetOrAdd(resumptionStub);
         }
     }
 }

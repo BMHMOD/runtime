@@ -1,5 +1,4 @@
 ﻿@page "/counter"
-@inject IJSRuntime JS
 
 <PageTitle>Counter</PageTitle>
 
@@ -12,9 +11,8 @@
 @code {
     private int currentCount = 0;
 
-    private async Task IncrementCount()
+    private void IncrementCount()
     {
         currentCount++;
-        await JS.InvokeVoidAsync("console.log", $"Button clicked at {DateTime.Now}");
     }
 }

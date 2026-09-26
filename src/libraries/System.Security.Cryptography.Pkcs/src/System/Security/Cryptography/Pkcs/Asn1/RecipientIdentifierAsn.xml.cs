@@ -8,10 +8,14 @@ using System.Runtime.InteropServices;
 
 namespace System.Security.Cryptography.Pkcs.Asn1
 {
-#if DEBUG
-    file static class ValidateRecipientIdentifierAsn
+    [StructLayout(LayoutKind.Sequential)]
+    internal partial struct RecipientIdentifierAsn
     {
-        static ValidateRecipientIdentifierAsn()
+        internal System.Security.Cryptography.Asn1.Pkcs7.IssuerAndSerialNumberAsn? IssuerAndSerialNumber;
+        internal ReadOnlyMemory<byte>? SubjectKeyIdentifier;
+
+#if DEBUG
+        static RecipientIdentifierAsn()
         {
             var usedTags = new System.Collections.Generic.Dictionary<Asn1Tag, string>();
             Action<Asn1Tag, string> ensureUniqueTag = (tag, fieldName) =>
@@ -26,25 +30,6 @@ namespace System.Security.Cryptography.Pkcs.Asn1
 
             ensureUniqueTag(Asn1Tag.Sequence, "IssuerAndSerialNumber");
             ensureUniqueTag(new Asn1Tag(TagClass.ContextSpecific, 0), "SubjectKeyIdentifier");
-        }
-
-        [System.Runtime.CompilerServices.MethodImpl(
-            System.Runtime.CompilerServices.MethodImplOptions.NoInlining |
-            System.Runtime.CompilerServices.MethodImplOptions.NoOptimization)]
-        internal static void Validate() { }
-    }
-#endif
-
-    [StructLayout(LayoutKind.Sequential)]
-    internal partial struct RecipientIdentifierAsn
-    {
-        internal System.Security.Cryptography.Asn1.Pkcs7.IssuerAndSerialNumberAsn? IssuerAndSerialNumber;
-        internal ReadOnlyMemory<byte>? SubjectKeyIdentifier;
-
-#if DEBUG
-        static RecipientIdentifierAsn()
-        {
-            ValidateRecipientIdentifierAsn.Validate();
         }
 #endif
 
@@ -80,7 +65,7 @@ namespace System.Security.Cryptography.Pkcs.Asn1
         {
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(encoded.Span, ruleSet);
+                AsnValueReader reader = new AsnValueReader(encoded.Span, ruleSet);
 
                 DecodeCore(ref reader, encoded, out RecipientIdentifierAsn decoded);
                 reader.ThrowIfNotEmpty();
@@ -92,7 +77,7 @@ namespace System.Security.Cryptography.Pkcs.Asn1
             }
         }
 
-        internal static void Decode(ref ValueAsnReader reader, ReadOnlyMemory<byte> rebind, out RecipientIdentifierAsn decoded)
+        internal static void Decode(ref AsnValueReader reader, ReadOnlyMemory<byte> rebind, out RecipientIdentifierAsn decoded)
         {
             try
             {
@@ -104,7 +89,7 @@ namespace System.Security.Cryptography.Pkcs.Asn1
             }
         }
 
-        private static void DecodeCore(ref ValueAsnReader reader, ReadOnlyMemory<byte> rebind, out RecipientIdentifierAsn decoded)
+        private static void DecodeCore(ref AsnValueReader reader, ReadOnlyMemory<byte> rebind, out RecipientIdentifierAsn decoded)
         {
             decoded = default;
             Asn1Tag tag = reader.PeekTag();

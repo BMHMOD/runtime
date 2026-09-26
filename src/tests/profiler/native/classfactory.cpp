@@ -3,11 +3,9 @@
 
 #include "classfactory.h"
 #include "eltprofiler/slowpatheltprofiler.h"
-#include "elttransitions/elttransitions.h"
 #include "enumthreadsprofiler/enumthreadsprofiler.h"
 #include "eventpipeprofiler/eventpipereadingprofiler.h"
 #include "eventpipeprofiler/eventpipewritingprofiler.h"
-#include "exceptionprofiler/exceptionprofiler.h"
 #include "getappdomainstaticaddress/getappdomainstaticaddress.h"
 #include "gcallocateprofiler/gcallocateprofiler.h"
 #include "nongcheap/nongcheap.h"
@@ -15,13 +13,10 @@
 #include "gcheapenumerationprofiler/gcheapenumerationprofiler.h"
 #include "gcprofiler/gcprofiler.h"
 #include "handlesprofiler/handlesprofiler.h"
-#include "ijw/ijwprofiler.h"
 #include "metadatagetdispenser/metadatagetdispenser.h"
 #include "nullprofiler/nullprofiler.h"
 #include "rejitprofiler/rejitprofiler.h"
 #include "releaseondetach/releaseondetach.h"
-#include "runtimeasyncapis/runtimeasyncapisprofiler.h"
-#include "runtimeasynctypes/runtimeasynctypesprofiler.h"
 #include "transitions/transitions.h"
 #include "multiple/multiple.h"
 #include "inlining/inlining.h"
@@ -29,7 +24,6 @@
 #include "assemblyprofiler/assemblyprofiler.h"
 #include "classload/classload.h"
 #include "dynamicjitoptimization/dynamicjitoptimization.h"
-#include "gcskipobjectsallocatedbyclasscallbackprofiler/gcskipobjectsallocatedbyclasscallbackprofiler.h"
 
 ClassFactory::ClassFactory(REFCLSID clsid) : refCount(0), clsid(clsid)
 {
@@ -101,10 +95,6 @@ HRESULT STDMETHODCALLTYPE ClassFactory::CreateInstance(IUnknown *pUnkOuter, REFI
     {
         profiler = new EventPipeWritingProfiler();
     }
-    else if (clsid == ExceptionProfiler::GetClsid())
-    {
-        profiler = new ExceptionProfiler();
-    }
     else if (clsid == MetaDataGetDispenser::GetClsid())
     {
         profiler = new MetaDataGetDispenser();
@@ -117,10 +107,6 @@ HRESULT STDMETHODCALLTYPE ClassFactory::CreateInstance(IUnknown *pUnkOuter, REFI
     {
         profiler = new SlowPathELTProfiler();
     }
-    else if (clsid == EltTransitions::GetClsid())
-    {
-        profiler = new EltTransitions();
-    }
     else if (clsid == GCProfiler::GetClsid())
     {
         profiler = new GCProfiler();
@@ -128,14 +114,6 @@ HRESULT STDMETHODCALLTYPE ClassFactory::CreateInstance(IUnknown *pUnkOuter, REFI
     else if (clsid == ReleaseOnDetach::GetClsid())
     {
         profiler = new ReleaseOnDetach();
-    }
-    else if (clsid == RuntimeAsyncApisProfiler::GetClsid())
-    {
-        profiler = new RuntimeAsyncApisProfiler();
-    }
-    else if (clsid == RuntimeAsyncTypesProfiler::GetClsid())
-    {
-        profiler = new RuntimeAsyncTypesProfiler();
     }
     else if (clsid == Transitions::GetClsid())
     {
@@ -180,14 +158,6 @@ HRESULT STDMETHODCALLTYPE ClassFactory::CreateInstance(IUnknown *pUnkOuter, REFI
     else if (clsid == DynamicJitOptimizations::GetClsid())
     {
         profiler = new DynamicJitOptimizations();
-    }
-    else if (clsid == GCSkipObjectsAllocatedByClassCallbackProfiler::GetClsid())
-    {
-        profiler = new GCSkipObjectsAllocatedByClassCallbackProfiler();
-    }
-    else if (clsid == IjwProfiler::GetClsid())
-    {
-        profiler = new IjwProfiler();
     }
     else
     {

@@ -15,7 +15,6 @@ internal static partial class Interop
             None = 0,
         }
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Advapi32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static partial bool CryptCreateHash(

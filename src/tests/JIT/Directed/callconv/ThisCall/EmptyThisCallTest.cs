@@ -7,7 +7,6 @@ using System.Text;
 using Xunit;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using TestLibrary;
 
 unsafe class ThisCallNative
 {
@@ -17,8 +16,6 @@ unsafe class ThisCallNative
 
 public unsafe class EmptyThisCallTest
 {
-    [ActiveIssue("Tests that 'thiscall' with an empty signature results in InvalidProgramException", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoFULLAOT))]
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/124219", typeof(PlatformDetection), nameof(PlatformDetection.PlatformDoesNotSupportNativeTestAssets))]
     [Fact]
     public static int TestEntryPoint()
     {

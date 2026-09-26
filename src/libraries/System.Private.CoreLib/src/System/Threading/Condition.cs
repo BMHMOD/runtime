@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+#pragma warning disable 0420 //passing volatile fields by ref
+
 using System.Diagnostics;
 using System.Diagnostics.Tracing;
 
@@ -12,50 +14,27 @@ namespace System.Threading
         {
             public Waiter? next;
             public Waiter? prev;
-            public readonly AutoResetEvent ev = new AutoResetEvent(false);
+            public AutoResetEvent ev = new AutoResetEvent(false);
+            public bool signalled;
         }
 
         [ThreadStatic]
         private static Waiter? t_waiterForCurrentThread;
 
-        // Takes the cached Waiter for this thread (or allocates a new one) and removes the
-        // current wait's cached Waiter from the thread-static so that any reentrant
-        // Monitor.Wait (for example, from a SynchronizationContext message pump) gets its own Waiter with a distinct AutoResetEvent.
         private static Waiter GetWaiterForCurrentThread()
         {
-            Waiter? waiter = t_waiterForCurrentThread;
-            if (waiter is not null)
-            {
-                t_waiterForCurrentThread = null;
-            }
-            else
-            {
-                waiter = new Waiter();
-            }
-
-            Debug.Assert(waiter.next is null && waiter.prev is null);
+            Waiter waiter = t_waiterForCurrentThread ??= new Waiter();
+            waiter.signalled = false;
             return waiter;
         }
 
-        private static void ReleaseWaiterForCurrentThread(Waiter waiter)
-        {
-            // Return the waiter to the thread-static cache for reuse.
-            t_waiterForCurrentThread = waiter;
-        }
-
         private readonly Lock _lock;
-
-        // When condition is installed in a Lock it takes the same field as waitEvent would.
-        // If waitEvent is also needed, it is available through here.
-        internal AutoResetEvent? _waitEvent;
-
         private Waiter? _waitersHead;
         private Waiter? _waitersTail;
 
         internal Lock AssociatedLock => _lock;
 
-        [Conditional("DEBUG")]
-        private void AssertIsInList(Waiter waiter)
+        private unsafe void AssertIsInList(Waiter waiter)
         {
             Debug.Assert(_waitersHead != null && _waitersTail != null);
             Debug.Assert((_waitersHead == waiter) == (waiter.prev == null));
@@ -67,8 +46,7 @@ namespace System.Threading
             Debug.Fail("Waiter is not in the waiter list");
         }
 
-        [Conditional("DEBUG")]
-        private void AssertIsNotInList(Waiter waiter)
+        private unsafe void AssertIsNotInList(Waiter waiter)
         {
             Debug.Assert(waiter.next == null && waiter.prev == null);
             Debug.Assert((_waitersHead == null) == (_waitersTail == null));
@@ -78,32 +56,20 @@ namespace System.Threading
                     Debug.Fail("Waiter is in the waiter list, but should not be");
         }
 
-        // Returns true if the waiter cannot be possibly in the list.
-        // (i.e. not reachable via _waitersHead)
-        internal bool NotInList(Waiter waiter)
-        {
-            return _waitersHead != waiter && waiter.prev == null;
-        }
-
-        private void AddWaiter(Waiter waiter)
+        private unsafe void AddWaiter(Waiter waiter)
         {
             Debug.Assert(_lock.IsHeldByCurrentThread);
             AssertIsNotInList(waiter);
 
-            Waiter? tail = _waitersTail;
-            waiter.prev = tail;
-            if (tail is null)
-            {
-                _waitersHead = waiter;
-            }
-            else
-            {
-                tail.next = waiter;
-            }
+            waiter.prev = _waitersTail;
+            waiter.prev?.next = waiter;
+
             _waitersTail = waiter;
+
+            _waitersHead ??= waiter;
         }
 
-        private void RemoveWaiter(Waiter waiter)
+        private unsafe void RemoveWaiter(Waiter waiter)
         {
             Debug.Assert(_lock.IsHeldByCurrentThread);
             AssertIsInList(waiter);
@@ -130,7 +96,7 @@ namespace System.Threading
             _lock = @lock;
         }
 
-        public bool Wait(int millisecondsTimeout, object associatedObjectForMonitorWait)
+        public unsafe bool Wait(int millisecondsTimeout, object associatedObjectForMonitorWait)
         {
             ArgumentOutOfRangeException.ThrowIfLessThan(millisecondsTimeout, -1);
 
@@ -144,7 +110,6 @@ namespace System.Threading
 
             uint recursionCount = _lock.ExitAll();
             bool success = false;
-            bool wasSignaled;
             try
             {
                 success =
@@ -159,16 +124,14 @@ namespace System.Threading
                 _lock.Reenter(recursionCount);
                 Debug.Assert(_lock.IsHeldByCurrentThread);
 
-                // If the waiter is still in the list, it was not signaled.
-                wasSignaled = NotInList(waiter);
-                if (!wasSignaled)
+                if (!waiter.signalled)
                 {
                     RemoveWaiter(waiter);
                 }
                 else if (!success)
                 {
                     //
-                    // The wait timed out, but we were signaled before we could reacquire the lock.
+                    // The wait timed out, but we were signalled before we could reacquire the lock.
                     // Since WaitOne timed out, it didn't trigger the auto-reset of the AutoResetEvent.
                     // So, we need to manually reset the event.
                     //
@@ -176,42 +139,21 @@ namespace System.Threading
                 }
 
                 AssertIsNotInList(waiter);
-                ReleaseWaiterForCurrentThread(waiter);
             }
 
-            return wasSignaled;
+            return waiter.signalled;
         }
 
-        public void SignalAll()
+        public unsafe void SignalAll()
         {
             if (!_lock.IsHeldByCurrentThread)
                 throw new SynchronizationLockException();
 
-            Waiter? waiter = _waitersHead;
-            if (waiter is null)
-            {
-                return;
-            }
-
-            // Detach the entire waiter list in one operation, then walk it and signal each waiter.
-            // Per-waiter prev/next must be cleared BEFORE calling ev.Set() so that the woken thread
-            // observes the waiter as not in the list (see NotInList) and the cached Waiter is clean.
-            // Woken threads cannot make progress until the caller releases _lock, so it is safe to
-            // continue walking the detached list after signaling each waiter.
-            _waitersHead = null;
-            _waitersTail = null;
-
-            while (waiter is not null)
-            {
-                Waiter? next = waiter.next;
-                waiter.next = null;
-                waiter.prev = null;
-                waiter.ev.Set();
-                waiter = next;
-            }
+            while (_waitersHead != null)
+                SignalOne();
         }
 
-        public void SignalOne()
+        public unsafe void SignalOne()
         {
             if (!_lock.IsHeldByCurrentThread)
                 throw new SynchronizationLockException();
@@ -220,6 +162,7 @@ namespace System.Threading
             if (waiter != null)
             {
                 RemoveWaiter(waiter);
+                waiter.signalled = true;
                 waiter.ev.Set();
             }
         }

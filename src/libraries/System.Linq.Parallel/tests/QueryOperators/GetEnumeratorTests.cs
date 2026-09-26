@@ -164,7 +164,7 @@ namespace System.Linq.Parallel.Tests
             Assert.False(enumerator.MoveNext());
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public static void GetEnumerator_LargeQuery_PauseAfterOpening()
         {
             using (IEnumerator<int> e = Enumerable.Range(0, 8192).AsParallel().SkipWhile(i => true).GetEnumerator())

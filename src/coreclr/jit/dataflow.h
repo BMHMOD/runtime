@@ -5,7 +5,7 @@
 //   This class is used to perform data flow optimizations.
 //   An example usage would be:
 //
-//     DataFlow flow(m_compiler);
+//     DataFlow flow(m_pCompiler);
 //     flow.ForwardAnalysis(callback);
 //
 //  The "callback" object needs to implement the following member
@@ -17,7 +17,6 @@
 //  public:
 //      void StartMerge(BasicBlock* block);
 //      void Merge(BasicBlock* block, BasicBlock* pred, unsigned dupCount);
-//      void MergeHandler(BasicBlock* block, BasicBlock* tryBeg, BasicBlock* tryLast);
 //      bool EndMerge(BasicBlock* block);
 //  };
 #pragma once
@@ -37,30 +36,29 @@ public:
     void ForwardAnalysis(TCallback& callback);
 
 private:
-    Compiler* m_compiler;
+    Compiler* m_pCompiler;
 };
 
 template <typename TCallback>
 void DataFlow::ForwardAnalysis(TCallback& callback)
 {
-    assert(m_compiler->fgTrysContiguous());
-    if (m_compiler->m_dfsTree == nullptr)
+    if (m_pCompiler->m_dfsTree == nullptr)
     {
-        m_compiler->m_dfsTree = m_compiler->fgComputeDfs();
+        m_pCompiler->m_dfsTree = m_pCompiler->fgComputeDfs();
     }
 
     bool changed;
     do
     {
         changed = false;
-        for (unsigned i = m_compiler->m_dfsTree->GetPostOrderCount(); i > 0; i--)
+        for (unsigned i = m_pCompiler->m_dfsTree->GetPostOrderCount(); i > 0; i--)
         {
-            BasicBlock* block = m_compiler->m_dfsTree->GetPostOrder(i - 1);
+            BasicBlock* block = m_pCompiler->m_dfsTree->GetPostOrder(i - 1);
 
             callback.StartMerge(block);
-            if (m_compiler->bbIsHandlerBeg(block))
+            if (m_pCompiler->bbIsHandlerBeg(block))
             {
-                EHblkDsc* ehDsc = m_compiler->ehGetBlockHndDsc(block);
+                EHblkDsc* ehDsc = m_pCompiler->ehGetBlockHndDsc(block);
                 callback.MergeHandler(block, ehDsc->ebdTryBeg, ehDsc->ebdTryLast);
             }
             else
@@ -73,5 +71,5 @@ void DataFlow::ForwardAnalysis(TCallback& callback)
 
             changed |= callback.EndMerge(block);
         }
-    } while (changed && m_compiler->m_dfsTree->HasCycle());
+    } while (changed && m_pCompiler->m_dfsTree->HasCycle());
 }

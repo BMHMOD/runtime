@@ -16,8 +16,8 @@ namespace System.Security.Cryptography
         };
 
         internal static void FromPkcs1PrivateKey(
-            ReadOnlySpan<byte> keyData,
-            in ValueAlgorithmIdentifierAsn algId,
+            ReadOnlyMemory<byte> keyData,
+            in AlgorithmIdentifierAsn algId,
             out RSAParameters ret)
         {
             if (!algId.HasNullEquivalentParameters())
@@ -29,22 +29,24 @@ namespace System.Security.Cryptography
         }
 
         internal static void ReadRsaPublicKey(
-            ReadOnlySpan<byte> keyData,
-            in ValueAlgorithmIdentifierAsn algId,
+            ReadOnlyMemory<byte> keyData,
+            in AlgorithmIdentifierAsn algId,
             out RSAParameters ret)
         {
             ret = FromPkcs1PublicKey(keyData, rsaParameters => rsaParameters);
         }
 
-        internal static void ReadRsaPublicKey(ReadOnlySpan<byte> keyData, out int bytesRead)
+        internal static void ReadRsaPublicKey(
+            ReadOnlyMemory<byte> keyData,
+            out int bytesRead)
         {
             int read;
 
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(keyData, AsnEncodingRules.DER);
+                AsnValueReader reader = new AsnValueReader(keyData.Span, AsnEncodingRules.DER);
                 read = reader.PeekEncodedValue().Length;
-                ValueRSAPublicKeyAsn.Decode(keyData, AsnEncodingRules.BER, out _);
+                RSAPublicKeyAsn.Decode(keyData, AsnEncodingRules.BER);
             }
             catch (AsnContentException e)
             {
@@ -67,7 +69,9 @@ namespace System.Security.Cryptography
                 out key);
         }
 
-        internal static ReadOnlySpan<byte> ReadSubjectPublicKeyInfo(ReadOnlySpan<byte> source, out int bytesRead)
+        internal static ReadOnlyMemory<byte> ReadSubjectPublicKeyInfo(
+             ReadOnlyMemory<byte> source,
+             out int bytesRead)
         {
             return KeyFormatHelper.ReadSubjectPublicKeyInfo(
                 s_validOids,
@@ -75,18 +79,51 @@ namespace System.Security.Cryptography
                 out bytesRead);
         }
 
-        internal static ReadOnlySpan<byte> ReadPkcs8(ReadOnlySpan<byte> source, out int bytesRead)
+        /// <summary>
+        ///   Checks that a SubjectPublicKeyInfo represents an RSA key.
+        /// </summary>
+        /// <returns>The number of bytes read from <paramref name="source"/>.</returns>
+        internal static unsafe int CheckSubjectPublicKeyInfo(ReadOnlySpan<byte> source)
         {
-            return KeyFormatHelper.ReadPkcs8(s_validOids, source, out bytesRead);
+            int bytesRead;
+
+            fixed (byte* ptr = source)
+            {
+                using (MemoryManager<byte> manager = new PointerMemoryManager<byte>(ptr, source.Length))
+                {
+                    _ = ReadSubjectPublicKeyInfo(manager.Memory, out bytesRead);
+                }
+            }
+
+            return bytesRead;
+        }
+
+        internal static ReadOnlyMemory<byte> ReadPkcs8(
+            ReadOnlyMemory<byte> source,
+            out int bytesRead)
+        {
+            return KeyFormatHelper.ReadPkcs8(
+                s_validOids,
+                source,
+                out bytesRead);
         }
 
         /// <summary>
         ///   Checks that a Pkcs8PrivateKeyInfo represents an RSA key.
         /// </summary>
         /// <returns>The number of bytes read from <paramref name="source"/>.</returns>
-        internal static int CheckPkcs8(ReadOnlySpan<byte> source)
+        internal static unsafe int CheckPkcs8(ReadOnlySpan<byte> source)
         {
-            ReadPkcs8(source, out int bytesRead);
+            int bytesRead;
+
+            fixed (byte* ptr = source)
+            {
+                using (MemoryManager<byte> manager = new PointerMemoryManager<byte>(ptr, source.Length))
+                {
+                    _ = ReadPkcs8(manager.Memory, out bytesRead);
+                }
+            }
+
             return bytesRead;
         }
 

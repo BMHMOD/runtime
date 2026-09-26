@@ -4,7 +4,7 @@
 
 using Xunit;
 // The legendary 37-byte value class.
-namespace b14624
+namespace DefaultNamespace
 {
     //@BEGINRENAME; Verify this renames
     //@ENDRENAME; Verify this renames
@@ -42,7 +42,6 @@ namespace b14624
 
     public class jitBug
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

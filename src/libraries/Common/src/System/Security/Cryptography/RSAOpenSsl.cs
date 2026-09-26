@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Buffers;
@@ -104,7 +104,7 @@ namespace System.Security.Cryptography
             }
         }
 
-        public override unsafe bool TryDecrypt(
+        public override bool TryDecrypt(
             ReadOnlySpan<byte> data,
             Span<byte> destination,
             RSAEncryptionPadding padding,
@@ -273,11 +273,11 @@ namespace System.Security.Cryptography
             return true;
         }
 
-        private delegate T ExportPrivateKeyFunc<T>(ReadOnlySpan<byte> pkcs8, ReadOnlySpan<byte> pkcs1);
+        private delegate T ExportPrivateKeyFunc<T>(ReadOnlyMemory<byte> pkcs8, ReadOnlyMemory<byte> pkcs1);
 
-        private delegate ReadOnlySpan<byte> TryExportPrivateKeySelector(
-            ReadOnlySpan<byte> pkcs8,
-            ReadOnlySpan<byte> pkcs1);
+        private delegate ReadOnlyMemory<byte> TryExportPrivateKeySelector(
+            ReadOnlyMemory<byte> pkcs8,
+            ReadOnlyMemory<byte> pkcs1);
 
         private T ExportPrivateKey<T>(ExportPrivateKeyFunc<T> exporter)
         {
@@ -288,7 +288,7 @@ namespace System.Security.Cryptography
 
             try
             {
-                ReadOnlySpan<byte> pkcs1 = VerifyPkcs8(p8);
+                ReadOnlyMemory<byte> pkcs1 = VerifyPkcs8(p8);
                 return exporter(p8, pkcs1);
             }
             finally
@@ -306,9 +306,9 @@ namespace System.Security.Cryptography
 
             try
             {
-                ReadOnlySpan<byte> pkcs1 = VerifyPkcs8(p8);
-                ReadOnlySpan<byte> selected = selector(p8, pkcs1);
-                return selected.TryCopyToDestination(destination, out bytesWritten);
+                ReadOnlyMemory<byte> pkcs1 = VerifyPkcs8(p8);
+                ReadOnlyMemory<byte> selected = selector(p8, pkcs1);
+                return selected.Span.TryCopyToDestination(destination, out bytesWritten);
             }
             finally
             {
@@ -316,7 +316,7 @@ namespace System.Security.Cryptography
             }
         }
 
-        private T ExportPublicKey<T>(Func<ReadOnlySpan<byte>, T> exporter)
+        private T ExportPublicKey<T>(Func<ReadOnlyMemory<byte>, T> exporter)
         {
             // It's entirely possible that this line will cause the key to be generated in the first place.
             SafeEvpPKeyHandle key = GetKey();
@@ -334,7 +334,7 @@ namespace System.Security.Cryptography
         }
 
         private bool TryExportPublicKey(
-            Func<ReadOnlySpan<byte>, ReadOnlySpan<byte>>? transform,
+            Func<ReadOnlyMemory<byte>, ReadOnlyMemory<byte>>? transform,
             Span<byte> destination,
             out int bytesWritten)
         {
@@ -345,14 +345,14 @@ namespace System.Security.Cryptography
 
             try
             {
-                ReadOnlySpan<byte> data = spki;
+                ReadOnlyMemory<byte> data = spki;
 
                 if (transform != null)
                 {
                     data = transform(data);
                 }
 
-                return data.TryCopyToDestination(destination, out bytesWritten);
+                return data.Span.TryCopyToDestination(destination, out bytesWritten);
             }
             finally
             {
@@ -385,7 +385,7 @@ namespace System.Security.Cryptography
             return ExportPublicKey(
                 static spki =>
                 {
-                    ReadOnlySpan<byte> pkcs1 = RSAKeyFormatHelper.ReadSubjectPublicKeyInfo(spki, out int read);
+                    ReadOnlyMemory<byte> pkcs1 = RSAKeyFormatHelper.ReadSubjectPublicKeyInfo(spki, out int read);
                     Debug.Assert(read == spki.Length);
                     return pkcs1.ToArray();
                 });
@@ -396,7 +396,7 @@ namespace System.Security.Cryptography
             return TryExportPublicKey(
                 spki =>
                 {
-                    ReadOnlySpan<byte> pkcs1 = RSAKeyFormatHelper.ReadSubjectPublicKeyInfo(spki, out int read);
+                    ReadOnlyMemory<byte> pkcs1 = RSAKeyFormatHelper.ReadSubjectPublicKeyInfo(spki, out int read);
                     Debug.Assert(read == spki.Length);
                     return pkcs1;
                 },
@@ -424,7 +424,7 @@ namespace System.Security.Cryptography
                 return ExportPrivateKey(
                     static (pkcs8, pkcs1) =>
                     {
-                        ValueAlgorithmIdentifierAsn algId = default;
+                        AlgorithmIdentifierAsn algId = default;
                         RSAParameters ret;
                         RSAKeyFormatHelper.FromPkcs1PrivateKey(pkcs1, in algId, out ret);
                         return ret;
@@ -436,7 +436,7 @@ namespace System.Security.Cryptography
                 {
                     RSAParameters ret;
                     RSAKeyFormatHelper.ReadSubjectPublicKeyInfo(
-                        spki,
+                        spki.Span,
                         out int read,
                         out ret);
 
@@ -453,18 +453,30 @@ namespace System.Security.Cryptography
             if (parameters.D != null)
             {
                 AsnWriter writer = RSAKeyFormatHelper.WritePkcs8PrivateKey(parameters);
-                writer.Encode(this, static (RSAOpenSsl rsa, ReadOnlySpan<byte> pkcs8) =>
+                ArraySegment<byte> pkcs8 = writer.RentAndEncode();
+
+                try
                 {
-                    rsa.ImportPkcs8PrivateKey(pkcs8, checkAlgorithm: false, out _);
-                });
+                    ImportPkcs8PrivateKey(pkcs8, checkAlgorithm: false, out _);
+                }
+                finally
+                {
+                    CryptoPool.Return(pkcs8);
+                }
             }
             else
             {
                 AsnWriter writer = RSAKeyFormatHelper.WriteSubjectPublicKeyInfo(parameters);
-                writer.Encode(this, static (RSAOpenSsl rsa, ReadOnlySpan<byte> spki) =>
+                ArraySegment<byte> spki = writer.RentAndEncode();
+
+                try
                 {
-                    rsa.ImportSubjectPublicKeyInfo(spki, checkAlgorithm: false, out _);
-                });
+                    ImportSubjectPublicKeyInfo(spki, checkAlgorithm: false, out _);
+                }
+                finally
+                {
+                    CryptoPool.Return(spki);
+                }
             }
         }
 
@@ -489,10 +501,16 @@ namespace System.Security.Cryptography
             }
 
             AsnWriter writer = RSAKeyFormatHelper.WriteSubjectPublicKeyInfo(source.Slice(0, read));
-            writer.Encode(this, static (RSAOpenSsl rsa, ReadOnlySpan<byte> spki) =>
+            ArraySegment<byte> spki = writer.RentAndEncode();
+
+            try
             {
-                rsa.ImportSubjectPublicKeyInfo(spki, checkAlgorithm: false, out _);
-            });
+                ImportSubjectPublicKeyInfo(spki, checkAlgorithm: false, out _);
+            }
+            finally
+            {
+                CryptoPool.Return(spki);
+            }
 
             bytesRead = read;
         }
@@ -515,7 +533,7 @@ namespace System.Security.Cryptography
 
             if (checkAlgorithm)
             {
-                RSAKeyFormatHelper.ReadSubjectPublicKeyInfo(source, out read);
+                read = RSAKeyFormatHelper.CheckSubjectPublicKeyInfo(source);
             }
             else
             {
@@ -599,11 +617,16 @@ namespace System.Security.Cryptography
             }
 
             AsnWriter writer = RSAKeyFormatHelper.WritePkcs8PrivateKey(source.Slice(0, read));
+            ArraySegment<byte> pkcs8 = writer.RentAndEncode();
 
-            writer.Encode(this, static (RSAOpenSsl rsa, ReadOnlySpan<byte> pkcs8) =>
+            try
             {
-                rsa.ImportPkcs8PrivateKey(pkcs8, checkAlgorithm: false, out _);
-            });
+                ImportPkcs8PrivateKey(pkcs8, checkAlgorithm: false, out _);
+            }
+            finally
+            {
+                CryptoPool.Return(pkcs8);
+            }
 
             bytesRead = read;
         }
@@ -776,7 +799,7 @@ namespace System.Security.Cryptography
                 signature);
         }
 
-        private static ReadOnlySpan<byte> VerifyPkcs8(ReadOnlySpan<byte> pkcs8)
+        private static ReadOnlyMemory<byte> VerifyPkcs8(ReadOnlyMemory<byte> pkcs8)
         {
             // OpenSSL 1.1.1 will export RSA public keys as a PKCS#8, but this makes a broken structure.
             //
@@ -785,9 +808,9 @@ namespace System.Security.Cryptography
 
             try
             {
-                ReadOnlySpan<byte> pkcs1Priv = RSAKeyFormatHelper.ReadPkcs8(pkcs8, out int read);
+                ReadOnlyMemory<byte> pkcs1Priv = RSAKeyFormatHelper.ReadPkcs8(pkcs8, out int read);
                 Debug.Assert(read == pkcs8.Length);
-                ValueRSAPrivateKeyAsn.Decode(pkcs1Priv, AsnEncodingRules.BER, out _);
+                _ = RSAPrivateKeyAsn.Decode(pkcs1Priv, AsnEncodingRules.BER);
                 return pkcs1Priv;
             }
             catch (CryptographicException)

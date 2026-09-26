@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-namespace b60600;
-
 using System;
 using Xunit;
 public unsafe class bug1
@@ -16,7 +13,6 @@ public unsafe class bug1
     {
         return *a0;
     }
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

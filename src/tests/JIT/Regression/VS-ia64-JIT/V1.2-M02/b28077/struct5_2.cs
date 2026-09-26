@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b28077;
-
 using System;
 using Xunit;
 
@@ -24,7 +21,6 @@ public class Test_struct5_2
         Console.WriteLine(s1.str + s2.str + s3.str + s4.str);
     }
 
-    [OuterLoop]
     [Fact]
     public static void TestEntryPoint()
     {

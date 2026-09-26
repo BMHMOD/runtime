@@ -19,7 +19,7 @@
 #elif TARGET_X86
 #define THUNK_SIZE  12
 #elif TARGET_ARM
-#define THUNK_SIZE  12
+#define THUNK_SIZE  20
 #elif TARGET_ARM64
 #define THUNK_SIZE  16
 #elif TARGET_LOONGARCH64
@@ -33,7 +33,7 @@
 static_assert((THUNK_SIZE % 4) == 0, "Thunk stubs size not aligned correctly. This will cause runtime failures.");
 
 // 32 K or OS page
-#define THUNKS_MAP_SIZE (max((size_t)0x8000, OS_PAGE_SIZE))
+#define THUNKS_MAP_SIZE (max(0x8000, OS_PAGE_SIZE))
 
 #ifdef TARGET_ARM
 //*****************************************************************************
@@ -63,13 +63,13 @@ FCIMPL0(int, RhpGetNumThunkBlocksPerMapping)
 {
     ASSERT_MSG((THUNKS_MAP_SIZE % OS_PAGE_SIZE) == 0, "Thunks map size should be in multiples of pages");
 
-    return (int)(THUNKS_MAP_SIZE / OS_PAGE_SIZE);
+    return THUNKS_MAP_SIZE / OS_PAGE_SIZE;
 }
 FCIMPLEND
 
 FCIMPL0(int, RhpGetNumThunksPerBlock)
 {
-    return (int)min(
+    return min(
         OS_PAGE_SIZE / THUNK_SIZE,                              // Number of thunks that can fit in a page
         (OS_PAGE_SIZE - POINTER_SIZE) / (POINTER_SIZE * 2)      // Number of pointer pairs, minus the jump stub cell, that can fit in a page
     );
@@ -96,24 +96,22 @@ FCIMPLEND
 
 FCIMPL0(int, RhpGetThunkBlockSize)
 {
-    return (int)OS_PAGE_SIZE;
+    return OS_PAGE_SIZE;
 }
 FCIMPLEND
 
 EXTERN_C HRESULT QCALLTYPE RhAllocateThunksMapping(void** ppThunksSection)
 {
-    size_t thunksMapSize = THUNKS_MAP_SIZE;
-
 #ifdef WIN32
 
-    void * pNewMapping = PalVirtualAlloc(thunksMapSize * 2, PAGE_READWRITE);
+    void * pNewMapping = PalVirtualAlloc(THUNKS_MAP_SIZE * 2, PAGE_READWRITE);
     if (pNewMapping == NULL)
     {
         return E_OUTOFMEMORY;
     }
 
     void * pThunksSection = pNewMapping;
-    void * pDataSection = (uint8_t*)pNewMapping + thunksMapSize;
+    void * pDataSection = (uint8_t*)pNewMapping + THUNKS_MAP_SIZE;
 
 #else
 
@@ -122,17 +120,17 @@ EXTERN_C HRESULT QCALLTYPE RhAllocateThunksMapping(void** ppThunksSection)
     // reduce it to RW for the data section. For the stubs section we need to increase to RWX to generate the stubs
     // instructions. After this we go back to RX for the stubs section before the stubs are used and should not be
     // changed anymore.
-    void * pNewMapping = PalVirtualAlloc(thunksMapSize * 2, PAGE_EXECUTE_READ);
+    void * pNewMapping = PalVirtualAlloc(THUNKS_MAP_SIZE * 2, PAGE_EXECUTE_READ);
     if (pNewMapping == NULL)
     {
         return E_OUTOFMEMORY;
     }
 
     void * pThunksSection = pNewMapping;
-    void * pDataSection = (uint8_t*)pNewMapping + thunksMapSize;
+    void * pDataSection = (uint8_t*)pNewMapping + THUNKS_MAP_SIZE;
 
-    if (!PalVirtualProtect(pDataSection, thunksMapSize, PAGE_READWRITE) ||
-        !PalVirtualProtect(pThunksSection, thunksMapSize, PAGE_EXECUTE_READWRITE))
+    if (!PalVirtualProtect(pDataSection, THUNKS_MAP_SIZE, PAGE_READWRITE) ||
+        !PalVirtualProtect(pThunksSection, THUNKS_MAP_SIZE, PAGE_EXECUTE_READWRITE))
     {
         PalVirtualFree(pNewMapping, THUNKS_MAP_SIZE * 2);
         return E_FAIL;
@@ -174,7 +172,7 @@ EXTERN_C HRESULT QCALLTYPE RhAllocateThunksMapping(void** ppThunksSection)
 
             *((uint32_t*)pCurrentThunkAddress) = 0x00a2ff41;
             pCurrentThunkAddress += 3;
-            *((uint32_t*)pCurrentThunkAddress) = (uint32_t)(OS_PAGE_SIZE - POINTER_SIZE - (i * POINTER_SIZE * 2));
+            *((uint32_t*)pCurrentThunkAddress) = OS_PAGE_SIZE - POINTER_SIZE - (i * POINTER_SIZE * 2);
             pCurrentThunkAddress += 4;
 
             // nops for alignment
@@ -202,15 +200,25 @@ EXTERN_C HRESULT QCALLTYPE RhAllocateThunksMapping(void** ppThunksSection)
 #elif TARGET_ARM
 
             // mov r12,<thunk data address>
-            // ldr pc,[r12, <delta to get to last dword in data page>]
-            // r12 retains data address; RhCommonStub reads it directly without stack
+            // str r12,[sp,#-4]
+            // ldr r12,[r12, <delta to get to last dword in data page]
+            // bx r12
 
             EncodeThumb2Mov32((uint16_t*)pCurrentThunkAddress, (uint32_t)pCurrentDataAddress, 12);
             pCurrentThunkAddress += 8;
 
-            // ldr pc, [r12, #offset]
-            *((uint32_t*)pCurrentThunkAddress) = 0xf000f8dc | ((OS_PAGE_SIZE - POINTER_SIZE - (i * POINTER_SIZE * 2)) << 16);
+            *((uint32_t*)pCurrentThunkAddress) = 0xcc04f84d;
             pCurrentThunkAddress += 4;
+
+            *((uint32_t*)pCurrentThunkAddress) = 0xc000f8dc | ((OS_PAGE_SIZE - POINTER_SIZE - (i * POINTER_SIZE * 2)) << 16);
+            pCurrentThunkAddress += 4;
+
+            *((uint16_t*)pCurrentThunkAddress) = 0x4760;
+            pCurrentThunkAddress += 2;
+
+            // nops for alignment
+            *((uint16_t*)pCurrentThunkAddress) = 0xbf00;
+            pCurrentThunkAddress += 2;
 
 #elif TARGET_ARM64
 
@@ -223,7 +231,7 @@ EXTERN_C HRESULT QCALLTYPE RhAllocateThunksMapping(void** ppThunksSection)
             *((uint32_t*)pCurrentThunkAddress) = 0x10000010 | (((delta & 0x03) << 29) | (((delta & 0x1FFFFC) >> 2) << 5));
             pCurrentThunkAddress += 4;
 
-            *((uint32_t*)pCurrentThunkAddress) = 0xF9400211 | (((uint32_t)((OS_PAGE_SIZE - POINTER_SIZE - (i * POINTER_SIZE * 2)) / 8) << 10));
+            *((uint32_t*)pCurrentThunkAddress) = 0xF9400211 | (((OS_PAGE_SIZE - POINTER_SIZE - (i * POINTER_SIZE * 2)) / 8) << 10);
             pCurrentThunkAddress += 4;
 
             *((uint32_t*)pCurrentThunkAddress) = 0xD61F0220;
@@ -299,14 +307,14 @@ EXTERN_C HRESULT QCALLTYPE RhAllocateThunksMapping(void** ppThunksSection)
     #error "Unknown OS"
 #endif
 #else
-    if (!PalVirtualProtect(pThunksSection, thunksMapSize, PAGE_EXECUTE_READ))
+    if (!PalVirtualProtect(pThunksSection, THUNKS_MAP_SIZE, PAGE_EXECUTE_READ))
     {
-        PalVirtualFree(pNewMapping, thunksMapSize * 2);
+        PalVirtualFree(pNewMapping, THUNKS_MAP_SIZE * 2);
         return E_FAIL;
     }
 #endif
 
-    PalFlushInstructionCache(pThunksSection, thunksMapSize);
+    PalFlushInstructionCache(pThunksSection, THUNKS_MAP_SIZE);
 
     *ppThunksSection = pThunksSection;
     return S_OK;

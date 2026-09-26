@@ -6,7 +6,7 @@ using System.Runtime.CompilerServices;
 using Xunit;
 
 
-namespace dev11_145295
+namespace Test
 {
     public static class Exceptions
     {
@@ -107,7 +107,6 @@ namespace dev11_145295
         }
 
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

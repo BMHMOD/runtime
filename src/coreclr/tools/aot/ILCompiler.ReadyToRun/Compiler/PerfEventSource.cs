@@ -10,8 +10,10 @@ using System.Diagnostics.Tracing;
 namespace ILCompiler
 {
     [EventSource(Name = "Microsoft-ILCompiler-Perf")]
-    public partial class PerfEventSource : EventSource
+    public class PerfEventSource : EventSource
     {
+        private PerfEventSource() { }
+
         public static PerfEventSource Log = new PerfEventSource();
 
         public struct StartStopEvents : IDisposable

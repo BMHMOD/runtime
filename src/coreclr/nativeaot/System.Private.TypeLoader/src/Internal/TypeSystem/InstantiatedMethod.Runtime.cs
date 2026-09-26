@@ -65,22 +65,6 @@ namespace Internal.TypeSystem
             }
         }
 
-        public override bool AsyncVariant
-        {
-            get
-            {
-                return _methodDef.AsyncVariant;
-            }
-        }
-
-        public override bool ReturnDroppingAsyncThunk
-        {
-            get
-            {
-                return _methodDef.ReturnDroppingAsyncThunk;
-            }
-        }
-
 #if DEBUG
         public override string ToString()
         {

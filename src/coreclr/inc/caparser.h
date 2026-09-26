@@ -13,7 +13,7 @@
 #ifndef __CAPARSER_H__
 #define __CAPARSER_H__
 
-#include "mdfileformat.h"
+#include "stgpooli.h"
 
 class CustomAttributeParser {
 public:
@@ -276,6 +276,7 @@ public:
     HRESULT GetString(LPCUTF8 *pszString, ULONG *pcbString)
     {
         STATIC_CONTRACT_NOTHROW;
+        STATIC_CONTRACT_FORBID_FAULT;
 
         HRESULT hr;
 
@@ -308,6 +309,7 @@ public:
     HRESULT GetNonNullString(LPCUTF8 *pszString, ULONG *pcbString)
     {
         STATIC_CONTRACT_NOTHROW;
+        STATIC_CONTRACT_FORBID_FAULT;
 
         HRESULT hr;
 
@@ -328,6 +330,7 @@ public:
     HRESULT GetNonEmptyString(LPCUTF8 *pszString, ULONG *pcbString)
     {
         STATIC_CONTRACT_NOTHROW;
+        STATIC_CONTRACT_FORBID_FAULT;
 
         HRESULT hr;
 

@@ -5,31 +5,12 @@ namespace Microsoft.Diagnostics.DataContractReader.Contracts.StackWalkHelpers;
 
 public interface IPlatformContext
 {
-    uint Size { get; }
-    uint ContextControlFlags { get; }
-    uint FullContextFlags { get; }
-    uint AllContextFlags { get; }
+    public abstract uint Size { get; }
+    public abstract uint DefaultContextFlags { get; }
 
-    int StackPointerRegister { get; }
+    public TargetPointer StackPointer { get; set; }
+    public TargetPointer InstructionPointer { get; set; }
+    public TargetPointer FramePointer { get; set; }
 
-    TargetPointer StackPointer { get; set; }
-    TargetCodePointer InstructionPointer { get; set; }
-    TargetPointer FramePointer { get; set; }
-
-    uint RawContextFlags { get; set; }
-
-    void Unwind(Target target);
-
-    /// <summary>
-    /// Clears the hardware single-step (trace) flag in the context, if the architecture
-    /// supports a hardware single-step flag. Architectures that emulate single-stepping
-    /// throw <see cref="System.NotSupportedException"/>.
-    /// </summary>
-    void UnsetSingleStepFlag();
-
-    bool TrySetRegister(string name, TargetNUInt value);
-    bool TryReadRegister(string name, out TargetNUInt value);
-
-    bool TrySetRegister(int number, TargetNUInt value);
-    bool TryReadRegister(int number, out TargetNUInt value);
+    public abstract void Unwind(Target target);
 }

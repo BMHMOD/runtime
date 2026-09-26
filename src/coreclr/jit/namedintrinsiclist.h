@@ -15,7 +15,6 @@ enum NamedIntrinsic : unsigned short
 
     NI_System_ArgumentNullException_ThrowIfNull,
 
-    NI_System_Enum_Equals,
     NI_System_Enum_HasFlag,
 
     NI_System_BitConverter_DoubleToInt64Bits,
@@ -24,39 +23,6 @@ enum NamedIntrinsic : unsigned short
     NI_System_BitConverter_SingleToInt32Bits,
 
     NI_System_SpanHelpers_Memmove,
-
-    NI_System_Half_FusedMultiplyAdd,
-    NI_System_Half_ReciprocalEstimate,
-    NI_System_Half_ReciprocalSqrtEstimate,
-    NI_System_Half_Round,
-    NI_System_Half_Sqrt,
-
-    NI_System_Half_op_Addition,
-    NI_System_Half_op_Decrement,
-    NI_System_Half_op_Division,
-    NI_System_Half_op_Equality,
-    NI_System_Half_op_Explicit,
-    NI_System_Half_op_GreaterThan,
-    NI_System_Half_op_GreaterThanOrEqual,
-    NI_System_Half_op_Increment,
-    NI_System_Half_op_Inequality,
-    NI_System_Half_op_LessThan,
-    NI_System_Half_op_LessThanOrEqual,
-    NI_System_Half_op_Multiply,
-    NI_System_Half_op_Subtraction,
-
-    NI_System_Half_get_MinValue,
-    NI_System_Half_get_MaxValue,
-    NI_System_Half_get_Epsilon,
-    NI_System_Half_get_NaN,
-    NI_System_Half_get_PositiveInfinity,
-    NI_System_Half_get_NegativeInfinity,
-    NI_System_Half_get_One,
-    NI_System_Half_get_Zero,
-
-    NI_System_Half_Ceiling,
-    NI_System_Half_Floor,
-    NI_System_Half_Truncate,
 
     NI_SYSTEM_MATH_START,
     NI_System_Math_Abs,
@@ -131,7 +97,6 @@ enum NamedIntrinsic : unsigned short
     NI_System_Type_op_Inequality,
     NI_System_Type_GetTypeFromHandle,
     NI_System_Type_GetGenericTypeDefinition,
-    NI_System_Activator_CreateInstance_T,
     NI_System_Array_Clone,
     NI_System_Array_GetLength,
     NI_System_Array_GetLowerBound,
@@ -142,6 +107,7 @@ enum NamedIntrinsic : unsigned short
     NI_System_RuntimeType_get_TypeHandle,
     NI_System_StubHelpers_GetStubContext,
     NI_System_StubHelpers_NextCallReturnAddress,
+    NI_System_StubHelpers_AsyncCallContinuation,
 
     NI_Array_Address,
     NI_Array_Get,
@@ -155,28 +121,17 @@ enum NamedIntrinsic : unsigned short
     NI_System_Runtime_CompilerServices_RuntimeHelpers_CreateSpan,
     NI_System_Runtime_CompilerServices_RuntimeHelpers_InitializeArray,
     NI_System_Runtime_CompilerServices_RuntimeHelpers_IsKnownConstant,
-    NI_System_Runtime_CompilerServices_RuntimeHelpers_IsRuntimeAsync,
     NI_System_Runtime_CompilerServices_RuntimeHelpers_IsReferenceOrContainsReferences,
     NI_System_Runtime_CompilerServices_RuntimeHelpers_GetMethodTable,
-    NI_System_Runtime_CompilerServices_RuntimeHelpers_WriteBarrier,
-    NI_System_Runtime_CompilerServices_RuntimeHelpers_SetNextCallGenericContext,
-    NI_System_Runtime_CompilerServices_RuntimeHelpers_SetNextCallAsyncContinuation,
 
     NI_System_Runtime_CompilerServices_AsyncHelpers_AsyncSuspend,
     NI_System_Runtime_CompilerServices_AsyncHelpers_Await,
-    NI_System_Runtime_CompilerServices_AsyncHelpers_AsyncCallContinuation,
-    NI_System_Runtime_CompilerServices_AsyncHelpers_TailAwait,
-    NI_System_Runtime_CompilerServices_AsyncHelpers_AwaitAwaiter,
-    NI_System_Runtime_CompilerServices_AsyncHelpers_UnsafeAwaitAwaiter,
-    NI_System_Runtime_CompilerServices_AsyncHelpers_Suspend,
-    NI_System_Runtime_CompilerServices_AsyncHelpers_TransparentSuspend,
 
     NI_System_Runtime_CompilerServices_StaticsHelpers_VolatileReadAsByref,
 
     NI_System_Runtime_InteropService_MemoryMarshal_GetArrayDataReference,
 
     NI_System_String_Equals,
-    NI_System_String_FastAllocateString,
     NI_System_String_get_Chars,
     NI_System_String_get_Length,
     NI_System_String_op_Implicit,
@@ -204,30 +159,22 @@ enum NamedIntrinsic : unsigned short
     NI_System_Threading_Interlocked_MemoryBarrier,
 
     NI_System_Threading_Tasks_Task_ConfigureAwait,
-    NI_System_Threading_Tasks_Task_FromResult,
-    NI_System_Threading_Tasks_Task_get_CompletedTask,
-
-    NI_System_Threading_Tasks_ValueTask_FromResult,
-    NI_System_Threading_Tasks_ValueTask_get_CompletedTask,
-    NI_System_Threading_Tasks_ValueTask__ctor,
-    NI_System_Threading_Tasks_ValueTask_AsTask,
-
-    NI_System_Threading_Tasks_ValueTask_1__ctor,
-    NI_System_Threading_Tasks_ValueTask_1_AsTask,
 
     // These two are special marker IDs so that we still get the inlining profitability boost
     NI_System_Numerics_Intrinsic,
     NI_System_Runtime_Intrinsics_Intrinsic,
 
-#if defined(FEATURE_HW_INTRINSICS)
+#ifdef FEATURE_HW_INTRINSICS
     NI_HW_INTRINSIC_START,
-
-    // clang-format off
-#define HARDWARE_INTRINSIC(isa, name, simdSize, numArgs, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, intCost, fltCost, category, flag) \
+#if defined(TARGET_XARCH)
+#define HARDWARE_INTRINSIC(isa, name, size, numarg, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, category, flag)           \
     NI_##isa##_##name,
-#include "hwintrinsiclist.h"
-    // clang-format on
-
+#include "hwintrinsiclistxarch.h"
+#elif defined(TARGET_ARM64)
+#define HARDWARE_INTRINSIC(isa, name, size, numarg, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, category, flag)           \
+    NI_##isa##_##name,
+#include "hwintrinsiclistarm64.h"
+#endif // !defined(TARGET_XARCH) && !defined(TARGET_ARM64)
     NI_HW_INTRINSIC_END,
 #endif // FEATURE_HW_INTRINSICS
 
@@ -305,10 +252,6 @@ enum NamedIntrinsic : unsigned short
     NI_PRIMITIVE_PopCount,
     NI_PRIMITIVE_RotateLeft,
     NI_PRIMITIVE_RotateRight,
-    NI_PRIMITIVE_SaturateToInt8,
-    NI_PRIMITIVE_SaturateToInt16,
-    NI_PRIMITIVE_SaturateToUInt8,
-    NI_PRIMITIVE_SaturateToUInt16,
     NI_PRIMITIVE_TrailingZeroCount,
 
     NI_PRIMITIVE_END,

@@ -16,7 +16,53 @@
 #include "custommarshalerinfo.h"
 #include "mlinfo.h"
 #include "sigbuilder.h"
-#include "callhelpers.h"
+
+namespace
+{
+    MethodDesc * FindGetInstanceMethod(TypeHandle hndCustomMarshalerType)
+    {
+        CONTRACTL
+        {
+            THROWS;
+            GC_TRIGGERS;
+            MODE_COOPERATIVE;
+        }
+        CONTRACTL_END;
+
+
+        MethodTable *pMT = hndCustomMarshalerType.AsMethodTable();
+
+        MethodDesc *pMD = MemberLoader::FindMethod(pMT, "GetInstance", &gsig_SM_Str_RetICustomMarshaler);
+        if (!pMD)
+        {
+            DefineFullyQualifiedNameForClassW()
+            COMPlusThrow(kApplicationException,
+                        IDS_EE_GETINSTANCENOTIMPL,
+                        GetFullyQualifiedNameForClassW(pMT));
+        };
+
+        // If the GetInstance method is generic, get an instantiating stub for it -
+        // the CallDescr infrastructure doesn't know how to pass secret generic arguments.
+        if (pMD->RequiresInstMethodTableArg())
+        {
+            pMD = MethodDesc::FindOrCreateAssociatedMethodDesc(
+                pMD,
+                pMT,
+                FALSE,           // forceBoxedEntryPoint
+                Instantiation(), // methodInst
+                FALSE,           // allowInstParam
+                FALSE);          // forceRemotableMethod
+
+            _ASSERTE(!pMD->RequiresInstMethodTableArg());
+        }
+
+        // Ensure that the value types in the signature are loaded.
+        MetaSig::EnsureSigValueTypesLoaded(pMD);
+
+        // Return the specified method desc.
+        return pMD;
+    }
+}
 
 //==========================================================================
 // Implementation of the custom marshaler info class.
@@ -53,15 +99,35 @@ CustomMarshalerInfo::CustomMarshalerInfo(LoaderAllocator *pLoaderAllocator, Type
     hndCustomMarshalerType.GetMethodTable()->EnsureInstanceActive();
     hndCustomMarshalerType.GetMethodTable()->CheckRunClassInitThrowing();
 
-    // Call the GetInstance method to retrieve the custom marshaler to use.
+    // Create a .NET string that will contain the string cookie.
+    STRINGREF CookieStringObj = StringObject::NewString(strCookie, cCookieStrBytes);
+    GCPROTECT_BEGIN(CookieStringObj);
+    // Load the method desc for the static method to retrieve the instance.
+    MethodDesc *pGetCustomMarshalerMD = FindGetInstanceMethod(hndCustomMarshalerType);
+
+    MethodDescCallSite getCustomMarshaler(pGetCustomMarshalerMD, (OBJECTREF*)&CookieStringObj);
+
+    pGetCustomMarshalerMD->EnsureActive();
+
+    // Prepare the arguments that will be passed to GetCustomMarshaler.
+    ARG_SLOT GetCustomMarshalerArgs[] = {
+        ObjToArgSlot(CookieStringObj)
+    };
+
+    // Call the GetCustomMarshaler method to retrieve the custom marshaler to use.
     OBJECTREF CustomMarshalerObj = NULL;
     GCPROTECT_BEGIN(CustomMarshalerObj);
-
-    UnmanagedCallersOnlyCaller getCustomMarshaler(METHOD__MNGD_REF_CUSTOM_MARSHALER__GET_CUSTOM_MARSHALER_INSTANCE);
-    getCustomMarshaler.InvokeThrowing(hndCustomMarshalerType.AsMethodTable(), (BYTE*)strCookie, (INT32)cCookieStrBytes, &CustomMarshalerObj);
-    _ASSERTE(CustomMarshalerObj != NULL);
+    CustomMarshalerObj = getCustomMarshaler.Call_RetOBJECTREF(GetCustomMarshalerArgs);
+    if (!CustomMarshalerObj)
+    {
+        DefineFullyQualifiedNameForClassW()
+        COMPlusThrow(kApplicationException,
+                     IDS_EE_NOCUSTOMMARSHALER,
+                     GetFullyQualifiedNameForClassW(hndCustomMarshalerType.GetMethodTable()));
+    }
 
     m_hndCustomMarshaler = pLoaderAllocator->AllocateHandle(CustomMarshalerObj);
+    GCPROTECT_END();
     GCPROTECT_END();
 }
 
@@ -87,6 +153,7 @@ void *CustomMarshalerInfo::operator new(size_t size, LoaderHeap *pHeap)
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(CheckPointer(pHeap));
     }
     CONTRACTL_END;
@@ -119,8 +186,8 @@ CustomMarshalerInfo* CustomMarshalerInfo::CreateIEnumeratorMarshalerInfo(LoaderH
     GCX_COOP();
     GCPROTECT_BEGIN(IEnumeratorMarshalerObj);
 
-    UnmanagedCallersOnlyCaller getMarshaler(METHOD__STUBHELPERS__GET_IENUMERATOR_TO_ENUM_VARIANT_MARSHALER);
-    getMarshaler.InvokeThrowing(&IEnumeratorMarshalerObj);
+    MethodDescCallSite getMarshaler(METHOD__STUBHELPERS__GET_IENUMERATOR_TO_ENUM_VARIANT_MARSHALER);
+    IEnumeratorMarshalerObj = getMarshaler.Call_RetOBJECTREF(NULL);
 
     pInfo = new (pHeap) CustomMarshalerInfo(pLoaderAllocator, pLoaderAllocator->AllocateHandle(IEnumeratorMarshalerObj));
 
@@ -141,6 +208,7 @@ EEHashEntry_t * EECMInfoHashtableHelper::AllocateEntry(EECMInfoHashtableKey *pKe
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        INJECT_FAULT(return NULL;);
     }
     CONTRACTL_END;
 

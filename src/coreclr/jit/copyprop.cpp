@@ -205,19 +205,11 @@ bool Compiler::optCopyProp(
             continue;
         }
 
-        // It may not be profitable to propagate a local if that changes its expected enregister status.
+        // It may not be profitable to propagate a 'doNotEnregister' lclVar to an existing use of an
+        // enregisterable lclVar.
         LclVarDsc* const newLclVarDsc = lvaGetDesc(newLclNum);
-        bool enregOld = !varDsc->lvDoNotEnregister && (!varDsc->IsLiveInOutOfHandler() || IsEHVarARegCandidate(varDsc));
-        bool enregNew = !newLclVarDsc->lvDoNotEnregister &&
-                        (!newLclVarDsc->IsLiveInOutOfHandler() || IsEHVarARegCandidate(newLclVarDsc));
-        if (enregOld != enregNew)
+        if (varDsc->lvDoNotEnregister != newLclVarDsc->lvDoNotEnregister)
         {
-            continue;
-        }
-
-        if (varDsc->lvOnlyUsedOnSynchronousPath || newLclVarDsc->lvOnlyUsedOnSynchronousPath)
-        {
-            // Do not touch these -- it will likely cause us to unnecessarily save state to the continuation.
             continue;
         }
 
@@ -412,7 +404,7 @@ bool Compiler::optBlockCopyProp(BasicBlock* block, LclNumToLiveDefsMap* curSsaNa
         // SSA renaming process.
         for (GenTree* const tree : stmt->TreeList())
         {
-            treeLifeUpdater.UpdateLife<false>(tree);
+            treeLifeUpdater.UpdateLife(tree);
 
             if (tree->OperIsSsaDef())
             {
@@ -435,7 +427,7 @@ bool Compiler::optBlockCopyProp(BasicBlock* block, LclNumToLiveDefsMap* curSsaNa
                 }
 
                 // TODO-Review: EH successor/predecessor iteration seems broken.
-                if (block->CatchTypeIs(BBCT_FINALLY, BBCT_FAULT))
+                if ((block->bbCatchTyp == BBCT_FINALLY) || (block->bbCatchTyp == BBCT_FAULT))
                 {
                     continue;
                 }

@@ -10,7 +10,7 @@ namespace System.ComponentModel.Tests
     {
         public static bool IDesignerHostIsSupported => AppContext.TryGetSwitch("System.ComponentModel.Design.IDesignerHost.IsSupported", out bool isSupported) ? isSupported : true;
 
-        [ConditionalTheory(typeof(AmbientValueAttributeTests), nameof(IDesignerHostIsSupported))]
+        [ConditionalTheory(nameof(IDesignerHostIsSupported))]
         [InlineData(null, null, null)]
         [InlineData(typeof(int*), "1", null)]
         [InlineData(typeof(string), "1", "1")]

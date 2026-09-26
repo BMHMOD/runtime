@@ -34,18 +34,18 @@ bool Interop::ShouldCheckForPendingException(_In_ PInvokeMethodDesc* md)
 
 ManagedToNativeExceptionCallback Interop::GetPropagatingExceptionCallback(
     _In_ EECodeInfo* codeInfo,
-    _In_ OBJECTREF throwable,
+    _In_ OBJECTHANDLE throwable,
     _Outptr_ void** context)
 {
-    CONTRACTL
+    CONTRACT(ManagedToNativeExceptionCallback)
     {
         NOTHROW;
-        MODE_COOPERATIVE;
+        MODE_PREEMPTIVE;
         PRECONDITION(codeInfo != NULL);
         PRECONDITION(throwable != NULL);
         PRECONDITION(context != NULL);
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     ManagedToNativeExceptionCallback callback = NULL;
     *context = NULL;
@@ -67,7 +67,7 @@ ManagedToNativeExceptionCallback Interop::GetPropagatingExceptionCallback(
     EX_END_CATCH_UNREACHABLE;
 #endif // FEATURE_OBJCMARSHAL
 
-    return callback;
+    RETURN callback;
 }
 
 void Interop::OnGCStarted(_In_ int nCondemnedGeneration)

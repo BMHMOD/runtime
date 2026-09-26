@@ -6,7 +6,4 @@
   <ItemGroup>
     <Compile Include="Positive008.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

@@ -15,12 +15,13 @@ namespace System.Security.Cryptography
             Span<byte> destination,
             out int bytesWritten)
         {
-            ValueAlgorithmIdentifierAsn algorithmIdentifier = new()
+            AlgorithmIdentifierAsn algorithmIdentifier = new()
             {
                 Algorithm = kem.Algorithm.Oid,
+                Parameters = default(ReadOnlyMemory<byte>?),
             };
 
-            ValueMLKemPrivateKeyAsn privateKeyAsn = default;
+            MLKemPrivateKeyAsn privateKeyAsn = default;
             byte[]? rented = null;
             int written = 0;
 
@@ -30,8 +31,8 @@ namespace System.Security.Cryptography
                 {
                     int seedSize = kem.Algorithm.PrivateSeedSizeInBytes;
                     rented = CryptoPool.Rent(seedSize);
-                    Span<byte> buffer = rented.AsSpan(0, seedSize);
-                    kem.ExportPrivateSeed(buffer);
+                    Memory<byte> buffer = rented.AsMemory(0, seedSize);
+                    kem.ExportPrivateSeed(buffer.Span);
                     written = buffer.Length;
                     privateKeyAsn.Seed = buffer;
                 }
@@ -39,8 +40,8 @@ namespace System.Security.Cryptography
                 {
                     int decapsulationKeySize = kem.Algorithm.DecapsulationKeySizeInBytes;
                     rented = CryptoPool.Rent(decapsulationKeySize);
-                    Span<byte> buffer = rented.AsSpan(0, decapsulationKeySize);
-                    kem.ExportDecapsulationKey(buffer);
+                    Memory<byte> buffer = rented.AsMemory(0, decapsulationKeySize);
+                    kem.ExportDecapsulationKey(buffer.Span);
                     written = buffer.Length;
                     privateKeyAsn.ExpandedKey = buffer;
                 }

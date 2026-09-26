@@ -5,7 +5,6 @@ using System;
 using System.Linq;
 
 using Xunit;
-using TestLibrary;
 
 namespace LeaveAbstractMethodsNulInVTable
 {
@@ -28,7 +27,6 @@ namespace LeaveAbstractMethodsNulInVTable
 
     public class Program
     {
-        [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
         [Fact]
         public static void TestEntryPoint()
         {

@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b51870
+namespace Test
 {
     using System;
 
@@ -11,7 +11,6 @@ namespace b51870
     {
         int m_iField4;
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

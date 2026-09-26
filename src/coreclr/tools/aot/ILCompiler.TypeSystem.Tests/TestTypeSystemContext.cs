@@ -26,7 +26,6 @@ namespace TypeSystemTests
 
         private VectorFieldLayoutAlgorithm _vectorFieldLayoutAlgorithm;
         private Int128FieldLayoutAlgorithm _int128FieldLayoutAlgorithm;
-        private DecimalFieldLayoutAlgorithm _decimalFieldLayoutAlgorithm;
 
         private MetadataFieldLayoutAlgorithm _metadataFieldLayout = new TestMetadataFieldLayoutAlgorithm();
         private MetadataRuntimeInterfacesAlgorithm _metadataRuntimeInterfacesAlgorithm = new MetadataRuntimeInterfacesAlgorithm();
@@ -40,7 +39,6 @@ namespace TypeSystemTests
         {
             _vectorFieldLayoutAlgorithm = new VectorFieldLayoutAlgorithm(_metadataFieldLayout);
             _int128FieldLayoutAlgorithm = new Int128FieldLayoutAlgorithm(_metadataFieldLayout);
-            _decimalFieldLayoutAlgorithm = new DecimalFieldLayoutAlgorithm(_metadataFieldLayout);
         }
 
         public ModuleDesc GetModuleForSimpleName(string simpleName)
@@ -80,10 +78,6 @@ namespace TypeSystemTests
             else if (Int128FieldLayoutAlgorithm.IsIntegerType(type))
             {
                 return _int128FieldLayoutAlgorithm;
-            }
-            else if (DecimalFieldLayoutAlgorithm.IsDecimalFloatingPointType(type))
-            {
-                return _decimalFieldLayoutAlgorithm;
             }
 
             return _metadataFieldLayout;

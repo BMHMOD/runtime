@@ -36,7 +36,7 @@ namespace System.Configuration
             if (lSubdir < lDir)
                 return false;
 
-            if (!dir.AsSpan(0, lDir).Equals(subdir.AsSpan(0, lDir), StringComparison.OrdinalIgnoreCase))
+            if (string.Compare(dir, 0, subdir, 0, lDir, StringComparison.OrdinalIgnoreCase) != 0)
                 return false;
 
             // Check subdir that character following length of dir is a backslash
@@ -84,7 +84,7 @@ namespace System.Configuration
             if (excludeEqual && (lSubpath == lPath))
                 return false;
 
-            if (!path.AsSpan(0, lPath).Equals(subpath.AsSpan(0, lPath), StringComparison.OrdinalIgnoreCase))
+            if (string.Compare(path, 0, subpath, 0, lPath, StringComparison.OrdinalIgnoreCase) != 0)
                 return false;
 
             // Check subpath that character following length of path is a slash

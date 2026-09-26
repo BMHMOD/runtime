@@ -38,7 +38,7 @@ namespace ILCompiler.DependencyAnalysis
             throw new NotImplementedException("Multiple nodes of this type are not supported");
         }
 
-        protected internal enum ObjectNodePhase
+        protected enum ObjectNodePhase
         {
             /// <summary>
             /// Nodes should only be placed in this phase if they have strict output ordering requirements that
@@ -49,7 +49,7 @@ namespace ILCompiler.DependencyAnalysis
             Late,
         }
 
-        protected internal enum ObjectNodeOrder
+        protected enum ObjectNodeOrder
         {
             //
             // The ordering of this sequence of nodes is deliberate and currently required for
@@ -61,14 +61,12 @@ namespace ILCompiler.DependencyAnalysis
             //
             Win32ResourcesNode,
             CorHeaderNode,
-            GlobalHeaderNode,
+            ReadyToRunHeaderNode,
             ReadyToRunAssemblyHeaderNode,
             ImportSectionsTableNode,
             ImportSectionNode,
             MethodEntrypointTableNode,
-            DebugDirectoryNode,
-            RuntimeFunctionsGCInfoNode,
-            RuntimeFunctionsTableNode,
+
 
             //
             // NativeAOT Nodes
@@ -99,21 +97,10 @@ namespace ILCompiler.DependencyAnalysis
             ArrayOfEmbeddedPointersNode,
             ExternalTypeMapObjectNode,
             ProxyTypeMapObjectNode,
-            StackTraceLineNumbersNode,
-            StackTraceDocumentsNode,
+            ExternalReferencesTableNode,
             StackTraceEmbeddedMetadataNode,
             StackTraceMethodMappingNode,
             ArrayOfEmbeddedDataNode,
-            InterfaceDispatchCellInfoSection,
-            InterfaceDispatchCellSection,
-            GvmDispatchCellInfoSection,
-            GvmDispatchCellSection,
-            ExternalReferencesTableNode,
-
-            //
-            // Wasm type signatures (need to be emitted some time before the unordered phase)
-            //
-            WasmTypeNode,
         }
 
         public class EmbeddedObjectNodeComparer : IComparer<EmbeddedObjectNode>

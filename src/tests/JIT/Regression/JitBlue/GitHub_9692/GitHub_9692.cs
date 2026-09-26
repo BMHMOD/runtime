@@ -8,7 +8,7 @@ using Xunit;
 // Tests for moving exits out of loops and ensuring that doing so doesn't
 // violate EH clause nesting rules.
 
-namespace GitHub_9692
+namespace N
 {
     public class C
     {

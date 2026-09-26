@@ -35,7 +35,7 @@ namespace System.Reflection.Tests
         };
 
         [ActiveIssue("https://github.com/mono/mono/issues/15194", TestRuntimes.Mono)]
-        [ConditionalTheory(typeof(MetadataTokenTests), nameof(GetMetadataTokenSupported))]
+        [ConditionalTheory(nameof(GetMetadataTokenSupported))]
         [MemberData(nameof(MembersWithExpectedTableIndex))]
         public void SuccessImpliesNonNilWithCorrectTable(MemberInfo member, int expectedTableIndex)
         {
@@ -45,7 +45,7 @@ namespace System.Reflection.Tests
             Assert.NotEqual(0, TableIndex(token));
         }
 
-        [ConditionalFact(typeof(MetadataTokenTests), nameof(GetMetadataTokenSupported), nameof(IsReflectionEmitSupported))]
+        [ConditionalFact(nameof(GetMetadataTokenSupported), nameof(IsReflectionEmitSupported))]
         public static void ReflectionEmitType_HasMetadataToken()
         {
             AssemblyBuilder assembly = AssemblyBuilder.DefineDynamicAssembly(new AssemblyName("dynamic"), AssemblyBuilderAccess.Run);

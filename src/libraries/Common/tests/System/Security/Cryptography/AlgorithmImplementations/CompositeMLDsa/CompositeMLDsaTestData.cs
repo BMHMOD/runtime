@@ -14,42 +14,27 @@ namespace System.Security.Cryptography.Tests
         {
             internal string Id { get; }
             internal CompositeMLDsaAlgorithm Algorithm { get; }
+            internal byte[] Message { get; }
+            internal byte[] PublicKey { get; }
+            internal byte[] Certificate { get; }
+            internal byte[] SecretKey { get; }
+            internal byte[] Pkcs8 { get; }
+            internal byte[] Signature { get; }
 
-            private readonly byte[] _publicKey;
-            private readonly byte[] _certificate;
-            private readonly byte[] _secretKey;
-            private readonly byte[] _pkcs8;
-            private readonly byte[] _message;
-            private readonly byte[] _context;
-            private readonly byte[] _signature;
-            private readonly byte[] _signatureWithContext;
-            private byte[] _spki;
+            internal byte[] Spki { get; }
 
-            internal ReadOnlySpan<byte> Message => _message;
-            internal ReadOnlySpan<byte> Context => _context;
-            internal ReadOnlySpan<byte> PublicKey => _publicKey;
-            internal ReadOnlySpan<byte> Certificate => _certificate;
-            internal ReadOnlySpan<byte> SecretKey => _secretKey;
-            internal ReadOnlySpan<byte> Pkcs8 => _pkcs8;
-            internal ReadOnlySpan<byte> Signature => _signature;
-            internal ReadOnlySpan<byte> SignatureWithContext => _signatureWithContext;
-
-            internal ReadOnlySpan<byte> Spki => _spki;
-
-            internal CompositeMLDsaTestVector(string tcId, CompositeMLDsaAlgorithm algo, string pk, string x5c, string sk, string sk_pkcs8, string m, string ctx, string s, string sWithContext)
+            internal CompositeMLDsaTestVector(string tcId, CompositeMLDsaAlgorithm algo, string pk, string x5c, string sk, string sk_pkcs8, string m, string s)
             {
                 Id = tcId;
                 Algorithm = algo;
-                _publicKey = Convert.FromBase64String(pk);
-                _certificate = Convert.FromBase64String(x5c);
-                _secretKey = Convert.FromBase64String(sk);
-                _pkcs8 = Convert.FromBase64String(sk_pkcs8);
-                _message = Convert.FromBase64String(m);
-                _context = Convert.FromBase64String(ctx);
-                _signature = Convert.FromBase64String(s);
-                _signatureWithContext = Convert.FromBase64String(sWithContext);
+                PublicKey = Convert.FromBase64String(pk);
+                Certificate = Convert.FromBase64String(x5c);
+                SecretKey = Convert.FromBase64String(sk);
+                Pkcs8 = Convert.FromBase64String(sk_pkcs8);
+                Message = Convert.FromBase64String(m);
+                Signature = Convert.FromBase64String(s);
 
-                AsnReader reader = new AsnReader(_certificate, AsnEncodingRules.DER);
+                AsnReader reader = new AsnReader(Certificate, AsnEncodingRules.DER);
                 AsnReader certificate = reader.ReadSequence();
                 AsnReader tbsCertificate = certificate.ReadSequence();
 
@@ -60,7 +45,7 @@ namespace System.Security.Cryptography.Tests
                 tbsCertificate.ReadEncodedValue(); // Validity
                 tbsCertificate.ReadEncodedValue(); // Subject
 
-                _spki = tbsCertificate.ReadEncodedValue().ToArray();
+                Spki = tbsCertificate.ReadEncodedValue().ToArray();
             }
 
             public override string ToString() => Id;

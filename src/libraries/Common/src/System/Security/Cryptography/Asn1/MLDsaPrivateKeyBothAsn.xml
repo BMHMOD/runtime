@@ -2,15 +2,14 @@
 <asn:Sequence
   xmlns:asn="http://schemas.dot.net/asnxml/201808/"
   name="MLDsaPrivateKeyBothAsn"
-  namespace="System.Security.Cryptography.Asn1"
-  emitType="ref">
+  namespace="System.Security.Cryptography.Asn1">
 
   <!--
-    https://datatracker.ietf.org/doc/rfc9881/ Appendix A.
+    https://github.com/lamps-wg/dilithium-certificates/blob/5b23428b08a53aacdb89d93422b81228433e34d8/draft-ietf-lamps-dilithium-certificates.md
 
   both SEQUENCE {
       seed OCTET STRING (SIZE (32)),
-      expandedKey OCTET STRING (SIZE (2560 / 4032 / 4896))
+      expandedKey OCTET STRING (SIZE (2560))
       }
   -->
   <asn:OctetString name="Seed" />

@@ -247,6 +247,7 @@ TypeHandle Object::GetGCSafeTypeHandleIfPossible() const
     {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(CheckPointer(pInterfaceMT));
         PRECONDITION(pInterfaceMT->IsInterface());
     }
@@ -304,6 +305,7 @@ void Object::ValidateHeap(BOOL bDeep)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
 
 #if defined (VERIFY_HEAP)
     //no need to verify next object's header in this case
@@ -316,6 +318,7 @@ void Object::SetOffsetObjectRef(DWORD dwOffset, size_t dwValue)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
 
     OBJECTREF*  location;
@@ -331,6 +334,7 @@ void SetObjectReferenceUnchecked(OBJECTREF *dst,OBJECTREF ref)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
 
@@ -349,6 +353,7 @@ void CopyValueClassUnchecked(void* dest, void* src, MethodTable *pMT)
 
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
 
     _ASSERTE(!pMT->IsArray());  // bunch of assumptions about arrays wrong.
@@ -394,6 +399,7 @@ void CopyValueClassArgUnchecked(ArgDestination *argDest, void* src, MethodTable 
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
 
 #if defined(UNIX_AMD64_ABI)
@@ -432,6 +438,7 @@ void InitValueClassArg(ArgDestination *argDest, MethodTable *pMT)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
 
 #if defined(UNIX_AMD64_ABI)
@@ -479,6 +486,7 @@ VOID Object::Validate(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncBlock)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_MODE_COOPERATIVE;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
 
@@ -510,7 +518,7 @@ VOID Object::Validate(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncBlock)
 
 
     {   // ValidateInner can throw or fault on failure which violates contract.
-        CONTRACT_VIOLATION(ThrowsViolation);
+        CONTRACT_VIOLATION(ThrowsViolation | FaultViolation);
 
         // using inner helper because of TRY and stack objects with destructors.
         ValidateInner(bDeep, bVerifyNextHeader, bVerifySyncBlock);
@@ -521,6 +529,7 @@ VOID Object::ValidateInner(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncB
 {
     STATIC_CONTRACT_THROWS; // See CONTRACT_VIOLATION above
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FAULT; // See CONTRACT_VIOLATION above
     STATIC_CONTRACT_MODE_COOPERATIVE;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
 
@@ -613,8 +622,7 @@ VOID Object::ValidateInner(BOOL bDeep, BOOL bVerifyNextHeader, BOOL bVerifySyncB
     }
     EX_CATCH
     {
-        STRESS_LOG3(LF_ASSERT, LL_ALWAYS, "Detected use of corrupted OBJECTREF: %p [MT=%p] (lastTest=%d)", this,
-                    (void*)(size_t)(lastTest > 0 ? (*(size_t*)this) : 0), lastTest);
+        STRESS_LOG3(LF_ASSERT, LL_ALWAYS, "Detected use of corrupted OBJECTREF: %p [MT=%p] (lastTest=%d)", this, lastTest > 0 ? (*(size_t*)this) : 0, lastTest);
         CHECK_AND_TEAR_DOWN(!"Detected use of a corrupted OBJECTREF. Possible GC hole.");
     }
     EX_END_CATCH
@@ -648,6 +656,47 @@ STRINGREF StringObject::NewString(INT32 length) {
 
         return pString;
     }
+}
+
+
+/*==================================NewString===================================
+**Action: Many years ago, VB didn't have the concept of a byte array, so enterprising
+**        users created one by allocating a BSTR with an odd length and using it to
+**        store bytes.  A generation later, we're still stuck supporting this behavior.
+**        The way that we do this is to take advantage of the difference between the
+**        array length and the string length.  The string length will always be the
+**        number of characters between the start of the string and the terminating 0.
+**        If we need an odd number of bytes, we'll take one wchar after the terminating 0.
+**        (e.g. at position StringLength+1).  The high-order byte of this wchar is
+**        reserved for flags and the low-order byte is our odd byte. This function is
+**        used to allocate a string of that shape, but we don't actually mark the
+**        trailing byte as being in use yet.
+**Returns: A newly allocated string.  Null if length is less than 0.
+**Arguments: length -- the length of the string to allocate
+**           bHasTrailByte -- whether the string also has a trailing byte.
+**Exceptions: OutOfMemoryException if AllocateString fails.
+==============================================================================*/
+STRINGREF StringObject::NewString(INT32 length, BOOL bHasTrailByte) {
+    CONTRACTL {
+        GC_TRIGGERS;
+        MODE_COOPERATIVE;
+        PRECONDITION(length>=0 && length != INT32_MAX);
+    } CONTRACTL_END;
+
+    STRINGREF pString;
+    if (length<0 || length == INT32_MAX) {
+        return NULL;
+    } else if (length == 0) {
+        return GetEmptyString();
+    } else {
+        pString = AllocateString(length);
+        _ASSERTE(pString->GetBuffer()[length]==0);
+        if (bHasTrailByte) {
+            _ASSERTE(pString->GetBuffer()[length+1]==0);
+        }
+    }
+
+    return pString;
 }
 
 //========================================================================
@@ -797,6 +846,26 @@ STRINGREF StringObject::NewString(LPCUTF8 psz, int cBytes)
 STRINGREF* StringObject::EmptyStringRefPtr = NULL;
 bool StringObject::EmptyStringIsFrozen = false;
 
+//The special string helpers are used as flag bits for weird strings that have bytes
+//after the terminating 0.  The only case where we use this right now is the VB BSTR as
+//byte array which is described in MakeStringAsByteArrayFromBytes.
+#define SPECIAL_STRING_VB_BYTE_ARRAY 0x100
+
+FORCEINLINE BOOL MARKS_VB_BYTE_ARRAY(WCHAR x)
+{
+    return static_cast<BOOL>(x & SPECIAL_STRING_VB_BYTE_ARRAY);
+}
+
+FORCEINLINE WCHAR MAKE_VB_TRAIL_BYTE(BYTE x)
+{
+    return static_cast<WCHAR>(x) | SPECIAL_STRING_VB_BYTE_ARRAY;
+}
+
+FORCEINLINE BYTE GET_VB_TRAIL_BYTE(WCHAR x)
+{
+    return static_cast<BYTE>(x & 0xFF);
+}
+
 
 /*==============================InitEmptyStringRefPtr============================
 **Action:  Gets an empty string refptr, cache the result.
@@ -811,11 +880,79 @@ STRINGREF* StringObject::InitEmptyStringRefPtr() {
 
     GCX_COOP();
 
-    EEStringData data(0, W(""));
+    EEStringData data(0, W(""), TRUE);
     void* pinnedStr = nullptr;
     EmptyStringRefPtr = SystemDomain::System()->DefaultDomain()->GetLoaderAllocator()->GetStringObjRefPtrFromUnicodeString(&data, &pinnedStr);
     EmptyStringIsFrozen = pinnedStr != nullptr;
     return EmptyStringRefPtr;
+}
+
+/*============================InternalTrailByteCheck============================
+**Action: Many years ago, VB didn't have the concept of a byte array, so enterprising
+**        users created one by allocating a BSTR with an odd length and using it to
+**        store bytes.  A generation later, we're still stuck supporting this behavior.
+**        The way that we do this is stick the trail byte in the sync block
+**        whenever we encounter such a situation. Since we expect this to be a very corner case
+**        accessing the sync block seems like a good enough solution
+**
+**Returns: True if <CODE>str</CODE> contains a VB trail byte, false otherwise.
+**Arguments: str -- The string to be examined.
+**Exceptions: None
+==============================================================================*/
+BOOL StringObject::HasTrailByte() {
+    WRAPPER_NO_CONTRACT;
+
+    SyncBlock * pSyncBlock = PassiveGetSyncBlock();
+    if(pSyncBlock != NULL)
+    {
+        return pSyncBlock->HasCOMBstrTrailByte();
+    }
+
+    return FALSE;
+}
+
+/*=================================GetTrailByte=================================
+**Action:  If <CODE>str</CODE> contains a vb trail byte, returns a copy of it.
+**Returns: True if <CODE>str</CODE> contains a trail byte.  *bTrailByte is set to
+**         the byte in question if <CODE>str</CODE> does have a trail byte, otherwise
+**         it's set to 0.
+**Arguments: str -- The string being examined.
+**           bTrailByte -- An out param to hold the value of the trail byte.
+**Exceptions: None.
+==============================================================================*/
+BOOL StringObject::GetTrailByte(BYTE *bTrailByte) {
+    CONTRACTL
+    {
+        NOTHROW;
+        GC_NOTRIGGER;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+    _ASSERTE(bTrailByte);
+    *bTrailByte=0;
+
+    BOOL retValue = HasTrailByte();
+
+    if(retValue)
+    {
+        *bTrailByte = GET_VB_TRAIL_BYTE(GetHeader()->PassiveGetSyncBlock()->GetCOMBstrTrailByte());
+    }
+
+    return retValue;
+}
+
+/*=================================SetTrailByte=================================
+**Action: Sets the trail byte in the sync block
+**Returns: True.
+**Arguments: str -- The string into which to set the trail byte.
+**           bTrailByte -- The trail byte to be added to the string.
+**Exceptions: None.
+==============================================================================*/
+BOOL StringObject::SetTrailByte(BYTE bTrailByte) {
+    WRAPPER_NO_CONTRACT;
+
+    GetHeader()->GetSyncBlock()->SetCOMBstrTrailByte(MAKE_VB_TRAIL_BYTE(bTrailByte));
+    return TRUE;
 }
 
 #ifdef USE_CHECKED_OBJECTREFS
@@ -829,6 +966,7 @@ OBJECTREF::OBJECTREF()
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
 
     m_asObj = (Object*)POISONC;
     Thread::ObjectRefNew(this);
@@ -842,6 +980,7 @@ OBJECTREF::OBJECTREF(const OBJECTREF & objref)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_COOPERATIVE;
+    STATIC_CONTRACT_FORBID_FAULT;
 
     VALIDATEOBJECT(objref.m_asObj);
 
@@ -875,6 +1014,7 @@ OBJECTREF::OBJECTREF(const OBJECTREF *pObjref, tagVolatileLoadWithoutBarrier tag
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_COOPERATIVE;
+    STATIC_CONTRACT_FORBID_FAULT;
 
     Object* objrefAsObj = VolatileLoadWithoutBarrier(&pObjref->m_asObj);
     VALIDATEOBJECT(objrefAsObj);
@@ -908,6 +1048,7 @@ OBJECTREF::OBJECTREF(TADDR nul)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
 
     //_ASSERTE(nul == 0);
     m_asObj = (Object*)nul;
@@ -933,6 +1074,7 @@ OBJECTREF::OBJECTREF(Object *pObject)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_MODE_COOPERATIVE;
+    STATIC_CONTRACT_FORBID_FAULT;
 
     DEBUG_ONLY_FUNCTION;
 
@@ -965,6 +1107,7 @@ int OBJECTREF::operator!() const
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
 
     // We don't do any validation here, as we want to allow zero comparison in preemptive mode
     return !m_asObj;
@@ -977,6 +1120,7 @@ int OBJECTREF::operator==(const OBJECTREF &objref) const
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
 
     if (objref.m_asObj != NULL) // Allow comparison to zero in preemptive mode
     {
@@ -1014,6 +1158,7 @@ int OBJECTREF::operator!=(const OBJECTREF &objref) const
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
 
     if (objref.m_asObj != NULL)  // Allow comparison to zero in preemptive mode
     {
@@ -1053,6 +1198,7 @@ Object* OBJECTREF::operator->()
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
 
     VALIDATEOBJECT(m_asObj);
         // If this assert fires, you probably did not protect
@@ -1077,6 +1223,7 @@ const Object* OBJECTREF::operator->() const
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
 
     VALIDATEOBJECT(m_asObj);
         // If this assert fires, you probably did not protect
@@ -1105,6 +1252,7 @@ OBJECTREF& OBJECTREF::operator=(const OBJECTREF &objref)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
 
     VALIDATEOBJECT(objref.m_asObj);
 
@@ -1138,6 +1286,7 @@ OBJECTREF& OBJECTREF::operator=(TADDR nul)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
 
     _ASSERTE(nul == 0);
     Thread::ObjectRefAssign(this);
@@ -1148,6 +1297,35 @@ OBJECTREF& OBJECTREF::operator=(TADDR nul)
     return *this;
 }
 #endif  // DEBUG
+
+#ifdef _DEBUG
+
+void* __cdecl GCSafeMemCpy(void * dest, const void * src, size_t len)
+{
+    STATIC_CONTRACT_NOTHROW;
+    STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
+
+    if (!(((*(BYTE**)&dest) <  g_lowest_address ) ||
+          ((*(BYTE**)&dest) >= g_highest_address)))
+    {
+        Thread* pThread = GetThreadNULLOk();
+
+        // GCHeapUtilities::IsHeapPointer has race when called in preemptive mode. It walks the list of segments
+        // that can be modified by GC. Do the check below only if it is safe to do so.
+        if (pThread != NULL && pThread->PreemptiveGCDisabled())
+        {
+            // Note there is memcpyNoGCRefs which will allow you to do a memcpy into the GC
+            // heap if you really know you don't need to call the write barrier
+
+            _ASSERTE(!GCHeapUtilities::GetGCHeap()->IsHeapPointer((BYTE *) dest) ||
+                     !"using memcpy to copy into the GC heap, use CopyValueClass");
+        }
+    }
+    return memcpyNoGCRefs(dest, src, len);
+}
+
+#endif // _DEBUG
 
 // This function clears a piece of memory in a GC safe way.  It makes the guarantee
 // that it will clear memory in at least pointer sized chunks whenever possible.
@@ -1394,6 +1572,7 @@ OBJECTREF Nullable::Box(void* srcPtr, MethodTable* nullableMT)
     }
     CONTRACTL_END;
 
+    FAULT_NOT_FATAL();      // FIX_NOW: why do we need this?
 
     Nullable* src = (Nullable*) srcPtr;
 

@@ -6,7 +6,4 @@
   <ItemGroup>
     <Compile Include="tighttimercallback.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

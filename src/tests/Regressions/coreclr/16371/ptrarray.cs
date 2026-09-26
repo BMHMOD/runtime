@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Xunit;
-using TestLibrary;
 public unsafe class Program
 {
     static int*[,] s_mdArray;
@@ -19,7 +18,6 @@ public unsafe class Program
         s_mdArray[1, 1] = (int*)2;
     }
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static int TestEntryPoint()
     {

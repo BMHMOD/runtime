@@ -94,10 +94,13 @@ public static class MemCheck {
         ProcessStartInfo startInfo = new ProcessStartInfo(name) {
             RedirectStandardInput = true,
             RedirectStandardOutput = true,
-            RedirectStandardError = true,
             CreateNoWindow = true,
             UseShellExecute = false,
         };
-        return Process.RunAndCaptureText(startInfo).StandardOutput;
+        using (Process cmd = new Process() { StartInfo = startInfo }) {
+            cmd.Start();
+            cmd.WaitForExit();
+            return cmd.StandardOutput.ReadToEnd();
+        }
     }
 }

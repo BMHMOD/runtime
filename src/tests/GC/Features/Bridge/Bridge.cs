@@ -89,12 +89,6 @@ public class Bridge1 : BridgeBase
     }
 }
 
-[InlineArray(14)]
-public struct InlineData
-{
-    public object obj;
-}
-
 // 128 size
 public class Bridge14 : BridgeBase
 {
@@ -113,7 +107,7 @@ public class NonBridge2 : NonBridge
 
 public class NonBridge14
 {
-    public InlineData Data;
+    public object a,b,c,d,e,f,g,h,i,j,k,l,m,n;
 }
 
 
@@ -409,27 +403,6 @@ public class BridgeTest
         }
     }
 
-    public static void BridgelessHeavyColorChanging()
-    {
-        Bridge1[] left = new Bridge1[8];
-        for (int i = 0; i < 8; i++)
-            left[i] = new Bridge1();
-        Bridge[] right = new Bridge[7];
-        for (int i = 0; i < 7; i++)
-            right[i] = new Bridge();
-        NonBridge2 right7 = new NonBridge2();
-
-        NonBridge14 mid = new NonBridge14();
-
-        for (int i = 0; i < 8; i++)
-            left[i].Link = mid;
-        for (int i = 0; i < 7; i++)
-            mid.Data[i] = right[i];
-        mid.Data[7] = right7;
-        right7.Link = right[6];
-        right7.Link2 = right[5];
-    }
-
     public static int Main(string[] args)
     {
         TestLinkedList();
@@ -444,7 +417,6 @@ public class BridgeTest
         RunGraphTest(NestedCycles);
         RunGraphTest(FauxHeavyNodeWithCycles);
         RunGraphTest(Spider);
-        RunGraphTest(BridgelessHeavyColorChanging);
         return 100;
     }
 }

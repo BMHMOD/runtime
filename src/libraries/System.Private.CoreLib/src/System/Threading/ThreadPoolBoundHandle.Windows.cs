@@ -74,11 +74,6 @@ namespace System.Threading
             return new ThreadPoolBoundHandle(handle);
         }
 
-        private unsafe NativeOverlapped* AllocateNativeOverlapped(IOCompletionCallback callback, object? state, object? pinData, bool flowExecutionContext) =>
-            ThreadPool.UseWindowsThreadPool ?
-            AllocateNativeOverlappedWindowsThreadPool(callback, state, pinData, flowExecutionContext) :
-            AllocateNativeOverlappedPortableCore(callback, state, pinData, flowExecutionContext);
-
         /// <summary>
         ///     Returns a <see cref="ThreadPoolBoundHandle"/> for the specific handle,
         ///     which is bound to the system thread pool.
@@ -164,7 +159,9 @@ namespace System.Threading
         /// </exception>
         [CLSCompliant(false)]
         public unsafe NativeOverlapped* AllocateNativeOverlapped(IOCompletionCallback callback, object? state, object? pinData) =>
-            AllocateNativeOverlapped(callback, state, pinData, flowExecutionContext: true);
+            ThreadPool.UseWindowsThreadPool ?
+            AllocateNativeOverlappedWindowsThreadPool(callback, state, pinData) :
+            AllocateNativeOverlappedPortableCore(callback, state, pinData);
 
         /// <summary>
         ///     Returns an unmanaged pointer to a <see cref="NativeOverlapped"/> structure, specifying
@@ -212,7 +209,9 @@ namespace System.Threading
         /// </exception>
         [CLSCompliant(false)]
         public unsafe NativeOverlapped* UnsafeAllocateNativeOverlapped(IOCompletionCallback callback, object? state, object? pinData) =>
-            AllocateNativeOverlapped(callback, state, pinData, flowExecutionContext: false);
+            ThreadPool.UseWindowsThreadPool ?
+            UnsafeAllocateNativeOverlappedWindowsThreadPool(callback, state, pinData) :
+            UnsafeAllocateNativeOverlappedPortableCore(callback, state, pinData);
 
         /// <summary>
         ///     Returns an unmanaged pointer to a <see cref="NativeOverlapped"/> structure, using the callback,

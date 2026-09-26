@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 #pragma warning disable SA1028 // ignore whitespace warnings for generated code
@@ -8,17 +8,22 @@ using System.Runtime.InteropServices;
 
 namespace System.Security.Cryptography.X509Certificates.Asn1
 {
-    file static class SharedGeneralSubtreeAsn
+    [StructLayout(LayoutKind.Sequential)]
+    internal partial struct GeneralSubtreeAsn
     {
-        internal static ReadOnlySpan<byte> DefaultMinimum => [0x02, 0x01, 0x00];
+        private static ReadOnlySpan<byte> DefaultMinimum => [0x02, 0x01, 0x00];
+
+        internal System.Security.Cryptography.Asn1.GeneralNameAsn Base;
+        internal int Minimum;
+        internal int? Maximum;
 
 #if DEBUG
-        static SharedGeneralSubtreeAsn()
+        static GeneralSubtreeAsn()
         {
             GeneralSubtreeAsn decoded = default;
-            ValueAsnReader reader;
+            AsnValueReader reader;
 
-            reader = new ValueAsnReader(SharedGeneralSubtreeAsn.DefaultMinimum, AsnEncodingRules.DER);
+            reader = new AsnValueReader(DefaultMinimum, AsnEncodingRules.DER);
 
             if (!reader.TryReadInt32(out decoded.Minimum))
             {
@@ -28,14 +33,6 @@ namespace System.Security.Cryptography.X509Certificates.Asn1
             reader.ThrowIfNotEmpty();
         }
 #endif
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    internal partial struct GeneralSubtreeAsn
-    {
-        internal System.Security.Cryptography.Asn1.GeneralNameAsn Base;
-        internal int Minimum;
-        internal int? Maximum;
 
         internal readonly void Encode(AsnWriter writer)
         {
@@ -54,7 +51,7 @@ namespace System.Security.Cryptography.X509Certificates.Asn1
                 AsnWriter tmp = new AsnWriter(AsnEncodingRules.DER, initialCapacity: AsnManagedIntegerDerMaxEncodeSize);
                 tmp.WriteInteger(Minimum);
 
-                if (!tmp.EncodedValueEquals(SharedGeneralSubtreeAsn.DefaultMinimum))
+                if (!tmp.EncodedValueEquals(DefaultMinimum))
                 {
                     writer.PushSequence(new Asn1Tag(TagClass.ContextSpecific, 0));
                     tmp.CopyTo(writer);
@@ -82,7 +79,7 @@ namespace System.Security.Cryptography.X509Certificates.Asn1
         {
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(encoded.Span, ruleSet);
+                AsnValueReader reader = new AsnValueReader(encoded.Span, ruleSet);
 
                 DecodeCore(ref reader, expectedTag, encoded, out GeneralSubtreeAsn decoded);
                 reader.ThrowIfNotEmpty();
@@ -94,12 +91,12 @@ namespace System.Security.Cryptography.X509Certificates.Asn1
             }
         }
 
-        internal static void Decode(ref ValueAsnReader reader, ReadOnlyMemory<byte> rebind, out GeneralSubtreeAsn decoded)
+        internal static void Decode(ref AsnValueReader reader, ReadOnlyMemory<byte> rebind, out GeneralSubtreeAsn decoded)
         {
             Decode(ref reader, Asn1Tag.Sequence, rebind, out decoded);
         }
 
-        internal static void Decode(ref ValueAsnReader reader, Asn1Tag expectedTag, ReadOnlyMemory<byte> rebind, out GeneralSubtreeAsn decoded)
+        internal static void Decode(ref AsnValueReader reader, Asn1Tag expectedTag, ReadOnlyMemory<byte> rebind, out GeneralSubtreeAsn decoded)
         {
             try
             {
@@ -111,12 +108,12 @@ namespace System.Security.Cryptography.X509Certificates.Asn1
             }
         }
 
-        private static void DecodeCore(ref ValueAsnReader reader, Asn1Tag expectedTag, ReadOnlyMemory<byte> rebind, out GeneralSubtreeAsn decoded)
+        private static void DecodeCore(ref AsnValueReader reader, Asn1Tag expectedTag, ReadOnlyMemory<byte> rebind, out GeneralSubtreeAsn decoded)
         {
             decoded = default;
-            ValueAsnReader sequenceReader = reader.ReadSequence(expectedTag);
-            ValueAsnReader explicitReader;
-            ValueAsnReader defaultReader;
+            AsnValueReader sequenceReader = reader.ReadSequence(expectedTag);
+            AsnValueReader explicitReader;
+            AsnValueReader defaultReader;
 
             System.Security.Cryptography.Asn1.GeneralNameAsn.Decode(ref sequenceReader, rebind, out decoded.Base);
 
@@ -133,7 +130,7 @@ namespace System.Security.Cryptography.X509Certificates.Asn1
             }
             else
             {
-                defaultReader = new ValueAsnReader(SharedGeneralSubtreeAsn.DefaultMinimum, AsnEncodingRules.DER);
+                defaultReader = new AsnValueReader(DefaultMinimum, AsnEncodingRules.DER);
 
                 if (!defaultReader.TryReadInt32(out decoded.Minimum))
                 {

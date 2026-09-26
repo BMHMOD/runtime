@@ -29,7 +29,6 @@ namespace Runtime_49489
 
         }
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

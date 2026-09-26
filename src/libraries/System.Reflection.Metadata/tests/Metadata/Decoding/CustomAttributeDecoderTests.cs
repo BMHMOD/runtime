@@ -86,7 +86,6 @@ namespace System.Reflection.Metadata.Decoding.Tests
 
         [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.HasAssemblyFiles))]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/73593", TestRuntimes.Mono)]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/124344", typeof(PlatformDetection), nameof(PlatformDetection.IsAppleMobile), nameof(PlatformDetection.IsCoreCLR))]
         public void TestCustomAttributeDecoderUsingReflection()
         {
             Type type = typeof(HasAttributes);
@@ -115,7 +114,7 @@ namespace System.Reflection.Metadata.Decoding.Tests
                         Type t = reflectionAttribute.ConstructorArguments[j].ArgumentType;
                         Assert.Equal(TypeToString(t), arguments.Type);
                         if (t.IsArray && arguments.Value is not null)
-                        {
+                        {   
                             ImmutableArray<CustomAttributeTypedArgument<string>> array = (ImmutableArray<CustomAttributeTypedArgument<string>>)(arguments.Value);
                             IList<CustomAttributeTypedArgument> refArray = (IList<CustomAttributeTypedArgument>)reflectionAttribute.ConstructorArguments[j].Value;
                             int k = 0;
@@ -200,7 +199,7 @@ namespace System.Reflection.Metadata.Decoding.Tests
 
 #if NET && !TARGET_BROWSER // Generic attribute is not supported on .NET Framework.
         [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.HasAssemblyFiles))]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/60579", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/60579", TestPlatforms.iOS | TestPlatforms.tvOS)]
         public void TestCustomAttributeDecoderGenericUsingReflection()
         {
             Type type = typeof(HasGenericAttributes);
@@ -379,7 +378,7 @@ namespace System.Reflection.Metadata.Decoding.Tests
         [Test(true)]
         [Test(false)]
         [Test(typeof(string))]
-        /* [Test(SByteEnum.Value)] // The FullName is (System.Reflection.Metadata.Decoding.Tests.CustomAttributeDecoderTests+SByteEnum)
+        /* [Test(SByteEnum.Value)] // The FullName is (System.Reflection.Metadata.Decoding.Tests.CustomAttributeDecoderTests+SByteEnum) 
         [Test(Int16Enum.Value)] // but some enums '+' is replaced with '/' and causing inconsistency
         [Test(Int32Enum.Value)] // Updaated https://github.com/dotnet/runtime/issues/16552 to resolve this scenario later
         [Test(Int64Enum.Value)]

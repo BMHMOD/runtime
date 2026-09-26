@@ -10,14 +10,11 @@ namespace Tests
 {
     public class Test
     {
-        [OuterLoop]
         [Fact]
-        // This needs a CoreCLR TypeLoadException emulator
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/69919", typeof(TestLibrary.Utilities), nameof(TestLibrary.Utilities.IsNativeAot))]
         public static int TestEntryPoint()
         {
             if ((TestManyFields() == 100)
-                && (TestManyFieldsPlusTwo() == 100))
+                && (TestManyFieldsPlusOne() == 100))
             {
                 return 100;
             }
@@ -38,11 +35,11 @@ namespace Tests
             return 100;
         }
 
-        public static int TestManyFieldsPlusTwo()
+        public static int TestManyFieldsPlusOne()
         {
             try
             {
-                TestLdManyFieldsPlusTwo();
+                TestLdManyFieldsPlusOne();
             }
             catch (TargetInvocationException)
             {
@@ -65,9 +62,9 @@ namespace Tests
         }
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        internal static void TestLdManyFieldsPlusTwo()
+        internal static void TestLdManyFieldsPlusOne()
         {
-            object o = Activator.CreateInstance(typeof(ManyFieldsPlusTwo));
+            object o = Activator.CreateInstance(typeof(ManyFieldsPlusOne));
         }
     }
 
@@ -65607,11 +65604,11 @@ namespace Tests
         public int m65532 = 65532;
         public int m65533 = 65533;
         public int m65534 = 65534;
+        public int m65535 = 65535;
     }
 
-    public class ManyFieldsPlusTwo : ManyFields
+    public class ManyFieldsPlusOne : ManyFields
     {
-        public int m65535 = 65535;
         public int m65536 = 65536;
     }
 }

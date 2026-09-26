@@ -14,13 +14,8 @@ namespace System.Net.Http.Functional.Tests
     {
         public HttpClientHandler_Connect_Test(ITestOutputHelper output) : base(output) { }
 
-        [Theory]
-        [InlineData(HttpStatusCode.OK)]
-        [InlineData(HttpStatusCode.Created)]
-        [InlineData(HttpStatusCode.Accepted)]
-        [InlineData(HttpStatusCode.NoContent)]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/129223", TestPlatforms.Wasi)]
-        public async Task ConnectMethod_Success(HttpStatusCode statusCode)
+        [Fact]
+        public async Task ConnectMethod_Success()
         {
             await LoopbackServer.CreateServerAsync(async (server, url) =>
             {
@@ -46,7 +41,7 @@ namespace System.Net.Http.Functional.Tests
                             }
                         }
 
-                        Task serverTask = connection.SendResponseAsync(statusCode);
+                        Task serverTask = connection.SendResponseAsync(HttpStatusCode.OK);
                         await TestHelper.WhenAllCompletedOrAnyFailed(responseTask, serverTask).ConfigureAwait(false);
 
                         using (Stream clientStream = await (await responseTask).Content.ReadAsStreamAsync(TestAsync))
@@ -79,7 +74,6 @@ namespace System.Net.Http.Functional.Tests
         }
 
         [Fact]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/129223", TestPlatforms.Wasi)]
         public async Task ConnectMethod_Fails()
         {
             await LoopbackServer.CreateServerAsync(async (server, url) =>

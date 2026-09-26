@@ -23,7 +23,7 @@ namespace System.Diagnostics.Tests
         [ConditionalFact(typeof(MountHelper), nameof(MountHelper.CanCreateSymbolicLinks))]
         public void Symlink_ValidFile_Succeeds()
         {
-            string filePath = WriteTestAssemblyToFile();
+            string filePath = Path.Combine(Directory.GetCurrentDirectory(), TestAssemblyFileName);
             string linkPath = GetRandomLinkPath();
 
             Assert.Equal(0, symlink(filePath, linkPath));
@@ -66,7 +66,7 @@ namespace System.Diagnostics.Tests
         [ConditionalFact(typeof(MountHelper), nameof(MountHelper.CanCreateSymbolicLinks))]
         public void Symlink_InvalidFile_Throws()
         {
-            string sourcePath = WriteTestAssemblyToFile();
+            string sourcePath = Path.Combine(Directory.GetCurrentDirectory(), TestAssemblyFileName);
             string filePath = GetTestFilePath();
             File.Copy(sourcePath, filePath);
             string linkPath = GetRandomLinkPath();

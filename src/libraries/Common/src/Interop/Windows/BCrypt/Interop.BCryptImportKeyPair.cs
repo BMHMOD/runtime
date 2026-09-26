@@ -10,7 +10,6 @@ internal static partial class Interop
 {
     internal static partial class BCrypt
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.BCrypt, StringMarshalling = StringMarshalling.Utf16)]
         private static unsafe partial NTSTATUS BCryptImportKeyPair(
             SafeBCryptAlgorithmHandle hAlgorithm,
@@ -24,8 +23,7 @@ internal static partial class Interop
         internal static unsafe SafeBCryptKeyHandle BCryptImportKeyPair(
             SafeBCryptAlgorithmHandle algorithm,
             string blobType,
-            ReadOnlySpan<byte> keyBlob,
-            BCryptImportKeyPairFlags flags = BCryptImportKeyPairFlags.None)
+            ReadOnlySpan<byte> keyBlob)
         {
             NTSTATUS status;
             SafeBCryptKeyHandle key;
@@ -39,7 +37,7 @@ internal static partial class Interop
                     out key,
                     pBlob,
                     keyBlob.Length,
-                    (uint)flags);
+                    0);
             }
 
             if (status != NTSTATUS.STATUS_SUCCESS)
@@ -49,13 +47,6 @@ internal static partial class Interop
             }
 
             return key;
-        }
-
-        [Flags]
-        internal enum BCryptImportKeyPairFlags : uint
-        {
-            None = 0x00000000,
-            BCRYPT_NO_KEY_VALIDATION = 0x00000008,
         }
     }
 }

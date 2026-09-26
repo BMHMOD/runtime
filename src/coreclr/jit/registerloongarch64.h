@@ -105,8 +105,8 @@ REGDEF(STK,   0+NBASE, 0x0000,    "STK")
 
 /*****************************************************************************/
 #undef  RMASK
-#undef  FBASE
 #undef  FMASK
+#undef  FBASE
 #undef  NBASE
 #undef  REGDEF
 #undef  REGALIAS

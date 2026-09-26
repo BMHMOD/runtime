@@ -49,7 +49,7 @@ namespace ILCompiler
 
         private static void RootMethods(TypeDesc type, string reason, IRootingServiceProvider rootProvider)
         {
-            foreach (MethodDesc method in type.GetAllMethodsAndAsyncVariants())
+            foreach (MethodDesc method in type.GetAllMethods())
             {
                 // Skip methods with no IL and uninstantiated generic methods
                 if (method.IsAbstract || method.HasInstantiation)
@@ -85,9 +85,9 @@ namespace ILCompiler
         {
             MethodSignature signature = method.Signature;
 
-            // Vararg methods are not supported
+            // Vararg methods are not supported in .NET Core
             if ((signature.Flags & MethodSignatureFlags.UnmanagedCallingConventionMask) == MethodSignatureFlags.CallingConventionVarargs)
-                ThrowHelper.ThrowInvalidProgramException();
+                ThrowHelper.ThrowBadImageFormatException();
 
             CheckTypeCanBeUsedInSignature(signature.ReturnType);
 

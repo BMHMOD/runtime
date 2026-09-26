@@ -17,6 +17,8 @@ internal static partial class Interop
 {
     internal static partial class AndroidCrypto
     {
+        private const int UNSUPPORTED_API_LEVEL = 2;
+
         internal enum PAL_SSLStreamStatus
         {
             OK = 0,
@@ -27,29 +29,26 @@ internal static partial class Interop
         };
 
         [LibraryImport(Interop.Libraries.AndroidCryptoNative, EntryPoint = "AndroidCryptoNative_SSLStreamCreate")]
-        private static partial SafeSslHandle SSLStreamCreate(
-            IntPtr sslStreamProxyHandle,
-            [MarshalAs(UnmanagedType.LPUTF8Str)] string? targetHost,
-            IntPtr keyManagers);
-        internal static SafeSslHandle SSLStreamCreate(
-            SslStream.JavaProxy sslStreamProxy,
-            string? targetHost,
-            IntPtr keyManagers = 0)
-            => SSLStreamCreate(sslStreamProxy.Handle, targetHost, keyManagers);
+        private static partial SafeSslHandle SSLStreamCreate(IntPtr sslStreamProxyHandle);
+        internal static SafeSslHandle SSLStreamCreate(SslStream.JavaProxy sslStreamProxy)
+            => SSLStreamCreate(sslStreamProxy.Handle);
 
-        [LibraryImport(Interop.Libraries.AndroidCryptoNative, EntryPoint = "AndroidCryptoNative_SSLStreamCreateKeyManagers")]
-        private static partial IntPtr SSLStreamCreateKeyManagersImpl(
+        [LibraryImport(Interop.Libraries.AndroidCryptoNative, EntryPoint = "AndroidCryptoNative_SSLStreamCreateWithCertificates")]
+        private static partial SafeSslHandle SSLStreamCreateWithCertificates(
+            IntPtr sslStreamProxyHandle,
             ref byte pkcs8PrivateKey,
             int pkcs8PrivateKeyLen,
             PAL_KeyAlgorithm algorithm,
             IntPtr[] certs,
             int certsLen);
-        internal static IntPtr SSLStreamCreateKeyManagers(
+        internal static SafeSslHandle SSLStreamCreateWithCertificates(
+            SslStream.JavaProxy sslStreamProxy,
             ReadOnlySpan<byte> pkcs8PrivateKey,
             PAL_KeyAlgorithm algorithm,
             IntPtr[] certificates)
         {
-            return SSLStreamCreateKeyManagersImpl(
+            return SSLStreamCreateWithCertificates(
+                sslStreamProxy.Handle,
                 ref MemoryMarshal.GetReference(pkcs8PrivateKey),
                 pkcs8PrivateKey.Length,
                 algorithm,
@@ -57,37 +56,20 @@ internal static partial class Interop
                 certificates.Length);
         }
 
-        [LibraryImport(Interop.Libraries.AndroidCryptoNative, EntryPoint = "AndroidCryptoNative_SSLStreamCreateKeyManagersFromKeyStoreEntry")]
-        internal static partial IntPtr SSLStreamCreateKeyManagersFromKeyStoreEntry(IntPtr privateKeyEntryHandle);
+        [LibraryImport(Interop.Libraries.AndroidCryptoNative, EntryPoint = "AndroidCryptoNative_SSLStreamCreateWithKeyStorePrivateKeyEntry")]
+        private static partial SafeSslHandle SSLStreamCreateWithKeyStorePrivateKeyEntry(
+            IntPtr sslStreamProxyHandle,
+            IntPtr keyStorePrivateKeyEntryHandle);
+        internal static SafeSslHandle SSLStreamCreateWithKeyStorePrivateKeyEntry(
+            SslStream.JavaProxy sslStreamProxy,
+            IntPtr keyStorePrivateKeyEntryHandle)
+        {
+            return SSLStreamCreateWithKeyStorePrivateKeyEntry(sslStreamProxy.Handle, keyStorePrivateKeyEntryHandle);
+        }
 
         [LibraryImport(Interop.Libraries.AndroidCryptoNative, EntryPoint = "AndroidCryptoNative_RegisterRemoteCertificateValidationCallback")]
         internal static unsafe partial void RegisterRemoteCertificateValidationCallback(
-            delegate* unmanaged<IntPtr, IntPtr, bool> verifyRemoteCertificate);
-
-        [LibraryImport(Libraries.AndroidCryptoNative, EntryPoint = "AndroidCryptoNative_GetPlatformValidationError")]
-        private static partial int GetPlatformValidationError(
-            IntPtr platformValidationError,
-            out IntPtr platformValidationErrorChars,
-            out int platformValidationErrorLength);
-        [LibraryImport(Libraries.AndroidCryptoNative, EntryPoint = "AndroidCryptoNative_ReleasePlatformValidationError")]
-        private static partial void ReleasePlatformValidationError(IntPtr platformValidationError, IntPtr platformValidationErrorChars);
-        internal static string? GetPlatformValidationError(IntPtr platformValidationError)
-        {
-            int ret = GetPlatformValidationError(platformValidationError, out IntPtr platformValidationErrorChars, out int platformValidationErrorLength);
-            if (ret != SUCCESS || platformValidationErrorChars == IntPtr.Zero)
-            {
-                return null;
-            }
-
-            try
-            {
-                return Marshal.PtrToStringUni(platformValidationErrorChars, platformValidationErrorLength);
-            }
-            finally
-            {
-                ReleasePlatformValidationError(platformValidationError, platformValidationErrorChars);
-            }
-        }
+            delegate* unmanaged<IntPtr, bool> verifyRemoteCertificate);
 
         [LibraryImport(Interop.Libraries.AndroidCryptoNative, EntryPoint = "AndroidCryptoNative_SSLStreamInitialize")]
         private static unsafe partial int SSLStreamInitializeImpl(
@@ -123,7 +105,9 @@ internal static partial class Interop
             string targetHost)
         {
             int ret = SSLStreamSetTargetHostImpl(sslHandle, targetHost);
-            if (ret != SUCCESS)
+            if (ret == UNSUPPORTED_API_LEVEL)
+                throw new PlatformNotSupportedException(SR.net_android_ssl_api_level_unsupported);
+            else if (ret != SUCCESS)
                 throw new SslException();
         }
 

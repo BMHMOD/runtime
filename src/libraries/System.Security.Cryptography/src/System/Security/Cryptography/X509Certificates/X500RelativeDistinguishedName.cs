@@ -28,11 +28,11 @@ namespace System.Security.Cryptography.X509Certificates
             RawData = rawData;
 
             ReadOnlySpan<byte> rawDataSpan = rawData.Span;
-            ValueAsnReader outer = new ValueAsnReader(rawDataSpan, AsnEncodingRules.DER);
+            AsnValueReader outer = new AsnValueReader(rawDataSpan, AsnEncodingRules.DER);
 
             // Windows does not enforce the sort order on multi-value RDNs.
-            ValueAsnReader rdn = outer.ReadSetOf(skipSortOrderValidation: true);
-            ValueAsnReader typeAndValue = rdn.ReadSequence();
+            AsnValueReader rdn = outer.ReadSetOf(skipSortOrderValidation: true);
+            AsnValueReader typeAndValue = rdn.ReadSequence();
 
             Oid firstType = Oids.GetSharedOrNewOid(ref typeAndValue);
             ReadOnlySpan<byte> firstValue = typeAndValue.ReadEncodedValue();
@@ -61,7 +61,7 @@ namespace System.Security.Cryptography.X509Certificates
                 _singleElementType = firstType;
 
                 bool overlaps = rawDataSpan.Overlaps(firstValue, out int offset);
-                Debug.Assert(overlaps, "ValueAsnReader.ReadEncodedValue returns a slice of the source");
+                Debug.Assert(overlaps, "AsnValueReader.ReadEncodedValue returns a slice of the source");
                 Debug.Assert(offset > 0);
 
                 _singleElementValue = rawData.Slice(offset, firstValue.Length);
@@ -127,7 +127,7 @@ namespace System.Security.Cryptography.X509Certificates
 
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(_singleElementValue.Span, AsnEncodingRules.DER);
+                AsnValueReader reader = new AsnValueReader(_singleElementValue.Span, AsnEncodingRules.DER);
                 Asn1Tag tag = reader.PeekTag();
 
                 if (tag.TagClass == TagClass.Universal)

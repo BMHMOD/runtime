@@ -17,7 +17,7 @@ public class Program
 {
     private delegate string Getter();
 
-    [ConditionalFact(typeof(TestLibrary.Utilities), nameof(TestLibrary.Utilities.IsReflectionEmitSupported))]
+    [Fact]
     [OuterLoop]
     public static int TestEntryPoint()
     {

@@ -154,12 +154,10 @@ namespace System.Runtime.InteropServices.ComTypes
         [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode)]
         public struct DESCUNION
         {
-            /// <safety>Overlaps only IDLDESC and PARAMDESC, both unmanaged (IntPtr + short enum), so the union cannot forge a managed reference.</safety>
             [FieldOffset(0)]
-            public safe IDLDESC idldesc;
-            /// <safety>Overlaps only IDLDESC and PARAMDESC, both unmanaged (IntPtr + short enum), so the union cannot forge a managed reference.</safety>
+            public IDLDESC idldesc;
             [FieldOffset(0)]
-            public safe PARAMDESC paramdesc;
+            public PARAMDESC paramdesc;
         }
         public DESCUNION desc;
     }
@@ -183,12 +181,10 @@ namespace System.Runtime.InteropServices.ComTypes
         [StructLayout(LayoutKind.Explicit, CharSet = CharSet.Unicode)]
         public struct DESCUNION
         {
-            /// <safety>Overlaps only an int and an IntPtr, both unmanaged, so the union cannot forge a managed reference.</safety>
             [FieldOffset(0)]
-            public safe int oInst;
-            /// <safety>Overlaps only an int and an IntPtr, both unmanaged, so the union cannot forge a managed reference.</safety>
+            public int oInst;
             [FieldOffset(0)]
-            public safe IntPtr lpvarValue;
+            public IntPtr lpvarValue;
         }
 
         public DESCUNION desc;

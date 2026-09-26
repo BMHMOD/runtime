@@ -4,7 +4,6 @@
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 public class X
 {
@@ -17,7 +16,6 @@ public class ConnectionCycles
 {
    static bool b;
 
-   [ActiveIssue("needs triage", TestRuntimes.Mono)]
    [Fact]
    public static int Problem()
    {

@@ -28,10 +28,7 @@ namespace System.Net.Http
             _disposeHandler = disposeHandler;
         }
 
-        [UnsupportedOSPlatform("android")]
-        [UnsupportedOSPlatform("browser")]
-        [UnsupportedOSPlatform("ios")]
-        [UnsupportedOSPlatform("tvos")]
+        [UnsupportedOSPlatformAttribute("browser")]
         public virtual HttpResponseMessage Send(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             ArgumentNullException.ThrowIfNull(request);

@@ -6,7 +6,6 @@
 using System;
 
 using Xunit;
-using TestLibrary;
 
 public class Node<a> 
 {
@@ -56,7 +55,6 @@ public class SystemMap<a>
 
 public class Test
 {
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint() 
     { 

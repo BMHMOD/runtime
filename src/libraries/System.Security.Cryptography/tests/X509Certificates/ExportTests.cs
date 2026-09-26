@@ -4,7 +4,6 @@
 using System.Formats.Asn1;
 using System.Security.Cryptography.Tests;
 using System.Security.Cryptography.Dsa.Tests;
-using System.Security.Cryptography.EcDiffieHellman.Tests;
 using System.Security.Cryptography.EcDsa.Tests;
 using System.Security.Cryptography.SLHDsa.Tests;
 using System.Security.Cryptography.Asn1;
@@ -730,7 +729,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
         [SkipOnPlatform(TestPlatforms.iOS | TestPlatforms.MacCatalyst | TestPlatforms.tvOS, "The PKCS#12 Exportable flag is not supported on iOS/MacCatalyst/tvOS")]
         public static void ECDsa_Export_DefaultKeyStorePermitsUnencryptedExports_ExportParameters(bool explicitParameters)
         {
-            if (explicitParameters && !DefaultECDsaProvider.Instance.ExplicitCurvesSupported)
+            if (explicitParameters && !ECDsaFactory.ExplicitCurvesSupported)
             {
                 return;
             }
@@ -757,7 +756,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
         [SkipOnPlatform(TestPlatforms.iOS | TestPlatforms.MacCatalyst | TestPlatforms.tvOS, "The PKCS#12 Exportable flag is not supported on iOS/MacCatalyst/tvOS")]
         public static void ECDH_Export_DefaultKeyStorePermitsUnencryptedExports_ExportParameters(bool explicitParameters)
         {
-            if (explicitParameters && !DefaultECDiffieHellmanProvider.Instance.ExplicitCurvesSupported)
+            if (explicitParameters && !ECDsaFactory.ExplicitCurvesSupported)
             {
                 return;
             }
@@ -940,8 +939,8 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             Assert.Equal(Pkcs7Data, pfxAsn.AuthSafe.ContentType);
             byte[] safeContents = AsnDecoder.ReadOctetString(pfxAsn.AuthSafe.Content.Span, AsnEncodingRules.BER, out _);
 
-            ValueAsnReader authSafeReader = new ValueAsnReader(safeContents, AsnEncodingRules.BER);
-            ValueAsnReader sequenceReader = authSafeReader.ReadSequence();
+            AsnValueReader authSafeReader = new AsnValueReader(safeContents, AsnEncodingRules.BER);
+            AsnValueReader sequenceReader = authSafeReader.ReadSequence();
             authSafeReader.ThrowIfNotEmpty();
 
             int certs = 0;
@@ -1002,25 +1001,18 @@ namespace System.Security.Cryptography.X509Certificates.Tests
                 {
                     // pbeWithSHA1And3-KeyTripleDES-CBC
                     Assert.Equal("1.2.840.113549.1.12.1.3", algorithmIdentifier.Algorithm);
-                    ValuePBEParameter.Decode(
-                        algorithmIdentifier.Parameters.Value.Span,
-                        AsnEncodingRules.BER,
-                        out ValuePBEParameter pbeParameter);
+                    PBEParameter pbeParameter = PBEParameter.Decode(algorithmIdentifier.Parameters.Value, AsnEncodingRules.BER);
 
                     Assert.Equal(expectedIterations, pbeParameter.IterationCount);
                 }
                 else
                 {
                     Assert.Equal("1.2.840.113549.1.5.13", algorithmIdentifier.Algorithm); // PBES2
-                    ValuePBES2Params.Decode(
-                        algorithmIdentifier.Parameters.Value.Span,
-                        AsnEncodingRules.BER,
-                        out ValuePBES2Params pbes2Params);
+                    PBES2Params pbes2Params = PBES2Params.Decode(algorithmIdentifier.Parameters.Value, AsnEncodingRules.BER);
                     Assert.Equal("1.2.840.113549.1.5.12", pbes2Params.KeyDerivationFunc.Algorithm); // PBKDF2
-                    ValuePbkdf2Params.Decode(
-                        pbes2Params.KeyDerivationFunc.Parameters,
-                        AsnEncodingRules.BER,
-                        out ValuePbkdf2Params pbkdf2Params);
+                    Pbkdf2Params pbkdf2Params = Pbkdf2Params.Decode(
+                        pbes2Params.KeyDerivationFunc.Parameters.Value,
+                        AsnEncodingRules.BER);
                     string expectedEncryptionOid = expectedEncryptionAlgorithm switch
                     {
                         PbeEncryptionAlgorithm.Aes128Cbc => "2.16.840.1.101.3.4.1.2",
@@ -1036,7 +1028,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             }
         }
 
-        private static HashAlgorithmName GetHashAlgorithmFromPbkdf2Params(in ValuePbkdf2Params pbkdf2Params)
+        private static HashAlgorithmName GetHashAlgorithmFromPbkdf2Params(Pbkdf2Params pbkdf2Params)
         {
             return pbkdf2Params.Prf.Algorithm switch
             {

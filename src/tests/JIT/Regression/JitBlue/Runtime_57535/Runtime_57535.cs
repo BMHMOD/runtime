@@ -2,9 +2,6 @@ using System;
 using System.Runtime.CompilerServices;
 using Xunit;
 
-
-namespace Runtime_57535;
-
 public class Runtime_57535
 {
     static long z;

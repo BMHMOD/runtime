@@ -18,7 +18,7 @@ namespace System.IO.Ports.Tests
 
         #region Test Cases
 
-        [ConditionalFact(typeof(PinChangedEvent), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void PinChangedEvent_CtsChanged()
         {
             using (SerialPort com1 = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))
@@ -53,7 +53,7 @@ namespace System.IO.Ports.Tests
             }
         }
 
-        [ConditionalFact(typeof(PinChangedEvent), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void PinChangedEvent_DsrChanged()
         {
             using (SerialPort com1 = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))
@@ -90,7 +90,7 @@ namespace System.IO.Ports.Tests
             }
         }
 
-        [ConditionalFact(typeof(PinChangedEvent), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void PinChangedEvent_Break()
         {
             using (SerialPort com1 = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))
@@ -124,7 +124,7 @@ namespace System.IO.Ports.Tests
             }
         }
 
-        [ConditionalFact(typeof(PinChangedEvent), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void PinChangedEvent_Multiple()
         {
             using (SerialPort com1 = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))

@@ -7,7 +7,7 @@ using Xunit;
 JIT JitDebuggable=0 JitDebugInfo=1
 d:\com99\src\jit\il\dll\..\scopeinfo.cpp, Line 582 : Assertion failed 'lclVar->lvTracked' in 'Test.AA.Method1(int,int,byref):int'
 */
-namespace b44410
+namespace Test
 {
     using System;
     public class AA
@@ -19,7 +19,6 @@ namespace b44410
             if (m_ul == 1u)
                 param1 = param2;
         }
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

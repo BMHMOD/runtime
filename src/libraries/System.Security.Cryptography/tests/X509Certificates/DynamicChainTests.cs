@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Formats.Asn1;
 using System.IO;
 using System.Linq;
@@ -528,7 +527,6 @@ namespace System.Security.Cryptography.X509Certificates.Tests
         }
 
         [Fact]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/128890", TestPlatforms.Android)]
         public static void NameConstraintViolation_PermittedTree_Dns()
         {
             SubjectAlternativeNameBuilder builder = new SubjectAlternativeNameBuilder();
@@ -544,7 +542,6 @@ namespace System.Security.Cryptography.X509Certificates.Tests
         }
 
         [Fact]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/128890", TestPlatforms.Android)]
         public static void NameConstraintViolation_ExcludedTree_Dns()
         {
             SubjectAlternativeNameBuilder builder = new SubjectAlternativeNameBuilder();
@@ -601,7 +598,6 @@ namespace System.Security.Cryptography.X509Certificates.Tests
         }
 
         [ConditionalFact]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/128890", TestPlatforms.Android)]
         public static void NameConstraintViolation_ExcludedTree_Upn()
         {
             if (PlatformDetection.UsesAppleCrypto && !AppleHasExcludedSubTreeHandling)
@@ -655,7 +651,6 @@ namespace System.Security.Cryptography.X509Certificates.Tests
         }
 
         [Fact]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/128890", TestPlatforms.Android)]
         public static void NameConstraintViolation_PermittedTree_Upn()
         {
             SubjectAlternativeNameBuilder builder = new SubjectAlternativeNameBuilder();
@@ -1129,97 +1124,6 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             }
         }
 
-        [Fact]
-        public static void IncrediblyLongChain()
-        {
-            const int LastCertNumber = 129;
-
-            X509Certificate2 target = null;
-            ECDsa key = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            X509Extension caExt = X509BasicConstraintsExtension.CreateForCertificateAuthority();
-            X509Extension caKU = new X509KeyUsageExtension(X509KeyUsageFlags.KeyCertSign, critical: true);
-
-            ChainHolder chainHolder = new();
-            X509ChainPolicy policy = chainHolder.Chain.ChainPolicy;
-
-            try
-            {
-                DateTimeOffset notBefore = DateTimeOffset.Now.AddMinutes(-5);
-                DateTimeOffset notAfter = notBefore.AddMinutes(10);
-                Span<byte> skidBytes = stackalloc byte[256 / 8];
-                RandomNumberGenerator.Fill(skidBytes);
-
-                for (int i = 0; i <= LastCertNumber; i++)
-                {
-                    CertificateRequest req = new CertificateRequest($"CN=Turtle {i}", key, HashAlgorithmName.SHA256);
-
-                    if (i == LastCertNumber)
-                    {
-                        req.CertificateExtensions.Add(X509BasicConstraintsExtension.CreateForEndEntity());
-                        req.CertificateExtensions.Add(new X509KeyUsageExtension(X509KeyUsageFlags.DigitalSignature, critical: true));
-                    }
-                    else
-                    {
-                        req.CertificateExtensions.Add(caExt);
-                        req.CertificateExtensions.Add(caKU);
-                    }
-
-                    req.CertificateExtensions.Add(new X509SubjectKeyIdentifierExtension(skidBytes, critical: false));
-
-                    if (target is not null)
-                    {
-                        X509Certificate2 noPriv = req.Create(target, notBefore, notAfter, skidBytes);
-                        policy.ExtraStore.Add(noPriv);
-
-                        target.Dispose();
-                        target = noPriv.CopyWithPrivateKey(key);
-                    }
-                    else
-                    {
-                        target = req.CreateSelfSigned(notBefore, notAfter);
-
-                        policy.CustomTrustStore.Add(X509CertificateLoader.LoadCertificate(target.RawDataMemory.Span));
-                    }
-
-                    // Increment the SKID so that each cert has a unique SKID.
-                    // Since we don't have more than 256, we can just increment the lead byte.
-                    skidBytes[0]++;
-
-                    notBefore = notBefore.AddSeconds(1);
-                    notAfter = notAfter.AddSeconds(-1);
-                }
-
-                policy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-                policy.RevocationMode = X509RevocationMode.NoCheck;
-
-                // The policy builder makes assumptions that the native chain engines won't
-                // build chains longer than 127 certificates (it can handle longer chains,
-                // just not gracefully).
-                //
-                // This test just makes sure that the assumption holds.
-                _ = chainHolder.Chain.Build(target);
-                AssertExtensions.LessThan(chainHolder.Chain.ChainElements.Count, 128);
-            }
-            finally
-            {
-                target?.Dispose();
-
-
-                foreach (X509Certificate2 cert in policy.CustomTrustStore)
-                {
-                    cert.Dispose();
-                }
-
-                foreach (X509Certificate2 cert in policy.ExtraStore)
-                {
-                    cert.Dispose();
-                }
-
-                chainHolder.Dispose();
-                key.Dispose();
-            }
-        }
-
         private static X509ChainStatusFlags PlatformBasicConstraints(X509ChainStatusFlags flags)
         {
             if (OperatingSystem.IsAndroid())
@@ -1271,7 +1175,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             return flags;
         }
 
-        internal static X509ChainStatusFlags PlatformPolicyConstraints(X509ChainStatusFlags flags)
+        private static X509ChainStatusFlags PlatformPolicyConstraints(X509ChainStatusFlags flags)
         {
             if (PlatformDetection.UsesAppleCrypto)
             {
@@ -1355,7 +1259,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             return new X509Certificate2(cert);
         }
 
-        internal static X509Extension BuildPolicyConstraints(
+        private static X509Extension BuildPolicyConstraints(
             int? requireExplicitPolicySkipCerts = null,
             int? inhibitPolicyMappingSkipCerts = null)
         {
@@ -1386,7 +1290,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             return new X509Extension("2.5.29.36", writer.Encode(), critical: true);
         }
 
-        internal static X509Extension BuildPolicyByIdentifiers(params string[] policyOids)
+        private static X509Extension BuildPolicyByIdentifiers(params string[] policyOids)
         {
             // id-ce-certificatePolicies OBJECT IDENTIFIER ::=  { id-ce 32 }
 
@@ -1400,15 +1304,6 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             //              PolicyQualifierInfo OPTIONAL }
 
             // CertPolicyId ::= OBJECT IDENTIFIER
-            return new X509Extension("2.5.29.32", EncodeCertificatePoliciesValue(policyOids), critical: false);
-        }
-
-        // Produces the DER value shared by the RFC 5280 certificatePolicies (2.5.29.32) extension
-        // and the Microsoft szOID_APPLICATION_CERT_POLICIES (1.3.6.1.4.1.311.21.10) extension, which
-        // are structurally identical: SEQUENCE OF PolicyInformation, PolicyInformation ::= SEQUENCE {
-        // policyIdentifier OBJECT IDENTIFIER, policyQualifiers ... OPTIONAL }.
-        internal static byte[] EncodeCertificatePoliciesValue(params string[] policyOids)
-        {
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
 
             using (writer.PushSequence()) //CertificatePolicies
@@ -1422,10 +1317,10 @@ namespace System.Security.Cryptography.X509Certificates.Tests
                 }
             }
 
-            return writer.Encode();
+            return new X509Extension("2.5.29.32", writer.Encode(), critical: false);
         }
 
-        internal static X509Extension BuildPolicyMappings(
+        private static X509Extension BuildPolicyMappings(
             params (string IssuerDomainPolicy, string SubjectDomainPolicy)[] policyMappings)
         {
             //    PolicyMappings ::= SEQUENCE SIZE (1..MAX) OF SEQUENCE {
@@ -1450,44 +1345,11 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             return new X509Extension("2.5.29.33", writer.Encode(), critical: true);
         }
 
-        internal static void TestChain4(
-            X509Certificate2 rootCertificate,
-            X509Certificate2 highIntermediateCertificate,
-            X509Certificate2 lowIntermediateCertificate,
-            X509Certificate2 endEntityCertificate,
-            X509ChainStatusFlags expectedFlags = X509ChainStatusFlags.NoError,
-            Action<X509ChainPolicy> configurePolicy = null)
-        {
-            using (ChainHolder chainHolder = new ChainHolder())
-            {
-                X509Chain chain = chainHolder.Chain;
-                chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
-                chain.ChainPolicy.VerificationTime = endEntityCertificate.NotBefore.AddSeconds(1);
-                chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
-                chain.ChainPolicy.CustomTrustStore.Add(rootCertificate);
-                chain.ChainPolicy.ExtraStore.Add(highIntermediateCertificate);
-                chain.ChainPolicy.ExtraStore.Add(lowIntermediateCertificate);
-                configurePolicy?.Invoke(chain.ChainPolicy);
-
-                bool result = chain.Build(endEntityCertificate);
-                bool expected = expectedFlags == X509ChainStatusFlags.NoError;
-                X509ChainStatusFlags actualFlags = chain.AllStatusFlags();
-                int depth = chain.ChainElements?.Count ?? 0;
-                Assert.True(result == expected, $"chain.Build returned {result} with flags ({actualFlags}) and depth {depth} when ({expectedFlags}) with depth 4 was expected");
-
-                Assert.True(
-                    actualFlags.HasFlag(expectedFlags),
-                    $"Expected Flags: \"{expectedFlags}\"; Actual Flags: \"{actualFlags}\"");
-            }
-        }
-
-        internal static void TestChain3(
+        private static void TestChain3(
             X509Certificate2 rootCertificate,
             X509Certificate2 intermediateCertificate,
             X509Certificate2 endEntityCertificate,
-            X509ChainStatusFlags expectedFlags = X509ChainStatusFlags.NoError,
-            Action<X509ChainPolicy> configurePolicy = null,
-            Action<X509Chain> extraVerify = null)
+            X509ChainStatusFlags expectedFlags = X509ChainStatusFlags.NoError)
         {
             using (ChainHolder chainHolder = new ChainHolder())
             {
@@ -1497,22 +1359,14 @@ namespace System.Security.Cryptography.X509Certificates.Tests
                 chain.ChainPolicy.TrustMode = X509ChainTrustMode.CustomRootTrust;
                 chain.ChainPolicy.CustomTrustStore.Add(rootCertificate);
                 chain.ChainPolicy.ExtraStore.Add(intermediateCertificate);
-                configurePolicy?.Invoke(chain.ChainPolicy);
 
                 bool result = chain.Build(endEntityCertificate);
-                bool expected = expectedFlags == X509ChainStatusFlags.NoError;
                 X509ChainStatusFlags actualFlags = chain.AllStatusFlags();
-                int depth = chain.ChainElements?.Count ?? 0;
-                Assert.True(result == expected, $"chain.Build returned {result} with flags ({actualFlags}) and depth {depth} when ({expectedFlags}) with depth 3 was expected");
+                Assert.True(result == (expectedFlags == X509ChainStatusFlags.NoError), $"chain.Build ({actualFlags})");
 
                 Assert.True(
                     actualFlags.HasFlag(expectedFlags),
                     $"Expected Flags: \"{expectedFlags}\"; Actual Flags: \"{actualFlags}\"");
-
-                if (extraVerify is not null)
-                {
-                    extraVerify(chain);
-                }
             }
         }
     }

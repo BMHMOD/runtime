@@ -6,7 +6,6 @@
 
 #include <stddef.h>
 #include <interoplib.h>
-#include "cdacdata.h"
 
 namespace InteropLib
 {
@@ -23,7 +22,7 @@ namespace InteropLib
         constexpr size_t DispatchAlignmentThisPtr = 16; // Should be a power of 2.
 #endif
 
-        constexpr uintptr_t DispatchThisPtrMask = ~(DispatchAlignmentThisPtr - 1u);
+        constexpr intptr_t DispatchThisPtrMask = ~(DispatchAlignmentThisPtr - 1);
 
         static_assert(sizeof(void*) < DispatchAlignmentThisPtr, "DispatchAlignmentThisPtr must be larger than sizeof(void*).");
 
@@ -56,7 +55,6 @@ namespace InteropLib
         // This is designed to codify the binary layout.
         struct ManagedObjectWrapperLayout
         {
-        friend struct ::cdac_data<InteropLib::ABI::ManagedObjectWrapperLayout>;
         public:
             LONGLONG GetRawRefCount() const
             {
@@ -82,27 +80,5 @@ namespace InteropLib
         }
     }
 }
-
-template<>
-struct cdac_data<InteropLib::ABI::ManagedObjectWrapperLayout>
-{
-    static constexpr size_t RefCount = offsetof(InteropLib::ABI::ManagedObjectWrapperLayout, _refCount);
-    static constexpr size_t Flags = offsetof(InteropLib::ABI::ManagedObjectWrapperLayout, _flags);
-    static constexpr size_t UserDefinedCount = offsetof(InteropLib::ABI::ManagedObjectWrapperLayout, _userDefinedCount);
-    static constexpr size_t UserDefined = offsetof(InteropLib::ABI::ManagedObjectWrapperLayout, _userDefined);
-    static constexpr size_t Dispatches = offsetof(InteropLib::ABI::ManagedObjectWrapperLayout, _dispatches);
-};
-
-template<>
-struct cdac_data<InteropLib::ABI::ComInterfaceEntry>
-{
-    static constexpr size_t IID = offsetof(InteropLib::ABI::ComInterfaceEntry, IID);
-};
-
-template<>
-struct cdac_data<InteropLib::ABI::InternalComInterfaceDispatch>
-{
-    static constexpr size_t Entries = offsetof(InteropLib::ABI::InternalComInterfaceDispatch, _entries);
-};
 
 #endif // _INTEROP_INC_INTEROPLIBABI_H_

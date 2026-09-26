@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 /* NAME:		LargeArrayTest
-using TestLibrary;
  * SDET:		clyon
  * DATE:		2004-03-02
  * DESCRIPTION: creates arrays of size Int32.MaxValue through Int32.MaxValue-100 inclusive
@@ -10,12 +9,10 @@ using TestLibrary;
 
 using System;
 using Xunit;
-using TestLibrary;
 
 public class LargeArrayTest
 {
 	
- [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
 	[Fact]
 	public static int TestEntryPoint() 
 	{

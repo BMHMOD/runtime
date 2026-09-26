@@ -82,8 +82,8 @@ namespace Internal.TypeSystem.Interop
         private static bool IsCoreNamedType(TypeSystemContext context, TypeDesc type, ReadOnlySpan<byte> @namespace, ReadOnlySpan<byte> name)
         {
             return type is MetadataType mdType &&
-                mdType.Name == name &&
-                mdType.Namespace == @namespace &&
+                mdType.Name.SequenceEqual(name) &&
+                mdType.Namespace.SequenceEqual(@namespace) &&
                 mdType.Module == context.SystemModule;
         }
 

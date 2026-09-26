@@ -75,7 +75,7 @@ namespace ILCompiler.DependencyAnalysis
             var sectionCountReservation = builder.ReserveShort();
 
             // ReadyToRunHeader.EntrySize
-            builder.EmitByte((byte)(8 + factory.Target.PointerSize));
+            builder.EmitByte((byte)(8 + 2 * factory.Target.PointerSize));
 
             // ReadyToRunHeader.EntryType
             builder.EmitByte(1);
@@ -89,9 +89,23 @@ namespace ILCompiler.DependencyAnalysis
 
                 builder.EmitInt((int)item.Id);
 
-                builder.EmitReloc((ISymbolNode)item.Node, RelocType.IMAGE_REL_SYMBOL_SIZE);
+                ModuleInfoFlags flags = 0;
+                if (item.Node is INodeWithSize)
+                {
+                    flags |= ModuleInfoFlags.HasEndPointer;
+                }
+                builder.EmitInt((int)flags);
 
                 builder.EmitPointerReloc((ISymbolNode)item.Node);
+
+                if (!relocsOnly && item.Node is INodeWithSize nodeWithSize)
+                {
+                    builder.EmitPointerReloc((ISymbolNode)item.Node, nodeWithSize.Size);
+                }
+                else
+                {
+                    builder.EmitZeroPointer();
+                }
 
                 count++;
             }
@@ -102,5 +116,10 @@ namespace ILCompiler.DependencyAnalysis
 
         protected internal override int Phase => (int)ObjectNodePhase.Late;
         public override int ClassCode => 0x7db08464;
+    }
+
+    public interface INodeWithSize
+    {
+        public int Size { get; }
     }
 }

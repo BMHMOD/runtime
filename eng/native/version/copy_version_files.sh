@@ -11,9 +11,8 @@ for path in "${__VersionFolder}/"*{.h,.c}; do
         # update commit
         commit="$(git rev-parse HEAD 2>/dev/null)"
         commit="${commit:-N/A}"
-        weak_substitute="$(printf 'char sccsid[] __attribute__((used, weak)) = "@(#)Version N/A @Commit: %s";\n' "$commit")"
-        retain_substitute="$(printf 'static char sccsid[] __attribute__((used, retain)) = "@(#)Version N/A @Commit: %s";\n' "$commit")"
-        version_file_contents="$(cat "$path" | sed -e "s|^char sccsid\[\].*|$weak_substitute|" -e "s|^static char sccsid\[\].*|$retain_substitute|")"
+        substitute="$(printf 'static char sccsid[] __attribute__((used)) = "@(#)Version N/A @Commit: %s";\n' "$commit")"
+        version_file_contents="$(cat "$path" | sed "s|^static.*|$substitute|")"
         version_file_destination="$__RepoRoot/artifacts/obj/_version.c"
         current_contents=
         is_placeholder_file=

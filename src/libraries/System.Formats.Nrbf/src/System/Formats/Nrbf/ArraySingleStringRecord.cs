@@ -46,8 +46,6 @@ internal sealed class ArraySingleStringRecord : SZArrayRecord<string?>
 
     private string?[] ToArray(bool allowNulls)
     {
-        CheckExpectedRecordCount(Records, allowNulls);
-
         string?[] values = new string?[Length];
 
         int valueIndex = 0;

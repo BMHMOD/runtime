@@ -497,24 +497,26 @@ HRESULT TypeNameBuilder::Clear()
 // The following flags in the FormatFlags argument are significant: FormatNamespace
 void TypeString::AppendTypeDef(SString& ss, IMDInternalImport *pImport, mdTypeDef td, DWORD format)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         MODE_ANY;
         GC_NOTRIGGER;
         THROWS;
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     {
         TypeNameBuilder tnb(&ss, TypeNameBuilder::ParseStateNAME);
         AppendTypeDef(tnb, pImport, td, format);
     }
+
+    RETURN;
 }
 
 
 void TypeString::AppendTypeDef(TypeNameBuilder& tnb, IMDInternalImport *pImport, mdTypeDef td, DWORD format)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         MODE_ANY;
         GC_NOTRIGGER;
@@ -522,7 +524,7 @@ void TypeString::AppendTypeDef(TypeNameBuilder& tnb, IMDInternalImport *pImport,
         PRECONDITION(CheckPointer(pImport));
         PRECONDITION(TypeFromToken(td) == mdtTypeDef);
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     LPCUTF8 szName;
     LPCUTF8 szNameSpace;
@@ -540,11 +542,13 @@ void TypeString::AppendTypeDef(TypeNameBuilder& tnb, IMDInternalImport *pImport,
     }
 
     tnb.AddName(ssName.GetUnicode(), wszNameSpace);
+
+    RETURN;
 }
 
 void TypeString::AppendNestedTypeDef(TypeNameBuilder& tnb, IMDInternalImport *pImport, mdTypeDef td, DWORD format)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         MODE_ANY;
         GC_NOTRIGGER;
@@ -552,7 +556,7 @@ void TypeString::AppendNestedTypeDef(TypeNameBuilder& tnb, IMDInternalImport *pI
         PRECONDITION(CheckPointer(pImport));
         PRECONDITION(TypeFromToken(td) == mdtTypeDef);
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     DWORD dwAttr;
     IfFailThrow(pImport->GetTypeDefProps(td, &dwAttr, NULL));
@@ -567,6 +571,8 @@ void TypeString::AppendNestedTypeDef(TypeNameBuilder& tnb, IMDInternalImport *pI
 
     for(SCOUNT_T i = arNames.GetCount() - 1; i >= 0; i --)
         AppendTypeDef(tnb, pImport, arNames[i], format);
+
+    RETURN;
 }
 
 // Append a square-bracket-enclosed, comma-separated list of n type parameters in inst to the string s
@@ -574,13 +580,13 @@ void TypeString::AppendNestedTypeDef(TypeNameBuilder& tnb, IMDInternalImport *pI
 // The following flags in the FormatFlags argument are significant: FormatNamespace FormatFullInst FormatAssembly
 void TypeString::AppendInst(SString& ss, Instantiation inst, DWORD format)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         MODE_ANY;
         if (format & (FormatAssembly|FormatFullInst)) GC_TRIGGERS; else GC_NOTRIGGER;
         THROWS;
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     {
         TypeNameBuilder tnb(&ss, TypeNameBuilder::ParseStateNAME);
@@ -588,18 +594,20 @@ void TypeString::AppendInst(SString& ss, Instantiation inst, DWORD format)
             tnb.SetUseAngleBracketsForGenerics(TRUE);
         AppendInst(tnb, inst, format);
     }
+
+    RETURN;
 }
 
 void TypeString::AppendInst(TypeNameBuilder& tnb, Instantiation inst, DWORD format)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         MODE_ANY;
         THROWS;
         if (format & (FormatAssembly|FormatFullInst)) GC_TRIGGERS; else GC_NOTRIGGER;
         PRECONDITION(!inst.IsEmpty());
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     tnb.OpenGenericArguments();
 
@@ -626,6 +634,8 @@ void TypeString::AppendInst(TypeNameBuilder& tnb, Instantiation inst, DWORD form
     }
 
     tnb.CloseGenericArguments();
+
+    RETURN;
 }
 
 void TypeString::AppendParamTypeQualifier(TypeNameBuilder& tnb, CorElementType kind, DWORD rank)
@@ -662,26 +672,28 @@ void TypeString::AppendParamTypeQualifier(TypeNameBuilder& tnb, CorElementType k
 // The following flags in the FormatFlags argument are significant: FormatNamespace FormatFullInst FormatAssembly
 void TypeString::AppendType(SString& ss, TypeHandle ty, DWORD format)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         MODE_ANY;
         if (format & (FormatAssembly|FormatFullInst)) GC_TRIGGERS; else GC_NOTRIGGER;
         THROWS;
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     AppendType(ss, ty, Instantiation(), format);
+
+    RETURN;
 }
 
 void TypeString::AppendType(SString& ss, TypeHandle ty, Instantiation typeInstantiation, DWORD format)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         MODE_ANY;
         if (format & (FormatAssembly|FormatFullInst)) GC_TRIGGERS; else GC_NOTRIGGER;
         THROWS;
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     {
         TypeNameBuilder tnb(&ss);
@@ -689,11 +701,13 @@ void TypeString::AppendType(SString& ss, TypeHandle ty, Instantiation typeInstan
             tnb.SetUseAngleBracketsForGenerics(TRUE);
         AppendType(tnb, ty, typeInstantiation, format);
     }
+
+    RETURN;
 }
 
 void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation typeInstantiation, DWORD format)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         MODE_ANY;
 
@@ -705,7 +719,7 @@ void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation t
         if (format & (FormatAssembly|FormatFullInst)) GC_TRIGGERS; else GC_NOTRIGGER;
         THROWS;
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     BOOL bToString = (format & (FormatNamespace|FormatFullInst|FormatAssembly)) == FormatNamespace;
 
@@ -823,7 +837,7 @@ void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation t
         mdTypeDef td = ty.GetCl();
         if (IsNilToken(td))
         {
-            if (ty.IsContinuationWithoutMetadata())
+            if (ty.IsContinuation())
             {
                 AsyncContinuationsManager::PrintContinuationName(
                     ty.AsMethodTable(),
@@ -877,6 +891,8 @@ void TypeString::AppendType(TypeNameBuilder& tnb, TypeHandle ty, Instantiation t
         tnb.AddAssemblySpec(pAssemblyName.GetUnicode());
 
     }
+
+    RETURN;
 }
 
 void TypeString::AppendMethod(SString& s, MethodDesc *pMD, Instantiation typeInstantiation, const DWORD format)
@@ -1104,14 +1120,14 @@ void TypeString::AppendTypeKeyDebug(SString& ss, const TypeKey *pTypeKey)
 
 void TypeString::AppendTypeKey(TypeNameBuilder& tnb, const TypeKey *pTypeKey, DWORD format)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         MODE_ANY;
         THROWS;
         if (format & (FormatAssembly|FormatFullInst)) GC_TRIGGERS; else GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pTypeKey));
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     Module *pModule = NULL;
 
@@ -1143,7 +1159,7 @@ void TypeString::AppendTypeKey(TypeNameBuilder& tnb, const TypeKey *pTypeKey, DW
     }
     else if (kind == ELEMENT_TYPE_FNPTR)
     {
-        return;
+        RETURN;
     }
 
     // ...otherwise it's just a plain type def or an instantiated type
@@ -1180,23 +1196,27 @@ void TypeString::AppendTypeKey(TypeNameBuilder& tnb, const TypeKey *pTypeKey, DW
 #endif
         tnb.AddAssemblySpec(pAssemblyName.GetUnicode());
     }
+
+    RETURN;
 }
 
 void TypeString::AppendTypeKey(SString& ss, const TypeKey *pTypeKey, DWORD format)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         MODE_ANY;
         if (format & (FormatAssembly|FormatFullInst)) GC_TRIGGERS; else GC_NOTRIGGER;
         THROWS;
         PRECONDITION(CheckPointer(pTypeKey));
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     {
         TypeNameBuilder tnb(&ss);
         AppendTypeKey(tnb, pTypeKey, format);
     }
+
+    RETURN;
 }
 
 /*static*/

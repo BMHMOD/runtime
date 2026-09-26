@@ -4,11 +4,10 @@
 #include <unixasmmacros.inc>
 #include "AsmOffsets.inc"
 
-#define PROBE_FRAME_SIZE 0xA0  // 4 * 8  for fixed part of PInvokeTransitionFrame (fp, ra, m_pThread, m_Flags) +
+#define PROBE_FRAME_SIZE 0x90  // 4 * 8  for fixed part of PInvokeTransitionFrame (fp, ra, m_pThread, m_Flags) +
                                // 9 * 8  for callee saved registers +
                                // 1 * 8  for caller SP +
-                               // 3 * 8  for int returns (a0, a1, a2) +
-                               // 1 * 8  for alignment padding +
+                               // 2 * 8  for int returns +
                                // 2 * 8  for FP returns
 
 // See PUSH_COOP_PINVOKE_FRAME, this macro is very similar, but also saves return registers
@@ -38,19 +37,17 @@
 
     // Slot at $sp+0x68 is reserved for caller sp
 
-    // Save the integer return registers, a2 might contain an objectref (async continuation)
+    // Save the integer return registers
     st.d  $a0, $sp, 0x70
     st.d  $a1, $sp, 0x78
-    st.d  $a2, $sp, 0x80
-    // Slot at [sp, #0x88] is alignment padding
 
     // Save the FP return registers
-    fst.d  $f0, $sp, 0x90
-    fst.d  $f1, $sp, 0x98
+    fst.d  $f0, $sp, 0x80
+    fst.d  $f1, $sp, 0x88
 
     // Perform the rest of the PInvokeTransitionFrame initialization.
     st.d  \threadReg, $sp, OFFSETOF__PInvokeTransitionFrame__m_pThread   // Thread * (unused by stackwalker)
-    st.d  \BITMASK, $sp, OFFSETOF__PInvokeTransitionFrame__m_Flags       // save the register bitmask passed in by caller
+    st.d  \BITMASK, $sp, OFFSETOF__PInvokeTransitionFrame__m_pThread + 8 // save the register bitmask passed in by caller
 
     addi.d  \trashReg, $sp,  PROBE_FRAME_SIZE                            // recover value of caller's SP
     st.d  \trashReg, $sp, 0x68                                           // save caller's SP
@@ -69,11 +66,10 @@
     // Restore the integer return registers
     ld.d  $a0, $sp, 0x70
     ld.d  $a1, $sp, 0x78
-    ld.d  $a2, $sp, 0x80
 
     // Restore the FP return registers
-    fld.d  $f0, $sp, 0x90
-    fld.d  $f1, $sp, 0x98
+    fld.d  $f0, $sp, 0x80
+    fld.d  $f1, $sp, 0x88
 
     // Restore callee saved registers
     EPILOG_RESTORE_REG_PAIR 23, 24, 0x20
@@ -93,24 +89,25 @@
 //  All registers correct for return to the original return address.
 //
 // Register state on exit:
-//  a4: thread pointer
-//  a0, a1, a2: preserved
+//  a2: thread pointer
 //
 .macro FixupHijackedCallstack
 
-    // a4 <- GetThread()
-    INLINE_GETTHREAD  $a4
+    // a2 <- GetThread()
+    INLINE_GETTHREAD  $a2
 
     //
     // Fix the stack by restoring the original return address
     //
-    ld.d  $ra, $a4, OFFSETOF__Thread__m_pvHijackedReturnAddress
+    // Load m_pvHijackedReturnAddress
+    ld.d  $ra, $a2, OFFSETOF__Thread__m_pvHijackedReturnAddress
 
     //
     // Clear hijack state
     //
-    st.d  $zero, $a4, OFFSETOF__Thread__m_ppvHijackedReturnAddressLocation
-    st.d  $zero, $a4, OFFSETOF__Thread__m_pvHijackedReturnAddress
+    // Clear m_ppvHijackedReturnAddressLocation and m_pvHijackedReturnAddress
+    st.d  $zero, $a2, OFFSETOF__Thread__m_ppvHijackedReturnAddressLocation
+    st.d  $zero, $a2, OFFSETOF__Thread__m_ppvHijackedReturnAddressLocation + 8
 .endm
 
 //
@@ -125,16 +122,16 @@ NESTED_ENTRY RhpGcProbeHijack, _TEXT, NoHandler
     jirl  $r0, $ra, 0
 
 LOCAL_LABEL(WaitForGC):
-    li.d  $t3, (DEFAULT_FRAME_SAVE_FLAGS + PTFF_SAVE_R4 + PTFF_SAVE_R5 + PTFF_SAVE_R6 + PTFF_THREAD_HIJACK)
+    li.d  $t3, (DEFAULT_FRAME_SAVE_FLAGS + PTFF_SAVE_R4 + PTFF_SAVE_R5 + PTFF_THREAD_HIJACK)
     b  C_FUNC(RhpWaitForGC)
 NESTED_END RhpGcProbeHijack
 
 .global C_FUNC(RhpThrowHwEx)
 
 NESTED_ENTRY RhpWaitForGC, _TEXT, NoHandler
-    PUSH_PROBE_FRAME $a4, $a3, $t3
+    PUSH_PROBE_FRAME $a2, $a3, $t3
 
-    ld.d        $a0, $a4, OFFSETOF__Thread__m_pDeferredTransitionFrame
+    ld.d        $a0, $a2, OFFSETOF__Thread__m_pDeferredTransitionFrame
     bl  C_FUNC(RhpWaitForGC2)
 
     POP_PROBE_FRAME
@@ -155,6 +152,7 @@ NESTED_ENTRY RhpGcPollRare, _TEXT, NoHandler
     POP_COOP_PINVOKE_FRAME
     jirl  $r0, $ra, 0
 NESTED_END RhpGcPollRare
+
 
 #ifdef FEATURE_GC_STRESS
 

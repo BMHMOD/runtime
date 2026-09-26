@@ -61,13 +61,13 @@ namespace System.Security.Cryptography.X509Certificates
         }
 
 
-        internal static void DecodeX509KeyUsageExtension(ReadOnlySpan<byte> encoded, out X509KeyUsageFlags keyUsages)
+        private static void DecodeX509KeyUsageExtension(byte[] encoded, out X509KeyUsageFlags keyUsages)
         {
             KeyUsageFlagsAsn keyUsagesAsn;
 
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(encoded, AsnEncodingRules.BER);
+                AsnValueReader reader = new AsnValueReader(encoded, AsnEncodingRules.BER);
                 keyUsagesAsn = reader.ReadNamedBitListValue<KeyUsageFlagsAsn>();
                 reader.ThrowIfNotEmpty();
             }

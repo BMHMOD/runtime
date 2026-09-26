@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 using System.Runtime.Intrinsics;
 using Xunit;
-using TestLibrary;
 
 public class Test27937
 {
@@ -28,7 +27,6 @@ public class Test27937
         } while (pb < eb);
     }
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static unsafe void TestEntryPoint()
     {

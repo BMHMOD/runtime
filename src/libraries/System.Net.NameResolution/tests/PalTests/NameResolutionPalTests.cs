@@ -163,7 +163,7 @@ namespace System.Net.NameResolution.PalTests
             Assert.NotNull(name);
         }
 
-        [ConditionalFact(typeof(NameResolutionPalTests), nameof(Ipv6LocalHostNameLookupNotBrokenByNrpRule))]
+        [ConditionalFact(nameof(Ipv6LocalHostNameLookupNotBrokenByNrpRule))]
         [SkipOnPlatform(TestPlatforms.Wasi, "WASI has no getnameinfo")]
         public void TryGetNameInfo_LocalHost_IPv6()
         {
@@ -265,7 +265,7 @@ namespace System.Net.NameResolution.PalTests
             Assert.NotNull(addresses);
         }
 
-        [ConditionalTheory(typeof(NameResolutionPalTests), nameof(Ipv6LocalHostNameLookupNotBrokenByNrpRule))]
+        [ConditionalTheory(nameof(Ipv6LocalHostNameLookupNotBrokenByNrpRule))]
         [InlineData(false)]
         [InlineData(true)]
         [SkipOnPlatform(TestPlatforms.Wasi, "WASI has no getnameinfo")]

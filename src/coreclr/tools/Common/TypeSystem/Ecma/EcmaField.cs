@@ -9,8 +9,6 @@ using System.Reflection.Metadata.Ecma335;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-using Internal.Text;
-
 namespace Internal.TypeSystem.Ecma
 {
     public sealed partial class EcmaField : FieldDesc, EcmaModule.IEntityHandleObject
@@ -269,7 +267,7 @@ namespace Internal.TypeSystem.Ecma
             return new ReadOnlySpan<byte>(_namePointer, _nameLength);
         }
 
-        public override unsafe Utf8Span Name
+        public override unsafe ReadOnlySpan<byte> Name
         {
             get
             {

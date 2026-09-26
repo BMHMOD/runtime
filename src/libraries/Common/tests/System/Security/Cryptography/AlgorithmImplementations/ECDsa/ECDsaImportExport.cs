@@ -3,20 +3,21 @@
 
 using System.Collections.Generic;
 using System.Security.Cryptography.Tests;
-using Microsoft.DotNet.XUnitExtensions;
+using System.Security.Cryptography.EcDiffieHellman.Tests;
 using Test.Cryptography;
 using Xunit;
 
 namespace System.Security.Cryptography.EcDsa.Tests
 {
     [SkipOnPlatform(TestPlatforms.Browser, "Not supported on Browser")]
-    public abstract class ECDsaImportExportTests : ECDsaTestsBase
+    public class ECDsaImportExportTests : ECDsaTestsBase
     {
-        protected abstract bool CanDeriveNewPublicKey { get; }
+        internal static bool CanDeriveNewPublicKey { get; }
+            = EcDiffieHellman.Tests.ECDiffieHellmanFactory.CanDeriveNewPublicKey;
 
 #if NET
         [Fact]
-        public void DiminishedCoordsRoundtrip()
+        public static void DiminishedCoordsRoundtrip()
         {
             ECParameters toImport = EccTestData.GetNistP521DiminishedCoordsParameters();
             ECParameters privateParams;
@@ -37,7 +38,7 @@ namespace System.Security.Cryptography.EcDsa.Tests
 
         [Fact]
         [PlatformSpecific(TestPlatforms.Windows/* "parameters.Curve.Hash doesn't round trip on Unix." */)]
-        public void ImportExplicitWithHashButNoSeed()
+        public static void ImportExplicitWithHashButNoSeed()
         {
             if (!ECDsaFactory.ExplicitCurvesSupported)
             {
@@ -61,9 +62,9 @@ namespace System.Security.Cryptography.EcDsa.Tests
 
         [Theory]
         [MemberData(nameof(TestCurvesFull))]
-        public void TestNamedCurves(CurveDef curveDef)
+        public static void TestNamedCurves(CurveDef curveDef)
         {
-            if (!curveDef.Curve.IsNamed || !curveDef.IsCurveValidOnPlatform(ECDsaFactory))
+            if (!curveDef.Curve.IsNamed)
                 return;
 
             using (ECDsa ec1 = ECDsaFactory.Create(curveDef.Curve))
@@ -82,30 +83,23 @@ namespace System.Security.Cryptography.EcDsa.Tests
             }
         }
 
-        [Theory]
-        [MemberData(nameof(TestCurves))]
-        public void TestNamedCurvesNegative(CurveDef curveDef)
+        [Theory, MemberData(nameof(TestInvalidCurves))]
+        public static void TestNamedCurvesNegative(CurveDef curveDef)
         {
-            if (!curveDef.Curve.IsNamed || curveDef.IsCurveValidOnPlatform(ECDsaFactory))
+            if (!curveDef.Curve.IsNamed)
                 return;
 
             // An exception may be thrown during Create() if the Oid is bad, or later during native calls
             Assert.Throws<PlatformNotSupportedException>(() =>
             {
-                using ECDsa ecdsa = ECDsaFactory.Create(curveDef.Curve);
-                ecdsa.ExportParameters(false);
+                using ECDiffieHellman ecdh = ECDiffieHellmanFactory.Create(curveDef.Curve);
+                ecdh.ExportParameters(false);
             });
         }
 
-        [ConditionalTheory]
-        [MemberData(nameof(TestCurvesFull))]
-        public void TestExplicitCurves(CurveDef curveDef)
+        [ConditionalTheory(nameof(ECExplicitCurvesSupported)), MemberData(nameof(TestCurvesFull))]
+        public static void TestExplicitCurves(CurveDef curveDef)
         {
-            SkipTestException.ThrowUnless(ECExplicitCurvesSupported);
-
-            if (!curveDef.IsCurveValidOnPlatform(ECDsaFactory))
-                return;
-
             using (ECDsa ec1 = ECDsaFactory.Create(curveDef.Curve))
             {
                 ECParameters param1 = ec1.ExportExplicitParameters(curveDef.IncludePrivate);
@@ -122,17 +116,9 @@ namespace System.Security.Cryptography.EcDsa.Tests
             }
         }
 
-        [ConditionalTheory]
-        [MemberData(nameof(TestCurves))]
-        public void TestExplicitCurvesSignVerify(CurveDef curveDef)
+        [ConditionalTheory(nameof(ECExplicitCurvesSupported)), MemberData(nameof(TestCurves))]
+        public static void TestExplicitCurvesSignVerify(CurveDef curveDef)
         {
-            SkipTestException.ThrowUnless(ECExplicitCurvesSupported);
-
-            if (!curveDef.IsCurveValidOnPlatform(ECDsaFactory))
-            {
-                return;
-            }
-
             using (ECDsa ec1 = ECDsaFactory.Create(curveDef.Curve))
             {
                 byte[] data = new byte[0x10];
@@ -178,7 +164,7 @@ namespace System.Security.Cryptography.EcDsa.Tests
         }
 
         [Fact]
-        public void TestNamedCurveNegative()
+        public static void TestNamedCurveNegative()
         {
             Assert.Throws<ArgumentNullException>(() => ECCurve.CreateFromFriendlyName(null));
             Assert.Throws<ArgumentNullException>(() => ECCurve.CreateFromValue(null));
@@ -191,7 +177,7 @@ namespace System.Security.Cryptography.EcDsa.Tests
         }
 
         [Fact]
-        public void TestKeySizeCreateKey()
+        public static void TestKeySizeCreateKey()
         {
             using (ECDsa ec = ECDsaFactory.Create(ECCurve.NamedCurves.nistP256))
             {
@@ -207,12 +193,10 @@ namespace System.Security.Cryptography.EcDsa.Tests
             }
         }
 
-        [ConditionalFact]
+        [ConditionalFact(nameof(ECExplicitCurvesSupported))]
         [SkipOnPlatform(TestPlatforms.Android, "Android does not validate curve parameters")]
-        public void TestExplicitImportValidationNegative()
+        public static void TestExplicitImportValidationNegative()
         {
-            SkipTestException.ThrowUnless(ECExplicitCurvesSupported);
-
             unchecked
             {
                 using (ECDsa ec = ECDsaFactory.Create())
@@ -258,11 +242,9 @@ namespace System.Security.Cryptography.EcDsa.Tests
             }
         }
 
-        [ConditionalFact]
-        public void TestNamedImportValidationNegative()
+        [ConditionalFact(nameof(ECDsa224Available))]
+        public static void TestNamedImportValidationNegative()
         {
-            SkipTestException.ThrowUnless(ECDsa224Available);
-
             unchecked
             {
                 using(ECDsa ec = ECDsaFactory.Create())
@@ -290,11 +272,9 @@ namespace System.Security.Cryptography.EcDsa.Tests
             }
         }
 
-        [ConditionalFact]
-        public void TestGeneralExportWithExplicitParameters()
+        [ConditionalFact(nameof(ECExplicitCurvesSupported))]
+        public static void TestGeneralExportWithExplicitParameters()
         {
-            SkipTestException.ThrowUnless(ECExplicitCurvesSupported);
-
             using (ECDsa ecdsa = ECDsaFactory.Create())
             {
                 ECParameters param = EccTestData.GetNistP256ExplicitTestData();
@@ -310,11 +290,9 @@ namespace System.Security.Cryptography.EcDsa.Tests
             }
         }
 
-        [ConditionalFact]
-        public void TestNamedCurveWithExplicitKey()
+        [ConditionalFact(nameof(ECDsa224Available))]
+        public static void TestNamedCurveWithExplicitKey()
         {
-            SkipTestException.ThrowUnless(ECDsa224Available);
-
             using (ECDsa ec = ECDsaFactory.Create())
             {
                 ECParameters parameters = EccTestData.GetNistP224KeyTestData();
@@ -324,7 +302,7 @@ namespace System.Security.Cryptography.EcDsa.Tests
         }
 
         [Fact]
-        public void ExportIncludingPrivateOnPublicOnlyKey()
+        public static void ExportIncludingPrivateOnPublicOnlyKey()
         {
             ECParameters iutParameters = new ECParameters
             {
@@ -352,11 +330,9 @@ namespace System.Security.Cryptography.EcDsa.Tests
             }
         }
 
-        [ConditionalFact]
-        public void ImportFromPrivateOnlyKey()
+        [ConditionalFact(nameof(CanDeriveNewPublicKey))]
+        public static void ImportFromPrivateOnlyKey()
         {
-            SkipTestException.ThrowUnless(CanDeriveNewPublicKey);
-
             byte[] expectedX = "00d45615ed5d37fde699610a62cd43ba76bedd8f85ed31005fe00d6450fbbd101291abd96d4945a8b57bc73b3fe9f4671105309ec9b6879d0551d930dac8ba45d255".HexToByteArray();
             byte[] expectedY = "01425332844e592b440c0027972ad1526431c06732df19cd46a242172d4dd67c2c8c99dfc22e49949a56cf90c6473635ce82f25b33682fb19bc33bd910ed8ce3a7fa".HexToByteArray();
 
@@ -378,119 +354,10 @@ namespace System.Security.Cryptography.EcDsa.Tests
             }
         }
 
-        [ConditionalFact]
-        public void DerivePublicKey_Named_P256()
-        {
-            SkipTestException.ThrowUnless(CanDeriveNewPublicKey);
-
-            VerifyPrivateKeyDerivesPublicKey(EccTestData.GetNistP256ReferenceKey(), explicitCurve: false);
-        }
-
-        [ConditionalFact]
-        public void DerivePublicKey_Named_P521_DiminishedCoords()
-        {
-            SkipTestException.ThrowUnless(CanDeriveNewPublicKey);
-
-            VerifyPrivateKeyDerivesPublicKey(EccTestData.GetNistP521DiminishedCoordsParameters(), explicitCurve: false);
-        }
-
-        [ConditionalFact]
-        public void DerivePublicKey_Named_Sect163k1()
-        {
-            SkipTestException.ThrowUnless(CanDeriveNewPublicKey);
-
-            if (!ECDsaFactory.IsCurveValid(EccTestData.Sect163k1Key1.Curve.Oid))
-                return;
-
-            VerifyPrivateKeyDerivesPublicKey(EccTestData.Sect163k1Key1, explicitCurve: false);
-        }
-
-        [ConditionalFact]
-        public void DerivePublicKey_Named_C2pnb163v1()
-        {
-            SkipTestException.ThrowUnless(CanDeriveNewPublicKey);
-
-            if (!ECDsaFactory.IsCurveValid(EccTestData.C2pnb163v1Key1.Curve.Oid))
-                return;
-
-            VerifyPrivateKeyDerivesPublicKey(EccTestData.C2pnb163v1Key1, explicitCurve: false);
-        }
-
-        [ConditionalFact]
-        public void DerivePublicKey_Explicit_P256()
-        {
-            SkipTestException.ThrowUnless(ECExplicitCurvesSupported);
-            SkipTestException.ThrowUnless(CanDeriveNewPublicKey);
-
-            VerifyPrivateKeyDerivesPublicKey(EccTestData.GetNistP256ReferenceKeyExplicit(), explicitCurve: true);
-        }
-
-        [ConditionalFact]
-        public void DerivePublicKey_Explicit_P521_DiminishedCoords()
-        {
-            SkipTestException.ThrowUnless(ECExplicitCurvesSupported);
-            SkipTestException.ThrowUnless(CanDeriveNewPublicKey);
-
-            ECParameters p521 = EccTestData.GetNistP521DiminishedCoordsParameters();
-            p521.Curve = EccTestData.GetNistP521ExplicitCurve();
-            VerifyPrivateKeyDerivesPublicKey(p521, explicitCurve: true);
-        }
-
-        [ConditionalFact]
-        public void DerivePublicKey_Explicit_Sect163k1()
-        {
-            SkipTestException.ThrowUnless(ECExplicitCurvesSupported);
-            SkipTestException.ThrowUnless(CanDeriveNewPublicKey);
-
-            if (!ECDsaFactory.IsCurveValid(EccTestData.Sect163k1Key1.Curve.Oid))
-                return;
-
-            VerifyPrivateKeyDerivesPublicKey(EccTestData.Sect163k1Key1Explicit, explicitCurve: true);
-        }
-
-        [ConditionalFact]
-        public void DerivePublicKey_Explicit_C2pnb163v1()
-        {
-            SkipTestException.ThrowUnless(ECExplicitCurvesSupported);
-            SkipTestException.ThrowUnless(CanDeriveNewPublicKey);
-
-            if (!ECDsaFactory.IsCurveValid(EccTestData.C2pnb163v1Key1.Curve.Oid))
-                return;
-
-            VerifyPrivateKeyDerivesPublicKey(EccTestData.C2pnb163v1Key1Explicit, explicitCurve: true);
-        }
-
-        private void VerifyPrivateKeyDerivesPublicKey(ECParameters knownKey, bool explicitCurve)
-        {
-            ECParameters importParams = new ECParameters
-            {
-                Curve = knownKey.Curve,
-                D = knownKey.D,
-                Q = default,
-            };
-
-            using (ECDsa ecdsa = ECDsaFactory.Create())
-            {
-                ecdsa.ImportParameters(importParams);
-
-                ECParameters exported = explicitCurve
-                    ? ecdsa.ExportExplicitParameters(true)
-                    : ecdsa.ExportParameters(true);
-
-                Assert.Equal(knownKey.Q.X, exported.Q.X);
-                Assert.Equal(knownKey.Q.Y, exported.Q.Y);
-            }
-        }
-
         [Theory]
         [MemberData(nameof(NamedCurves))]
-        public void OidPresentOnCurveMiscased(ECCurve curve, bool checkCurveValidity)
+        public static void OidPresentOnCurveMiscased(ECCurve curve)
         {
-            if (checkCurveValidity && !ECDsaFactory.IsCurveValid(curve.Oid))
-            {
-                return;
-            }
-
             ECCurve miscasedCurve = ECCurve.CreateFromFriendlyName(InvertStringCase(curve.Oid.FriendlyName));
             Assert.NotEqual(miscasedCurve.Oid.FriendlyName, curve.Oid.FriendlyName);
             Assert.Equal(miscasedCurve.Oid.FriendlyName, curve.Oid.FriendlyName, ignoreCase: true);
@@ -512,16 +379,22 @@ namespace System.Security.Cryptography.EcDsa.Tests
         {
             get
             {
-                yield return new object[] { ECCurve.NamedCurves.nistP256, false };
-                yield return new object[] { ECCurve.NamedCurves.nistP384, false };
-                yield return new object[] { ECCurve.NamedCurves.nistP521, false };
-                yield return new object[] { ECCurve.CreateFromFriendlyName("ECDSA_P256"), false };
-                yield return new object[] { ECCurve.CreateFromFriendlyName("ECDSA_P384"), false };
-                yield return new object[] { ECCurve.CreateFromFriendlyName("ECDSA_P521"), false };
-                
-                // Curves may not be valid for all platforms, so validity must be checked at runtime
-                yield return new object[] { ECCurve.NamedCurves.brainpoolP160r1, true };
-                yield return new object[] { ECCurve.NamedCurves.brainpoolP160t1, true };
+                yield return new object[] { ECCurve.NamedCurves.nistP256 };
+                yield return new object[] { ECCurve.NamedCurves.nistP384 };
+                yield return new object[] { ECCurve.NamedCurves.nistP521 };
+                yield return new object[] { ECCurve.CreateFromFriendlyName("ECDSA_P256") };
+                yield return new object[] { ECCurve.CreateFromFriendlyName("ECDSA_P384") };
+                yield return new object[] { ECCurve.CreateFromFriendlyName("ECDSA_P521") };
+
+                if (ECDsaFactory.IsCurveValid(ECCurve.NamedCurves.brainpoolP160r1.Oid))
+                {
+                    yield return new object[] { ECCurve.NamedCurves.brainpoolP160r1 };
+                }
+
+                if (ECDsaFactory.IsCurveValid(ECCurve.NamedCurves.brainpoolP160t1.Oid))
+                {
+                    yield return new object[] { ECCurve.NamedCurves.brainpoolP160t1 };
+                }
             }
         }
 

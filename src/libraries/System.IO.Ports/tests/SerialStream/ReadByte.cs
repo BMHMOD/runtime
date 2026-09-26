@@ -17,21 +17,21 @@ namespace System.IO.Ports.Tests
 
         #region Test Cases
 
-        [ConditionalFact(typeof(SerialStream_ReadByte), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void ASCIIEncoding()
         {
             Debug.WriteLine("Verifying read with bytes encoded with ASCIIEncoding");
             VerifyRead(new ASCIIEncoding());
         }
 
-        [ConditionalFact(typeof(SerialStream_ReadByte), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void UTF8Encoding()
         {
             Debug.WriteLine("Verifying read with bytes encoded with UTF8Encoding");
             VerifyRead(new UTF8Encoding());
         }
 
-        [ConditionalFact(typeof(SerialStream_ReadByte), nameof(HasNullModem))]
+        [ConditionalFact(nameof(HasNullModem))]
         public void UTF32Encoding()
         {
             Debug.WriteLine("Verifying read with bytes encoded with UTF32Encoding");

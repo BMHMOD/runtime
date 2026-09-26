@@ -42,7 +42,6 @@ namespace System.Net.Http
             }
 
             [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
-            [RuntimeAsyncMethodGeneration(false)]
             public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken)
             {
                 CancellationHelper.ThrowIfCancellationRequested(cancellationToken);

@@ -13,6 +13,7 @@
 // Headers for all ECall entrypoints
 //
 #include "arraynative.h"
+#include "objectnative.h"
 #include "dllimport.h"
 #include "comdelegate.h"
 #include "customattribute.h"
@@ -23,6 +24,7 @@
 #include "commodule.h"
 #include "marshalnative.h"
 #include "nativelibrarynative.h"
+#include "system.h"
 #include "comutilnative.h"
 #include "comsynchronizable.h"
 #include "floatdouble.h"
@@ -31,6 +33,7 @@
 #include "comdatetime.h"
 #include "debugdebugger.h"
 #include "assemblynative.hpp"
+#include "comwaithandle.h"
 
 #include "proftoeeinterfaceimpl.h"
 
@@ -45,7 +48,7 @@
 #include "mlinfo.h"
 
 #ifdef FEATURE_COMINTEROP
-#include "olevariant.h"
+#include "variant.h"
 #endif // FEATURE_COMINTEROP
 
 #if defined(FEATURE_COMWRAPPERS)
@@ -74,7 +77,6 @@
 #endif //FEATURE_PERFTRACING
 
 #include "tailcallhelp.h"
-#include "interpexec.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 //

@@ -26,16 +26,18 @@ PtrHashMap *PEImage::s_ijwFixupDataHash;
 /* static */
 void PEImage::Startup()
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        POSTCONDITION(CheckStartup());
+        INJECT_FAULT(COMPlusThrowOM(););
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (CheckStartup())
-        return;
+        RETURN;
 
     s_hashLock.Init(CrstPEImage, (CrstFlags)(CRST_REENTRANCY|CRST_TAKEN_DURING_SHUTDOWN));
     LockOwner lock = { &s_hashLock, IsOwnerOfCrst };
@@ -47,15 +49,7 @@ void PEImage::Startup()
     s_ijwFixupDataHash = ::new PtrHashMap;
     s_ijwFixupDataHash->Init(CompareIJWDataBase, FALSE, &ijwLock);
 
-#ifdef TARGET_WASM
-    PEImageLayout::Startup();
-#endif // TARGET_WASM
-
-#ifdef TARGET_WASM
-    PEImageLayout::Startup();
-#endif // TARGET_WASM
-
-    _ASSERTE(CheckStartup());
+    RETURN;
 }
 
 /* static */
@@ -123,7 +117,7 @@ BOOL PEImage::CompareIJWDataBase(UPTR base, UPTR mapping)
         MODE_ANY;
     } CONTRACTL_END;
 
-    return (BYTE *)(base << 1) == ((IJWFixupData*)mapping)->GetBase();
+    return ((BYTE *)(base << 1) == ((IJWFixupData*)mapping)->GetBase());
 }
 
 ULONG PEImage::Release()
@@ -133,10 +127,11 @@ ULONG PEImage::Release()
         DESTRUCTOR_CHECK;
         NOTHROW;
         MODE_ANY;
+        FORBID_FAULT;
     }
     CONTRACTL_END;
 
-    CONTRACT_VIOLATION(ThrowsViolation);
+    CONTRACT_VIOLATION(FaultViolation|ThrowsViolation);
     COUNT_T result = 0;
     {
         // Use scoping to hold the hash lock
@@ -302,6 +297,7 @@ void PEImage::OpenMDImport()
         GC_TRIGGERS;
         THROWS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
     if (m_pMDImport==NULL)
@@ -309,7 +305,7 @@ void PEImage::OpenMDImport()
         IMDInternalImport* m_pNewImport;
         const void* pMeta=NULL;
         COUNT_T cMeta=0;
-        if(HasHeaders() && HasCorHeader())
+        if(HasNTHeaders() && HasCorHeader())
             pMeta=GetMetadata(&cMeta);
 
         if(pMeta==NULL)
@@ -358,6 +354,7 @@ void PEImage::GetMVID(GUID *pMvid)
         GC_TRIGGERS;
         THROWS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
 
@@ -371,7 +368,7 @@ void PEImage::GetMVID(GUID *pMvid)
     if (pMeta == NULL)
         ThrowHR(COR_E_BADIMAGEFORMAT);
 
-    ReleaseHolderAnyMode<IMDInternalImport> pMDImport;
+    SafeComHolder<IMDInternalImport> pMDImport;
 
     IfFailThrow(GetMDInternalInterface((void *) pMeta,
                                        cMeta,
@@ -425,6 +422,7 @@ PEImage::IJWFixupData *PEImage::GetIJWData(void *pBase)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
     } CONTRACTL_END
 
     // Take the IJW hash lock
@@ -441,7 +439,7 @@ PEImage::IJWFixupData *PEImage::GetIJWData(void *pBase)
     }
 
     // Return the new data
-    return pData;
+    return (pData);
 }
 
 #endif // #ifndef DACCESS_COMPILE
@@ -472,7 +470,7 @@ void PEImage::EnumMemoryRegions(CLRDataEnumMemoryFlags flags)
 
     EX_TRY
     {
-        if (HasLoadedLayout() && HasHeaders() && HasDirectoryEntry(IMAGE_DIRECTORY_ENTRY_DEBUG))
+        if (HasLoadedLayout() && HasNTHeaders() && HasDirectoryEntry(IMAGE_DIRECTORY_ENTRY_DEBUG))
         {
             // Get a pointer to the contents and size of the debug directory and report it
             COUNT_T cbDebugDir;
@@ -713,11 +711,11 @@ PTR_PEImageLayout PEImage::CreateFlatLayout()
 /* static */
 PTR_PEImage PEImage::CreateFromByteArray(const BYTE* array, COUNT_T size)
 {
-    CONTRACTL
+    CONTRACT(PTR_PEImage)
     {
         STANDARD_VM_CHECK;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     PEImageHolder pImage(new PEImage(NULL /*path*/));
     PTR_PEImageLayout pLayout = PEImageLayout::CreateFromByteArray(pImage, array, size);
@@ -725,19 +723,20 @@ PTR_PEImage PEImage::CreateFromByteArray(const BYTE* array, COUNT_T size)
 
     SimpleWriteLockHolder lock(pImage->m_pLayoutLock);
     pImage->SetLayout(IMAGE_FLAT,pLayout);
-    return dac_cast<PTR_PEImage>(pImage.Detach());
+    RETURN dac_cast<PTR_PEImage>(pImage.Extract());
 }
 
 #ifndef TARGET_UNIX
 /* static */
 PTR_PEImage PEImage::CreateFromHMODULE(HMODULE hMod)
 {
-    CONTRACTL
+    CONTRACT(PTR_PEImage)
     {
         STANDARD_VM_CHECK;
         PRECONDITION(hMod!=NULL);
+        POSTCONDITION(RETVAL->HasLoadedLayout());
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     StackSString path;
     WszGetModuleFileName(hMod, path);
@@ -757,8 +756,7 @@ PTR_PEImage PEImage::CreateFromHMODULE(HMODULE hMod)
     }
 
     _ASSERTE(pImage->m_pLayouts[IMAGE_FLAT] != NULL);
-    _ASSERTE(pImage->HasLoadedLayout());
-    return dac_cast<PTR_PEImage>(pImage.Detach());
+    RETURN dac_cast<PTR_PEImage>(pImage.Extract());
 }
 #endif // !TARGET_UNIX
 
@@ -811,9 +809,8 @@ HRESULT PEImage::TryOpenFile(bool takeLock)
     if (m_hFile != INVALID_HANDLE_VALUE)
             return S_OK;
 
-    DWORD dwLastError = GetLastError();
-    if (dwLastError != 0)
-        return HRESULT_FROM_WIN32(dwLastError);
+    if (GetLastError())
+        return HRESULT_FROM_WIN32(GetLastError());
 
     return HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND);
 }
@@ -827,6 +824,7 @@ BOOL PEImage::IsPtrInImage(PTR_CVOID data)
         INSTANCE_CHECK;
         NOTHROW;
         GC_NOTRIGGER;
+        FORBID_FAULT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;

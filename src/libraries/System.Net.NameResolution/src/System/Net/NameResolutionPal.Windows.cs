@@ -15,17 +15,19 @@ namespace System.Net
 {
     internal static partial class NameResolutionPal
     {
-        private static NullableBool s_getAddrInfoExSupported;
+        private static volatile int s_getAddrInfoExSupported;
 
         public static bool SupportsGetAddrInfoAsync
         {
             get
             {
-                if (s_getAddrInfoExSupported == NullableBool.Undefined)
+                int supported = s_getAddrInfoExSupported;
+                if (supported == 0)
                 {
                     Initialize();
+                    supported = s_getAddrInfoExSupported;
                 }
-                return s_getAddrInfoExSupported == NullableBool.True;
+                return supported == 1;
 
                 static void Initialize()
                 {
@@ -37,7 +39,7 @@ namespace System.Net
                     // We can't just check that 'GetAddrInfoEx' exists, because it existed before supporting overlapped.
                     // The existence of 'GetAddrInfoExCancel' indicates that overlapped is supported.
                     bool supported = NativeLibrary.TryGetExport(libHandle, Interop.Winsock.GetAddrInfoExCancelFunctionName, out _);
-                    s_getAddrInfoExSupported = supported ? NullableBool.True : NullableBool.False;
+                    Interlocked.CompareExchange(ref s_getAddrInfoExSupported, supported ? 1 : -1, 0);
                 }
             }
         }
@@ -361,7 +363,7 @@ namespace System.Net
             return new IPAddress(address);
         }
 
-        private static unsafe IPAddress CreateIPv6Address(ReadOnlySpan<byte> socketAddress)
+        private static IPAddress CreateIPv6Address(ReadOnlySpan<byte> socketAddress)
         {
             Span<byte> address = stackalloc byte[IPAddressParserStatics.IPv6AddressBytes];
             SocketAddressPal.GetIPv6Address(socketAddress, address, out uint scope);

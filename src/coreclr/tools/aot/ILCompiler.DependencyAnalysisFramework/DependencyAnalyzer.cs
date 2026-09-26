@@ -91,7 +91,6 @@ namespace ILCompiler.DependencyAnalysisFramework
                 foreach (DependencyNodeCore<DependencyContextType>.CombinedDependencyListEntry dependency in
                     _node.SearchDynamicDependencies(analyzer._dynamicDependencyInterestingList, _next, analyzer._dependencyContext))
                 {
-                    Debug.Assert(dependency.OtherReasonNode is null || dependency.OtherReasonNode.Marked);
                     analyzer.AddToMarkStack(dependency.Node, dependency.Reason, _node, dependency.OtherReasonNode);
                 }
                 _next = analyzer._dynamicDependencyInterestingList.Count;
@@ -193,7 +192,7 @@ namespace ILCompiler.DependencyAnalysisFramework
             {
                 foreach (DependencyNodeCore<DependencyContextType>.CombinedDependencyListEntry dependency in node.GetConditionalStaticDependencies(_dependencyContext))
                 {
-                    if (dependency.OtherReasonNode is null || dependency.OtherReasonNode.Marked)
+                    if (dependency.OtherReasonNode.Marked)
                     {
                         AddToMarkStack(dependency.Node, dependency.Reason, node, dependency.OtherReasonNode);
                     }

@@ -3,11 +3,9 @@
 using System;
 using System.Reflection;
 using Xunit;
-using TestLibrary;
 
 public class Test109242
 {
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint()
     {
@@ -18,9 +16,6 @@ public class Test109242
         }
 
         Assembly.Load("System.Runtime");
-
-        // Hint for trimming to keep System.Runtime
-        Type.GetType("System.Object, System.Runtime");
     }
 }
 

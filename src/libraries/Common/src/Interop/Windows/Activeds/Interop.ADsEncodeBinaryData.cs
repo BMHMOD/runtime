@@ -8,7 +8,6 @@ internal static partial class Interop
 {
     internal static partial class Activeds
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Activeds)]
         internal static partial int ADsEncodeBinaryData(byte[] data, int length, ref IntPtr result);
     }

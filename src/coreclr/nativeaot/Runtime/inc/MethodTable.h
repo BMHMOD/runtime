@@ -12,8 +12,6 @@ class MethodTable;
 class TypeManager;
 struct TypeManagerHandle;
 
-#include "cdacdata.h"
-
 //-------------------------------------------------------------------------------------------------
 // The subset of TypeFlags that NativeAOT knows about at runtime
 // This should match the TypeFlags enum in the managed type system.
@@ -82,10 +80,12 @@ enum EETypeField
 typedef DPTR(class MethodTable) PTR_EEType;
 typedef DPTR(PTR_EEType) PTR_PTR_EEType;
 
+extern "C" void PopulateDebugHeaders();
+
 class MethodTable
 {
     friend class AsmOffsets;
-    friend struct ::cdac_data<MethodTable>;
+    friend void PopulateDebugHeaders();
 
 private:
     struct RelatedTypeUnion
@@ -344,17 +344,6 @@ public:
     uint32_t ContainsGCPointers() { return HasReferenceFields(); }
     uint32_t ContainsGCPointersOrCollectible() { return HasReferenceFields(); }
     UInt32_BOOL SanityCheck() { return Validate(); }
-};
-
-template<> struct cdac_data<MethodTable>
-{
-    static constexpr size_t Flags = offsetof(MethodTable, m_uFlags);
-    static constexpr size_t BaseSize = offsetof(MethodTable, m_uBaseSize);
-    static constexpr size_t RelatedType = offsetof(MethodTable, m_RelatedType);
-    static constexpr size_t NumVtableSlots = offsetof(MethodTable, m_usNumVtableSlots);
-    static constexpr size_t NumInterfaces = offsetof(MethodTable, m_usNumInterfaces);
-    static constexpr size_t HashCode = offsetof(MethodTable, m_uHashCode);
-    static constexpr size_t VTable = offsetof(MethodTable, m_VTable);
 };
 
 #pragma warning(pop)

@@ -62,9 +62,9 @@ namespace ILCompiler.DependencyAnalysis
                     return new MethodEntryGenericLookupResult(key.Method, key.IsUnboxingStub);
                 });
 
-                _dispatchCells = new NodeCache<MethodDesc, GenericLookupResult>(method =>
+                _virtualDispatchCells = new NodeCache<MethodDesc, GenericLookupResult>(method =>
                 {
-                    return new DispatchCellGenericLookupResult(method);
+                    return new VirtualDispatchCellGenericLookupResult(method);
                 });
 
                 _typeThreadStaticBaseIndexSymbols = new NodeCache<TypeDesc, GenericLookupResult>(type =>
@@ -179,11 +179,11 @@ namespace ILCompiler.DependencyAnalysis
                 return _methodDictionaries.GetOrAdd(method);
             }
 
-            private NodeCache<MethodDesc, GenericLookupResult> _dispatchCells;
+            private NodeCache<MethodDesc, GenericLookupResult> _virtualDispatchCells;
 
-            public GenericLookupResult DispatchCell(MethodDesc method)
+            public GenericLookupResult VirtualDispatchCell(MethodDesc method)
             {
-                return _dispatchCells.GetOrAdd(method);
+                return _virtualDispatchCells.GetOrAdd(method);
             }
 
             private NodeCache<MethodKey, GenericLookupResult> _methodEntrypoints;

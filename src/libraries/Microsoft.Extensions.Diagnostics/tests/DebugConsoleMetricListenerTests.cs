@@ -26,7 +26,7 @@ namespace Microsoft.Extensions.Diagnostics.Metrics.Tests
                 });
                 using var sp = services.BuildServiceProvider();
                 // Make sure the subscription manager is started.
-                sp.GetRequiredService<IAsyncStartupValidator>().ValidateAsync().GetAwaiter().GetResult();
+                sp.GetRequiredService<IStartupValidator>().Validate();
 
                 var listener = sp.GetRequiredService<IMetricsListener>();
                 var consoleListener = Assert.IsType<DebugConsoleMetricListener>(listener);
@@ -67,7 +67,7 @@ namespace Microsoft.Extensions.Diagnostics.Metrics.Tests
                 });
                 using var sp = services.BuildServiceProvider();
                 // Make sure the subscription manager is started.
-                sp.GetRequiredService<IAsyncStartupValidator>().ValidateAsync().GetAwaiter().GetResult();
+                sp.GetRequiredService<IStartupValidator>().Validate();
 
                 var listener = sp.GetRequiredService<IMetricsListener>();
                 var consoleListener = Assert.IsType<DebugConsoleMetricListener>(listener);

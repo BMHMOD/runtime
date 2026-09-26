@@ -26,9 +26,8 @@ public class BringUpTest
 
     public static int Main()
     {
-
         // This test also doubles as server GC test
-        if (Environment.ProcessorCount > 1 && !System.Runtime.GCSettings.IsServerGC)
+        if (!System.Runtime.GCSettings.IsServerGC)
             return 42;
 
         if (string.Empty.Length > 0)
@@ -164,17 +163,9 @@ public class BringUpTest
 
         TestUnwindInFunclet();
 
-        if (!OperatingSystem.IsAndroid())
-        {
-            // Environment.Exit doesn't propagate to MonoRunner.java
-            throw new Exception("UnhandledException");
+        throw new Exception("UnhandledException");
 
-            return Fail;
-        }
-        else
-        {
-            return Pass;
-        }
+        return Fail;
     }
 
     static void UnhandledExceptionEventHandler(object sender, UnhandledExceptionEventArgs e)

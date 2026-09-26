@@ -7,7 +7,6 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using Xunit;
-using TestLibrary;
 
 namespace TestStackOverflow
 {
@@ -16,49 +15,43 @@ namespace TestStackOverflow
         static void TestStackOverflow(string testName, string testArgs, out List<string> stderrLines)
         {
             Console.WriteLine($"Running {testName} test({testArgs})");
-            ProcessStartInfo startInfo = new ProcessStartInfo();
-            startInfo.FileName = Path.Combine(Environment.GetEnvironmentVariable("CORE_ROOT"), "corerun");
-            startInfo.Arguments = $"{Path.Combine(Directory.GetCurrentDirectory(), "..", testName, $"{testName}.dll")} {testArgs}";
-            startInfo.UseShellExecute = false;
-            startInfo.RedirectStandardOutput = true;
-            startInfo.RedirectStandardError = true;
-            startInfo.Environment.Add("DOTNET_DbgEnableMiniDump", "0");
-            startInfo.Environment.Add("DOTNET_EnableCrashReport", "0");
-            startInfo.Environment.Add("DOTNET_LogStackOverflowExit", "1");
-
-            using Process testProcess = Process.Start(startInfo);
-
             List<string> lines = new List<string>();
-            bool endOfStackTrace = false;
-            foreach (ProcessOutputLine line in testProcess.ReadAllLines())
-            {
-                if (!line.StandardError)
-                {
-                    continue;
-                }
 
-                string data = line.Content;
-                Console.WriteLine($"\"{data}\"");
-                if (!endOfStackTrace && !string.IsNullOrEmpty(data))
+            Process testProcess = new Process();
+
+            testProcess.StartInfo.FileName = Path.Combine(Environment.GetEnvironmentVariable("CORE_ROOT"), "corerun");
+            testProcess.StartInfo.Arguments = $"{Path.Combine(Directory.GetCurrentDirectory(), "..", testName, $"{testName}.dll")} {testArgs}";
+            testProcess.StartInfo.UseShellExecute = false;
+            testProcess.StartInfo.RedirectStandardError = true;
+            testProcess.StartInfo.Environment.Add("DOTNET_DbgEnableMiniDump", "0");
+            testProcess.StartInfo.Environment.Add("DOTNET_LogStackOverflowExit", "1");
+            bool endOfStackTrace = false;
+            
+            testProcess.ErrorDataReceived += (sender, line) => 
+            {
+                Console.WriteLine($"\"{line.Data}\"");
+                if (!endOfStackTrace && !string.IsNullOrEmpty(line.Data))
                 {
                     // Store lines only till the end of the stack trace.
                     // In the CI it can also contain lines with createdump info.
-                    if (data.StartsWith("Stack overflow.") ||
-                        data.StartsWith("Repeated ") ||
-                        data.StartsWith("------") ||
-                        data.StartsWith("   at "))
+                    if (line.Data.StartsWith("Stack overflow.") ||
+                        line.Data.StartsWith("Repeated ") ||
+                        line.Data.StartsWith("------") ||
+                        line.Data.StartsWith("   at "))
                     {
-                        lines.Add(data);
+                        lines.Add(line.Data);
                     }
-                    else if (!data.StartsWith("@"))
+                    else if (!line.Data.StartsWith("@"))
                     {
                         endOfStackTrace = true;
                     }
                 }
-            }
+            };
 
-            // A process can close its std handles but keep running.
+            testProcess.Start();
+            testProcess.BeginErrorReadLine();
             testProcess.WaitForExit();
+            testProcess.CancelErrorRead();
 
             stderrLines = lines;
 
@@ -89,10 +82,6 @@ namespace TestStackOverflow
             }
         }
 
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/84911", typeof(PlatformDetection), nameof(PlatformDetection.IsWindows), nameof(PlatformDetection.IsX86Process))]
-        [ActiveIssue("Specific to CoreCLR", typeof(TestLibrary.Utilities), nameof(TestLibrary.Utilities.IsNativeAot))]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/110173", typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindows), nameof(PlatformDetection.IsX64Process))]
-        [SkipOnCoreClr("Fails in many GC stress jobs. See https://github.com/dotnet/runtime/issues/46279.", RuntimeTestModes.AnyGCStress)]
         [Fact]
         public static void TestStackOverflowSmallFrameMainThread()
         {
@@ -124,15 +113,11 @@ namespace TestStackOverflow
             }
         }
 
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/84911", typeof(PlatformDetection), nameof(PlatformDetection.IsWindows), nameof(PlatformDetection.IsX86Process))]
-        [ActiveIssue("Specific to CoreCLR", typeof(TestLibrary.Utilities), nameof(TestLibrary.Utilities.IsNativeAot))]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/110173", typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindows), nameof(PlatformDetection.IsX64Process))]
-        [SkipOnCoreClr("Fails in many GC stress jobs. See https://github.com/dotnet/runtime/issues/46279.", RuntimeTestModes.AnyGCStress)]
         [Fact]
         public static void TestStackOverflowLargeFrameMainThread()
         {
-            if (((RuntimeInformation.ProcessArchitecture == Architecture.Arm64) || (RuntimeInformation.ProcessArchitecture == Architecture.X64) || (RuntimeInformation.ProcessArchitecture == Architecture.RiscV64) ||
-                (RuntimeInformation.ProcessArchitecture == Architecture.LoongArch64) || (RuntimeInformation.ProcessArchitecture == Architecture.Arm)) &&
+            if (((RuntimeInformation.ProcessArchitecture == Architecture.Arm64) || (RuntimeInformation.ProcessArchitecture == Architecture.RiscV64) ||
+                (RuntimeInformation.ProcessArchitecture == Architecture.LoongArch64)) &&
                 ((Environment.OSVersion.Platform == PlatformID.Unix) || (Environment.OSVersion.Platform == PlatformID.MacOSX)))
             {
                 // Disabled on Unix RISCV64 and LoongArch64, similar to ARM64.
@@ -140,7 +125,6 @@ namespace TestStackOverflow
                 // Disabled on Unix ARM64 due to https://github.com/dotnet/runtime/issues/13519
                 // The current stack probing doesn't move the stack pointer and so the runtime sometimes cannot
                 // recognize the underlying sigsegv as stack overflow when it probes too far from SP.
-                // Disabled on Unix X64/Arm due to https://github.com/dotnet/runtime/issues/110173 which needs investigation.
                 return;
             }
 
@@ -172,10 +156,6 @@ namespace TestStackOverflow
             }
         }
 
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/84911", typeof(PlatformDetection), nameof(PlatformDetection.IsWindows), nameof(PlatformDetection.IsX86Process))]
-        [ActiveIssue("Specific to CoreCLR", typeof(TestLibrary.Utilities), nameof(TestLibrary.Utilities.IsNativeAot))]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/110173", typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindows), nameof(PlatformDetection.IsX64Process))]
-        [SkipOnCoreClr("Fails in many GC stress jobs. See https://github.com/dotnet/runtime/issues/46279.", RuntimeTestModes.AnyGCStress)]
         [Fact]
         public static void TestStackOverflowSmallFrameSecondaryThread()
         {
@@ -202,10 +182,6 @@ namespace TestStackOverflow
             }
         }
 
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/84911", typeof(PlatformDetection), nameof(PlatformDetection.IsWindows), nameof(PlatformDetection.IsX86Process))]
-        [ActiveIssue("Specific to CoreCLR", typeof(TestLibrary.Utilities), nameof(TestLibrary.Utilities.IsNativeAot))]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/110173", typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindows), nameof(PlatformDetection.IsX64Process))]
-        [SkipOnCoreClr("Fails in many GC stress jobs. See https://github.com/dotnet/runtime/issues/46279.", RuntimeTestModes.AnyGCStress)]
         [Fact]
         public static void TestStackOverflowLargeFrameSecondaryThread()
         {
@@ -245,9 +221,6 @@ namespace TestStackOverflow
             }
         }
 
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/84911", typeof(PlatformDetection), nameof(PlatformDetection.IsWindows), nameof(PlatformDetection.IsX86Process))]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/110173", typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindows), nameof(PlatformDetection.IsX64Process))]
-        [SkipOnCoreClr("Fails in many GC stress jobs. See https://github.com/dotnet/runtime/issues/46279.", RuntimeTestModes.AnyGCStress)]
         [Fact]
         public static void TestStackOverflow3()
         {

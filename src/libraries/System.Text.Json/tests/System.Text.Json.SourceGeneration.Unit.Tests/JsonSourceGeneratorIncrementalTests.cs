@@ -32,9 +32,7 @@ namespace System.Text.Json.SourceGeneration.UnitTests
                 ContextGenerationSpec ctx2 = result2.ContextGenerationSpecs[i];
 
                 Assert.NotSame(ctx1, ctx2);
-#pragma warning disable IL2026 // https://github.com/dotnet/runtime/issues/126862
                 GeneratorTestHelpers.AssertStructurallyEqual(ctx1, ctx2);
-#pragma warning restore IL2026
 
                 Assert.Equal(ctx1, ctx2);
                 Assert.Equal(ctx1.GetHashCode(), ctx2.GetHashCode());
@@ -60,25 +58,25 @@ namespace System.Text.Json.SourceGeneration.UnitTests
                 """;
 
             string source2 = """
-                    using System;
-                    using System.Text.Json.Serialization;
+                using System;
+                using System.Text.Json.Serialization;
 
-                    namespace Test
+                namespace Test
+                {
+                    // Same as above but with different implementation
+                    public class MyPoco
                     {
-                        // Same as above but with different implementation
-                        public class MyPoco
+                        public int MyProperty
                         {
-                            public int MyProperty
-                            {
-                                get => -1;
-                                set => throw new NotSupportedException();
-                            }
+                            get => -1;
+                            set => throw new NotSupportedException();
                         }
-
-                        // Changing location should produce identical SG model when no diagnostics are emitted.
-                        [JsonSerializable(typeof(MyPoco))]
-                        public partial class JsonContext : JsonSerializerContext { }
                     }
+
+                    // Changing location should produce identical SG model when no diagnostics are emitted.
+                    [JsonSerializable(typeof(MyPoco))]
+                    public partial class JsonContext : JsonSerializerContext { }
+                }
                 """;
 
             JsonSourceGeneratorResult result1 = CompilationHelper.RunJsonSourceGenerator(CompilationHelper.CreateCompilation(source1));
@@ -91,9 +89,7 @@ namespace System.Text.Json.SourceGeneration.UnitTests
             ContextGenerationSpec ctx2 = result2.ContextGenerationSpecs[0];
 
             Assert.NotSame(ctx1, ctx2);
-#pragma warning disable IL2026 // https://github.com/dotnet/runtime/issues/126862
             GeneratorTestHelpers.AssertStructurallyEqual(ctx1, ctx2);
-#pragma warning restore IL2026
 
             Assert.Equal(ctx1, ctx2);
             Assert.Equal(ctx1.GetHashCode(), ctx2.GetHashCode());
@@ -149,6 +145,7 @@ namespace System.Text.Json.SourceGeneration.UnitTests
         {
             JsonSourceGeneratorResult result = CompilationHelper.RunJsonSourceGenerator(factory(), disableDiagnosticValidation: true);
             WalkObjectGraph(result.ContextGenerationSpecs);
+            WalkObjectGraph(result.Diagnostics);
 
             static void WalkObjectGraph(object obj)
             {
@@ -180,9 +177,7 @@ namespace System.Text.Json.SourceGeneration.UnitTests
                         return;
                     }
 
-#pragma warning disable IL2075 // https://github.com/dotnet/runtime/issues/126862
                     foreach (FieldInfo field in type.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance))
-#pragma warning restore IL2075
                     {
                         object? fieldValue = field.GetValue(node);
                         Visit(fieldValue);
@@ -267,25 +262,25 @@ namespace System.Text.Json.SourceGeneration.UnitTests
                 """;
 
             string source2 = """
-                    using System;
-                    using System.Text.Json.Serialization;
+                using System;
+                using System.Text.Json.Serialization;
 
-                    namespace Test
+                namespace Test
+                {
+                    // Same as above but with different implementation
+                    public class MyPoco
                     {
-                        // Same as above but with different implementation
-                        public class MyPoco
+                        public string MyProperty
                         {
-                            public string MyProperty
-                            {
-                                get => -1;
-                                set => throw new NotSupportedException();
-                            }
+                            get => -1;
+                            set => throw new NotSupportedException();
                         }
-
-                        // Changing location should produce identical SG model when no diagnostics are emitted.
-                        [JsonSerializable(typeof(MyPoco))]
-                        public partial class JsonContext : JsonSerializerContext { }
                     }
+
+                    // Changing location should produce identical SG model when no diagnostics are emitted.
+                    [JsonSerializable(typeof(MyPoco))]
+                    public partial class JsonContext : JsonSerializerContext { }
+                }
                 """;
 
             Compilation compilation = CompilationHelper.CreateCompilation(source1);

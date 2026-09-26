@@ -6,9 +6,10 @@ using Internal.Cryptography;
 
 namespace System.Security.Cryptography.Asn1
 {
-    internal ref partial struct ValuePssParamsAsn
+    internal partial struct PssParamsAsn
     {
-        internal RSASignaturePadding GetSignaturePadding(int? digestValueLength = null)
+        internal RSASignaturePadding GetSignaturePadding(
+            int? digestValueLength = null)
         {
             if (TrailerField != 1)
             {
@@ -22,15 +23,14 @@ namespace System.Security.Cryptography.Asn1
                     MaskGenAlgorithm.Algorithm);
             }
 
-            if (!MaskGenAlgorithm.HasParameters)
+            if (MaskGenAlgorithm.Parameters == null)
             {
                 throw new CryptographicException(SR.Cryptography_Pkcs_InvalidSignatureParameters);
             }
 
-            ValueAlgorithmIdentifierAsn.Decode(
-                MaskGenAlgorithm.Parameters,
-                AsnEncodingRules.DER,
-                out ValueAlgorithmIdentifierAsn mgfParams);
+            AlgorithmIdentifierAsn mgfParams = AlgorithmIdentifierAsn.Decode(
+                MaskGenAlgorithm.Parameters.Value,
+                AsnEncodingRules.DER);
 
             if (mgfParams.Algorithm != HashAlgorithm.Algorithm)
             {

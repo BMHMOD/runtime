@@ -261,8 +261,6 @@ namespace System.Reflection.Emit
 
         public override bool IsSZArray => _rank <= 1 && _isSzArray;
 
-        public override Type? GetNullableUnderlyingType() => null;
-
         public override Type MakePointerType()
         {
             return FormCompoundType(_format + "*", _baseType, 0)!;

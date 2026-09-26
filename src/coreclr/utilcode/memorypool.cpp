@@ -27,6 +27,7 @@ BOOL MemoryPool::AddBlock(SIZE_T elementCount)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
+        INJECT_FAULT(return FALSE;);
     } CONTRACTL_END;
 
     //
@@ -214,6 +215,7 @@ void *MemoryPool::AllocateElementNoThrow()
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
+        INJECT_FAULT( return FALSE; );
     } CONTRACTL_END;
 
     void *element = m_freeList;

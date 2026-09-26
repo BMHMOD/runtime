@@ -8,14 +8,12 @@
 #include "asmmacros.h"
 
 
-#ifdef FEATURE_VARARGS
     IMPORT VarargPInvokeStubWorker
-#endif // FEATURE_VARARGS
+    IMPORT GenericPInvokeCalliStubWorker
     IMPORT JIT_PInvokeEndRarePath
 
     IMPORT g_TrapReturningThreads
 
-#ifdef FEATURE_VARARGS
 ; ------------------------------------------------------------------
 ; Macro to generate PInvoke Stubs.
 ; $__PInvokeStubFuncName : function which calls the actual stub obtained from VASigCookie
@@ -23,7 +21,7 @@
 ;
 ; Params :-
 ; $FuncPrefix : prefix of the function name for the stub
-;                     Eg. VarargPinvoke
+;                     Eg. VarargPinvoke, GenericPInvokeCalli
 ; $VASigCookieReg : register which contains the VASigCookie
 ; $SaveFPArgs : "Yes" or "No" . For varidic functions FP Args are not present in FP regs
 ;                        So need not save FP Args registers for vararg Pinvoke
@@ -35,7 +33,11 @@
         GBLS __PInvokeGenStubFuncName
         GBLS __PInvokeStubWorkerName
 
+        IF "$FuncPrefix" == "GenericPInvokeCalli"
+__PInvokeStubFuncName SETS "$FuncPrefix":CC:"Helper"
+        ELSE
 __PInvokeStubFuncName SETS "$FuncPrefix":CC:"Stub"
+        ENDIF
 __PInvokeGenStubFuncName SETS "$FuncPrefix":CC:"GenILStub"
 __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
 
@@ -46,6 +48,16 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
 
         ; if null goto stub generation
         cbz                 x9, %0
+
+        IF "$FuncPrefix" == "GenericPInvokeCalli"
+            ;
+            ; We need to distinguish between a MethodDesc* and an unmanaged target.
+            ; The way we do this is to shift the managed target to the left by one bit and then set the
+            ; least significant bit to 1.  This works because MethodDesc* are always 8-byte aligned.
+            ;
+            lsl             $HiddenArg, $HiddenArg, #1
+            orr             $HiddenArg, $HiddenArg, #1
+        ENDIF
 
         EPILOG_BRANCH_REG   x9
 
@@ -90,7 +102,6 @@ __PInvokeStubWorkerName SETS "$FuncPrefix":CC:"StubWorker"
         NESTED_END
 
         MEND
-#endif // FEATURE_VARARGS
 
 
     TEXTAREA
@@ -165,7 +176,6 @@ RarePath
 
         LEAF_END
 
-#ifdef FEATURE_VARARGS
 ; ------------------------------------------------------------------
 ; VarargPInvokeStub & VarargPInvokeGenILStub
 ;
@@ -174,7 +184,17 @@ RarePath
 ; x12 = MethodDesc *
 ;
         PINVOKE_STUB VarargPInvoke, x0, x12, {false}
-#endif // FEATURE_VARARGS
+
+
+; ------------------------------------------------------------------
+; GenericPInvokeCalliHelper & GenericPInvokeCalliGenILStub
+; Helper for generic pinvoke calli instruction
+;
+; in:
+; x15 = VASigCookie*
+; x12 = Unmanaged target
+;
+        PINVOKE_STUB GenericPInvokeCalli, x15, x12, {true}
 
 
 ; Must be at very end of file

@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b10828;
-
 using System;
 using Xunit;
 public class otherClass
@@ -24,7 +21,6 @@ public class otherClass
 public class MyApp
 {
     [Fact]
-    [SkipOnMono("needs triage")]
     public static int TestEntryPoint()
     {
         int i = 2, j = 3, w;

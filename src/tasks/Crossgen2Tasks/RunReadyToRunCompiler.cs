@@ -24,7 +24,6 @@ namespace Microsoft.NET.Build.Tasks
         public bool UseCrossgen2 { get; set; }
         public string Crossgen2ExtraCommandLineArgs { get; set; }
         public ITaskItem[] Crossgen2PgoFiles { get; set; }
-        public string Crossgen2ContainerFormat { get; set; }
 
         [Output]
         public bool WarningsDetected { get; set; }
@@ -343,11 +342,6 @@ namespace Microsoft.NET.Build.Tasks
                 }
             }
 
-            if (!string.IsNullOrEmpty(Crossgen2ContainerFormat))
-            {
-                result.AppendLine($"--obj-format:{Crossgen2ContainerFormat}");
-            }
-
             if (!string.IsNullOrEmpty(Crossgen2ExtraCommandLineArgs))
             {
                 foreach (string extraArg in Crossgen2ExtraCommandLineArgs.Split(new char[] { ';' }, StringSplitOptions.RemoveEmptyEntries))
@@ -409,7 +403,7 @@ namespace Microsoft.NET.Build.Tasks
 
         protected override void LogEventsFromTextOutput(string singleLine, MessageImportance messageImportance)
         {
-            if (!ShowCompilerWarnings && singleLine.Contains("warning:", StringComparison.OrdinalIgnoreCase))
+            if (!ShowCompilerWarnings && singleLine.IndexOf("warning:", StringComparison.OrdinalIgnoreCase) != -1)
             {
                 Log.LogMessage(MessageImportance.Normal, singleLine);
                 WarningsDetected = true;

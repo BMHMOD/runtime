@@ -1,7 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 namespace CuriouslyRecurringPatternThroughInterface
 {
@@ -26,7 +25,6 @@ namespace CuriouslyRecurringPatternThroughInterface
     public class Program
     {
         static object _o;
-        [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
         [Fact]
         public static void TestIfCuriouslyRecurringInterfaceCanBeLoaded()
         {
@@ -57,7 +55,6 @@ namespace CuriouslyRecurringPatternThroughInterface
             Assert.True(typeof(ICuriouslyRecurring<>).GetInterfaces()[0].GetGenericArguments()[0].GetInterfaces()[0].GetGenericArguments()[0]==typeof(ICuriouslyRecurring<>).GetGenericArguments()[0]);
         }
 
-        [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
         [Fact]
         public static void TestIfCuriouslyRecurringInterfaceCanCast()
         {
@@ -66,7 +63,6 @@ namespace CuriouslyRecurringPatternThroughInterface
             Assert.True(typeof(ICuriouslyRecurring<>).MakeGenericType(typeof(ICuriouslyRecurring<>).GetGenericArguments()[0]).IsAssignableFrom(typeof(ICuriouslyRecurring<>).GetInterfaces()[0].GetGenericArguments()[0]));
         }
 
-        [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
         [Fact]
         public static void TestIfCuriouslyRecurringInterfaceCanBeUsedAsConstraint()
         {

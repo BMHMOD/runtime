@@ -3,10 +3,21 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.MethodTableAuxiliaryData))]
-internal sealed partial class MethodTableAuxiliaryData : IData<MethodTableAuxiliaryData>
+internal sealed class MethodTableAuxiliaryData : IData<MethodTableAuxiliaryData>
 {
-    [Field] public partial TargetPointer LoaderModule { get; }
-    [Field] public partial short OffsetToNonVirtualSlots { get; }
-    [Field] public partial uint Flags { get; }
+    static MethodTableAuxiliaryData IData<MethodTableAuxiliaryData>.Create(Target target, TargetPointer address) => new MethodTableAuxiliaryData(target, address);
+
+    private MethodTableAuxiliaryData(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.MethodTableAuxiliaryData);
+
+        LoaderModule = target.ReadPointer(address + (ulong)type.Fields[nameof(LoaderModule)].Offset);
+        OffsetToNonVirtualSlots = target.Read<short>(address + (ulong)type.Fields[nameof(OffsetToNonVirtualSlots)].Offset);
+        Flags = target.Read<uint>(address + (ulong)type.Fields[nameof(Flags)].Offset);
+
+    }
+
+    public TargetPointer LoaderModule { get; init; }
+    public short OffsetToNonVirtualSlots { get; init; }
+    public uint Flags { get; init; }
 }

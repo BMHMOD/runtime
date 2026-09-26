@@ -297,7 +297,7 @@ namespace System.Runtime.InteropServices.JavaScript.Http.Tests
             Assert.False(streamingEnabledValue);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsBrowserDomSupportedOrNodeJS))] // not V8 shell
+        [Fact]
         public async Task HttpStreamingDisabledBy_WasmEnableStreamingResponse_InProject()
         {
             using var client = new HttpClient();
@@ -309,7 +309,7 @@ namespace System.Runtime.InteropServices.JavaScript.Http.Tests
             Assert.True(stream.CanSeek);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsBrowserDomSupportedOrNodeJS))] // not V8 shell
+        [Fact]
         public async Task HttpStreamingEnabledBy_WebAssemblyEnableStreamingResponse_Option()
         {
             using var client = new HttpClient();

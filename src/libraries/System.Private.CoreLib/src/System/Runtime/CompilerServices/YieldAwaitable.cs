@@ -43,7 +43,6 @@ namespace System.Runtime.CompilerServices
 
         /// <summary>Provides an awaiter that switches into a target environment.</summary>
         /// <remarks>This type is intended for compiler use only.</remarks>
-        [Intrinsic] // Recognized by runtime async
         public readonly struct YieldAwaiter : ICriticalNotifyCompletion, IStateMachineBoxAwareAwaiter
         {
             /// <summary>Gets whether a yield is not required.</summary>
@@ -117,19 +116,11 @@ namespace System.Runtime.CompilerServices
             {
                 Debug.Assert(box != null);
 
-                if (AsyncInstrumentation.IsActive && AsyncInstrumentation.LoadFlags(out AsyncInstrumentation.Flags flags))
+                // If tracing is enabled, delegate the Action-based implementation.
+                if (TplEventSource.Log.IsEnabled())
                 {
-                    if (AsyncInstrumentation.IsEnabled.AsyncProfiler(flags))
-                    {
-                        box = AsyncStateMachineDispatcherInfo.CreateDispatcher(box, flags);
-                    }
-
-                    // If tracing is enabled, delegate the Action-based implementation.
-                    if (AsyncInstrumentation.IsEnabled.Tpl(flags))
-                    {
-                        QueueContinuation(box.MoveNextAction, flowContext: false);
-                        return;
-                    }
+                    QueueContinuation(box.MoveNextAction, flowContext: false);
+                    return;
                 }
 
                 // Otherwise, this is the same logic as in QueueContinuation, except using

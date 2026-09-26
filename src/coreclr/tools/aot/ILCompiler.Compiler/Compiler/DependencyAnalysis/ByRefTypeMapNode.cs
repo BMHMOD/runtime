@@ -11,14 +11,17 @@ namespace ILCompiler.DependencyAnalysis
     /// <summary>
     /// Represents a hash table of ByRef types generated into the image.
     /// </summary>
-    internal sealed class ByRefTypeMapNode : ObjectNode, ISymbolDefinitionNode
+    internal sealed class ByRefTypeMapNode : ObjectNode, ISymbolDefinitionNode, INodeWithSize
     {
+        private int? _size;
         private readonly ExternalReferencesTableNode _externalReferences;
 
         public ByRefTypeMapNode(ExternalReferencesTableNode externalReferences)
         {
             _externalReferences = externalReferences;
         }
+
+        int INodeWithSize.Size => _size.Value;
 
         public void AppendMangledName(NameMangler nameMangler, Utf8StringBuilder sb)
         {
@@ -57,6 +60,8 @@ namespace ILCompiler.DependencyAnalysis
             }
 
             byte[] hashTableBytes = writer.Save();
+
+            _size = hashTableBytes.Length;
 
             return new ObjectData(hashTableBytes, Array.Empty<Relocation>(), 1, new ISymbolDefinitionNode[] { this });
         }

@@ -19,11 +19,10 @@ public:
 
     HRESULT BindUsingPEImage(PEImage* pPEImage,
         bool excludeAppPaths,
-        BINDER_SPACE::Assembly** ppAssembly,
-        BINDER_SPACE::Assembly** ppExistingAssemblyOnConflict = nullptr) override;
+        BINDER_SPACE::Assembly** ppAssembly) override;
 
     HRESULT BindUsingAssemblyName(BINDER_SPACE::AssemblyName* pAssemblyName,
-        BINDER_SPACE::Assembly** ppAssembly, SString* pDiagnosticInfo = NULL) override;
+        BINDER_SPACE::Assembly** ppAssembly) override;
 
     AssemblyLoaderAllocator* GetLoaderAllocator() override;
 
@@ -49,7 +48,7 @@ public:
     void ReleaseLoadContext();
 
 private:
-    HRESULT BindAssemblyByNameWorker(BINDER_SPACE::AssemblyName *pAssemblyName, BINDER_SPACE::Assembly **ppCoreCLRFoundAssembly, SString *pDiagnosticInfo = NULL);
+    HRESULT BindAssemblyByNameWorker(BINDER_SPACE::AssemblyName *pAssemblyName, BINDER_SPACE::Assembly **ppCoreCLRFoundAssembly);
 
     DefaultAssemblyBinder *m_pDefaultBinder;
 

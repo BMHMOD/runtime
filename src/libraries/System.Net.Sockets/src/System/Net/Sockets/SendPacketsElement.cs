@@ -49,9 +49,7 @@ namespace System.Net.Sockets
         {
             ArgumentNullException.ThrowIfNull(fileStream);
 
-            // Async IO for regular files is only supported on Windows. On Unix, FileStream.IsAsync is always
-            // false for regular files, because Unix does not support O_NONBLOCK for regular files.
-            if (!fileStream.IsAsync && OperatingSystem.IsWindows())
+            if (!fileStream.IsAsync)
             {
                 throw new ArgumentException(SR.net_sockets_sendpackelement_FileStreamMustBeAsync, nameof(fileStream));
             }

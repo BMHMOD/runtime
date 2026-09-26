@@ -306,7 +306,6 @@ namespace AssemblyDependencyResolverTests
                 relativePath + Path.DirectorySeparatorChar + XPlatformUtils.GetStandardNativeLibraryFileName(simpleName));
         }
 
-        [ActiveIssue("needs triage", TestRuntimes.Mono)]
         [Fact]
         public static int TestEntryPoint()
         {

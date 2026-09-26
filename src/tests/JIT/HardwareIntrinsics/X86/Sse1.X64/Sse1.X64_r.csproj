@@ -11,7 +11,4 @@
     <Compile Include="Program.Sse1.X64.cs" />
     <Compile Include="..\Shared\Program.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

@@ -3,10 +3,8 @@
 
 #region Using directives
 
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
-using System.Speech.Internal.SrgsParser;
 using System.Speech.Recognition.SrgsGrammar;
 using System.Text;
 
@@ -16,7 +14,7 @@ namespace System.Speech.Internal.SrgsCompiler
 {
     internal class AppDomainGrammarProxy : MarshalByRefObject
     {
-        internal SrgsRule[]? OnInit(string method, object[]? parameters, string? onInitParameters, out Exception? exceptionThrown)
+        internal SrgsRule[] OnInit(string method, object[] parameters, string onInitParameters, out Exception exceptionThrown)
         {
             exceptionThrown = null;
             try
@@ -28,18 +26,17 @@ namespace System.Speech.Internal.SrgsCompiler
                 }
 
                 // Find the constructor to call - there could be several
-                Type[] types = Array.Empty<Type>();
+                Type[] types = new Type[parameters != null ? parameters.Length : 0];
 
-                if (parameters != null && parameters.Length > 0)
+                if (parameters != null)
                 {
-                    types = new Type[parameters.Length];
                     for (int i = 0; i < parameters.Length; i++)
                     {
                         types[i] = parameters[i].GetType();
                     }
                 }
 
-                MethodInfo? onInit = _grammarType.GetMethod(method, types);
+                MethodInfo onInit = _grammarType.GetMethod(method, types);
 
                 // If somehow we failed to find a constructor, let the system handle it
                 if (onInit == null)
@@ -47,7 +44,12 @@ namespace System.Speech.Internal.SrgsCompiler
                     throw new InvalidOperationException(SR.Get(SRID.ArgumentMismatch));
                 }
 
-                return (SrgsRule[]?)onInit?.Invoke(_grammar, parameters);
+                SrgsRule[] extraRules = null;
+                if (onInit != null)
+                {
+                    extraRules = (SrgsRule[])onInit.Invoke(_grammar, parameters);
+                }
+                return extraRules;
             }
             catch (Exception e)
             {
@@ -56,15 +58,15 @@ namespace System.Speech.Internal.SrgsCompiler
             }
         }
 
-        internal object? OnRecognition(string method, object[] parameters, out Exception? exceptionThrown)
+        internal object OnRecognition(string method, object[] parameters, out Exception exceptionThrown)
         {
             exceptionThrown = null;
             try
             {
-                MethodInfo? onRecognition = _grammarType.GetMethod(method, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                MethodInfo onRecognition = _grammarType.GetMethod(method, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
 
                 // Execute the parse routine
-                return onRecognition!.Invoke(_grammar, parameters);
+                return onRecognition.Invoke(_grammar, parameters);
             }
             catch (Exception e)
             {
@@ -73,15 +75,17 @@ namespace System.Speech.Internal.SrgsCompiler
             return null;
         }
 
-        internal object? OnParse(string rule, string method, object[] parameters, out Exception? exceptionThrown)
+        internal object OnParse(string rule, string method, object[] parameters, out Exception exceptionThrown)
         {
             exceptionThrown = null;
             try
             {
-                GetRuleInstance(rule, method, out MethodInfo? onParse, out System.Speech.Recognition.Grammar grammar);
+                MethodInfo onParse;
+                System.Speech.Recognition.Grammar grammar;
+                GetRuleInstance(rule, method, out onParse, out grammar);
 
                 // Execute the parse routine
-                return onParse!.Invoke(grammar, parameters);
+                return onParse.Invoke(grammar, parameters);
             }
             catch (Exception e)
             {
@@ -90,15 +94,17 @@ namespace System.Speech.Internal.SrgsCompiler
             }
         }
 
-        internal void OnError(string rule, string method, object?[]? parameters, out Exception? exceptionThrown)
+        internal void OnError(string rule, string method, object[] parameters, out Exception exceptionThrown)
         {
             exceptionThrown = null;
             try
             {
-                GetRuleInstance(rule, method, out MethodInfo? onError, out System.Speech.Recognition.Grammar grammar);
+                MethodInfo onError;
+                System.Speech.Recognition.Grammar grammar;
+                GetRuleInstance(rule, method, out onError, out grammar);
 
                 // Execute the parse routine
-                onError!.Invoke(grammar, parameters);
+                onError.Invoke(grammar, parameters);
             }
             catch (Exception e)
             {
@@ -106,27 +112,22 @@ namespace System.Speech.Internal.SrgsCompiler
             }
         }
 
-        [MemberNotNull(nameof(_grammarType))]
-        [MemberNotNull(nameof(_assembly))]
-        [MemberNotNull(nameof(_grammar))]
-        internal void Init(string? rule, byte[] il, byte[]? pdb)
+        internal void Init(string rule, byte[] il, byte[] pdb)
         {
             _assembly = Assembly.Load(il, pdb);
 
             // Get the grammar class carrying the .NET Semantics code
-            Type? grammarType = GetTypeForRule(_assembly, rule);
+            _grammarType = GetTypeForRule(_assembly, rule);
 
             // Something is Wrong if the grammar class cannot be found
-            if (grammarType == null)
+            if (_grammarType == null)
             {
                 throw new FormatException(SR.Get(SRID.RecognizerRuleNotFoundStream, rule));
             }
-
-            _grammarType = grammarType;
             _rule = rule;
             try
             {
-                _grammar = (System.Speech.Recognition.Grammar)_assembly.CreateInstance(_grammarType.FullName!)!;
+                _grammar = (System.Speech.Recognition.Grammar)_assembly.CreateInstance(_grammarType.FullName);
             }
             catch (MissingMemberException)
             {
@@ -134,9 +135,9 @@ namespace System.Speech.Internal.SrgsCompiler
             }
         }
 
-        private void GetRuleInstance(string rule, string method, out MethodInfo? onParse, out System.Speech.Recognition.Grammar grammar)
+        private void GetRuleInstance(string rule, string method, out MethodInfo onParse, out System.Speech.Recognition.Grammar grammar)
         {
-            Type? ruleClass = rule == _rule ? _grammarType : GetTypeForRule(_assembly, rule);
+            Type ruleClass = rule == _rule ? _grammarType : GetTypeForRule(_assembly, rule);
             if (ruleClass == null || !ruleClass.IsSubclassOf(typeof(System.Speech.Recognition.Grammar)))
             {
                 throw new FormatException(SR.Get(SRID.RecognizerInvalidBinaryGrammar));
@@ -144,16 +145,16 @@ namespace System.Speech.Internal.SrgsCompiler
 
             try
             {
-                grammar = (ruleClass == _grammarType ? _grammar : (System.Speech.Recognition.Grammar?)_assembly.CreateInstance(ruleClass.FullName!))!;
+                grammar = ruleClass == _grammarType ? _grammar : (System.Speech.Recognition.Grammar)_assembly.CreateInstance(ruleClass.FullName);
             }
             catch (MissingMemberException)
             {
                 throw new ArgumentException(SR.Get(SRID.RuleScriptInvalidParameters, ruleClass.FullName, rule), nameof(rule));
             }
-            onParse = grammar!.MethodInfo(method);
+            onParse = grammar.MethodInfo(method);
         }
 
-        private static Type? GetTypeForRule(Assembly assembly, string? rule)
+        private static Type GetTypeForRule(Assembly assembly, string rule)
         {
             Type[] types = assembly.GetTypes();
             for (int iType = 0; iType < types.Length; iType++)
@@ -170,7 +171,7 @@ namespace System.Speech.Internal.SrgsCompiler
         /// <summary>
         /// Construct a list of parameters from a sapi:params string.
         /// </summary>
-        private object[] MatchInitParameters(string method, string onInitParameters, string? grammar, string? rule)
+        private object[] MatchInitParameters(string method, string onInitParameters, string grammar, string rule)
         {
             MethodInfo[] mis = _grammarType.GetMethods();
 
@@ -236,7 +237,7 @@ namespace System.Speech.Internal.SrgsCompiler
             {
                 return value;
             }
-            return type.InvokeMember("Parse", BindingFlags.InvokeMethod, null, null, new object[] { value }, CultureInfo.InvariantCulture)!;
+            return type.InvokeMember("Parse", BindingFlags.InvokeMethod, null, null, new object[] { value }, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -296,13 +297,13 @@ namespace System.Speech.Internal.SrgsCompiler
 
 #pragma warning disable 56524 // Arclist does not hold on any resources
 
-        private System.Speech.Recognition.Grammar _grammar = null!;
+        private System.Speech.Recognition.Grammar _grammar;
 
 #pragma warning restore 56524 // Arclist does not hold on any resources
 
-        private Assembly _assembly = null!;
-        private string? _rule;
-        private Type _grammarType = null!;
+        private Assembly _assembly;
+        private string _rule;
+        private Type _grammarType;
 
         private struct NameValuePair
         {

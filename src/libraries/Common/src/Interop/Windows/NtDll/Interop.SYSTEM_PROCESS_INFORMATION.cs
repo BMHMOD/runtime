@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 internal static partial class Interop
@@ -14,11 +13,11 @@ internal static partial class Interop
         internal const int SystemProcessInformation = 5;
 
         [StructLayout(LayoutKind.Sequential)]
-        internal struct SYSTEM_PROCESS_INFORMATION
+        internal unsafe struct SYSTEM_PROCESS_INFORMATION
         {
             internal uint NextEntryOffset;
             internal uint NumberOfThreads;
-            private ReservedBytesBuffer Reserved1;
+            private fixed byte Reserved1[48];
             internal Interop.UNICODE_STRING ImageName;
             internal int BasePriority;
             internal IntPtr UniqueProcessId;
@@ -38,19 +37,13 @@ internal static partial class Interop
             internal UIntPtr PagefileUsage;  // SIZE_T
             internal UIntPtr PeakPagefileUsage;  // SIZE_T
             internal UIntPtr PrivatePageCount;  // SIZE_T
-            private InlineArray6<long> Reserved7;
-
-            [InlineArray(48)]
-            private struct ReservedBytesBuffer
-            {
-                private byte _element0;
-            }
+            private fixed long Reserved7[6];
         }
 
         [StructLayout(LayoutKind.Sequential)]
         internal unsafe struct SYSTEM_THREAD_INFORMATION
         {
-            private InlineArray3<long> Reserved1;
+            private fixed long Reserved1[3];
             private readonly uint Reserved2;
             internal void* StartAddress;
             internal CLIENT_ID ClientId;

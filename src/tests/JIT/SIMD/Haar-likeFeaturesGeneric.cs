@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using Point = System.Numerics.Vector<double>;
 using Xunit;
 
-namespace SIMDTests.HaarLikeFeaturesGenericTests
+namespace VectorMathTests
 {
     public class Program
     {

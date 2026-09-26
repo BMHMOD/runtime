@@ -4,7 +4,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using Xunit;
 
-namespace GitHub_16254
+namespace UnsafeTesting
 {
     public class Program
     {

@@ -13,7 +13,7 @@ public class WellKnownSidTypeTests
             return identity.Owner.AccountDomainSid != null;
     }
 
-    [ConditionalTheory(typeof(WellKnownSidTypeTests), nameof(AccountIsDomainJoined))]
+    [ConditionalTheory(nameof(AccountIsDomainJoined))]
     [InlineData(WellKnownSidType.NullSid)]
     [InlineData(WellKnownSidType.WorldSid)]
     [InlineData(WellKnownSidType.LocalSid)]
@@ -85,7 +85,7 @@ public class WellKnownSidTypeTests
         }
     }
 
-    [ConditionalTheory(typeof(WellKnownSidTypeTests), nameof(AccountIsDomainJoined))]
+    [ConditionalTheory(nameof(AccountIsDomainJoined))]
     [InlineData(WellKnownSidType.WinBuiltinDCOMUsersSid)]
     [InlineData(WellKnownSidType.WinBuiltinIUsersSid)]
     [InlineData(WellKnownSidType.WinIUserSid)]
@@ -153,7 +153,7 @@ public class WellKnownSidTypeTests
 #pragma warning restore 0618
     }
 
-    [ConditionalTheory(typeof(WellKnownSidTypeTests), nameof(AccountIsDomainJoined))]
+    [ConditionalTheory(nameof(AccountIsDomainJoined))]
     [InlineData(WellKnownSidType.WorldSid)]
     public void CompareTo_Null(WellKnownSidType sidType)
     {

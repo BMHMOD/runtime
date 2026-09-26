@@ -1,7 +1,6 @@
 ﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.Eventing.Reader;
 using System.IO;
 using System.Reflection;
@@ -13,7 +12,6 @@ namespace System.Diagnostics.Tests
     public class EventLogMessagesTests
     {
         [Fact]
-        [UnconditionalSuppressMessage("Trimming", "IL2026", Justification = "The test asserts the assembly contains no types; trimming cannot make an empty assembly emptier.")]
         public void EventLogMessagesContainsNoTypes()
         {
             Assembly messageAssembly = Assembly.Load("System.Diagnostics.EventLog.Messages");

@@ -54,12 +54,7 @@ namespace System.IO.Compression
         /// <exception cref="ArgumentNullException"><paramref name="stream"/> or <paramref name="compressionOptions"/> is <see langword="null" />.</exception>
         public ZLibStream(Stream stream, ZLibCompressionOptions compressionOptions, bool leaveOpen = false)
         {
-            ArgumentNullException.ThrowIfNull(stream);
-            ArgumentNullException.ThrowIfNull(compressionOptions);
-
-            int windowBits = CompressionFormatHelper.ResolveWindowBits(compressionOptions.WindowLog2, CompressionFormat.ZLib);
-
-            _deflateStream = new DeflateStream(stream, compressionOptions, leaveOpen, windowBits);
+            _deflateStream = new DeflateStream(stream, compressionOptions, leaveOpen, ZLibNative.ZLib_DefaultWindowBits);
         }
 
         /// <summary>Gets a value indicating whether the stream supports reading.</summary>

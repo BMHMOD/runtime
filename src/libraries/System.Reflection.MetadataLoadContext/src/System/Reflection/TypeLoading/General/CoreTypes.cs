@@ -11,19 +11,28 @@ namespace System.Reflection.TypeLoading
         private readonly RoType?[] _coreTypes;
         private readonly Exception?[] _exceptions;
 
-        internal CoreTypes(RoAssembly coreAssembly)
+        internal CoreTypes(MetadataLoadContext loader, string? coreAssemblyName)
         {
             int numCoreTypes = (int)CoreType.NumCoreTypes;
             RoType?[] coreTypes = new RoType[numCoreTypes];
             Exception?[] exceptions = new Exception[numCoreTypes];
-            for (int i = 0; i < numCoreTypes; i++)
+            RoAssembly? coreAssembly = loader.TryGetCoreAssembly(coreAssemblyName, out Exception? e);
+            if (coreAssembly == null)
             {
-                ((CoreType)i).GetFullName(out ReadOnlySpan<byte> ns, out ReadOnlySpan<byte> name);
-                RoType? type = coreAssembly.GetTypeCore(ns, name, ignoreCase: false, out Exception? e);
-                coreTypes[i] = type;
-                if (type == null)
+                // If the core assembly was not found, don't continue.
+                throw e!;
+            }
+            else
+            {
+                for (int i = 0; i < numCoreTypes; i++)
                 {
-                    exceptions[i] = e;
+                    ((CoreType)i).GetFullName(out ReadOnlySpan<byte> ns, out ReadOnlySpan<byte> name);
+                    RoType? type = coreAssembly.GetTypeCore(ns, name, ignoreCase: false, out e);
+                    coreTypes[i] = type;
+                    if (type == null)
+                    {
+                        exceptions[i] = e;
+                    }
                 }
             }
             _coreTypes = coreTypes;

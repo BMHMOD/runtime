@@ -14,8 +14,6 @@
   <ItemGroup>
     <Compile Include="$(CommonPath)DisableRuntimeMarshalling.cs"
              Link="Common\DisableRuntimeMarshalling.cs" />
-    <Compile Include="..\Common\ComInterfaces\IUniqueMarshalling.cs"
-             Link="ComInterfaces\IUniqueMarshalling.cs" />
   </ItemGroup>
 
   <ItemGroup>

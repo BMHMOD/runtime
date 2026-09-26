@@ -10,7 +10,6 @@ using Xunit;
 /// </summary>
 public class TypeGetTypeFromHandle
 {
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {
@@ -50,9 +49,9 @@ public class TypeGetTypeFromHandle
         try
         {
            
-            TypeGetTypeFromHandleTestClass myClass = new TypeGetTypeFromHandleTestClass();
+            TestClass myClass = new TestClass();
             Type myClassType = Type.GetTypeFromHandle(myClass.GetType().TypeHandle);
-            if(!myClassType.Equals(typeof(TypeGetTypeFromHandleTestClass)))
+            if(!myClassType.Equals(typeof(TestClass)))
             {
                 TestLibrary.TestFramework.LogError("001", "GetTypeFromHandle error");
                 retVal = false;
@@ -126,14 +125,14 @@ public class BaseClass
 
     }
 }
-public class TypeGetTypeFromHandleTestClass : BaseClass
+public class TestClass : BaseClass
 {
-     public TypeGetTypeFromHandleTestClass(string param, string s)
+     public TestClass(string param, string s)
         : base(param, s,1)
     {
 
     }
-    public  TypeGetTypeFromHandleTestClass()
+    public  TestClass()
         : base("", "", 1)
     {
 

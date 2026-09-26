@@ -142,7 +142,7 @@ namespace System.Threading.Channels.Tests
             }
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/60472", TestPlatforms.iOS | TestPlatforms.tvOS)]
         public void SingleProducerConsumer_ConcurrentReadWrite_Success()
         {
@@ -166,7 +166,7 @@ namespace System.Threading.Channels.Tests
                 }));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/60472", TestPlatforms.iOS | TestPlatforms.tvOS)]
         public void SingleProducerConsumer_PingPong_Success()
         {
@@ -193,7 +193,7 @@ namespace System.Threading.Channels.Tests
                 }));
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(1, 1)]
         [InlineData(1, 10)]
         [InlineData(10, 1)]

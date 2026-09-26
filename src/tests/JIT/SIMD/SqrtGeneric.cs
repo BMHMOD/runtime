@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using Xunit;
 
-namespace SIMDTests.SqrtGenericTests
+namespace VectorMathTests
 {
     public class Program
     {

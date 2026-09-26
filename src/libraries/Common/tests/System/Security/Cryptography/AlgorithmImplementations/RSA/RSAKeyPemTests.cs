@@ -8,16 +8,14 @@ using Xunit;
 namespace System.Security.Cryptography.Rsa.Tests
 {
     [SkipOnPlatform(TestPlatforms.Browser, "Not supported on Browser")]
-    public abstract class RSAKeyPemTests
+    public static class RSAKeyPemTests
     {
         private const string AmbiguousExceptionMarker = "multiple keys";
         private const string EncryptedExceptionMarker = "encrypted key";
         private const string NoPemExceptionMarker = "No supported key";
 
-        protected abstract RSAProvider RSAFactory { get; }
-
         [Fact]
-        public void ImportFromPem_NoPem()
+        public static void ImportFromPem_NoPem()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -28,7 +26,7 @@ namespace System.Security.Cryptography.Rsa.Tests
         }
 
         [Fact]
-        public void ImportFromPem_RSAPrivateKey_Simple()
+        public static void ImportFromPem_RSAPrivateKey_Simple()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -51,7 +49,7 @@ yZWUxoxAdjfrBGsx+U6BHM0Myqqe7fY7hjWzj4aBCw==
         }
 
         [Fact]
-        public void ImportFromPem_Pkcs8UnEncrypted_Simple()
+        public static void ImportFromPem_Pkcs8UnEncrypted_Simple()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -75,7 +73,7 @@ acPiMCuFTnRSFYAhozpmsqoLyTREqwIhAMLJlZTGjEB2N+sEazH5ToEczQzKqp7t
         }
 
         [Fact]
-        public void ImportFromPem_Pkcs8UnEncrypted_UnrelatedAlgorithmIsIgnored()
+        public static void ImportFromPem_Pkcs8UnEncrypted_UnrelatedAlgorithmIsIgnored()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -104,7 +102,7 @@ acPiMCuFTnRSFYAhozpmsqoLyTREqwIhAMLJlZTGjEB2N+sEazH5ToEczQzKqp7t
         }
 
         [Fact]
-        public void ImportFromPem_SubjectPublicKeyInfo_Simple()
+        public static void ImportFromPem_SubjectPublicKeyInfo_Simple()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -116,12 +114,12 @@ m5NTLEHDwUd7idstLzPXuah0WEjgao5oO1BEUR4byjYlJ+F89Cs4BhUCAwEAAQ==
                 rsa.ImportFromPem(pem);
                 RSAParameters rsaParameters = rsa.ExportParameters(false);
 
-                RSATestHelpers.AssertKeyEquals(ToPublic(TestData.DiminishedDPParameters), rsaParameters);
+                RSATestHelpers.AssertKeyEquals(TestData.DiminishedDPParameters.ToPublic(), rsaParameters);
             }
         }
 
         [Fact]
-        public void ImportFromPem_SubjectPublicKeyInfo_IgnoresUnrelatedAlgorithm()
+        public static void ImportFromPem_SubjectPublicKeyInfo_IgnoresUnrelatedAlgorithm()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -138,12 +136,12 @@ m5NTLEHDwUd7idstLzPXuah0WEjgao5oO1BEUR4byjYlJ+F89Cs4BhUCAwEAAQ==
                 rsa.ImportFromPem(pem);
                 RSAParameters rsaParameters = rsa.ExportParameters(false);
 
-                RSATestHelpers.AssertKeyEquals(ToPublic(TestData.DiminishedDPParameters), rsaParameters);
+                RSATestHelpers.AssertKeyEquals(TestData.DiminishedDPParameters.ToPublic(), rsaParameters);
             }
         }
 
         [Fact]
-        public void ImportFromPem_RSAPublicKey_Simple()
+        public static void ImportFromPem_RSAPublicKey_Simple()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -156,12 +154,12 @@ MEgCQQC3P1n17ovVXiS3/wKa0WqFQ8ltJT5UMZuTUyxBw8FHe4nbLS8z17modFhI
                 rsa.ImportFromPem(pem);
                 RSAParameters rsaParameters = rsa.ExportParameters(false);
 
-                RSATestHelpers.AssertKeyEquals(ToPublic(TestData.DiminishedDPParameters), rsaParameters);
+                RSATestHelpers.AssertKeyEquals(TestData.DiminishedDPParameters.ToPublic(), rsaParameters);
             }
         }
 
         [Fact]
-        public void ImportFromPem_RSAPrivateKey_PrecedingUnrelatedPem()
+        public static void ImportFromPem_RSAPrivateKey_PrecedingUnrelatedPem()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -198,7 +196,7 @@ yZWUxoxAdjfrBGsx+U6BHM0Myqqe7fY7hjWzj4aBCw==
         }
 
         [Fact]
-        public void ImportFromPem_RSAPrivateKey_PrecedingMalformedPem()
+        public static void ImportFromPem_RSAPrivateKey_PrecedingMalformedPem()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -223,7 +221,7 @@ yZWUxoxAdjfrBGsx+U6BHM0Myqqe7fY7hjWzj4aBCw==
         }
 
         [Fact]
-        public void ImportFromPem_RSAPrivateKey_IgnoresOtherAlgorithms()
+        public static void ImportFromPem_RSAPrivateKey_IgnoresOtherAlgorithms()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -250,7 +248,7 @@ yZWUxoxAdjfrBGsx+U6BHM0Myqqe7fY7hjWzj4aBCw==
         }
 
         [Fact]
-        public void ImportFromPem_RSAPrivateKey_AmbiguousKey_RSAPrivateKey()
+        public static void ImportFromPem_RSAPrivateKey_AmbiguousKey_RSAPrivateKey()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -273,7 +271,7 @@ yZWUxoxAdjfrBGsx+U6BHM0Myqqe7fY7hjWzj4aBCw==
         }
 
         [Fact]
-        public void ImportFromPem_RSAPrivateKey_AmbiguousKey_SubjectPublicKeyInfo()
+        public static void ImportFromPem_RSAPrivateKey_AmbiguousKey_SubjectPublicKeyInfo()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -296,7 +294,7 @@ yZWUxoxAdjfrBGsx+U6BHM0Myqqe7fY7hjWzj4aBCw==
         }
 
         [Fact]
-        public void ImportFromPem_RSAPrivateKey_AmbiguousKey_RSAPublicKey()
+        public static void ImportFromPem_RSAPrivateKey_AmbiguousKey_RSAPublicKey()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -319,7 +317,7 @@ yZWUxoxAdjfrBGsx+U6BHM0Myqqe7fY7hjWzj4aBCw==
         }
 
         [Fact]
-        public void ImportFromPem_RSAPrivateKey_AmbiguousKey_EncryptedPkcs8()
+        public static void ImportFromPem_RSAPrivateKey_AmbiguousKey_EncryptedPkcs8()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -342,7 +340,7 @@ yZWUxoxAdjfrBGsx+U6BHM0Myqqe7fY7hjWzj4aBCw==
         }
 
         [Fact]
-        public void ImportFromPem_EncryptedPrivateKeyFails()
+        public static void ImportFromPem_EncryptedPrivateKeyFails()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -365,7 +363,7 @@ pBORBb0=
         }
 
         [Fact]
-        public void ImportFromPem_Pkcs8AlgorithmMismatch_Throws()
+        public static void ImportFromPem_Pkcs8AlgorithmMismatch_Throws()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -385,7 +383,7 @@ eDr38gQ/Hk0CgW3/RFrNWdbIpfMifs80vqCUNqDggcQixEmDVZ0gwq4+wz8EVyYG
         }
 
         [Fact]
-        public void ImportFromEncryptedPem_Pkcs8Encrypted_Char_Simple()
+        public static void ImportFromEncryptedPem_Pkcs8Encrypted_Char_Simple()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -410,7 +408,7 @@ CA7ffFk=
         }
 
         [Fact]
-        public void ImportFromEncryptedPem_Pkcs8Encrypted_Byte_Simple()
+        public static void ImportFromEncryptedPem_Pkcs8Encrypted_Byte_Simple()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -435,7 +433,7 @@ raZNyk8KAsLs+FJq9T2tda0=
         }
 
         [Fact]
-        public void ImportFromEncryptedPem_Pkcs8Encrypted_AmbiguousPem()
+        public static void ImportFromEncryptedPem_Pkcs8Encrypted_AmbiguousPem()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -471,7 +469,7 @@ CA7ffFk=
         }
 
         [Fact]
-        public void ImportFromEncryptedPem_Pkcs8Encrypted_Byte_NoPem()
+        public static void ImportFromEncryptedPem_Pkcs8Encrypted_Byte_NoPem()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -483,7 +481,7 @@ CA7ffFk=
         }
 
         [Fact]
-        public void ImportFromEncryptedPem_NoEncryptedPem()
+        public static void ImportFromEncryptedPem_NoEncryptedPem()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -505,7 +503,7 @@ acPiMCuFTnRSFYAhozpmsqoLyTREqwIhAMLJlZTGjEB2N+sEazH5ToEczQzKqp7t
         }
 
         [Fact]
-        public void ImportFromEncryptedPem_Pkcs8Encrypted_Char_NoPem()
+        public static void ImportFromEncryptedPem_Pkcs8Encrypted_Char_NoPem()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -517,7 +515,7 @@ acPiMCuFTnRSFYAhozpmsqoLyTREqwIhAMLJlZTGjEB2N+sEazH5ToEczQzKqp7t
             }
         }
 
-        private static RSAParameters ToPublic(RSAParameters rsaParams)
+        private static RSAParameters ToPublic(this RSAParameters rsaParams)
         {
             return new RSAParameters
             {

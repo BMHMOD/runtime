@@ -96,7 +96,7 @@ extern "C" BOOL QCALLTYPE MarshalNative_IsBuiltInComSupported()
     return ret;
 }
 
-extern "C" BOOL QCALLTYPE MarshalNative_HasLayout(QCall::TypeHandle t, BOOL* pIsBlittable, DWORD* pNativeSize)
+extern "C" BOOL QCALLTYPE MarshalNative_TryGetStructMarshalStub(void* enregisteredTypeHandle, PCODE* pStructMarshalStub, SIZE_T* pSize)
 {
     QCALL_CONTRACT;
 
@@ -104,25 +104,39 @@ extern "C" BOOL QCALLTYPE MarshalNative_HasLayout(QCall::TypeHandle t, BOOL* pIs
 
     BEGIN_QCALL;
 
-    TypeHandle th = t.AsTypeHandle();
+    TypeHandle th = TypeHandle::FromPtr(enregisteredTypeHandle);
 
-    if (th.IsEnum())
+    if (th.IsBlittable())
     {
-        // Enums don't have native layout info, but they marshal identically
-        // to their underlying primitive type.
-        th = CoreLibBinder::GetElementType(th.GetInternalCorElementType());
+        *pStructMarshalStub = (PCODE)NULL;
+        *pSize = th.GetMethodTable()->GetNativeSize();
+        ret = TRUE;
     }
-
-    if (th.HasLayout())
+    else if (th.HasLayout())
     {
-        *pIsBlittable = th.IsBlittable();
-        *pNativeSize = th.GetMethodTable()->GetNativeSize();
+        MethodTable* pMT = th.GetMethodTable();
+        MethodDesc* structMarshalStub = NULL;
+
+        EEMarshalingData* pEEMarshalingData = pMT->GetLoaderAllocator()->GetMarshalingDataIfAvailable();
+        if (pEEMarshalingData != NULL)
+        {
+            GCX_COOP();
+            structMarshalStub = pEEMarshalingData->LookupStructILStubSpeculative(pMT);
+        }
+
+        if (structMarshalStub == NULL)
+        {
+            structMarshalStub = PInvoke::CreateStructMarshalILStub(pMT);
+        }
+
+        *pStructMarshalStub = structMarshalStub->GetSingleCallableAddrOfCode();
+        *pSize = 0;
         ret = TRUE;
     }
     else
     {
-        *pIsBlittable = FALSE;
-        *pNativeSize = 0;
+        *pStructMarshalStub = (PCODE)NULL;
+        *pSize = 0;
     }
 
     END_QCALL;
@@ -341,10 +355,8 @@ FCIMPL2(LPVOID, MarshalNative::GCHandleInternalAlloc, Object *obj, int type)
 
     assert(type >= HNDTYPE_WEAK_SHORT && type <= HNDTYPE_DEPENDENT);
 
-#if defined(PROFILING_SUPPORTED)
     if (CORProfilerTrackGC())
         return NULL;
-#endif // PROFILING_SUPPORTED
 
     return GetAppDomain()->GetHandleStore()->CreateHandleOfType(obj, static_cast<HandleType>(type));
 }
@@ -369,10 +381,8 @@ FCIMPL1(FC_BOOL_RET, MarshalNative::GCHandleInternalFree, OBJECTHANDLE handle)
 {
     FCALL_CONTRACT;
 
-#ifdef PROFILING_SUPPORTED
     if (CORProfilerTrackGC())
         FC_RETURN_BOOL(false);
-#endif // PROFILING_SUPPORTED
 
     GCHandleUtilities::GetGCHandleManager()->DestroyHandleOfUnknownType(handle);
     FC_RETURN_BOOL(true);
@@ -765,7 +775,7 @@ extern "C" IUnknown* QCALLTYPE MarshalNative_CreateAggregatedObject(IUnknown* pO
         COMPlusThrowArgumentException(W("o"), W("Argument_AlreadyACCW"));
 
     //get wrapper for the object, this could enable GC
-    CCWHolder pWrap{ ComCallWrapper::InlineGetWrapper(&oref) };
+    CCWHolder pWrap =  ComCallWrapper::InlineGetWrapper(&oref);
 
     // Aggregation support,
     pWrap->InitializeOuter(pOuter);
@@ -1177,7 +1187,7 @@ extern "C" VOID QCALLTYPE MarshalNative_ChangeWrapperHandleStrength(QCall::Objec
         OBJECTREF oref = otp.Get();
         GCPROTECT_BEGIN(oref);
 
-        CCWHolder pWrap{ ComCallWrapper::InlineGetWrapper(&oref) };
+        CCWHolder pWrap = ComCallWrapper::InlineGetWrapper(&oref);
 
         if (fIsWeak)
             pWrap->MarkHandleWeak();

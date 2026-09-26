@@ -59,7 +59,6 @@ namespace Bug565326
 
     public class Class1
     {
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

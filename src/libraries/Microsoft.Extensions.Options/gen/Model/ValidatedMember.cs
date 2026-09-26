@@ -16,9 +16,5 @@ namespace Microsoft.Extensions.Options.Generators
         bool IsValueType,
         bool EnumeratedIsNullable,
         bool EnumeratedIsValueType,
-        bool EnumeratedMayBeNull,
-        bool TransValidatorEmitsAsync = false,
-        bool EnumerationValidatorEmitsAsync = false,
-        string? TransValidatorAsyncInterfaceType = null,
-        string? EnumerationValidatorAsyncInterfaceType = null);
+        bool EnumeratedMayBeNull);
 }

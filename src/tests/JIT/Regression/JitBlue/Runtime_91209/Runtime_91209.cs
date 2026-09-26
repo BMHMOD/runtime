@@ -5,9 +5,6 @@
 //
 // Test ARM64 read-modify-write (RMW) intrinsics with identical target/accumulator local to arguments
 
-
-namespace Runtime_91209;
-
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
@@ -32,10 +29,15 @@ public class Runtime_91209
         return AdvSimd.MultiplyAddByScalar(l, l, l);
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static int Test1()
     {
         Console.WriteLine("Test1");
+
+        if (!AdvSimd.IsSupported)
+        {
+            return 100;
+        }
 
         Vector64<int> r1 = Problem1();
         return (r1.GetElement(0) + r1.GetElement(1)) == 84 ? 100 : 101;
@@ -56,10 +58,15 @@ public class Runtime_91209
         return AdvSimd.MultiplyAdd(l, l, l);
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static int Test2()
     {
         Console.WriteLine("Test2");
+
+        if (!AdvSimd.IsSupported)
+        {
+            return 100;
+        }
 
         Vector64<sbyte> r1 = Problem2();
         return (r1.GetElement(0) + r1.GetElement(1)) == 12 ? 100 : 101;
@@ -81,10 +88,15 @@ public class Runtime_91209
         return AdvSimd.VectorTableLookupExtension(l, (t,t), l);
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static int Test3()
     {
         Console.WriteLine("Test3");
+
+        if (!AdvSimd.IsSupported)
+        {
+            return 100;
+        }
 
         Vector64<byte> r1 = Problem3();
         return r1.GetElement(2) == 7 ? 100 : 101;
@@ -105,10 +117,15 @@ public class Runtime_91209
         return AdvSimd.VectorTableLookupExtension(Vector128.GetLower<byte>(l), (l,l), Vector128.GetLower<byte>(l));
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static int Test4()
     {
         Console.WriteLine("Test4");
+
+        if (!AdvSimd.IsSupported)
+        {
+            return 100;
+        }
 
         Vector64<byte> r1 = Problem4();
         return r1.GetElement(7) == 7 ? 100 : 101;

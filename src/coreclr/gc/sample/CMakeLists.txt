@@ -11,29 +11,10 @@ set(SOURCES
     ../gceventstatus.cpp
     ../gcconfig.cpp
     ../gccommon.cpp
-    ../gcee.cpp
+    ../gceewks.cpp
     ../gchandletable.cpp
     ../gcscan.cpp
-    ../gc.cpp
-    ../init.cpp
-    ../no_gc.cpp
-    ../finalization.cpp
-    ../dynamic_tuning.cpp
-    ../region_free_list.cpp
-    ../region_allocator.cpp
-    ../memory.cpp
-    ../sweep.cpp
-    ../collect.cpp
-    ../diagnostics.cpp
-    ../dynamic_heap_count.cpp
-    ../card_table.cpp
-    ../relocate_compact.cpp
-    ../mark_phase.cpp
-    ../background.cpp
-    ../interface.cpp
-    ../allocation.cpp
-    ../plan_phase.cpp
-    ../regions_segments.cpp
+    ../gcwks.cpp
     ../gcload.cpp
     ../handletable.cpp
     ../handletablecache.cpp

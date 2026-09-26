@@ -5,7 +5,4 @@
   <ItemGroup>
     <Compile Include="Base01b_seq_ser.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

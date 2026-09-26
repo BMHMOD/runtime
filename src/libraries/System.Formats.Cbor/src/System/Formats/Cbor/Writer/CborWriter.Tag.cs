@@ -38,7 +38,11 @@ namespace System.Formats.Cbor
         public void WriteDateTimeOffset(DateTimeOffset value)
         {
             string dateString =
+#if NET
                 value.TotalOffsetMinutes == 0 ?
+#else
+                value.Offset == TimeSpan.Zero ?
+#endif // NET
                 value.UtcDateTime.ToString(Rfc3339FormatString, CultureInfo.InvariantCulture) : // prefer 'Z' over '+00:00'
                 value.ToString(Rfc3339FormatString, CultureInfo.InvariantCulture);
 
@@ -142,7 +146,7 @@ namespace System.Formats.Cbor
             /// deconstructs a decimal value into its signed integral component and negative base-10 exponent
             public static void Deconstruct(decimal value, out decimal mantissa, out byte scale)
             {
-                Span<int> buf = [0, 0, 0, 0];
+                Span<int> buf = stackalloc int[4];
                 CborHelpers.GetBitsFromDecimal(value, buf);
 
                 int flags = buf[3];
@@ -154,7 +158,7 @@ namespace System.Formats.Cbor
             /// reconstructs a decimal value out of a signed integral component and a negative base-10 exponent
             private static decimal ReconstructFromNegativeScale(decimal mantissa, byte scale)
             {
-                Span<int> buf = [0, 0, 0, 0];
+                Span<int> buf = stackalloc int[4];
                 CborHelpers.GetBitsFromDecimal(mantissa, buf);
 
                 int flags = buf[3];

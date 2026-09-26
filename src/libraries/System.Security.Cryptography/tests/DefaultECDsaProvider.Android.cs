@@ -5,9 +5,9 @@ using System.Runtime.InteropServices;
 
 namespace System.Security.Cryptography.EcDsa.Tests
 {
-    public partial class DefaultECDsaProvider : ECDsaProvider
+    public partial class ECDsaProvider : IECDsaProvider
     {
-        public override bool IsCurveValid(Oid oid)
+        public bool IsCurveValid(Oid oid)
         {
             if (!string.IsNullOrEmpty(oid.Value))
             {
@@ -17,7 +17,7 @@ namespace System.Security.Cryptography.EcDsa.Tests
             return IsValueOrFriendlyNameValid(oid.FriendlyName);
         }
 
-        public override bool ExplicitCurvesSupported
+        public bool ExplicitCurvesSupported
         {
             get
             {

@@ -40,7 +40,6 @@ public static class Repro
         }
     }
 
-    [SkipOnCoreClr("This test is not compatible with GC stress.", RuntimeTestModes.AnyGCStress)]
     [Fact]
     public static int TestEntryPoint()
     {

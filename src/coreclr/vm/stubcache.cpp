@@ -18,7 +18,7 @@
 //---------------------------------------------------------
 // Constructor
 //---------------------------------------------------------
-StubCacheBase::StubCacheBase(LoaderAllocator *pLoaderAllocator) :
+StubCacheBase::StubCacheBase(LoaderHeap *pHeap) :
     CClosedHashBase(
 #ifdef _DEBUG
                       3,
@@ -30,9 +30,15 @@ StubCacheBase::StubCacheBase(LoaderAllocator *pLoaderAllocator) :
                       FALSE
                    ),
     m_crst(CrstStubCache),
-    m_pLoaderAllocator(pLoaderAllocator)
+    m_heap(pHeap)
 {
     WRAPPER_NO_CONTRACT;
+
+#ifdef TARGET_UNIX
+    if (m_heap == NULL)
+        m_heap = SystemDomain::GetGlobalLoaderAllocator()->GetExecutableHeap();
+#endif
+
 }
 
 
@@ -52,7 +58,9 @@ StubCacheBase::~StubCacheBase()
     STUBHASHENTRY *phe = (STUBHASHENTRY*)GetFirst();
     while (phe)
     {
-        _ASSERTE((PCODE)NULL != phe->m_pCode);
+        _ASSERTE(NULL != phe->m_pStub);
+        ExecutableWriterHolder<Stub> stubWriterHolder(phe->m_pStub, sizeof(Stub));
+        stubWriterHolder.GetRW()->DecRef();
         phe = (STUBHASHENTRY*)GetNext((BYTE*)phe);
     }
 }
@@ -60,20 +68,24 @@ StubCacheBase::~StubCacheBase()
 
 
 //---------------------------------------------------------
-// Returns the equivalent hashed code, creating a new hash
+// Returns the equivalent hashed Stub, creating a new hash
 // entry if necessary. If the latter, will call out to CompileStub.
+//
+// Refcounting:
+//    The caller is responsible for DecRef'ing the returned stub in
+//    order to avoid leaks.
 //---------------------------------------------------------
-PCODE StubCacheBase::Canonicalize(const BYTE * pRawStub, const char *stubType)
+Stub *StubCacheBase::Canonicalize(const BYTE * pRawStub, const char *stubType)
 {
-    CONTRACTL
+    CONTRACT (Stub*)
     {
         STANDARD_VM_CHECK;
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     STUBHASHENTRY *phe = NULL;
 
-    PCODE pCode = (PCODE)NULL;
     {
         CrstHolder ch(&m_crst);
 
@@ -81,20 +93,29 @@ PCODE StubCacheBase::Canonicalize(const BYTE * pRawStub, const char *stubType)
         phe = (STUBHASHENTRY*)Find((LPVOID)pRawStub);
         if (phe)
         {
-            return phe->m_pCode;
+            StubHolder<Stub> pstub;
+            pstub = phe->m_pStub;
+
+            ExecutableWriterHolder<Stub> stubWriterHolder(pstub, sizeof(Stub));
+            // IncRef as we're returning a reference to our caller.
+            stubWriterHolder.GetRW()->IncRef();
+
+            pstub.SuppressRelease();
+            RETURN pstub;
         }
     }
 
     // Couldn't find it, let's try to compile it.
     CPUSTUBLINKER sl;
     CPUSTUBLINKER *psl = &sl;
-    StubCodeBlockKind kind = CompileStub(pRawStub, psl);
+    DWORD linkFlags = CompileStub(pRawStub, psl);
 
     // Append the raw stub to the native stub
     // and link up the stub.
     CodeLabel *plabel = psl->EmitNewCodeLabel();
     psl->EmitBytes(pRawStub, Length(pRawStub));
-    pCode = psl->Link(m_pLoaderAllocator, kind, stubType);
+    StubHolder<Stub> pstub;
+    pstub = psl->Link(m_heap, linkFlags, stubType);
     UINT32 offset = psl->GetLabelOffset(plabel);
 
     if (offset > 0xffff)
@@ -109,10 +130,10 @@ PCODE StubCacheBase::Canonicalize(const BYTE * pRawStub, const char *stubType)
         {
             if (bNew)
             {
-                phe->m_pCode = pCode;
+                phe->m_pStub = pstub;
                 phe->m_offsetOfRawStub = (UINT16)offset;
 
-                AddStub(pRawStub, pCode);
+                AddStub(pRawStub, pstub);
             }
             else
             {
@@ -125,9 +146,13 @@ PCODE StubCacheBase::Canonicalize(const BYTE * pRawStub, const char *stubType)
                 // toggling between inlined TLSGetValue and api TLSGetValue.
                 //_ASSERTE(phe->m_offsetOfRawStub == (UINT16)offset);
 
-                // Use the previously created stub
-                pCode = phe->m_pCode;
+                //Use the previously created stub
+                // This will DecRef the new stub for us.
+                pstub = phe->m_pStub;
             }
+            // IncRef so that caller has firm ownership of stub.
+            ExecutableWriterHolder<Stub> stubWriterHolder(pstub, sizeof(Stub));
+            stubWriterHolder.GetRW()->IncRef();
         }
     }
 
@@ -137,15 +162,17 @@ PCODE StubCacheBase::Canonicalize(const BYTE * pRawStub, const char *stubType)
         COMPlusThrowOM();
     }
 
-    return pCode;
+    pstub.SuppressRelease();
+    RETURN pstub;
 }
 
 
-void StubCacheBase::AddStub(const BYTE* pRawStub, PCODE pNewStub)
+void StubCacheBase::AddStub(const BYTE* pRawStub, Stub* pNewStub)
 {
     LIMITED_METHOD_CONTRACT;
 
     // By default, don't do anything.
+    return;
 }
 
 
@@ -222,11 +249,11 @@ CClosedHashBase::ELEMENTSTATUS StubCacheBase::Status(           // The status of
     }
     CONTRACTL_END;
 
-    PCODE pCode = ((STUBHASHENTRY*)pElement)->m_pCode;
+    Stub *pStub = ((STUBHASHENTRY*)pElement)->m_pStub;
 
-    if (pCode == (PCODE)NULL)
+    if (pStub == NULL)
         return FREE;
-    else if (pCode == (PCODE)-1)
+    else if (pStub == (Stub*)(-1))
         return DELETED;
     else
         return USED;
@@ -251,8 +278,8 @@ void StubCacheBase::SetStatus(
 
     switch (eStatus)
     {
-        case FREE:    phe->m_pCode = (PCODE)NULL;   break;
-        case DELETED: phe->m_pCode = (PCODE)-1; break;
+        case FREE:    phe->m_pStub = NULL;   break;
+        case DELETED: phe->m_pStub = (Stub*)(-1); break;
         default:
             _ASSERTE(!"MLCacheEntry::SetStatus(): Bad argument.");
     }
@@ -273,5 +300,5 @@ void *StubCacheBase::GetKey(                   // The data to hash on.
     CONTRACTL_END;
 
     STUBHASHENTRY *phe = (STUBHASHENTRY*)pElement;
-    return (void *)(PCODEToPINSTR(phe->m_pCode) + phe->m_offsetOfRawStub);
+    return (void *)(phe->m_pStub->GetBlob() + phe->m_offsetOfRawStub);
 }

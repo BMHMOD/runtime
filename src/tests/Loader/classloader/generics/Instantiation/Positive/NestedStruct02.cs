@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 public struct ValX0 {}
 public struct ValY0 {}
@@ -64,7 +63,6 @@ public class Test_NestedStruct02
 	
 	}
 	
- [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
 	[Fact]
 	public static int TestEntryPoint()
 	{

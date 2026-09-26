@@ -866,7 +866,7 @@ namespace System.Text
                 return [0xEF, 0xBB, 0xBF];
             }
             else
-                return [];
+                return Array.Empty<byte>();
         }
 
         public override ReadOnlySpan<byte> Preamble =>

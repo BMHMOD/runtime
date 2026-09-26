@@ -5,7 +5,6 @@ parameters:
   runtimeFlavor: ''
   runtimeVariant: ''
   liveLibrariesBuildConfig: ''
-  useNativeAOTRuntime: false
 
 variables:
 
@@ -28,11 +27,6 @@ variables:
     value: 10
   - name: timeoutPerTestCollectionInMinutes
     value: 30
-  - ${{ if and(eq(parameters.runtimeFlavor, 'coreclr'), eq(parameters.osGroup, 'browser')) }}:
-    - name: timeoutPerTestInMinutes
-      value: 15
-    - name: timeoutPerTestCollectionInMinutes
-      value: 45
   - ${{ if in(parameters.testGroup, 'outerloop') }}:
     - name: timeoutPerTestCollectionInMinutes
       value: 120
@@ -91,7 +85,7 @@ variables:
     - name: runtimeFlavorArgs
       value: '-mono'
 
-  - ${{ if and(eq(parameters.runtimeFlavor, 'coreclr'), eq(parameters.useNativeAOTRuntime, true), in(parameters.osGroup, 'ios', 'iossimulator', 'tvos', 'tvossimulator', 'maccatalyst')) }}:
+  - ${{ if and(eq(parameters.runtimeFlavor, 'coreclr'), in(parameters.osGroup, 'ios', 'iossimulator', 'tvos', 'tvossimulator', 'maccatalyst')) }}:
     - name: runtimeFlavorArgs
       value: '-nativeaot'
 

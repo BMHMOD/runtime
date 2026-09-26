@@ -20,7 +20,6 @@ namespace Microsoft.Extensions.Hosting.IntegrationTesting
         private const string ApplicationStartedMessage = "Application started. Press Ctrl+C to shut down.";
 
         public Process HostProcess { get; private set; }
-        internal event DataReceivedEventHandler OutputReceived;
 
         public SelfHostDeployer(DeploymentParameters deploymentParameters, ILoggerFactory loggerFactory)
             : base(deploymentParameters, loggerFactory)
@@ -96,7 +95,7 @@ namespace Microsoft.Extensions.Hosting.IntegrationTesting
 
                 if (DeploymentParameters.RuntimeFlavor == RuntimeFlavor.CoreClr && DeploymentParameters.ApplicationType == ApplicationType.Portable)
                 {
-                    executableName = GetDotNetMuxerPath();
+                    executableName = GetDotNetExeForArchitecture();
                     executableArgs = executable;
                 }
                 else
@@ -121,8 +120,7 @@ namespace Microsoft.Extensions.Hosting.IntegrationTesting
 
                 AddEnvironmentVariablesToProcess(startInfo, DeploymentParameters.EnvironmentVariables);
 
-                var started = new TaskCompletionSource<object>(TaskCreationOptions.RunContinuationsAsynchronously);
-                var hostExitTokenSource = new CancellationTokenSource();
+                var started = new TaskCompletionSource<object>();
 
                 HostProcess = new Process() { StartInfo = startInfo };
                 HostProcess.EnableRaisingEvents = true;
@@ -132,9 +130,8 @@ namespace Microsoft.Extensions.Hosting.IntegrationTesting
                     {
                         started.TrySetResult(null);
                     }
-
-                    OutputReceived?.Invoke(sender, dataArgs);
                 };
+                var hostExitTokenSource = new CancellationTokenSource();
                 HostProcess.Exited += (sender, e) =>
                 {
                     Logger.LogInformation("host process ID {pid} shut down", HostProcess.Id);
@@ -151,9 +148,7 @@ namespace Microsoft.Extensions.Hosting.IntegrationTesting
                 }
                 catch (Exception ex)
                 {
-                    // Surface the real launch failure instead of letting it be masked later during disposal.
                     Logger.LogError("Error occurred while starting the process. Exception: {exception}", ex.ToString());
-                    throw;
                 }
 
                 if (HostProcess.HasExited)

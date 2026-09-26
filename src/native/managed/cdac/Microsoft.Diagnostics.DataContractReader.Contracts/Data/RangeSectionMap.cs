@@ -3,10 +3,17 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.RangeSectionMap))]
-internal sealed partial class RangeSectionMap : IData<RangeSectionMap>
+internal sealed class RangeSectionMap : IData<RangeSectionMap>
 {
-    /// <summary>Pointer to first element.</summary>
-    [FieldAddress]
-    public partial TargetPointer TopLevelData { get; }
+    static RangeSectionMap IData<RangeSectionMap>.Create(Target target, TargetPointer address)
+        => new RangeSectionMap(target, address);
+
+    public RangeSectionMap(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.RangeSectionMap);
+        TopLevelData = new TargetPointer(address + (ulong)type.Fields[nameof(TopLevelData)].Offset);
+    }
+
+    // pointer to first element
+    public TargetPointer TopLevelData { get; init; }
 }

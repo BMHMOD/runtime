@@ -23,7 +23,6 @@ namespace System
             internal Array.ArrayInitializeCache? _arrayInitializeCache;
             internal IGenericCacheEntry? _enumInfo;
             internal BoxCache? _boxCache;
-            internal Marshal.LayoutTypeMarshalerMethods? _marshalerMethods;
 
             void IGenericCacheEntry.InitializeCompositeCache(CompositeCacheEntry compositeEntry) => throw new UnreachableException();
         }

@@ -12,12 +12,6 @@ namespace System.Text.Json.Serialization.Converters
     /// <summary>
     /// Default base class implementation of <cref>JsonObjectConverter{T}</cref>.
     /// </summary>
-    /// <remarks>
-    /// Aspects of the property reading and deserialization logic in this converter are
-    /// duplicated in <see cref="FSharpUnionConverter{T}"/>. If any behavior is changed here
-    /// (e.g. unmapped member handling, required properties, metadata processing),
-    /// the union converter should also be updated for parity.
-    /// </remarks>
     internal class ObjectDefaultConverter<T> : JsonObjectConverter<T> where T : notnull
     {
         internal override bool CanHaveMetadata => true;
@@ -44,7 +38,7 @@ namespace System.Text.Json.Serialization.Converters
                 }
                 else
                 {
-                    if (jsonTypeInfo.CreateObject is null)
+                    if (jsonTypeInfo.CreateObject == null)
                     {
                         ThrowHelper.ThrowNotSupportedException_DeserializeNoConstructor(jsonTypeInfo, ref reader, ref state);
                     }
@@ -53,7 +47,7 @@ namespace System.Text.Json.Serialization.Converters
                 }
 
                 PopulatePropertiesFastPath(obj, jsonTypeInfo, options, ref reader, ref state);
-                Debug.Assert(obj is not null);
+                Debug.Assert(obj != null);
                 value = (T)obj;
                 return true;
             }
@@ -90,7 +84,7 @@ namespace System.Text.Json.Serialization.Converters
                 }
 
                 // Dispatch to any polymorphic converters: should always be entered regardless of ObjectState progress
-                if (((state.Current.MetadataPropertyNames & MetadataPropertyName.Type) != 0 || state.PolymorphicResolvedType is not null) &&
+                if ((state.Current.MetadataPropertyNames & MetadataPropertyName.Type) != 0 &&
                     state.Current.PolymorphicSerializationState != PolymorphicSerializationState.PolymorphicReEntryStarted &&
                     ResolvePolymorphicConverter(jsonTypeInfo, ref state) is JsonConverter polymorphicConverter)
                 {
@@ -120,7 +114,7 @@ namespace System.Text.Json.Serialization.Converters
                     }
                     else
                     {
-                        if (jsonTypeInfo.CreateObject is null)
+                        if (jsonTypeInfo.CreateObject == null)
                         {
                             ThrowHelper.ThrowNotSupportedException_DeserializeNoConstructor(jsonTypeInfo, ref reader, ref state);
                         }
@@ -130,7 +124,7 @@ namespace System.Text.Json.Serialization.Converters
 
                     if ((state.Current.MetadataPropertyNames & MetadataPropertyName.Id) != 0)
                     {
-                        Debug.Assert(state.ReferenceId is not null);
+                        Debug.Assert(state.ReferenceId != null);
                         Debug.Assert(options.ReferenceHandlingStrategy == JsonKnownReferenceHandler.Preserve);
                         state.ReferenceResolver.AddReference(state.ReferenceId, obj);
                         state.ReferenceId = null;
@@ -145,7 +139,7 @@ namespace System.Text.Json.Serialization.Converters
                 else
                 {
                     obj = state.Current.ReturnValue!;
-                    Debug.Assert(obj is not null);
+                    Debug.Assert(obj != null);
                 }
 
                 // Process all properties.
@@ -199,7 +193,7 @@ namespace System.Text.Json.Serialization.Converters
                     }
                     else
                     {
-                        Debug.Assert(state.Current.JsonPropertyInfo is not null);
+                        Debug.Assert(state.Current.JsonPropertyInfo != null);
                         jsonPropertyInfo = state.Current.JsonPropertyInfo!;
                     }
 
@@ -260,11 +254,11 @@ namespace System.Text.Json.Serialization.Converters
             state.Current.ValidateAllRequiredPropertiesAreRead(jsonTypeInfo);
 
             // Unbox
-            Debug.Assert(obj is not null);
+            Debug.Assert(obj != null);
             value = (T)obj;
 
             // Check if we are trying to update the UTF-8 property cache.
-            if (state.Current.PropertyRefCacheBuilder is not null)
+            if (state.Current.PropertyRefCacheBuilder != null)
             {
                 jsonTypeInfo.UpdateUtf8PropertyCache(ref state.Current);
             }
@@ -313,7 +307,7 @@ namespace System.Text.Json.Serialization.Converters
             state.Current.ValidateAllRequiredPropertiesAreRead(jsonTypeInfo);
 
             // Check if we are trying to update the UTF-8 property cache.
-            if (state.Current.PropertyRefCacheBuilder is not null)
+            if (state.Current.PropertyRefCacheBuilder != null)
             {
                 jsonTypeInfo.UpdateUtf8PropertyCache(ref state.Current);
             }

@@ -4,7 +4,6 @@
 using System;
 using System.Runtime.InteropServices;
 using Xunit;
-using TestLibrary;
 
 // Test case where a type-equvalent delegate is assigned
 
@@ -12,12 +11,12 @@ public class X
 {
     static int F() => 3;
 
-    [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsTypeEquivalenceSupported))]
+    [Fact]
     public static int TestEntryPoint()
     {
         XD x = F;
         XD y = Lib.GetDelegate();
         return x() + y() + 64;
     }
-
+    
 }

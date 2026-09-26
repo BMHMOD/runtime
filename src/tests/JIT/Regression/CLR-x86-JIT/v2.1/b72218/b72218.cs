@@ -2,12 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b72218;
-
 using System;
 using System.Threading;
-using TestLibrary;
 using Xunit;
 
 public class My
@@ -19,8 +15,7 @@ public class My
         Thread.Sleep(5);
     }
 
-    [OuterLoop]
-    [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+    [Fact]
     public static void TestEntryPoint()
     {
 

@@ -517,15 +517,8 @@ namespace Internal.IL.Stubs
         internal ILCodeStream _endHandlerStream;
         internal int _endHandlerOffset;
 
-        internal ILExceptionRegionKind _exceptionRegionKind;
-        internal TypeDesc _catchExceptionType;
-
-        internal ILExceptionRegionBuilder(ILExceptionRegionKind exceptionRegionKind, TypeDesc catchExceptionType = null)
+        internal ILExceptionRegionBuilder()
         {
-            _exceptionRegionKind = exceptionRegionKind;
-            _catchExceptionType = catchExceptionType;
-            Debug.Assert((exceptionRegionKind == ILExceptionRegionKind.Catch && catchExceptionType != null)
-                || (exceptionRegionKind != ILExceptionRegionKind.Catch && catchExceptionType == null));
         }
 
         internal int TryOffset => _beginTryStream.RelativeToAbsoluteOffset(_beginTryOffset);
@@ -560,15 +553,13 @@ namespace Internal.IL.Stubs
 
         private const int MaxStackNotSet = -1;
         private int _maxStack;
-        private bool _stubILHasGeneratedTokens;
 
-        public ILStubMethodIL(MethodDesc owningMethod, byte[] ilBytes, LocalVariableDefinition[] locals, object[] tokens, ILExceptionRegion[] exceptionRegions = null, MethodDebugInformation debugInfo = null, bool stubILHasGeneratedTokens = false)
+        public ILStubMethodIL(MethodDesc owningMethod, byte[] ilBytes, LocalVariableDefinition[] locals, object[] tokens, ILExceptionRegion[] exceptionRegions = null, MethodDebugInformation debugInfo = null)
         {
             _ilBytes = ilBytes;
             _locals = locals;
             _tokens = tokens;
             _method = owningMethod;
-            _stubILHasGeneratedTokens = stubILHasGeneratedTokens;
             _maxStack = MaxStackNotSet;
 
             exceptionRegions ??= Array.Empty<ILExceptionRegion>();
@@ -584,7 +575,6 @@ namespace Internal.IL.Stubs
             _locals = methodIL._locals;
             _tokens = methodIL._tokens;
             _method = methodIL._method;
-            _stubILHasGeneratedTokens = methodIL._stubILHasGeneratedTokens;
             _debugInformation = methodIL._debugInformation;
             _exceptionRegions = methodIL._exceptionRegions;
             _maxStack = methodIL._maxStack;
@@ -597,8 +587,6 @@ namespace Internal.IL.Stubs
                 return _method;
             }
         }
-
-        public bool StubILHasGeneratedTokens => _stubILHasGeneratedTokens;
 
         public override byte[] GetILBytes()
         {
@@ -681,8 +669,7 @@ namespace Internal.IL.Stubs
         private ArrayBuilder<ILCodeStream> _codeStreams;
         private ArrayBuilder<LocalVariableDefinition> _locals;
         private ArrayBuilder<object> _tokens;
-        private ArrayBuilder<ILExceptionRegionBuilder> _exceptionRegions;
-        private bool _hasGeneratedTokens;
+        private ArrayBuilder<ILExceptionRegionBuilder> _finallyRegions;
 
         public ILEmitter()
         {
@@ -693,11 +680,6 @@ namespace Internal.IL.Stubs
             ILCodeStream stream = new ILCodeStream(this);
             _codeStreams.Add(stream);
             return stream;
-        }
-
-        public bool SetHasGeneratedTokens()
-        {
-            return _hasGeneratedTokens = true;
         }
 
         private ILToken NewToken(object value, int tokenType)
@@ -745,17 +727,10 @@ namespace Internal.IL.Stubs
             return newLabel;
         }
 
-        public ILExceptionRegionBuilder NewCatchRegion(TypeDesc exceptionType)
-        {
-            var region = new ILExceptionRegionBuilder(ILExceptionRegionKind.Catch, exceptionType);
-            _exceptionRegions.Add(region);
-            return region;
-        }
-
         public ILExceptionRegionBuilder NewFinallyRegion()
         {
-            var region = new ILExceptionRegionBuilder(ILExceptionRegionKind.Finally);
-            _exceptionRegions.Add(region);
+            var region = new ILExceptionRegionBuilder();
+            _finallyRegions.Add(region);
             return region;
         }
 
@@ -807,37 +782,24 @@ namespace Internal.IL.Stubs
 
             ILExceptionRegion[] exceptionRegions = null;
 
-            int numberOfExceptionRegions = _exceptionRegions.Count;
+            int numberOfExceptionRegions = _finallyRegions.Count;
             if (numberOfExceptionRegions > 0)
             {
                 exceptionRegions = new ILExceptionRegion[numberOfExceptionRegions];
-                for (int i = 0; i < _exceptionRegions.Count; i++)
+
+                for (int i = 0; i < _finallyRegions.Count; i++)
                 {
-                    ILExceptionRegionBuilder region = _exceptionRegions[i];
+                    ILExceptionRegionBuilder region = _finallyRegions[i];
 
                     Debug.Assert(region.IsDefined);
 
-                    int exceptionTypeToken = (region._catchExceptionType != null) ? (int)NewToken(region._catchExceptionType) : 0;
-
-                    exceptionRegions[i] = new ILExceptionRegion(region._exceptionRegionKind,
+                    exceptionRegions[i] = new ILExceptionRegion(ILExceptionRegionKind.Finally,
                         region.TryOffset, region.TryLength, region.HandlerOffset, region.HandlerLength,
-                        classToken: exceptionTypeToken, filterOffset: 0);
+                        classToken: 0, filterOffset: 0);
                 }
-
-                // Sort exception regions so that innermost (most nested) regions come first
-                // as this is required by the spec.
-                // Innermost regions have higher TryOffset and smaller TryLength.
-                Array.Sort(exceptionRegions, (a, b) =>
-                {
-                    int offsetComparison = b.TryOffset.CompareTo(a.TryOffset);
-                    if (offsetComparison != 0)
-                        return offsetComparison;
-
-                    return a.TryLength.CompareTo(b.TryLength);
-                });
             }
 
-            var result = new ILStubMethodIL(owningMethod, ilInstructions, _locals.ToArray(), _tokens.ToArray(), exceptionRegions, debugInfo, _hasGeneratedTokens);
+            var result = new ILStubMethodIL(owningMethod, ilInstructions, _locals.ToArray(), _tokens.ToArray(), exceptionRegions, debugInfo);
             result.CheckStackBalance();
             return result;
         }

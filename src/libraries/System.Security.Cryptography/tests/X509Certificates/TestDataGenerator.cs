@@ -90,7 +90,12 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             IEnumerable<X509Extension> rootExtensions,
             string testName)
         {
-            intermediateExtensions ??= new X509Extension[] {
+            if (keys.Length < 2)
+                throw new ArgumentException(nameof(keys));
+            if (keys.Length != certs.Length)
+                throw new ArgumentException(nameof(certs));
+
+            rootExtensions ??= new X509Extension[] {
                 new X509BasicConstraintsExtension(true, false, 0, true),
                 new X509KeyUsageExtension(
                     X509KeyUsageFlags.CrlSign |
@@ -99,35 +104,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
                     false)
             };
 
-            if (certs.Length == 3)
-            {
-                MakeTestChain(keys, certs, endEntityExtensions, [intermediateExtensions], rootExtensions, testName);
-            }
-            else
-            {
-                IEnumerable<X509Extension>[] arr = new IEnumerable<X509Extension>[certs.Length - 2];
-                arr.AsSpan().Fill(intermediateExtensions);
-
-                MakeTestChain(keys, certs, endEntityExtensions, arr, rootExtensions, testName);
-            }
-        }
-
-        internal static void MakeTestChain(
-            ReadOnlySpan<RSA> keys,
-            Span<X509Certificate2> certs,
-            IEnumerable<X509Extension> endEntityExtensions,
-            ReadOnlySpan<IEnumerable<X509Extension>> intermediateExtensions,
-            IEnumerable<X509Extension> rootExtensions,
-            string testName)
-        {
-            if (keys.Length < 2)
-                throw new ArgumentException(nameof(keys));
-            if (keys.Length != certs.Length)
-                throw new ArgumentException(nameof(certs));
-            if (intermediateExtensions.Length != keys.Length - 2)
-                throw new ArgumentException(nameof(intermediateExtensions));
-
-            rootExtensions ??= new X509Extension[] {
+            intermediateExtensions ??= new X509Extension[] {
                 new X509BasicConstraintsExtension(true, false, 0, true),
                 new X509KeyUsageExtension(
                     X509KeyUsageFlags.CrlSign |
@@ -149,6 +126,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             TimeSpan notAfterInterval = TimeSpan.FromDays(90);
             DateTimeOffset eeStart = DateTimeOffset.UtcNow.AddDays(-7);
             DateTimeOffset eeEnd = eeStart.AddDays(45);
+            byte[] serialBuf = new byte[16];
 
             int rootIndex = keys.Length - 1;
 
@@ -163,10 +141,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
 
             foreach (X509Extension extension in rootExtensions)
             {
-                if (extension is not null)
-                {
-                    rootReq.CertificateExtensions.Add(extension);
-                }
+                rootReq.CertificateExtensions.Add(extension);
             }
 
             X509SignatureGenerator lastGenerator = X509SignatureGenerator.CreateForRSA(keys[rootIndex], RSASignaturePadding.Pkcs1);
@@ -191,9 +166,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
                     hashAlgorithm,
                     signaturePadding);
 
-                IEnumerable<X509Extension> exts = intermediateExtensions[i - 1];
-
-                foreach (X509Extension extension in exts)
+                foreach (X509Extension extension in intermediateExtensions)
                 {
                     intermediateReq.CertificateExtensions.Add(extension);
                 }

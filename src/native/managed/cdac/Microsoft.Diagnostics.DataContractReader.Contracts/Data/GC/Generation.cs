@@ -3,12 +3,22 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.Generation))]
-internal sealed partial class Generation : IData<Generation>
+internal sealed class Generation : IData<Generation>
 {
-    [Field] public partial GCAllocContext AllocationContext { get; }
-    [Field] public partial TargetPointer StartSegment { get; }
+    static Generation IData<Generation>.Create(Target target, TargetPointer address) => new Generation(target, address);
+    public Generation(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.Generation);
 
-    // Fields only exist segment GC builds
-    [Field] public partial TargetPointer? AllocationStart { get; }
+        AllocationContext = target.ProcessedData.GetOrAdd<GCAllocContext>(address + (ulong)type.Fields[nameof(AllocationContext)].Offset);
+        StartSegment = target.ReadPointer(address + (ulong)type.Fields[nameof(StartSegment)].Offset);
+
+        // Fields only exist segment GC builds
+        if (type.Fields.ContainsKey(nameof(AllocationStart)))
+            AllocationStart = target.ReadPointer(address + (ulong)type.Fields[nameof(AllocationStart)].Offset);
+    }
+
+    public GCAllocContext AllocationContext { get; }
+    public TargetPointer StartSegment { get; }
+    public TargetPointer? AllocationStart { get; }
 }

@@ -1,17 +1,19 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Runtime.InteropServices;
+
 namespace System.Security.Cryptography.EcDsa.Tests
 {
-    public partial class DefaultECDsaProvider : ECDsaProvider
+    public partial class ECDsaProvider : IECDsaProvider
     {
-        public override bool IsCurveValid(Oid oid)
+        public bool IsCurveValid(Oid oid)
         {
             // Friendly name required for windows
             return NativeOidFriendlyNameExists(oid.FriendlyName);
         }
 
-        public override bool ExplicitCurvesSupported
+        public bool ExplicitCurvesSupported
         {
             get
             {

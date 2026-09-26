@@ -270,7 +270,7 @@ namespace System.Security.Cryptography.Tests
 
             // Create an invalid ML-DSA PKCS8 with parameters
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
-            ValueMLDsaPrivateKeyAsn seed = new ValueMLDsaPrivateKeyAsn
+            MLDsaPrivateKeyAsn seed = new MLDsaPrivateKeyAsn
             {
                 Seed = new byte[MLDsaAlgorithm.MLDsa44.PrivateSeedSizeInBytes],
             };
@@ -302,56 +302,56 @@ namespace System.Security.Cryptography.Tests
         [Fact]
         public static void ImportPkcs8PrivateKey_KeyErrorsInAsn()
         {
-            AssertInvalidAsn(new ValueMLDsaPrivateKeyAsn
+            AssertInvalidAsn(new MLDsaPrivateKeyAsn
             {
-                Both = new ValueMLDsaPrivateKeyBothAsn(),
+                Both = new MLDsaPrivateKeyBothAsn()
             });
 
-            AssertInvalidAsn(new ValueMLDsaPrivateKeyAsn
+            AssertInvalidAsn(new MLDsaPrivateKeyAsn
             {
-                Both = new ValueMLDsaPrivateKeyBothAsn
+                Both = new MLDsaPrivateKeyBothAsn
                 {
                     Seed = new byte[MLDsaAlgorithm.MLDsa44.PrivateSeedSizeInBytes],
-                },
+                }
             });
 
-            AssertInvalidAsn(new ValueMLDsaPrivateKeyAsn
+            AssertInvalidAsn(new MLDsaPrivateKeyAsn
             {
-                Both = new ValueMLDsaPrivateKeyBothAsn
+                Both = new MLDsaPrivateKeyBothAsn
                 {
                     ExpandedKey = new byte[MLDsaAlgorithm.MLDsa44.PrivateKeySizeInBytes],
-                },
+                }
             });
 
-            AssertInvalidAsn(new ValueMLDsaPrivateKeyAsn
+            AssertInvalidAsn(new MLDsaPrivateKeyAsn
             {
-                Both = new ValueMLDsaPrivateKeyBothAsn
+                Both = new MLDsaPrivateKeyBothAsn
                 {
                     Seed = new byte[MLDsaAlgorithm.MLDsa44.PrivateSeedSizeInBytes - 1],
                     ExpandedKey = new byte[MLDsaAlgorithm.MLDsa44.PrivateKeySizeInBytes],
-                },
+                }
             });
 
-            AssertInvalidAsn(new ValueMLDsaPrivateKeyAsn
+            AssertInvalidAsn(new MLDsaPrivateKeyAsn
             {
-                Both = new ValueMLDsaPrivateKeyBothAsn
+                Both = new MLDsaPrivateKeyBothAsn
                 {
                     Seed = new byte[MLDsaAlgorithm.MLDsa44.PrivateSeedSizeInBytes],
                     ExpandedKey = new byte[MLDsaAlgorithm.MLDsa44.PrivateKeySizeInBytes - 1],
-                },
+                }
             });
 
-            AssertInvalidAsn(new ValueMLDsaPrivateKeyAsn
+            AssertInvalidAsn(new MLDsaPrivateKeyAsn
             {
-                Both = new ValueMLDsaPrivateKeyBothAsn
+                Both = new MLDsaPrivateKeyBothAsn
                 {
                     // This will also fail because the seed and expanded key mismatch
                     Seed = new byte[MLDsaAlgorithm.MLDsa44.PrivateSeedSizeInBytes],
                     ExpandedKey = new byte[MLDsaAlgorithm.MLDsa44.PrivateKeySizeInBytes],
-                },
+                }
             });
 
-            static void AssertInvalidAsn(ValueMLDsaPrivateKeyAsn privateKeyAsn)
+            static void AssertInvalidAsn(MLDsaPrivateKeyAsn privateKeyAsn)
             {
                 PrivateKeyInfoAsn pkcs8 = new PrivateKeyInfoAsn
                 {
@@ -433,12 +433,12 @@ namespace System.Security.Cryptography.Tests
 
             MLDsaTestHelpers.AssertImportPublicKey(import =>
                 AssertThrowIfNotSupported(() =>
-                    WithDispose(import(), mldsa =>
+                    WithDispose(import(), mldsa => 
                         Assert.Equal(algorithm, mldsa.Algorithm))), algorithm, publicKey);
 
             MLDsaTestHelpers.AssertImportPrivateKey(import =>
                 AssertThrowIfNotSupported(() =>
-                    WithDispose(import(), mldsa =>
+                    WithDispose(import(), mldsa => 
                         Assert.Equal(algorithm, mldsa.Algorithm))), algorithm, privateKey);
 
             MLDsaTestHelpers.AssertImportPrivateSeed(import =>

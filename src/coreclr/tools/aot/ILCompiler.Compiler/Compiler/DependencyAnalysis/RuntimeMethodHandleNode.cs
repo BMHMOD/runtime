@@ -3,7 +3,6 @@
 
 using System.Diagnostics;
 
-using Internal.Runtime;
 using Internal.Text;
 using Internal.TypeSystem;
 
@@ -18,7 +17,6 @@ namespace ILCompiler.DependencyAnalysis
         public RuntimeMethodHandleNode(MethodDesc targetMethod)
         {
             Debug.Assert(!targetMethod.IsSharedByGenericInstantiations);
-            Debug.Assert(!targetMethod.IsAsyncVariant());
 
             // IL is allowed to LDTOKEN an uninstantiated thing. Do not check IsRuntimeDetermined for the nonexact thing.
             Debug.Assert((targetMethod.HasInstantiation && targetMethod.IsMethodDefinition)

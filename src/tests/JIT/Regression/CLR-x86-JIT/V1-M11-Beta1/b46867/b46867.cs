@@ -3,8 +3,7 @@
 //
 
 using Xunit;
-using TestLibrary;
-namespace b46867
+namespace Test
 {
     using System;
 
@@ -14,7 +13,7 @@ namespace b46867
         {
             param3 = (double)param4;
         }
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsVarArgSupported))]
+        [ConditionalFact(typeof(TestLibrary.PlatformDetection), nameof(TestLibrary.PlatformDetection.IsVarArgSupported))]
         public static void TestEntryPoint()
         {
             Method2(1.0d, 1, __arglist());

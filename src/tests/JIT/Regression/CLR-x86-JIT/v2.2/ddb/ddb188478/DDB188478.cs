@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-namespace DDB188478;
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -12,7 +9,6 @@ using Xunit;
 
 public class Test_DDB188478
 {
-    [OuterLoop]
     [Fact]
     public static void TestEntryPoint()
     {

@@ -15,7 +15,9 @@
 #include <eventpipe/ds-process-protocol.h>
 #include <eventpipe/ds-profiler-protocol.h>
 #include <eventpipe/ds-dump-protocol.h>
+#ifdef FEATURE_PERFMAP
 #include "perfmap.h"
+#endif
 
 #undef DS_LOG_ALWAYS_0
 #define DS_LOG_ALWAYS_0(msg) STRESS_LOG0(LF_DIAGNOSTICS_PORT, LL_ALWAYS, msg "\n")
@@ -69,6 +71,78 @@
 #define DS_EXIT_BLOCKING_PAL_SECTION
 
 /*
+* AutoTrace.
+*/
+
+#ifdef FEATURE_AUTO_TRACE
+#include "autotrace.h"
+#endif
+
+static
+void
+ds_rt_auto_trace_init (void)
+{
+	STATIC_CONTRACT_NOTHROW;
+
+#ifdef FEATURE_AUTO_TRACE
+	EX_TRY
+	{
+		auto_trace_init ();
+	}
+	EX_CATCH {}
+	EX_END_CATCH
+#endif
+}
+
+static
+void
+ds_rt_auto_trace_launch (void)
+{
+	STATIC_CONTRACT_NOTHROW;
+
+#ifdef FEATURE_AUTO_TRACE
+	EX_TRY
+	{
+		auto_trace_launch ();
+	}
+	EX_CATCH {}
+	EX_END_CATCH
+#endif
+}
+
+static
+void
+ds_rt_auto_trace_signal (void)
+{
+	STATIC_CONTRACT_NOTHROW;
+
+#ifdef FEATURE_AUTO_TRACE
+	EX_TRY
+	{
+		auto_trace_signal ();
+	}
+	EX_CATCH {}
+	EX_END_CATCH
+#endif
+}
+
+static
+void
+ds_rt_auto_trace_wait (void)
+{
+	STATIC_CONTRACT_NOTHROW;
+
+#ifdef FEATURE_AUTO_TRACE
+	EX_TRY
+	{
+		auto_trace_wait ();
+	}
+	EX_CATCH {}
+	EX_END_CATCH
+#endif
+}
+
+/*
  * DiagnosticsConfiguration.
  */
 
@@ -93,7 +167,7 @@ ds_rt_config_value_get_ports (void)
 	STATIC_CONTRACT_NOTHROW;
 
 	CLRConfigStringHolder value(CLRConfig::GetConfigValue (CLRConfig::EXTERNAL_DOTNET_DiagnosticPorts));
-	return ep_rt_utf16_to_utf8_string (reinterpret_cast<ep_char16_t *>(static_cast<LPWSTR>(value)));
+	return ep_rt_utf16_to_utf8_string (reinterpret_cast<ep_char16_t *>(value.GetValue ()));
 }
 
 static
@@ -158,12 +232,9 @@ ds_rt_transport_get_default_name (
 	STATIC_CONTRACT_NOTHROW;
 
 #ifdef TARGET_UNIX
-	// PAL_GetTransportName returns void, but sets name[0] to '\0' when it fails to generate a name.
 	PAL_GetTransportName (name_len, name, prefix, id, group_id, suffix);
-	return name [0] != '\0';
-#else
-	return false;
 #endif
+	return true;
 }
 
 /*
@@ -234,11 +305,7 @@ static
 uint32_t
 ds_rt_enable_perfmap (uint32_t type)
 {
-    CONTRACTL
-    {
-        MODE_PREEMPTIVE;
-    }
-    CONTRACTL_END;
+	LIMITED_METHOD_CONTRACT;
 
 #ifdef FEATURE_PERFMAP
 	PerfMap::PerfMapType perfMapType = (PerfMap::PerfMapType)type;
@@ -295,8 +362,12 @@ ds_rt_apply_startup_hook (const ep_char16_t *startup_hook_path)
 			GCX_COOP();
 
 			// Load and call startup hook since managed execution is already running.
-			UnmanagedCallersOnlyCaller callStartupHook(METHOD__STARTUP_HOOK_PROVIDER__CALL_STARTUP_HOOK);
-			callStartupHook.InvokeThrowing(startup_hook_path);
+			MethodDescCallSite callStartupHook(METHOD__STARTUP_HOOK_PROVIDER__CALL_STARTUP_HOOK);
+
+			ARG_SLOT args[1];
+			args[0] = PtrToArgSlot(startup_hook_path);
+
+			callStartupHook.Call(args);
 		}
 		EX_CATCH_HRESULT (hr);
 

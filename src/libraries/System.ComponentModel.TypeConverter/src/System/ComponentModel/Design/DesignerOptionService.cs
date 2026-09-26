@@ -229,7 +229,7 @@ namespace System.ComponentModel.Design
                     EnsurePopulated();
                     foreach (DesignerOptionCollection child in _children)
                     {
-                        if (string.Equals(child.Name, name, StringComparison.InvariantCultureIgnoreCase))
+                        if (string.Compare(child.Name, name, true, CultureInfo.InvariantCulture) == 0)
                         {
                             return child;
                         }

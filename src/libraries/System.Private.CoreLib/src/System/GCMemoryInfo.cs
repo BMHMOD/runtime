@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace System
@@ -71,8 +70,19 @@ namespace System
         internal int _pauseTimePercentage;
         internal byte _compacted;
         internal byte _concurrent;
-        internal InlineArray5<GCGenerationInfo> _generationInfo;
-        internal InlineArray2<TimeSpan> _pauseDurations;
+
+        private GCGenerationInfo _generationInfo0;
+        private GCGenerationInfo _generationInfo1;
+        private GCGenerationInfo _generationInfo2;
+        private GCGenerationInfo _generationInfo3;
+        private GCGenerationInfo _generationInfo4;
+
+        internal ReadOnlySpan<GCGenerationInfo> GenerationInfoAsSpan => MemoryMarshal.CreateReadOnlySpan(ref _generationInfo0, 5);
+
+        private TimeSpan _pauseDuration0;
+        private TimeSpan _pauseDuration1;
+
+        internal ReadOnlySpan<TimeSpan> PauseDurationsAsSpan => MemoryMarshal.CreateReadOnlySpan(ref _pauseDuration0, 2);
     }
 
     /// <summary>Provides a set of APIs that can be used to retrieve garbage collection information.</summary>
@@ -178,7 +188,7 @@ namespace System
         /// <summary>
         /// Pause durations. For blocking GCs there's only 1 pause; for BGC there are 2.
         /// </summary>
-        public ReadOnlySpan<TimeSpan> PauseDurations => _data._pauseDurations;
+        public ReadOnlySpan<TimeSpan> PauseDurations => _data.PauseDurationsAsSpan;
 
         /// <summary>
         /// This is the % pause time in GC so far. If it's 1.2%, this number is 1.2.
@@ -188,6 +198,6 @@ namespace System
         /// <summary>
         /// Generation info for all generations.
         /// </summary>
-        public ReadOnlySpan<GCGenerationInfo> GenerationInfo => _data._generationInfo;
+        public ReadOnlySpan<GCGenerationInfo> GenerationInfo => _data.GenerationInfoAsSpan;
     }
 }

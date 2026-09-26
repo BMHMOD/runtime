@@ -4,7 +4,7 @@
 
 using System;
 using Xunit;
-namespace b130333
+namespace Test
 {
     public class ShiftTest
     {
@@ -13,7 +13,6 @@ namespace b130333
 
     public class Test
     {
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

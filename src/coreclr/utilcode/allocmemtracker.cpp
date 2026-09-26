@@ -13,7 +13,7 @@ AllocMemTracker::AllocMemTracker()
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        FORBID_FAULT;
         CANNOT_TAKE_LOCK;
     }
     CONTRACTL_END
@@ -30,7 +30,7 @@ AllocMemTracker::~AllocMemTracker()
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        FORBID_FAULT;
     }
     CONTRACTL_END
 
@@ -70,7 +70,7 @@ AllocMemTracker::~AllocMemTracker()
     AllocMemTrackerBlock* pDebugBlock = m_pFirstBlock;
     for (int i = 0; pDebugBlock != &m_FirstBlock; i++)
     {
-        CONSISTENCY_CHECK_MSGF(i < 60000, ("Linked list is much longer than expected, memory corruption likely\n"));
+        CONSISTENCY_CHECK_MSGF(i < 10000, ("Linked list is much longer than expected, memory corruption likely\n"));
         CONSISTENCY_CHECK_MSGF(pDebugBlock != nullptr, ("Linked list pointer == NULL, memory corruption likely\n"));
         pDebugBlock = pDebugBlock->m_pNext;
     }
@@ -92,7 +92,7 @@ void *AllocMemTracker::Track(TaggedMemAllocPtr tmap)
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
+        INJECT_FAULT(ThrowOutOfMemory(););
     }
     CONTRACTL_END
 
@@ -109,7 +109,7 @@ void *AllocMemTracker::Track_NoThrow(TaggedMemAllocPtr tmap)
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        INJECT_FAULT(return NULL;);
     }
     CONTRACTL_END
 

@@ -67,15 +67,6 @@ namespace System.Net.Http
 
         public HttpContentHeaders Headers => _headers ??= new HttpContentHeaders(this);
 
-        internal void SetHeaders(HttpContentHeaders headers)
-        {
-            Debug.Assert(_headers is null);
-            Debug.Assert(headers is not null);
-
-            headers._parent = this;
-            _headers = headers;
-        }
-
         [MemberNotNullWhen(true, nameof(_bufferedContent))]
         private bool IsBuffered => _bufferedContent is not null;
 
@@ -412,7 +403,7 @@ namespace System.Net.Http
             }
             catch (Exception e)
             {
-                tempBuffer.ReturnAllPooledBuffers();
+                tempBuffer.Dispose();
 
                 if (NetEventSource.Log.IsEnabled()) NetEventSource.Error(this, e);
 
@@ -499,7 +490,7 @@ namespace System.Net.Http
             }
             catch (Exception e)
             {
-                tempBuffer.ReturnAllPooledBuffers();
+                tempBuffer.Dispose();
 
                 if (StreamCopyExceptionNeedsWrapping(e))
                 {
@@ -519,7 +510,7 @@ namespace System.Net.Http
             }
             catch (Exception e)
             {
-                tempBuffer.ReturnAllPooledBuffers(); // Cleanup partially filled stream.
+                tempBuffer.Dispose(); // Cleanup partially filled stream.
                 Exception we = GetStreamCopyException(e);
                 if (we != e) throw we;
                 throw;
@@ -653,7 +644,7 @@ namespace System.Net.Http
 
                 if (IsBuffered)
                 {
-                    _bufferedContent.ReturnAllPooledBuffers();
+                    _bufferedContent.Dispose();
                 }
             }
         }
@@ -843,11 +834,8 @@ namespace System.Net.Http
 
             protected override void Dispose(bool disposing)
             {
-                // User code must never dispose this stream. It is an internal implementation detail
-                // exposed to user-provided HttpContent.SerializeToStream(Async) overrides, and the
-                // lifetime of the underlying pooled buffers is owned by HttpContent, not the user.
-                // All internal cleanup goes through ReturnAllPooledBuffers directly.
-                throw new InvalidOperationException(SR.net_http_content_buffer_stream_disposed);
+                ReturnAllPooledBuffers();
+                base.Dispose(disposing);
             }
 
             /// <summary>Should only be called once.</summary>
@@ -1078,7 +1066,7 @@ namespace System.Net.Http
                 _lastBuffer.AsSpan(0, _lastBufferOffset).CopyTo(destination);
             }
 
-            internal void ReturnAllPooledBuffers()
+            private void ReturnAllPooledBuffers()
             {
                 if (_pooledBuffers is byte[]?[] buffers)
                 {
@@ -1115,22 +1103,12 @@ namespace System.Net.Http
 
             public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
             {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    return Task.FromCanceled(cancellationToken);
-                }
-
                 Write(buffer, offset, count);
                 return Task.CompletedTask;
             }
 
             public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
             {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    return ValueTask.FromCanceled(cancellationToken);
-                }
-
                 Write(buffer.Span);
                 return default;
             }

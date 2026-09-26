@@ -8,12 +8,10 @@ using Xunit;
 namespace System.Security.Cryptography.Dsa.Tests
 {
     [ConditionalClass(typeof(PlatformSupport), nameof(PlatformSupport.IsDSASupported))]
-    public abstract class DSASignatureFormatterTests : AsymmetricSignatureFormatterTests
+    public partial class DSASignatureFormatterTests : AsymmetricSignatureFormatterTests
     {
-        protected abstract DSAProvider DSAFactory { get; }
-
         [Fact]
-        public void VerifySignature_SHA1()
+        public static void VerifySignature_SHA1()
         {
             using (DSA dsa = DSAFactory.Create())
             {
@@ -31,7 +29,7 @@ namespace System.Security.Cryptography.Dsa.Tests
         }
 
         [Fact]
-        public void InvalidHashAlgorithm()
+        public static void InvalidHashAlgorithm()
         {
             using (DSA dsa = DSAFactory.Create())
             {
@@ -53,7 +51,7 @@ namespace System.Security.Cryptography.Dsa.Tests
         }
 
         [Fact]
-        public void VerifyKnownSignature()
+        public static void VerifyKnownSignature()
         {
             using (DSA dsa = DSAFactory.Create())
             {
@@ -71,6 +69,14 @@ namespace System.Security.Cryptography.Dsa.Tests
                 // Negative case
                 signature[signature.Length - 1] ^= 0xff;
                 Assert.False(deformatter.VerifySignature(hash, signature));
+            }
+        }
+
+        public static bool SupportsFips186_3
+        {
+            get
+            {
+                return DSAFactory.SupportsFips186_3;
             }
         }
     }

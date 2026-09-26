@@ -237,7 +237,7 @@ namespace System.Text.Json
             currentDepth &= JsonConstants.RemoveFlagsBitMask;
             if (currentDepth != 0)
             {
-                return GetInvalidOperationException(SR.ZeroDepthAtEnd);
+                return GetInvalidOperationException(SR.Format(SR.ZeroDepthAtEnd, currentDepth));
             }
             else
             {
@@ -384,7 +384,7 @@ namespace System.Text.Json
             return new JsonReaderException(message, lineNumber, bytePositionInLine);
         }
 
-        private static bool IsPrintable(byte value) => value is >= 0x20 and < 0x7F;
+        private static bool IsPrintable(byte value) => value >= 0x20 && value < 0x7F;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static string GetPrintableString(byte value)
@@ -483,7 +483,7 @@ namespace System.Text.Json
                     message = SR.EndOfCommentNotFound;
                     break;
                 case ExceptionResource.ZeroDepthAtEnd:
-                    message = SR.ZeroDepthAtEnd;
+                    message = SR.Format(SR.ZeroDepthAtEnd);
                     break;
                 case ExceptionResource.ExpectedJsonTokens:
                     message = SR.ExpectedJsonTokens;
@@ -498,10 +498,10 @@ namespace System.Text.Json
                     message = SR.Format(SR.InvalidCharacterAtStartOfComment, character);
                     break;
                 case ExceptionResource.UnexpectedEndOfDataWhileReadingComment:
-                    message = SR.UnexpectedEndOfDataWhileReadingComment;
+                    message = SR.Format(SR.UnexpectedEndOfDataWhileReadingComment);
                     break;
                 case ExceptionResource.UnexpectedEndOfLineSeparator:
-                    message = SR.UnexpectedEndOfLineSeparator;
+                    message = SR.Format(SR.UnexpectedEndOfLineSeparator);
                     break;
                 case ExceptionResource.InvalidLeadingZeroInNumber:
                     message = SR.Format(SR.InvalidLeadingZeroInNumber, character);
@@ -612,7 +612,7 @@ namespace System.Text.Json
             switch (resource)
             {
                 case ExceptionResource.MismatchedObjectArray:
-                    Debug.Assert(token is JsonConstants.CloseBracket or JsonConstants.CloseBrace);
+                    Debug.Assert(token == JsonConstants.CloseBracket || token == JsonConstants.CloseBrace);
                     message = (tokenType == JsonTokenType.PropertyName) ?
                         SR.Format(SR.CannotWriteEndAfterProperty, (char)token) :
                         SR.Format(SR.MismatchedObjectArray, (char)token);
@@ -631,7 +631,7 @@ namespace System.Text.Json
                     break;
                 case ExceptionResource.CannotWritePropertyWithinArray:
                     message = (tokenType == JsonTokenType.PropertyName) ?
-                        SR.CannotWritePropertyAfterProperty :
+                        SR.Format(SR.CannotWritePropertyAfterProperty) :
                         SR.Format(SR.CannotWritePropertyWithinArray, tokenType);
                     break;
                 case ExceptionResource.CannotWriteValueAfterPrimitiveOrClose:
@@ -654,10 +654,60 @@ namespace System.Text.Json
             throw new FormatException { Source = ExceptionSourceValueToRethrowAsJsonException };
         }
 
-        [DoesNotReturn]
         public static void ThrowFormatException(NumericType numericType)
         {
-            throw new FormatException(SR.Format(SR.FormatNumericType, numericType)) { Source = ExceptionSourceValueToRethrowAsJsonException };
+            string message = "";
+
+            switch (numericType)
+            {
+                case NumericType.Byte:
+                    message = SR.FormatByte;
+                    break;
+                case NumericType.SByte:
+                    message = SR.FormatSByte;
+                    break;
+                case NumericType.Int16:
+                    message = SR.FormatInt16;
+                    break;
+                case NumericType.Int32:
+                    message = SR.FormatInt32;
+                    break;
+                case NumericType.Int64:
+                    message = SR.FormatInt64;
+                    break;
+                case NumericType.Int128:
+                    message = SR.FormatInt128;
+                    break;
+                case NumericType.UInt16:
+                    message = SR.FormatUInt16;
+                    break;
+                case NumericType.UInt32:
+                    message = SR.FormatUInt32;
+                    break;
+                case NumericType.UInt64:
+                    message = SR.FormatUInt64;
+                    break;
+                case NumericType.UInt128:
+                    message = SR.FormatUInt128;
+                    break;
+                case NumericType.Half:
+                    message = SR.FormatHalf;
+                    break;
+                case NumericType.Single:
+                    message = SR.FormatSingle;
+                    break;
+                case NumericType.Double:
+                    message = SR.FormatDouble;
+                    break;
+                case NumericType.Decimal:
+                    message = SR.FormatDecimal;
+                    break;
+                default:
+                    Debug.Fail($"The NumericType enum value: {numericType} is not part of the switch. Add the appropriate case and exception message.");
+                    break;
+            }
+
+            throw new FormatException(message) { Source = ExceptionSourceValueToRethrowAsJsonException };
         }
 
         [DoesNotReturn]
@@ -774,11 +824,7 @@ namespace System.Text.Json
         Half,
         Single,
         Double,
-        Decimal,
-        BFloat16,
-        Decimal32,
-        Decimal64,
-        Decimal128
+        Decimal
     }
 
     internal enum DataType

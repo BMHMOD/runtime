@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b27980;
-
 using System;
 using Xunit;
 
@@ -23,7 +20,6 @@ public class Test_struct1
         GC.Collect();
     }
 
-    [OuterLoop]
     [Fact]
     public static void TestEntryPoint()
     {

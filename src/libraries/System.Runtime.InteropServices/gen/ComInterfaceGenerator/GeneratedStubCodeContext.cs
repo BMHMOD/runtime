@@ -9,6 +9,6 @@ namespace Microsoft.Interop
     internal sealed record GeneratedStubCodeContext(
         ManagedTypeInfo OriginalDefiningType,
         ContainingSyntaxContext ContainingSyntaxContext,
-        SyntaxEquivalentNode<MemberDeclarationSyntax> Stub,
+        SyntaxEquivalentNode<MethodDeclarationSyntax> Stub,
         SequenceEqualImmutableArray<DiagnosticInfo> Diagnostics) : GeneratedMethodContextBase(OriginalDefiningType, Diagnostics);
 }

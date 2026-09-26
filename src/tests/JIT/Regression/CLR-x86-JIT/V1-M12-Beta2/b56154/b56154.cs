@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b56154
+namespace Test
 {
     using System;
 
@@ -17,7 +17,6 @@ namespace b56154
                 Array[] a = new Array[2];
             }
         }
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

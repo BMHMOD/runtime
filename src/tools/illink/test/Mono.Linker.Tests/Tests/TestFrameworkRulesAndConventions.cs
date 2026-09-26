@@ -8,13 +8,14 @@ using Mono.Cecil;
 using Mono.Linker.Tests.Extensions;
 using Mono.Linker.Tests.TestCases;
 using Mono.Linker.Tests.TestCasesRunner;
-using Xunit;
+using NUnit.Framework;
 
 namespace Mono.Linker.Tests.Tests
 {
+    [TestFixture]
     public class TestFrameworkRulesAndConventions
     {
-        [Fact]
+        [Test]
         public void OnlyAttributeTypesInExpectations()
         {
             foreach (var expectationsAssemblyPath in ExpectationAssemblies())
@@ -23,12 +24,12 @@ namespace Mono.Linker.Tests.Tests
                 {
                     var nonAttributeTypes = assembly.MainModule.AllDefinedTypes().Where(t => !IsAcceptableExpectationsAssemblyType(t)).ToArray();
 
-                    Assert.Empty(nonAttributeTypes);
+                    Assert.That(nonAttributeTypes, Is.Empty);
                 }
             }
         }
 
-        [Fact]
+        [Test]
         public void CanFindATypeForAllCsFiles()
         {
             var collector = CreateCollector();
@@ -39,9 +40,7 @@ namespace Mono.Linker.Tests.Tests
             })
                 .ToArray();
 
-            Assert.True(
-                missing.Length == 0,
-                $"Could not find a test case type for the following source file(s): {string.Join(", ", missing)}");
+            Assert.That(missing, Is.Empty, $"Could not locate a type for the following files.  Verify the type name and file name match and that the type is not excluded by a #if");
         }
 
         /// <summary>

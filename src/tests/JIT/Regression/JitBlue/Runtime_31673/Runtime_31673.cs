@@ -18,7 +18,6 @@ namespace Runtime_31673
             return Vector4.Clamp(v, Vector4.Zero, Vector4.One);
         }
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

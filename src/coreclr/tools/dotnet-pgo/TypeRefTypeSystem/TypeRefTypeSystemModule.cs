@@ -7,8 +7,6 @@ using System.Linq;
 using System.Reflection.Metadata;
 using System.Text;
 using System.Threading.Tasks;
-
-using Internal.Text;
 using Internal.TypeSystem;
 
 namespace Microsoft.Diagnostics.Tools.Pgo.TypeRefTypeSystem
@@ -51,7 +49,7 @@ namespace Microsoft.Diagnostics.Tools.Pgo.TypeRefTypeSystem
 
         public override IAssemblyDesc Assembly => this;
 
-        public Utf8Span Name => System.Text.Encoding.UTF8.GetBytes(_name.Name);
+        public ReadOnlySpan<byte> Name => System.Text.Encoding.UTF8.GetBytes(_name.Name);
 
         public override IEnumerable<MetadataType> GetAllTypes() => _types;
         public override MetadataType GetGlobalModuleType() => throw new NotImplementedException();
@@ -75,10 +73,10 @@ namespace Microsoft.Diagnostics.Tools.Pgo.TypeRefTypeSystem
             return type;
         }
 
-        public override object GetType(Utf8Span nameSpace, Utf8Span name, NotFoundBehavior notFoundBehavior)
+        public override object GetType(ReadOnlySpan<byte> nameSpace, ReadOnlySpan<byte> name, NotFoundBehavior notFoundBehavior)
         {
-            string strns = Encoding.UTF8.GetString(nameSpace.AsSpan());
-            string strname = Encoding.UTF8.GetString(name.AsSpan());
+            string strns = Encoding.UTF8.GetString(nameSpace);
+            string strname = Encoding.UTF8.GetString(name);
             MetadataType type = GetTypeInternal(strns, strname);
             if ((type == null) && notFoundBehavior != NotFoundBehavior.ReturnNull)
             {

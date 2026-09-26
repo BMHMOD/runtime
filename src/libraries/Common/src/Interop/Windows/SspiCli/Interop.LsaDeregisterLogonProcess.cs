@@ -8,7 +8,6 @@ internal static partial class Interop
 {
     internal static partial class SspiCli
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Interop.Libraries.SspiCli)]
         internal static partial int LsaDeregisterLogonProcess(IntPtr LsaHandle);
     }

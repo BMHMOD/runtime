@@ -7,11 +7,9 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 using Xunit;
-using TestLibrary;
 
 public unsafe class Validate
 {
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/86327", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoAnyAOT))]
     [Fact]
     public static void Explicit_Fails()
     {
@@ -24,7 +22,6 @@ public unsafe class Validate
         });
     }
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/86327", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoAnyAOT))]
     [Fact]
     public static void ExplicitSize_FailsInSequential()
     {
@@ -38,7 +35,6 @@ public unsafe class Validate
         });
     }
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/86327", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoAnyAOT))]
     [Fact]
     public static void ExplicitSize_FailsInAuto()
     {
@@ -52,7 +48,6 @@ public unsafe class Validate
         });
     }
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/86327", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoAnyAOT))]
     [Fact]
     public static void ExplicitSize_FailsInGeneric()
     {
@@ -66,7 +61,6 @@ public unsafe class Validate
         });
     }
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/86327", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoAnyAOT))]
     [Fact]
     public static void ZeroLength_Fails()
     {
@@ -89,7 +83,6 @@ public unsafe class Validate
         public long field;
     }
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/86327", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoAnyAOT))]
     [Fact]
     public static void TooLarge_Fails()
     {
@@ -106,7 +99,6 @@ public unsafe class Validate
         });
     }
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/86327", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoAnyAOT))]
     [Fact]
     public static void NegativeLength_Fails()
     {
@@ -123,7 +115,6 @@ public unsafe class Validate
         });
     }
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/86327", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoAnyAOT))]
     [Fact]
     public static void NoFields_Fails()
     {
@@ -136,7 +127,6 @@ public unsafe class Validate
         });
     }
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/86327", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoAnyAOT))]
     [Fact]
     public static void TwoFields_Fails()
     {

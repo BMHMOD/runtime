@@ -1530,7 +1530,7 @@ namespace System.Collections.Tests
         private SortedList _sortListGrandDaughter;
         private const int NumberOfElements = 100;
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [OuterLoop]
         public void GetSyncRootBasic()
         {

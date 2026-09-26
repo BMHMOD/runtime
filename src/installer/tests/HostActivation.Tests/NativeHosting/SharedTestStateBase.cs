@@ -45,7 +45,8 @@ namespace Microsoft.DotNet.CoreSetup.Test.HostActivation.NativeHosting
         {
             return Command.Create(NativeHostPath, args)
                 .EnableTracingAndCaptureOutputs()
-                .DotNetRoot(dotNetRoot);
+                .DotNetRoot(dotNetRoot)
+                .MultilevelLookup(false);
         }
 
         public void Dispose()

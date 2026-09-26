@@ -11,7 +11,6 @@ using System.Threading;
 
 using Xunit;
 using TypeEquivalenceTypes;
-using TestLibrary;
 
 [TypeIdentifier("MyScope", "MyTypeId")]
 public struct EquivalentValueType
@@ -19,7 +18,7 @@ public struct EquivalentValueType
     public int A;
 }
 
-[ConditionalClass(typeof(PlatformDetection), nameof(PlatformDetection.IsTypeEquivalenceSupported))]
+[PlatformSpecific(TestPlatforms.Windows)]
 public class Simple
 {
     private class EmptyType2 : IEmptyType

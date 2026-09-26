@@ -843,9 +843,19 @@ namespace System.Text.Json.Serialization.Tests
                     return options;
                 }
 
-                return s_smallBufferMap.GetValue(
-                    options,
-                    static src => new JsonSerializerOptions(src) { DefaultBufferSize = 1 });
+                if (s_smallBufferMap.TryGetValue(options, out JsonSerializerOptions resolvedValue))
+                {
+                    Assert.Equal(1, resolvedValue.DefaultBufferSize);
+                    return resolvedValue;
+                }
+
+                JsonSerializerOptions smallBufferCopy = new JsonSerializerOptions(options)
+                {
+                    DefaultBufferSize = 1,
+                };
+
+                s_smallBufferMap.Add(options, smallBufferCopy);
+                return smallBufferCopy;
             }
         }
 

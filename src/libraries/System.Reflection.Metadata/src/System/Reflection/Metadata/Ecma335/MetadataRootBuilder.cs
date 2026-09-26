@@ -3,7 +3,6 @@
 
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Text;
 
 namespace System.Reflection.Metadata.Ecma335
 {
@@ -59,8 +58,8 @@ namespace System.Reflection.Metadata.Ecma335
                 Throw.ArgumentNull(nameof(tablesAndHeaps));
             }
 
-            Debug.Assert(Encoding.UTF8.GetByteCount(DefaultMetadataVersionString) == DefaultMetadataVersionString.Length);
-            int metadataVersionByteCount = metadataVersion != null ? Encoding.UTF8.GetByteCount(metadataVersion) : DefaultMetadataVersionString.Length;
+            Debug.Assert(BlobUtilities.GetUTF8ByteCount(DefaultMetadataVersionString) == DefaultMetadataVersionString.Length);
+            int metadataVersionByteCount = metadataVersion != null ? BlobUtilities.GetUTF8ByteCount(metadataVersion) : DefaultMetadataVersionString.Length;
 
             if (metadataVersionByteCount > MetadataSizes.MaxMetadataVersionByteCount)
             {

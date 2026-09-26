@@ -4,6 +4,14 @@
 #include "pal_types.h"
 #include "pal_compiler.h"
 #include "opensslshim.h"
+#include "pal_atomic.h"
+
+struct EvpPKeyExtraHandle_st
+{
+    atomic_int refCount;
+    OSSL_LIB_CTX* libCtx;
+    OSSL_PROVIDER* prov;
+};
 
 typedef enum
 {
@@ -15,6 +23,8 @@ typedef enum
     PalPKeyFamilyId_SlhDsa = 5,
     PalPKeyFamilyId_MLDsa = 6,
 } PalPKeyFamilyId;
+
+typedef struct EvpPKeyExtraHandle_st EvpPKeyExtraHandle;
 
 /*
 Shims the EVP_PKEY_new method.
@@ -32,7 +42,7 @@ No-op if pkey is null.
 The given EVP_PKEY pointer is invalid after this call.
 Always succeeds.
 */
-PALEXPORT void CryptoNative_EvpPkeyDestroy(EVP_PKEY* pkey);
+PALEXPORT void CryptoNative_EvpPkeyDestroy(EVP_PKEY* pkey, void* extraHandle);
 
 /*
 Returns the cryptographic length of the cryptosystem to which the key belongs, in bits.
@@ -46,7 +56,7 @@ duplicating a private key context as part of duplicating the Pal object.
 Returns the number (as of this call) of references to the EVP_PKEY. Anything less than
 2 is an error, because the key is already in the process of being freed.
 */
-PALEXPORT int32_t CryptoNative_UpRefEvpPkey(EVP_PKEY* pkey);
+PALEXPORT int32_t CryptoNative_UpRefEvpPkey(EVP_PKEY* pkey, void* extraHandle);
 
 /*
 Returns one of the following 4 values for the given EVP_PKEY:
@@ -125,20 +135,15 @@ Returns a valid EVP_PKEY* on success, NULL on failure.
 PALEXPORT EVP_PKEY* CryptoNative_LoadPublicKeyFromEngine(const char* engineName, const char* keyName, int32_t* haveEngine);
 
 /*
-Load a key by URI from specified OSSL_PROVIDERs.
+Load a key by URI from a specified OSSL_PROVIDER.
 
 Returns a valid EVP_PKEY* on success, NULL on failure.
-extraHandle is an in/out parameter for an opaque context. When extraHandle points to NULL, a new context is created.
-If the return value is non-NULL, it *must* be cached and re-used for each set of providers.
-propertyQuery is passed to OSSL_STORE_open_ex as the propq argument. It may be NULL.
+On success extraHandle may be non-null value which we need to keep alive
+until the EVP_PKEY is destroyed.
+
 *haveProvider is 1 if OpenSSL providers are supported, otherwise 0.
 */
-PALEXPORT EVP_PKEY* CryptoNative_LoadKeyFromProvider(const char** providerNames,
-                                                     int32_t providerNameCount,
-                                                     const char* keyUri,
-                                                     const char* propertyQuery,
-                                                     void** extraHandle,
-                                                     int32_t* haveProvider);
+PALEXPORT EVP_PKEY* CryptoNative_LoadKeyFromProvider(const char* providerName, const char* keyUri, void** extraHandle, int32_t* haveProvider);
 
 /*
 Loads a key using EVP_PKEY_fromdata_init and EVP_PKEY_fromdata.

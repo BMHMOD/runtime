@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -22,24 +21,14 @@ namespace System.IO.Tests
         // going to fail the test.  If we don't expect an event to occur, then we need
         // to keep the timeout short, as in a successful run we'll end up waiting for
         // the entire timeout specified.
-        public const int WaitForExpectedEventTimeout = 5000;         // ms to wait for an event to happen
+        public const int WaitForExpectedEventTimeout = 500;         // ms to wait for an event to happen
         public const int LongWaitTimeout = 50000;                   // ms to wait for an event that takes a longer time than the average operation
-        public const int SubsequentExpectedWait = 2000;             // ms to wait for checks that occur after the first.
-        public const int WaitForExpectedEventTimeout_NoRetry = 15000;// ms to wait for an event that isn't surrounded by a retry.
-        public const int WaitForUnexpectedEventTimeout = 500;       // ms to wait for a non-expected event.
+        public const int SubsequentExpectedWait = 10;               // ms to wait for checks that occur after the first.
+        public const int WaitForExpectedEventTimeout_NoRetry = 3000;// ms to wait for an event that isn't surrounded by a retry.
+        public const int WaitForUnexpectedEventTimeout = 150;       // ms to wait for a non-expected event.
         public const int DefaultAttemptsForExpectedEvent = 3;       // Number of times an expected event should be retried if failing.
         public const int DefaultAttemptsForUnExpectedEvent = 2;     // Number of times an unexpected event should be retried if failing.
         public const int RetryDelayMilliseconds = 500;              // ms to wait when retrying after failure
-
-        // Waits for the specified duration unless the test runner signals cancellation,
-        // in which case it throws OperationCanceledException to fail the test immediately.
-        private static void WaitUnlessCancelled(int milliseconds)
-        {
-            // Replace with TestContext.Current.CancellationToken when migrated to xunit v3 (#125019).
-            CancellationToken token = CancellationToken.None;
-            token.WaitHandle.WaitOne(milliseconds);
-            token.ThrowIfCancellationRequested();
-        }
 
         /// <summary>
         /// Watches the Changed WatcherChangeType and unblocks the returned AutoResetEvent when a
@@ -193,33 +182,23 @@ namespace System.IO.Tests
         {
             int attemptsCompleted = 0;
             bool result = false;
+            FileSystemWatcher newWatcher = watcher;
             while (!result && attemptsCompleted++ < attempts)
             {
                 if (attemptsCompleted > 1)
                 {
+                    // Re-create the watcher to get a clean iteration.
+                    newWatcher = RecreateWatcher(newWatcher);
                     // Most intermittent failures in FSW are caused by either a shortage of resources (e.g. inotify instances)
                     // or by insufficient time to execute (e.g. CI gets bogged down). Immediately re-running a failed test
                     // won't resolve the first issue, so we wait a little while hoping that things clear up for the next run.
-                    WaitUnlessCancelled(RetryDelayMilliseconds);
+                    Thread.Sleep(RetryDelayMilliseconds);
                 }
 
-                // Use progressively longer timeouts on retries. The first attempt uses the base timeout
-                // for fast failure in normal conditions. Subsequent attempts increase the timeout linearly
-                // with the attempt count to tolerate transient delays (thread pool starvation, slow CI machines, etc.).
-                int effectiveTimeout = timeout * attemptsCompleted;
+                result = ExecuteAndVerifyEvents(newWatcher, expectedEvents, action, attemptsCompleted == attempts, expectedPaths, timeout);
 
-                // On retries, re-create the watcher to get a clean iteration, always based on the
-                // original watcher's state. using ensures prompt disposal to release handles.
-                using FileSystemWatcher recreated = attemptsCompleted > 1 ? RecreateWatcher(watcher) : null;
-
-                try
-                {
-                    result = ExecuteAndVerifyEvents(recreated ?? watcher, expectedEvents, action, attemptsCompleted == attempts, expectedPaths, effectiveTimeout);
-                }
-                finally
-                {
-                    cleanup?.Invoke();
-                }
+                if (cleanup != null)
+                    cleanup();
             }
         }
 
@@ -280,7 +259,7 @@ namespace System.IO.Tests
                     Debug.WriteLine($"RetryHelper: retrying {testName} {i}th time of {maxAttempts}: got {lastException.Message}");
                 }
 
-                WaitUnlessCancelled((backoffFunc ?? s_defaultBackoffFunc)(i));
+                Thread.Sleep((backoffFunc ?? s_defaultBackoffFunc)(i));
             }
         }
 
@@ -293,17 +272,13 @@ namespace System.IO.Tests
         /// <param name="action">The Action that will trigger events.</param>
         /// <param name="cleanup">Optional. Undoes the action and cleans up the watcher so the test may be run again if necessary.</param>
         /// <param name="expectedPath">Optional. Adds path verification to all expected events.</param>
-        public static void ExpectNoEvent(FileSystemWatcher watcher, WatcherChangeTypes unExpectedEvents, Action action, Action cleanup = null, string expectedPath = null, int timeout = WaitForUnexpectedEventTimeout)
+        public static void ExpectNoEvent(FileSystemWatcher watcher, WatcherChangeTypes unExpectedEvents, Action action, Action cleanup = null, string expectedPath = null, int timeout = WaitForExpectedEventTimeout)
         {
-            try
-            {
-                bool result = ExecuteAndVerifyEvents(watcher, unExpectedEvents, action, false, expectedPath == null ? null : new string[] { expectedPath }, timeout);
-                Assert.False(result, "Expected Event occurred");
-            }
-            finally
-            {
-                cleanup?.Invoke();
-            }
+            bool result = ExecuteAndVerifyEvents(watcher, unExpectedEvents, action, false, expectedPath == null ? null : new string[] { expectedPath }, timeout);
+            Assert.False(result, "Expected Event occurred");
+
+            if (cleanup != null)
+                cleanup();
         }
 
         /// <summary>
@@ -429,7 +404,7 @@ namespace System.IO.Tests
                     // Most intermittent failures in FSW are caused by either a shortage of resources (e.g. inotify instances)
                     // or by insufficient time to execute (e.g. CI gets bogged down). Immediately re-running a failed test
                     // won't resolve the first issue, so we wait a little while hoping that things clear up for the next run.
-                    WaitUnlessCancelled(RetryDelayMilliseconds);
+                    Thread.Sleep(500);
                 }
 
                 AutoResetEvent errorOccurred = new AutoResetEvent(false);
@@ -456,7 +431,7 @@ namespace System.IO.Tests
                 }
 
                 action();
-                result = errorOccurred.WaitOne(WaitForExpectedEventTimeout * attemptsCompleted);
+                result = errorOccurred.WaitOne(WaitForExpectedEventTimeout);
                 watcher.EnableRaisingEvents = false;
                 cleanup();
             }
@@ -465,7 +440,7 @@ namespace System.IO.Tests
 
         public static IEnumerable<object[]> FilterTypes()
         {
-            foreach (NotifyFilters filter in Enum.GetValues<NotifyFilters>())
+            foreach (NotifyFilters filter in Enum.GetValues(typeof(NotifyFilters)))
                 yield return new object[] { filter };
         }
 
@@ -509,18 +484,6 @@ namespace System.IO.Tests
             return newWatcher;
         }
 
-        /// <summary>
-        /// Asserts that the file-system entry at <paramref name="path"/> is fully removed within
-        /// <see cref="RetryDelayMilliseconds"/> milliseconds. Call this before recreating a deleted path
-        /// in a cleanup lambda so that NTFS pending-delete races do not silently no-op the recreation.
-        /// </summary>
-        public static void WaitForPathToBeDeleted(string path)
-        {
-            Assert.True(
-                SpinWait.SpinUntil(() => !Path.Exists(path), RetryDelayMilliseconds),
-                $"Timed out waiting for '{path}' to be deleted.");
-        }
-
         internal readonly struct FiredEvent
         {
             public FiredEvent(WatcherChangeTypes eventType, string dir1, string dir2 = "") => (EventType, Dir1, Dir2) = (eventType, dir1, dir2);
@@ -542,20 +505,9 @@ namespace System.IO.Tests
 
         }
 
-        // Returns a predicate that returns true for events that should be filtered out.
-        // Events whose type matches filteredTypes are always filtered; remaining events are deduplicated
-        // so that only the first occurrence passes through.
-        // Used on platforms like macOS where FSEvents may deliver the same event more than once.
-        internal static Func<FiredEvent, bool> CreateDeduplicatingFilter(WatcherChangeTypes filteredTypes = 0)
+        // Observe until an expected count of events is triggered, otherwise fail. Return all collected events.
+        internal static List<FiredEvent> ExpectEvents(FileSystemWatcher watcher, int expectedEvents, Action action)
         {
-            var seenEvents = new ConcurrentDictionary<FiredEvent, bool>();
-            return firedEvent => (firedEvent.EventType & filteredTypes) != 0 || !seenEvents.TryAdd(firedEvent, true);
-        }
-
-        // Observe until an expected count of events is triggered, otherwise fail. Return all filtered events.
-        internal static List<FiredEvent> ExpectEvents(FileSystemWatcher watcher, int expectedEvents, Action action, Func<FiredEvent, bool>? isFilteredOut = null)
-        {
-            isFilteredOut ??= _ => false;
             using var eventsOccurred = new AutoResetEvent(false);
             var eventsOrrures = 0;
 
@@ -579,7 +531,7 @@ namespace System.IO.Tests
             try
             {
                 action();
-                eventsOccurred.WaitOne(WaitForExpectedEventTimeout_NoRetry);
+                eventsOccurred.WaitOne(new TimeSpan(0, 0, 5));
             }
             finally
             {
@@ -600,13 +552,7 @@ namespace System.IO.Tests
 
             void AddEvent(WatcherChangeTypes eventType, string dir1, string dir2 = "")
             {
-                var firedEvent = new FiredEvent(eventType, dir1, dir2);
-                if (isFilteredOut(firedEvent))
-                {
-                    return;
-                }
-
-                events.Add(firedEvent);
+                events.Add(new FiredEvent(eventType, dir1, dir2));
                 if (Interlocked.Increment(ref eventsOrrures) == expectedEvents)
                 {
                     eventsOccurred.Set();

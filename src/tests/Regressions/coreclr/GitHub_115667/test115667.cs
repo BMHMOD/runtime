@@ -3,7 +3,6 @@
 using System;
 using Xunit;
 using System.Threading.Tasks;
-using TestLibrary;
 
 public interface I0
 {
@@ -22,7 +21,6 @@ public struct S1 : I0
 
 public class Runtime_115667
 {
-    [ActiveIssue("https://github.com/dotnet/runtimelab/issues/155: Assembly.Load", typeof(Utilities), nameof(Utilities.IsNativeAot))]
     [Fact]
     public static void TestEntryPoint()
     {

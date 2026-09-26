@@ -18,8 +18,8 @@ namespace Microsoft.Diagnostics.DataContractReader.Legacy
             string? memberName,
             string? className,
             string? namespaceName,
-            ReadOnlySpan<ITypeHandle> typeInstantiation,
-            ReadOnlySpan<ITypeHandle> methodInstantiation,
+            ReadOnlySpan<TypeHandle> typeInstantiation,
+            ReadOnlySpan<TypeHandle> methodInstantiation,
             bool CStringParmsOnly)
         {
             fixed (byte* pSignature = signature)
@@ -36,8 +36,8 @@ namespace Microsoft.Diagnostics.DataContractReader.Legacy
             string? memberName,
             string? className,
             string? namespaceName,
-            ReadOnlySpan<ITypeHandle> typeInstantiation,
-            ReadOnlySpan<ITypeHandle> methodInstantiation,
+            ReadOnlySpan<TypeHandle> typeInstantiation,
+            ReadOnlySpan<TypeHandle> methodInstantiation,
             bool CStringParmsOnly)
         {
             SignatureHeader header = signature.ReadSignatureHeader();
@@ -95,8 +95,8 @@ namespace Microsoft.Diagnostics.DataContractReader.Legacy
         private static unsafe void AddTypeString(Target target,
             StringBuilder stringBuilder,
             ref BlobReader signature,
-            ReadOnlySpan<ITypeHandle> typeInstantiation,
-            ReadOnlySpan<ITypeHandle> methodInstantiation,
+            ReadOnlySpan<TypeHandle> typeInstantiation,
+            ReadOnlySpan<TypeHandle> methodInstantiation,
             MetadataReader? metadata)
         {
             string _namespace;
@@ -157,7 +157,7 @@ namespace Microsoft.Diagnostics.DataContractReader.Legacy
                     case CorElementType.Internal:
                         TargetPointer typeHandlePointer = target.ReadPointerFromSpan(signature.ReadBytes(target.PointerSize));
                         IRuntimeTypeSystem runtimeTypeSystem = target.Contracts.RuntimeTypeSystem;
-                        ITypeHandle th = runtimeTypeSystem.GetTypeHandle(typeHandlePointer);
+                        TypeHandle th = runtimeTypeSystem.GetTypeHandle(typeHandlePointer);
                         switch (runtimeTypeSystem.GetSignatureCorElementType(th))
                         {
                             case CorElementType.FnPtr:
@@ -308,15 +308,12 @@ namespace Microsoft.Diagnostics.DataContractReader.Legacy
             }
         }
 
-        private static void AddType(Target target, StringBuilder stringBuilder, ITypeHandle? typeHandle)
+        private static void AddType(Target target, StringBuilder stringBuilder, TypeHandle typeHandle)
         {
             IRuntimeTypeSystem runtimeTypeSystem = target.Contracts.RuntimeTypeSystem;
 
-            if (typeHandle is null)
-            {
+            if (typeHandle.IsNull)
                 stringBuilder.Append("**UNKNOWN TYPE**");
-                return;
-            }
             CorElementType corElementType = runtimeTypeSystem.GetSignatureCorElementType(typeHandle);
             if (corElementType == CorElementType.ValueType && runtimeTypeSystem.HasTypeParam(typeHandle))
             {
@@ -361,7 +358,7 @@ namespace Microsoft.Diagnostics.DataContractReader.Legacy
                     }
                     stringBuilder.Append(name);
 
-                    ReadOnlySpan<ITypeHandle> instantiation = runtimeTypeSystem.GetInstantiation(typeHandle);
+                    ReadOnlySpan<TypeHandle> instantiation = runtimeTypeSystem.GetInstantiation(typeHandle);
                     if (instantiation.Length > 0)
                     {
                         stringBuilder.Append('<');
@@ -392,7 +389,7 @@ namespace Microsoft.Diagnostics.DataContractReader.Legacy
 
                 case CorElementType.MVar:
                 case CorElementType.Var:
-                    runtimeTypeSystem.IsGenericVariable(typeHandle, out TargetPointer genericVariableModulePointer, out uint typeVarToken, out _);
+                    runtimeTypeSystem.IsGenericVariable(typeHandle, out TargetPointer genericVariableModulePointer, out uint typeVarToken);
                     Contracts.ModuleHandle genericVariableModule = target.Contracts.Loader.GetModuleHandleFromModulePtr(genericVariableModulePointer);
                     MetadataReader generatedVariableMetadata = target.Contracts.EcmaMetadata.GetMetadata(genericVariableModule)!;
                     GenericParameter genericVariable = generatedVariableMetadata.GetGenericParameter((GenericParameterHandle)MetadataTokens.Handle((int)typeVarToken));
@@ -417,8 +414,8 @@ namespace Microsoft.Diagnostics.DataContractReader.Legacy
                     return;
 
                 case CorElementType.FnPtr:
-                    runtimeTypeSystem.IsFunctionPointer(typeHandle, out ReadOnlySpan<ITypeHandle> retAndArgTypes, out SignatureCallingConvention callConv);
-                    SignatureHeader header = new SignatureHeader((byte)callConv);
+                    runtimeTypeSystem.IsFunctionPointer(typeHandle, out ReadOnlySpan<TypeHandle> retAndArgTypes, out byte callConv);
+                    SignatureHeader header = new SignatureHeader(callConv);
                     AddType(target, stringBuilder, retAndArgTypes[0]);
                     stringBuilder.Append(" (");
                     for (int i = 1; i < retAndArgTypes.Length; i++)

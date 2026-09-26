@@ -37,15 +37,7 @@ namespace System.Security.Cryptography
             }
 
             _key = new Lazy<SafeEvpPKeyHandle>(pkeyHandle.DuplicateHandle());
-
-            int keySize = Interop.Crypto.EvpPKeyGetEcKeySize(pkeyHandle);
-
-            if (keySize == 0)
-            {
-                throw new CryptographicException(SR.Cryptography_InvalidHandle);
-            }
-
-            ForceSetKeySize(keySize);
+            ForceSetKeySize(Interop.Crypto.EvpPKeyBits(pkeyHandle));
         }
 
         /// <summary>
@@ -70,9 +62,13 @@ namespace System.Security.Cryptography
 
             ThrowIfNotSupported();
 
-            SafeEvpPKeyHandle pkey = Interop.Crypto.CreateEvpPkeyFromEcKey(handle, out int keySize);
-            _key = new Lazy<SafeEvpPKeyHandle>(pkey);
-            ForceSetKeySize(keySize);
+            using (SafeEcKeyHandle ecKeyHandle = SafeEcKeyHandle.DuplicateHandle(handle))
+            {
+                // CreateEvpPkeyFromEcKey already uprefs so nothing else to do
+                _key = new Lazy<SafeEvpPKeyHandle>(Interop.Crypto.CreateEvpPkeyFromEcKey(ecKeyHandle));
+            }
+
+            ForceSetKeySize(Interop.Crypto.EvpPKeyBits(_key.Value));
         }
 
         /// <summary>

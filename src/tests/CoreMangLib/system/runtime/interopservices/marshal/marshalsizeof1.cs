@@ -5,7 +5,6 @@ using System.Runtime.InteropServices;
 using System.Security;
 using Xunit;
 
-namespace MarshalSizeOf1Tests;
 
 [SecuritySafeCritical]
 public struct TestStruct
@@ -501,7 +500,6 @@ public class MarshalSizeOf1
     #endregion
     #endregion
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

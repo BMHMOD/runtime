@@ -11,7 +11,6 @@ using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 namespace IntelHardwareIntrinsicTest.General;
 public partial class Program
@@ -29,7 +28,7 @@ public partial class Program
         static public unsafe int Vector128Array()
         {
             Vector128<T>[] v = new Vector128<T>[3];
-            int elementSize = sizeof(T);
+            int elementSize = Unsafe.SizeOf<T>();
             const int vectorSize = 16;
             int elementCount = vectorSize / elementSize;
 
@@ -69,7 +68,7 @@ public partial class Program
         static public unsafe int Vector256Array()
         {
             Vector256<T>[] v = new Vector256<T>[3];
-            int elementSize = sizeof(T);
+            int elementSize = Unsafe.SizeOf<T>();
             const int vectorSize = 32;
             int elementCount = vectorSize / elementSize;
 
@@ -97,7 +96,6 @@ public partial class Program
     }
 
     [Xunit.ActiveIssue("https://github.com/dotnet/runtime/issues/75767", typeof(TestLibrary.PlatformDetection), nameof(TestLibrary.PlatformDetection.IsMonoLLVMAOT))]
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/75767", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoLLVMAOT))]
     [Fact]
     public unsafe static void VectorArray()
     {

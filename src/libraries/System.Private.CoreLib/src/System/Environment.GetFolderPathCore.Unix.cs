@@ -201,7 +201,7 @@ namespace System
                             if (pos >= line.Length) continue;
 
                             // Skip past requested key name
-                            if (!line.AsSpan(pos).StartsWith(key, StringComparison.Ordinal)) continue;
+                            if (string.CompareOrdinal(line, pos, key, 0, key.Length) != 0) continue;
                             pos += key.Length;
 
                             // Skip past whitespace and past '='
@@ -217,7 +217,7 @@ namespace System
                             // Skip past relative prefix if one exists
                             bool relativeToHome = false;
                             const string RelativeToHomePrefix = "$HOME/";
-                            if (line.AsSpan(pos).StartsWith(RelativeToHomePrefix, StringComparison.Ordinal))
+                            if (string.CompareOrdinal(line, pos, RelativeToHomePrefix, 0, RelativeToHomePrefix.Length) == 0)
                             {
                                 relativeToHome = true;
                                 pos += RelativeToHomePrefix.Length;

@@ -70,12 +70,16 @@ void Compiler::unwindSaveReg(regNumber reg, unsigned offset)
 //
 void Compiler::unwindReserve()
 {
-    assert(!GetEmitter()->emitGeneratingPrologOrFuncletProlog());
-    assert(!GetEmitter()->emitGeneratingEpilogOrFuncletEpilog());
-
-    for (FuncInfoDsc* const func : Funcs())
+    if (UsesFunclets())
     {
-        unwindReserveFunc(func);
+        assert(!compGeneratingProlog);
+        assert(!compGeneratingEpilog);
+
+        assert(compFuncInfoCount > 0);
+        for (unsigned funcIdx = 0; funcIdx < compFuncInfoCount; funcIdx++)
+        {
+            unwindReserveFunc(funGetFunc(funcIdx));
+        }
     }
 }
 
@@ -88,12 +92,16 @@ void Compiler::unwindReserve()
 //
 void Compiler::unwindEmit(void* pHotCode, void* pColdCode)
 {
-    assert(!GetEmitter()->emitGeneratingPrologOrFuncletProlog());
-    assert(!GetEmitter()->emitGeneratingEpilogOrFuncletEpilog());
-
-    for (FuncInfoDsc* const func : Funcs())
+    if (UsesFunclets())
     {
-        unwindEmitFunc(func, pHotCode, pColdCode);
+        assert(!compGeneratingProlog);
+        assert(!compGeneratingEpilog);
+
+        assert(compFuncInfoCount > 0);
+        for (unsigned funcIdx = 0; funcIdx < compFuncInfoCount; funcIdx++)
+        {
+            unwindEmitFunc(funGetFunc(funcIdx), pHotCode, pColdCode);
+        }
     }
 }
 
@@ -106,6 +114,7 @@ void Compiler::unwindEmit(void* pHotCode, void* pColdCode)
 //
 void Compiler::unwindReserveFunc(FuncInfoDsc* func)
 {
+    assert(UsesFunclets());
     unwindReserveFuncHelper(func, true);
 
     if (fgFirstColdBlock != nullptr)

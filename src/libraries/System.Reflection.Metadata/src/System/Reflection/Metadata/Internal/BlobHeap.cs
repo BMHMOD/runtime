@@ -85,11 +85,12 @@ namespace System.Reflection.Metadata.Ecma335
             }
         }
 
-        internal byte[] GetBytes(BlobHandle handle, bool unique = true)
+        internal byte[] GetBytes(BlobHandle handle)
         {
             if (handle.IsVirtual)
             {
-                return GetVirtualBlobBytes(handle, unique);
+                // consider: if we returned an ImmutableArray we wouldn't need to copy
+                return GetVirtualBlobBytes(handle, unique: true);
             }
 
             int offset = handle.GetHeapOffset();

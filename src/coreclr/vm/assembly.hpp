@@ -62,7 +62,7 @@ public:
 
     // Loaded means that the file can be used passively. This includes loading types, reflection,
     // and jitting.
-    bool IsLoaded() { LIMITED_METHOD_DAC_CONTRACT; return m_isLoaded; }
+    bool IsLoaded() { LIMITED_METHOD_DAC_CONTRACT; return m_level >= FILE_LOAD_DELIVER_EVENTS; }
 
     // Active means that the file can be used actively. This includes code execution, static field
     // access, and instance allocation.
@@ -83,12 +83,7 @@ public:
     BOOL DoIncrementalLoad(FileLoadLevel targetLevel);
 
     void ClearLoading() { LIMITED_METHOD_CONTRACT; m_isLoading = false; }
-    void SetLoadLevel(FileLoadLevel level)
-    {
-        LIMITED_METHOD_CONTRACT;
-        m_level = level;
-        m_isLoaded = (level >= FILE_LOAD_DELIVER_EVENTS);
-    }
+    void SetLoadLevel(FileLoadLevel level) { LIMITED_METHOD_CONTRACT; m_level = level; }
 
     BOOL NotifyDebuggerLoad(int flags, BOOL attaching);
     void NotifyDebuggerUnload();
@@ -109,7 +104,7 @@ public:
     // is required for an operation.  Note that deadlocks are tolerated so the level may be one
     void EnsureLoadLevel(FileLoadLevel targetLevel) DAC_EMPTY();
 
-    // RequireLoadLevel throws an exception if the assembly isn't loaded enough.  Note
+    // RequireLoadLevel throws an exception if the domain file isn't loaded enough.  Note
     // that this is intolerant of deadlock related failures so is only really appropriate for
     // checks inside the main loading loop.
     void RequireLoadLevel(FileLoadLevel targetLevel) DAC_EMPTY();
@@ -164,7 +159,7 @@ public:
     static Assembly *Create(PEAssembly *pPEAssembly, AllocMemTracker *pamTracker, LoaderAllocator *pLoaderAllocator);
     static void Initialize();
 
-    bool IsSystem() { WRAPPER_NO_CONTRACT; return m_pPEAssembly->IsSystem(); }
+    BOOL IsSystem() { WRAPPER_NO_CONTRACT; return m_pPEAssembly->IsSystem(); }
 
     static Assembly* CreateDynamic(AssemblyBinder* pBinder, NativeAssemblyNameParts* pAssemblyNameParts, INT32 hashAlgorithm, INT32 access, LOADERALLOCATORREF* pKeepAlive);
 
@@ -211,6 +206,12 @@ public:
         return GetPEAssembly()->GetSimpleName();
     }
 
+    BOOL IsStrongNamed()
+    {
+        WRAPPER_NO_CONTRACT;
+        return GetPEAssembly()->IsStrongNamed();
+    }
+
     const void *GetPublicKey(DWORD *pcbPK)
     {
         WRAPPER_NO_CONTRACT;
@@ -243,6 +244,8 @@ public:
 
     PTR_LoaderHeap GetLowFrequencyHeap();
     PTR_LoaderHeap GetHighFrequencyHeap();
+    PTR_LoaderHeap GetStubHeap();
+
     PTR_Module GetModule()
     {
         LIMITED_METHOD_CONTRACT;
@@ -314,12 +317,12 @@ public:
         m_debuggerFlags = flags;
     }
 
-    Assembly* GetNextAssemblyInSameALC()
+    DomainAssembly* GetNextAssemblyInSameALC()
     {
         return m_NextAssemblyInSameALC;
     }
 
-    void SetNextAssemblyInSameALC(Assembly* assembly)
+    void SetNextAssemblyInSameALC(DomainAssembly* assembly)
     {
         _ASSERTE(m_NextAssemblyInSameALC == NULL);
         m_NextAssemblyInSameALC = assembly;
@@ -347,7 +350,7 @@ public:
 
     //****************************************************************************************
     //
-    INT32 ExecuteMainMethod(PTRARRAYREF *stringArgs, bool captureException);
+    INT32 ExecuteMainMethod(PTRARRAYREF *stringArgs, BOOL waitForOtherThreads);
 
     //****************************************************************************************
 
@@ -375,6 +378,9 @@ public:
     mdAssemblyRef AddAssemblyRef(Assembly *refedAssembly, IMetaDataAssemblyEmit *pAssemEmitter);
 
     //****************************************************************************************
+
+    DomainAssembly *GetDomainAssembly();
+    void SetDomainAssembly(DomainAssembly *pAssembly);
 
 #if defined(FEATURE_COLLECTIBLE_TYPES) && !defined(DACCESS_COMPILE)
     OBJECTHANDLE GetLoaderAllocatorObjectHandle() { WRAPPER_NO_CONTRACT; return GetLoaderAllocator()->GetLoaderAllocatorObjectHandle(); }
@@ -519,7 +525,6 @@ private:
 
     // Load state tracking
     bool            m_isLoading;
-    bool            m_isLoaded;
     bool            m_isTerminated;
     FileLoadLevel   m_level;
     DWORD           m_notifyFlags;
@@ -533,7 +538,7 @@ private:
 
     LOADERHANDLE          m_hExposedObject;
 
-    Assembly*                   m_NextAssemblyInSameALC;
+    DomainAssembly*             m_NextAssemblyInSameALC;
 
     friend struct ::cdac_data<Assembly>;
 };
@@ -548,7 +553,7 @@ struct cdac_data<Assembly>
     static constexpr size_t Module = offsetof(Assembly, m_pModule);
     static constexpr size_t Error = offsetof(Assembly, m_pError);
     static constexpr size_t NotifyFlags = offsetof(Assembly, m_notifyFlags);
-    static constexpr size_t IsLoaded = offsetof(Assembly, m_isLoaded);
+    static constexpr size_t Level = offsetof(Assembly, m_level);
 };
 
 #ifndef DACCESS_COMPILE

@@ -174,6 +174,9 @@ namespace System.Threading
         [UnsupportedOSPlatform("browser")]
         public void Wait()
         {
+#if TARGET_WASI
+            if (OperatingSystem.IsWasi()) throw new PlatformNotSupportedException(); // TODO remove with https://github.com/dotnet/runtime/pull/107185
+#endif
             // Call wait with infinite timeout
             WaitCore(Timeout.Infinite, CancellationToken.None);
         }
@@ -191,6 +194,9 @@ namespace System.Threading
         [UnsupportedOSPlatform("browser")]
         public void Wait(CancellationToken cancellationToken)
         {
+#if TARGET_WASI
+            if (OperatingSystem.IsWasi()) throw new PlatformNotSupportedException(); // TODO remove with https://github.com/dotnet/runtime/pull/107185
+#endif
             // Call wait with infinite timeout
             WaitCore(Timeout.Infinite, cancellationToken);
         }
@@ -209,6 +215,9 @@ namespace System.Threading
         [UnsupportedOSPlatform("browser")]
         public bool Wait(TimeSpan timeout)
         {
+#if TARGET_WASI
+            if (OperatingSystem.IsWasi()) throw new PlatformNotSupportedException(); // TODO remove with https://github.com/dotnet/runtime/pull/107185
+#endif
             // Validate the timeout
             long totalMilliseconds = (long)timeout.TotalMilliseconds;
             if (totalMilliseconds < -1)
@@ -239,6 +248,9 @@ namespace System.Threading
         [UnsupportedOSPlatform("browser")]
         public bool Wait(TimeSpan timeout, CancellationToken cancellationToken)
         {
+#if TARGET_WASI
+            if (OperatingSystem.IsWasi()) throw new PlatformNotSupportedException(); // TODO remove with https://github.com/dotnet/runtime/pull/107185
+#endif
             // Validate the timeout
             long totalMilliseconds = (long)timeout.TotalMilliseconds;
             if (totalMilliseconds < -1)
@@ -264,6 +276,9 @@ namespace System.Threading
         [UnsupportedOSPlatform("browser")]
         public bool Wait(int millisecondsTimeout)
         {
+#if TARGET_WASI
+            if (OperatingSystem.IsWasi()) throw new PlatformNotSupportedException(); // TODO remove with https://github.com/dotnet/runtime/pull/107185
+#endif
             if (millisecondsTimeout < -1)
             {
                 throw new ArgumentOutOfRangeException(
@@ -287,6 +302,10 @@ namespace System.Threading
         [UnsupportedOSPlatform("browser")]
         public bool Wait(int millisecondsTimeout, CancellationToken cancellationToken)
         {
+#if TARGET_WASI
+            if (OperatingSystem.IsWasi()) throw new PlatformNotSupportedException(); // TODO remove with https://github.com/dotnet/runtime/pull/107185
+#endif
+
             if (millisecondsTimeout < -1)
             {
                 throw new ArgumentOutOfRangeException(
@@ -310,7 +329,9 @@ namespace System.Threading
         private bool WaitCore(long millisecondsTimeout, CancellationToken cancellationToken)
         {
             CheckDispose();
-
+#if FEATURE_WASM_MANAGED_THREADS
+            Thread.AssureBlockingPossible();
+#endif
             cancellationToken.ThrowIfCancellationRequested();
 
             // Perf: Check the stack timeout parameter before checking the volatile count
@@ -319,8 +340,6 @@ namespace System.Threading
                 // Pessimistic fail fast, check volatile count outside lock (only when timeout is zero!)
                 return false;
             }
-
-            RuntimeFeature.ThrowIfMultithreadingIsNotSupported();
 
             long startTime = 0;
             if (millisecondsTimeout != Timeout.Infinite && millisecondsTimeout > 0)
@@ -346,7 +365,7 @@ namespace System.Threading
                     // Monitor.Enter followed by Monitor.Wait is much more expensive than waiting on an event as it involves another
                     // spin, contention, etc. The usual number of spin iterations that would otherwise be used here is increased to
                     // lessen that extra expense of doing a proper wait.
-                    int spinCount = SpinWait.SpinCountForSpinBeforeWait * 4;
+                    int spinCount = SpinWait.SpinCountforSpinBeforeWait * 4;
 
                     SpinWait spinner = default;
                     while (spinner.Count < spinCount)
@@ -451,8 +470,9 @@ namespace System.Threading
         [UnsupportedOSPlatform("browser")]
         private bool WaitUntilCountOrTimeout(long millisecondsTimeout, long startTime, CancellationToken cancellationToken)
         {
-            RuntimeFeature.ThrowIfMultithreadingIsNotSupported();
-
+#if TARGET_WASI
+            if (OperatingSystem.IsWasi()) throw new PlatformNotSupportedException(); // TODO remove with https://github.com/dotnet/runtime/pull/107185
+#endif
             int monitorWaitMilliseconds = Timeout.Infinite;
 
             // Wait on the monitor as long as the count is zero

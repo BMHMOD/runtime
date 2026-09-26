@@ -70,17 +70,6 @@ namespace System.ComponentModel.DataAnnotations.Tests
             Assert.Equal(length, new MinLengthAttribute(length).Length);
         }
 
-        [Fact]
-        public static void FormatMessage_UsesSuppliedFormatAndLength()
-        {
-            const string ExternalFormat = "external {0}:{1}";
-            const string ErrorMessageFormat = "internal {0}:{1}";
-            var attribute = new MinLengthAttribute(10) { ErrorMessage = ErrorMessageFormat };
-
-            Assert.Equal("external name:10", attribute.FormatMessage(ExternalFormat, "name"));
-            Assert.Equal("internal name:10", attribute.FormatErrorMessage("name"));
-        }
-
         [Theory]
         [MemberData(nameof(ValidValues_ICollection))]
         public void Validate_ICollection_Valid(MinLengthAttribute attribute, object value)

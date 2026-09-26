@@ -196,7 +196,10 @@ namespace System.Security.Cryptography
         {
             string providerName;
             string? containerName = null;
-            ArgumentNullException.ThrowIfNull(cspParameters);
+            if (null == cspParameters)
+            {
+                throw new ArgumentException(SR.Format(SR.CspParameter_invalid, nameof(cspParameters)));
+            }
 
             //look for provider type in the cspParameters
             int providerType = cspParameters.ProviderType;

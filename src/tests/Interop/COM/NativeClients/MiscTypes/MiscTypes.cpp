@@ -91,15 +91,16 @@ struct VariantMarshalTest
 
 class InterfaceImpl :
     public UnknownImpl,
-    public IInterface1
+    public IInterface2
 {
 public: // IInterface1
+public: // IInterface2
 public: // IUnknown
     STDMETHOD(QueryInterface)(
         /* [in] */ REFIID riid,
         /* [iid_is][out] */ _COM_Outptr_ void __RPC_FAR *__RPC_FAR *ppvObject)
     {
-        return DoQueryInterface(riid, ppvObject, static_cast<IInterface1 *>(this));
+        return DoQueryInterface(riid, ppvObject, static_cast<IInterface1 *>(this), static_cast<IInterface2 *>(this));
     }
 
     DEFINE_REF_COUNTING();
@@ -353,7 +354,7 @@ void ValidationTests()
         ComSmartPtr<InterfaceImpl> iface;
         iface.Attach(new InterfaceImpl());
 
-        ComSmartPtr<IInterface1> result;
+        ComSmartPtr<IInterface2> result;
         HRESULT hr = miscTypesTesting->Marshal_Interface(iface, &result);
         THROW_IF_FAILED(hr);
     }

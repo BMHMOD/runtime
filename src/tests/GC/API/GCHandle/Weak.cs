@@ -40,7 +40,6 @@ public class Test_Weak
         }
     }
 
-    [SkipOnCoreClr("This test is sensitive to JIT optimizations.", RuntimeTestModes.AnyJitOptimizationStress)]
     [Fact]
     public static int TestEntryPoint()
     {

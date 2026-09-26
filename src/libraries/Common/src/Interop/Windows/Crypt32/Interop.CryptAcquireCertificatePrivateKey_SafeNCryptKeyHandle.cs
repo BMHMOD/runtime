@@ -9,7 +9,6 @@ internal static partial class Interop
 {
     internal static partial class Crypt32
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Crypt32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static partial bool CryptAcquireCertificatePrivateKey(

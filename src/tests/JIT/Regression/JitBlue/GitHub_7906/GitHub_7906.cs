@@ -6,11 +6,10 @@
 using System.Numerics;
 using Xunit;
 
-namespace GitHub_7906
+namespace N
 {
     public static class C
     {
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

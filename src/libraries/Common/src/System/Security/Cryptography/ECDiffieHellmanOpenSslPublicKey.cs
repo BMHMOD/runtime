@@ -8,7 +8,7 @@ namespace System.Security.Cryptography
 {
     internal sealed class ECDiffieHellmanOpenSslPublicKey : ECDiffieHellmanPublicKey
     {
-        private SafeEvpPKeyHandle? _key;
+        private ECOpenSsl? _key;
 
         internal ECDiffieHellmanOpenSslPublicKey(SafeEvpPKeyHandle pkeyHandle)
         {
@@ -17,12 +17,27 @@ namespace System.Security.Cryptography
             if (pkeyHandle.IsInvalid)
                 throw new ArgumentException(SR.Cryptography_OpenInvalidHandle, nameof(pkeyHandle));
 
-            _key = pkeyHandle.DuplicateHandle();
+            // If ecKey is valid it has already been up-ref'd, so we can just use this handle as-is.
+            SafeEcKeyHandle key = Interop.Crypto.EvpPkeyGetEcKey(pkeyHandle);
+
+            if (key == null || key.IsInvalid)
+            {
+                key?.Dispose();
+
+                // This may happen when EVP_PKEY was created by provider and getting EC_KEY is not possible.
+                // Since you cannot mix EC_KEY and EVP_PKEY params API we need to export and re-import the public key.
+                ECParameters ecParams = ECOpenSsl.ExportParameters(pkeyHandle, includePrivateParameters: false);
+                _key = new ECOpenSsl(ecParams);
+            }
+            else
+            {
+                _key = new ECOpenSsl(key);
+            }
         }
 
         internal ECDiffieHellmanOpenSslPublicKey(ECParameters parameters)
         {
-            _key = ECOpenSsl.ImportECKey(parameters, out _);
+            _key = new ECOpenSsl(parameters);
         }
 
 #pragma warning disable 0672 // Member overrides an obsolete member.
@@ -45,31 +60,14 @@ namespace System.Security.Cryptography
         public override ECParameters ExportParameters() =>
             ECOpenSsl.ExportParameters(GetKey(), includePrivateParameters: false);
 
-        internal bool HasCurveName => Interop.Crypto.EvpPKeyHasCurveName(GetKey());
-
-        internal bool HasExplicitEncoding
-        {
-            get
-            {
-                ThrowIfDisposed();
-                return Interop.Crypto.EvpPKeyEcHasExplicitEncoding(GetKey());
-            }
-        }
+        internal bool HasCurveName => Interop.Crypto.EcKeyHasCurveName(GetKey());
 
         internal int KeySize
         {
             get
             {
                 ThrowIfDisposed();
-
-                int keySize = Interop.Crypto.EvpPKeyGetEcKeySize(_key);
-
-                if (keySize == 0)
-                {
-                    throw new CryptographicException(SR.Cryptography_InvalidHandle);
-                }
-
-                return keySize;
+                return _key.KeySize;
             }
         }
 
@@ -86,7 +84,8 @@ namespace System.Security.Cryptography
 
         internal SafeEvpPKeyHandle DuplicateKeyHandle()
         {
-            return GetKey().DuplicateHandle();
+            SafeEcKeyHandle currentKey = GetKey();
+            return Interop.Crypto.CreateEvpPkeyFromEcKey(currentKey);
         }
 
         [MemberNotNull(nameof(_key))]
@@ -95,10 +94,10 @@ namespace System.Security.Cryptography
             ObjectDisposedException.ThrowIf(_key is null, this);
         }
 
-        private SafeEvpPKeyHandle GetKey()
+        private SafeEcKeyHandle GetKey()
         {
             ThrowIfDisposed();
-            return _key;
+            return _key.Value;
         }
     }
 }

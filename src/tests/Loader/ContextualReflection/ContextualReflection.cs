@@ -11,7 +11,6 @@ using System.Runtime.Loader;
 using System.Runtime.Remoting;
 using System.Threading.Tasks;
 using Xunit;
-using TestLibrary;
 
 namespace ContextualReflectionTest
 {
@@ -32,9 +31,6 @@ namespace ContextualReflectionTest
         public IProgram alcProgramInstance { get; set; }
         public Assembly defaultAssembly { get; set; }
 
-        [ActiveIssue("https://github.com/dotnet/runtimelab/issues/165", typeof(Utilities), nameof(Utilities.IsNativeAot))]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/34072", TestRuntimes.Mono)]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/131925", typeof(PlatformDetection), nameof(PlatformDetection.IsBrowser), nameof(PlatformDetection.IsCoreCLR))]
         [Fact]
         public static void TestEntryPoint()
         {
@@ -50,7 +46,7 @@ namespace ContextualReflectionTest
             InitializeIsolation(true);
         }
 
-        internal Program(bool isolated)
+        public Program(bool isolated)
         {
             InitializeIsolation(isolated);
         }
@@ -786,3 +782,4 @@ namespace ContextualReflectionTest
         }
     }
 }
+

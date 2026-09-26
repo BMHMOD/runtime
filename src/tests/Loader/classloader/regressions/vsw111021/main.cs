@@ -3,10 +3,8 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 public class CMain{
     public static int Count = 0;
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static int TestEntryPoint(){
         String s;

@@ -1094,9 +1094,8 @@ namespace System.IO.Tests
             if (SkipOnWasi(mode)) return;
 
             const int Length = 1024;
-            const int Copies = 3;
 
-            using Stream? stream = await CreateReadWriteStream(new byte[Length * Copies]);
+            using Stream? stream = await CreateReadWriteStream();
             if (stream is null)
             {
                 return;
@@ -1104,6 +1103,7 @@ namespace System.IO.Tests
 
             byte[] expected = GetRandomBytes(Length);
 
+            const int Copies = 3;
             for (int i = 0; i < Copies; i++)
             {
                 await WriteAsync(mode, stream, expected, 0, expected.Length);
@@ -1117,42 +1117,6 @@ namespace System.IO.Tests
                 int bytesRead = await ReadAllAsync(mode, stream, actual, 0, actual.Length);
                 AssertExtensions.SequenceEqual(expected, actual);
                 Array.Clear(actual, 0, actual.Length);
-            }
-        }
-
-        [Theory]
-        [MemberData(nameof(AllReadWriteModes))]
-        public virtual async Task Write_GrowsLength_Success(ReadWriteMode mode)
-        {
-            if (SkipOnWasi(mode)) return;
-
-            // Start from an empty stream. Streams that cannot produce an empty read-write instance
-            // (e.g. fixed-capacity streams that require initial data) return null and are skipped.
-            using Stream? stream = await CreateReadWriteStream();
-            if (stream is null)
-            {
-                return;
-            }
-
-            const int Length = 1024;
-            byte[] expected = GetRandomBytes(Length);
-
-            if (stream.CanSeek)
-            {
-                Assert.Equal(0, stream.Length);
-            }
-
-            await WriteAsync(mode, stream, expected, 0, expected.Length);
-
-            if (stream.CanSeek)
-            {
-                Assert.Equal(Length, stream.Position);
-                Assert.Equal(Length, stream.Length);
-
-                stream.Position = 0;
-                byte[] actual = new byte[Length];
-                Assert.Equal(Length, await ReadAllAsync(mode, stream, actual, 0, actual.Length));
-                AssertExtensions.SequenceEqual(expected, actual);
             }
         }
 
@@ -1209,7 +1173,7 @@ namespace System.IO.Tests
             await FlushAsync(mode, stream);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public virtual async Task Flush_SetLengthAtEndOfBuffer_OperatesOnValidData()
         {
             if (!CanSeek || !CanSetLengthGreaterThanCapacity)
@@ -1770,7 +1734,7 @@ namespace System.IO.Tests
             await ValidateCancelableReadAsyncValueTask_AfterInvocation_ThrowsCancellationException(readable, cancellationDelay);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [SkipOnPlatform(TestPlatforms.LinuxBionic, "SElinux blocks UNIX sockets in our CI environment")]
         [SkipOnPlatform(TestPlatforms.iOS | TestPlatforms.tvOS, "iOS/tvOS blocks binding to UNIX sockets")]
         public virtual async Task ReadWriteByte_Success()
@@ -1955,7 +1919,7 @@ namespace System.IO.Tests
             }
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [MemberData(nameof(AllReadWriteModesAndValue), false)]
         [MemberData(nameof(AllReadWriteModesAndValue), true)]
         [SkipOnPlatform(TestPlatforms.LinuxBionic, "SElinux blocks UNIX sockets in our CI environment")]
@@ -2436,7 +2400,7 @@ namespace System.IO.Tests
             await writes;
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(false)]
         [InlineData(true)]
         [SkipOnPlatform(TestPlatforms.LinuxBionic, "SElinux blocks UNIX sockets in our CI environment")]
@@ -2555,13 +2519,13 @@ namespace System.IO.Tests
 
         [OuterLoop("May take several seconds", ~TestPlatforms.Browser)]
         [SkipOnPlatform(TestPlatforms.Browser, "Not supported on browser")]
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(false)]
         [InlineData(true)]
         public virtual async Task CopyToAsync_AllDataCopied_Large(bool useAsync) =>
             await CopyToAsync_AllDataCopied(1024 * 1024, useAsync);
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [MemberData(nameof(CopyToAsync_AllDataCopied_MemberData))]
         [SkipOnPlatform(TestPlatforms.LinuxBionic, "SElinux blocks UNIX sockets in our CI environment")]
         [SkipOnPlatform(TestPlatforms.iOS | TestPlatforms.tvOS, "iOS/tvOS blocks binding to UNIX sockets")]
@@ -2600,7 +2564,7 @@ namespace System.IO.Tests
         }
 
         [OuterLoop("May take several seconds")]
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [SkipOnPlatform(TestPlatforms.LinuxBionic, "SElinux blocks UNIX sockets in our CI environment")]
         [SkipOnPlatform(TestPlatforms.iOS | TestPlatforms.tvOS, "iOS/tvOS blocks binding to UNIX sockets")]
         public virtual async Task Parallel_ReadWriteMultipleStreamsConcurrently()
@@ -2766,7 +2730,7 @@ namespace System.IO.Tests
             await Assert.ThrowsAsync<IOException>(async () => { await Task.Factory.FromAsync(writeable.BeginWrite, writeable.EndWrite, new byte[1], 0, 1, null); });
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [SkipOnPlatform(TestPlatforms.LinuxBionic, "SElinux blocks UNIX sockets in our CI environment")]
         [SkipOnPlatform(TestPlatforms.iOS | TestPlatforms.tvOS, "iOS/tvOS blocks binding to UNIX sockets")]
         public virtual async Task ReadAsync_DuringReadAsync_ThrowsIfUnsupported()
@@ -2867,24 +2831,6 @@ namespace System.IO.Tests
 
         protected virtual bool ExtraZeroByteReadsAllowed => false;
 
-        private static bool IsAsync(ReadWriteMode mode) =>
-            mode == ReadWriteMode.AsyncArray ||
-            mode == ReadWriteMode.AsyncMemory ||
-            mode == ReadWriteMode.AsyncAPM;
-
-        private Task<StreamPair> CreateWrappedStreamsAsync(StreamPair streams, bool asyncOnly = false, bool leaveOpen = false)
-        {
-            (Stream writeable, Stream readable) = GetReadWritePair(streams);
-
-            if (asyncOnly)
-            {
-                writeable = new AsyncOnlyStream(writeable);
-                readable = new AsyncOnlyStream(readable);
-            }
-
-            return CreateWrappedConnectedStreamsAsync((writeable, readable), leaveOpen);
-        }
-
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
@@ -2899,36 +2845,22 @@ namespace System.IO.Tests
             (Stream writeable, Stream readable) = GetReadWritePair(streams);
 
             var tracker = new CallTrackingStream(writeable);
-            StreamPair wrapper = await CreateWrappedStreamsAsync((tracker, readable), asyncOnly: flushAsync);
+            using StreamPair wrapper = await CreateWrappedConnectedStreamsAsync((tracker, readable));
 
-            try
+            int orig = tracker.TimesCalled(nameof(tracker.Flush)) + tracker.TimesCalled(nameof(tracker.FlushAsync));
+
+            tracker.WriteByte(1);
+
+            if (flushAsync)
             {
-                int orig = tracker.TimesCalled(nameof(tracker.Flush)) + tracker.TimesCalled(nameof(tracker.FlushAsync));
-
-                tracker.WriteByte(1);
-
-                if (flushAsync)
-                {
-                    await wrapper.Stream1.FlushAsync();
-                }
-                else
-                {
-                    wrapper.Stream1.Flush();
-                }
-
-                Assert.InRange(tracker.TimesCalled(nameof(tracker.Flush)) + tracker.TimesCalled(nameof(tracker.FlushAsync)), orig + 1, int.MaxValue);
+                await wrapper.Stream1.FlushAsync();
             }
-            finally
+            else
             {
-                if (flushAsync)
-                {
-                    await wrapper.DisposeAsync();
-                }
-                else
-                {
-                    wrapper.Dispose();
-                }
+                wrapper.Stream1.Flush();
             }
+
+            Assert.InRange(tracker.TimesCalled(nameof(tracker.Flush)) + tracker.TimesCalled(nameof(tracker.FlushAsync)), orig + 1, int.MaxValue);
         }
 
         [Theory]
@@ -2944,52 +2876,28 @@ namespace System.IO.Tests
             }
 
             using StreamPair streams = ConnectedStreams.CreateBidirectional();
-            StreamPair wrapper = await CreateWrappedStreamsAsync(streams, useAsync, leaveOpen);
-            try
-            {
-                (Stream writeable, Stream readable) = GetReadWritePair(wrapper);
+            using StreamPair wrapper = await CreateWrappedConnectedStreamsAsync(streams, leaveOpen);
+            (Stream writeable, Stream readable) = GetReadWritePair(wrapper);
 
-                await Task.WhenAll(
-                    Task.Run(async () =>
-                    {
-                        if (useAsync)
-                        {
-                            await writeable.WriteAsync(new byte[] { 1 });
-                            await writeable.DisposeAsync();
-                        }
-                        else
-                        {
-                            writeable.WriteByte(1);
-                            writeable.Dispose();
-                        }
-                    }),
-                    Task.Run(async () =>
-                    {
-                        if (useAsync)
-                        {
-                            byte[] buffer = new byte[1];
-                            Assert.Equal(1, await readable.ReadAsync(buffer));
-                            Assert.Equal(1, buffer[0]);
-                            await readable.DisposeAsync();
-                        }
-                        else
-                        {
-                            Assert.Equal(1, readable.ReadByte());
-                            readable.Dispose();
-                        }
-                    }));
-            }
-            finally
-            {
-                if (useAsync)
+            await Task.WhenAll(
+                Task.Run(async () =>
                 {
-                    await wrapper.DisposeAsync();
-                }
-                else
+                    writeable.WriteByte(1);
+
+                    if (useAsync)
+                    {
+                        await writeable.DisposeAsync();
+                    }
+                    else
+                    {
+                        writeable.Dispose();
+                    }
+                }),
+                Task.Run(() =>
                 {
-                    wrapper.Dispose();
-                }
-            }
+                    Assert.Equal(1, readable.ReadByte());
+                    readable.Dispose();
+                }));
         }
 
         [Theory]
@@ -3006,63 +2914,42 @@ namespace System.IO.Tests
 
             using StreamPair streams = ConnectedStreams.CreateBidirectional();
             (Stream writeable, Stream readable) = GetReadWritePair(streams);
-            StreamPair wrapper = await CreateWrappedStreamsAsync((writeable, readable), useAsync, leaveOpen);
-            try
-            {
-                (Stream writeableWrapper, Stream readableWrapper) = GetReadWritePair(wrapper);
+            using StreamPair wrapper = await CreateWrappedConnectedStreamsAsync((writeable, readable), leaveOpen);
+            (Stream writeableWrapper, Stream readableWrapper) = GetReadWritePair(wrapper);
 
-                await Task.WhenAll(
-                    Task.Run(async () =>
-                    {
-                        if (useAsync)
-                        {
-                            await writeableWrapper.DisposeAsync();
-                        }
-                        else
-                        {
-                            writeableWrapper.Dispose();
-                        }
-                    }),
-                    Task.Run(async () =>
-                    {
-                        if (useAsync)
-                        {
-                            await readableWrapper.DisposeAsync();
-                        }
-                        else
-                        {
-                            readableWrapper.Dispose();
-                        }
-                    }));
-
-                if (leaveOpen)
-                {
-                    await WhenAllOrAnyFailed(
-                        writeable.WriteAsync(new byte[] { 42 }, 0, 1),
-                        Task.Run(() => readable.ReadByte()));
-                }
-                else
+            await Task.WhenAll(
+                Task.Run(async () =>
                 {
                     if (useAsync)
                     {
-                        await Assert.ThrowsAsync<ObjectDisposedException>(async () => { await writeable.WriteAsync(new byte[] { 42 }, 0, 1); });
+                        await writeableWrapper.DisposeAsync();
                     }
                     else
                     {
-                        Assert.Throws<ObjectDisposedException>(() => writeable.WriteByte(42));
+                        writeableWrapper.Dispose();
                     }
-                }
-            }
-            finally
+                }),
+                Task.Run(async () =>
+                {
+                    if (useAsync)
+                    {
+                        await readableWrapper.DisposeAsync();
+                    }
+                    else
+                    {
+                        readableWrapper.Dispose();
+                    }
+                }));
+
+            if (leaveOpen)
             {
-                if (useAsync)
-                {
-                    await wrapper.DisposeAsync();
-                }
-                else
-                {
-                    wrapper.Dispose();
-                }
+                await WhenAllOrAnyFailed(
+                    writeable.WriteAsync(new byte[] { 42 }, 0, 1),
+                    Task.Run(() => readable.ReadByte()));
+            }
+            else
+            {
+                Assert.Throws<ObjectDisposedException>(() => writeable.WriteByte(42));
             }
         }
 
@@ -3076,7 +2963,7 @@ namespace System.IO.Tests
 
             using StreamPair streams = ConnectedStreams.CreateBidirectional();
 
-            using (StreamPair wrapper = await CreateWrappedStreamsAsync(streams, leaveOpen: true))
+            using (StreamPair wrapper = await CreateWrappedConnectedStreamsAsync(streams, leaveOpen: true))
             {
                 foreach ((Stream writeable, Stream readable) in GetReadWritePairs(wrapper))
                 {
@@ -3096,9 +2983,9 @@ namespace System.IO.Tests
         public virtual async Task NestedWithinSelf_ReadWrite_Success()
         {
             using StreamPair streams = ConnectedStreams.CreateBidirectional();
-            using StreamPair wrapper1 = await CreateWrappedStreamsAsync(streams);
-            using StreamPair wrapper2 = await CreateWrappedStreamsAsync(wrapper1);
-            using StreamPair wrapper3 = await CreateWrappedStreamsAsync(wrapper2);
+            using StreamPair wrapper1 = await CreateWrappedConnectedStreamsAsync(streams);
+            using StreamPair wrapper2 = await CreateWrappedConnectedStreamsAsync(wrapper1);
+            using StreamPair wrapper3 = await CreateWrappedConnectedStreamsAsync(wrapper2);
 
             if (Bidirectional(wrapper3) && FlushGuaranteesAllDataWritten)
             {
@@ -3159,8 +3046,6 @@ namespace System.IO.Tests
                 return;
             }
 
-            bool useAsync = IsAsync(mode);
-
             // This is the data we will send across the connected streams. We assume this data will both
             // (a) produce at least two readable bytes, so we can unblock the reader and read a single byte without clearing its buffer; and
             // (b) produce no more than 1K of readable bytes, so we can clear the reader buffer below.
@@ -3171,66 +3056,53 @@ namespace System.IO.Tests
             (Stream innerWriteable, Stream innerReadable) = GetReadWritePair(innerStreams);
 
             var tracker = new ZeroByteReadTrackingStream(innerReadable, ExtraZeroByteReadsAllowed);
-            StreamPair streams = await CreateWrappedStreamsAsync((innerWriteable, tracker), useAsync);
-            try
+            using StreamPair streams = await CreateWrappedConnectedStreamsAsync((innerWriteable, tracker));
+
+            (Stream writeable, Stream readable) = GetReadWritePair(streams);
+
+            for (int iter = 0; iter < 2; iter++)
             {
-                (Stream writeable, Stream readable) = GetReadWritePair(streams);
+                // Register to be signalled for the zero byte read.
+                var signalTask = tracker.WaitForZeroByteReadAsync();
 
-                for (int iter = 0; iter < 2; iter++)
+                // Issue zero byte read against wrapper stream.
+                Task<int> zeroByteRead = Task.Run(() => ReadAsync(mode, readable, Array.Empty<byte>(), 0, 0));
+
+                // The tracker stream will signal us when the zero byte read actually happens.
+                await signalTask;
+
+                // Write some data (see notes above re 'data')
+                await writeable.WriteAsync(data);
+                if (FlushRequiredToWriteData)
                 {
-                    // Register to be signalled for the zero byte read.
-                    var signalTask = tracker.WaitForZeroByteReadAsync();
-
-                    // Issue zero byte read against wrapper stream.
-                    Task<int> zeroByteRead = Task.Run(() => ReadAsync(mode, readable, Array.Empty<byte>(), 0, 0));
-
-                    // The tracker stream will signal us when the zero byte read actually happens.
-                    await signalTask;
-
-                    // Write some data (see notes above re 'data')
-                    await writeable.WriteAsync(data);
-                    if (FlushRequiredToWriteData)
-                    {
-                        await writeable.FlushAsync();
-                    }
-
-                    // Reader should be unblocked, and we should have issued a zero byte read against the underlying stream as part of unblocking.
-                    int bytesRead = await zeroByteRead;
-                    Assert.Equal(0, bytesRead);
-
-                    byte[] buffer = new byte[1024];
-
-                    // Should be able to read one byte without blocking
-                    var readTask = ReadAsync(mode, readable, buffer, 0, 1);
-                    Assert.True(readTask.IsCompleted);
-                    bytesRead = await readTask;
-                    Assert.Equal(1, bytesRead);
-
-                    // Issue zero byte read against wrapper stream. Since there is still data available, this should complete immediately and not do another zero-byte read.
-                    readTask = ReadAsync(mode, readable, Array.Empty<byte>(), 0, 0);
-                    Assert.True(readTask.IsCompleted);
-                    Assert.Equal(0, await readTask);
-
-                    // Clear the reader stream of any buffered data by doing a large read, which again should not block.
-                    readTask = ReadAsync(mode, readable, buffer, 1, buffer.Length - 1);
-                    Assert.True(readTask.IsCompleted);
-                    bytesRead += await readTask;
-
-                    if (FlushGuaranteesAllDataWritten)
-                    {
-                        AssertExtensions.SequenceEqual(data.AsSpan(), buffer.AsSpan(0, bytesRead));
-                    }
+                    await writeable.FlushAsync();
                 }
-            }
-            finally
-            {
-                if (useAsync)
+
+                // Reader should be unblocked, and we should have issued a zero byte read against the underlying stream as part of unblocking.
+                int bytesRead = await zeroByteRead;
+                Assert.Equal(0, bytesRead);
+
+                byte[] buffer = new byte[1024];
+
+                // Should be able to read one byte without blocking
+                var readTask = ReadAsync(mode, readable, buffer, 0, 1);
+                Assert.True(readTask.IsCompleted);
+                bytesRead = await readTask;
+                Assert.Equal(1, bytesRead);
+
+                // Issue zero byte read against wrapper stream. Since there is still data available, this should complete immediately and not do another zero-byte read.
+                readTask = ReadAsync(mode, readable, Array.Empty<byte>(), 0, 0);
+                Assert.True(readTask.IsCompleted);
+                Assert.Equal(0, await readTask);
+
+                // Clear the reader stream of any buffered data by doing a large read, which again should not block.
+                readTask = ReadAsync(mode, readable, buffer, 1, buffer.Length - 1);
+                Assert.True(readTask.IsCompleted);
+                bytesRead += await readTask;
+
+                if (FlushGuaranteesAllDataWritten)
                 {
-                    await streams.DisposeAsync();
-                }
-                else
-                {
-                    streams.Dispose();
+                    AssertExtensions.SequenceEqual(data.AsSpan(), buffer.AsSpan(0, bytesRead));
                 }
             }
         }
@@ -3301,75 +3173,10 @@ namespace System.IO.Tests
                 return base.ReadAsync(buffer, cancellationToken);
             }
         }
-
-        private sealed class AsyncOnlyStream : Stream
-        {
-            private readonly Stream _innerStream;
-            private bool _disposed;
-
-            public AsyncOnlyStream(Stream innerStream)
-            {
-                _innerStream = innerStream;
-            }
-
-            public override bool CanRead => _innerStream.CanRead;
-            public override bool CanSeek => _innerStream.CanSeek;
-            public override bool CanWrite => _innerStream.CanWrite;
-            public override long Length => _innerStream.Length;
-            public override long Position { get => _innerStream.Position; set => _innerStream.Position = value; }
-            public override long Seek(long offset, SeekOrigin origin) => _innerStream.Seek(offset, origin);
-            public override void SetLength(long value) => _innerStream.SetLength(value);
-
-            public override void Flush()
-            {
-                ObjectDisposedException.ThrowIf(_disposed, _innerStream);
-                throw new NotSupportedException("Synchronous operations are not supported.");
-            }
-
-            public override int Read(byte[] buffer, int offset, int count)
-            {
-                ObjectDisposedException.ThrowIf(_disposed, _innerStream);
-                throw new NotSupportedException("Synchronous operations are not supported.");
-            }
-
-            public override void Write(byte[] buffer, int offset, int count)
-            {
-                ObjectDisposedException.ThrowIf(_disposed, _innerStream);
-                throw new NotSupportedException("Synchronous operations are not supported.");
-            }
-
-            public override ValueTask<int> ReadAsync(Memory<byte> buffer, System.Threading.CancellationToken cancellationToken = default) => _innerStream.ReadAsync(buffer, cancellationToken);
-            public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, System.Threading.CancellationToken cancellationToken = default) => _innerStream.WriteAsync(buffer, cancellationToken);
-            public override Task FlushAsync(System.Threading.CancellationToken cancellationToken = default) => _innerStream.FlushAsync(cancellationToken);
-
-            protected override void Dispose(bool disposing)
-            {
-                if (_disposed) return;
-
-                _disposed = true;
-                if (disposing)
-                {
-                    _innerStream.Dispose();
-                }
-            }
-
-            public override ValueTask DisposeAsync()
-            {
-                if (_disposed) return default;
-
-                _disposed = true;
-                return _innerStream.DisposeAsync();
-            }
-
-            public override void Close()
-            {
-                throw new NotSupportedException("Synchronous operations are not supported.");
-            }
-        }
     }
 
     /// <summary>Provides a disposable, enumerable tuple of two streams.</summary>
-    public class StreamPair : IDisposable, IAsyncDisposable, IEnumerable<Stream>
+    public class StreamPair : IDisposable, IEnumerable<Stream>
     {
         public readonly Stream Stream1, Stream2;
 
@@ -3393,13 +3200,6 @@ namespace System.IO.Tests
             Task.WaitAll(
                 Task.Run(() => Stream1?.Dispose()),
                 Task.Run(() => Stream2?.Dispose()));
-        }
-
-        public virtual async ValueTask DisposeAsync()
-        {
-            await Task.WhenAll(
-                Stream1?.DisposeAsync().AsTask() ?? Task.CompletedTask,
-                Stream2?.DisposeAsync().AsTask() ?? Task.CompletedTask).ConfigureAwait(false);
         }
 
         public IEnumerator<Stream> GetEnumerator()

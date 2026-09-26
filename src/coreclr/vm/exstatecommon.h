@@ -51,6 +51,10 @@ public:
         m_pDebuggerContext = NULL;
         m_pDebuggerInterceptNativeOffset = 0;
 
+  #ifndef FEATURE_EH_FUNCLETS
+        // x86-specific fields
+        m_pDebuggerInterceptFrame = EXCEPTION_CHAIN_END;
+  #endif // !FEATURE_EH_FUNCLETS
         m_dDebuggerInterceptHandlerDepth  = 0;
     }
 
@@ -129,6 +133,9 @@ public:
     //
 
     void GetDebuggerInterceptInfo(
+ #ifndef FEATURE_EH_FUNCLETS
+                                  PEXCEPTION_REGISTRATION_RECORD *pEstablisherFrame,
+ #endif // !FEATURE_EH_FUNCLETS
                                   MethodDesc **ppFunc,
                                   int *pdHandler,
                                   BYTE **ppStack,
@@ -136,6 +143,13 @@ public:
                                   Frame **ppFrame)
     {
         LIMITED_METHOD_CONTRACT;
+
+#ifndef FEATURE_EH_FUNCLETS
+        if (pEstablisherFrame != NULL)
+        {
+            *pEstablisherFrame = m_pDebuggerInterceptFrame;
+        }
+#endif // !FEATURE_EH_FUNCLETS
 
         if (ppFunc != NULL)
         {
@@ -179,6 +193,12 @@ private:
 
     // the native offset at which to resume execution
     ULONG_PTR       m_pDebuggerInterceptNativeOffset;
+
+    // The remaining fields are only used on x86.
+#ifndef FEATURE_EH_FUNCLETS
+    // the exception registration record covering the stack range containing the interception point
+    PEXCEPTION_REGISTRATION_RECORD m_pDebuggerInterceptFrame;
+#endif // !FEATURE_EH_FUNCLETS
 
     // the nesting level at which we want to resume execution
     int             m_dDebuggerInterceptHandlerDepth;
@@ -255,13 +275,13 @@ private:
 
 class ExceptionFlags
 {
-    friend struct ::cdac_data<ExInfo>;
 public:
     ExceptionFlags()
     {
         Init();
     }
 
+#if defined(FEATURE_EH_FUNCLETS)
     ExceptionFlags(bool fReadOnly)
     {
         Init();
@@ -272,23 +292,28 @@ public:
         }
 #endif // _DEBUG
     }
+#endif // defined(FEATURE_EH_FUNCLETS)
 
     void AssertIfReadOnly()
     {
         SUPPORTS_DAC;
 
-#ifdef _DEBUG
+#if defined(FEATURE_EH_FUNCLETS) && defined(_DEBUG)
         if (m_flags & Ex_FlagsAreReadOnly)
         {
             _ASSERTE(!"Tried to update read-only flags!");
         }
-#endif // _DEBUG
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_DEBUG)
     }
 
     void Init()
     {
         m_flags = 0;
     }
+
+    BOOL IsRethrown()      { LIMITED_METHOD_CONTRACT; return m_flags & Ex_IsRethrown; }
+    void SetIsRethrown()   { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_IsRethrown; }
+    void ResetIsRethrown() { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags &= ~Ex_IsRethrown; }
 
     BOOL UnwindHasStarted()      { LIMITED_METHOD_CONTRACT; return m_flags & Ex_UnwindHasStarted; }
     void SetUnwindHasStarted()   { LIMITED_METHOD_CONTRACT; AssertIfReadOnly(); m_flags |= Ex_UnwindHasStarted; }
@@ -345,9 +370,9 @@ public:
 private:
     enum
     {
-        // Unused                       = 0x00000001,
+        Ex_IsRethrown                   = 0x00000001,
         Ex_UnwindingToFindResumeFrame   = 0x00000002,
-        Ex_UnwindHasStarted             = 0x00000004,        // [cDAC] [StackWalk]: Contract depends on this value
+        Ex_UnwindHasStarted             = 0x00000004,
         Ex_UseExInfoForStackwalk        = 0x00000008,        // Use this ExInfo to unwind a fault (AV, zerodiv) back to managed code?
 
 #ifdef DEBUGGING_SUPPORTED
@@ -368,8 +393,11 @@ private:
 
 #ifdef _DEBUG
         Ex_RPInvokeEscapingException    = 0x40000000,
-        Ex_FlagsAreReadOnly             = 0x80000000
 #endif // _DEBUG
+
+#if defined(FEATURE_EH_FUNCLETS) && defined(_DEBUG)
+        Ex_FlagsAreReadOnly             = 0x80000000
+#endif // defined(FEATURE_EH_FUNCLETS) && defined(_DEBUG)
 
     };
 
@@ -420,8 +448,11 @@ private:
         // Bucket details were captured for ThreadAbort
         Wb_CapturedForThreadAbort = 1,
 
+        // Bucket details were captured at AD Transition
+        Wb_CapturedAtADTransition = 2,
+
         // Bucket details were captured during Reflection invocation
-        Wb_CapturedAtReflectionInvocation = 2
+        Wb_CapturedAtReflectionInvocation = 4
     };
 
     DWORD m_DebugFlags;
@@ -443,6 +474,10 @@ public:
     BOOL CapturedForThreadAbort()      { LIMITED_METHOD_CONTRACT; return m_DebugFlags & Wb_CapturedForThreadAbort; }
     void SetCapturedForThreadAbort()   { LIMITED_METHOD_CONTRACT; m_DebugFlags |= Wb_CapturedForThreadAbort; }
     void ResetCapturedForThreadAbort() { LIMITED_METHOD_CONTRACT; m_DebugFlags &= ~Wb_CapturedForThreadAbort; }
+
+    BOOL CapturedAtADTransition()      { LIMITED_METHOD_CONTRACT; return m_DebugFlags & Wb_CapturedAtADTransition; }
+    void SetCapturedAtADTransition()   { LIMITED_METHOD_CONTRACT; m_DebugFlags |= Wb_CapturedAtADTransition; }
+    void ResetCapturedAtADTransition() { LIMITED_METHOD_CONTRACT; m_DebugFlags &= ~Wb_CapturedAtADTransition; }
 
     BOOL CapturedAtReflectionInvocation()      { LIMITED_METHOD_CONTRACT; return m_DebugFlags & Wb_CapturedAtReflectionInvocation; }
     void SetCapturedAtReflectionInvocation()   { LIMITED_METHOD_CONTRACT; m_DebugFlags |= Wb_CapturedAtReflectionInvocation; }

@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 public class C { }
 
@@ -29,7 +28,6 @@ public class cs1
 {
     public int m_i;
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint()
     {

@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b91074;
-
 using System;
 using System.Runtime.InteropServices;
 using Xunit;
@@ -29,7 +26,6 @@ internal sealed class tagDBPROPSET
 
 public class a
 {
-    [OuterLoop]
     [Fact]
     static public int TestEntryPoint()
     {

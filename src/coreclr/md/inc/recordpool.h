@@ -22,6 +22,8 @@
 //*****************************************************************************
 class RecordPool : public StgPool
 {
+    friend class VerifyLayoutsMD;
+
     using StgPool::InitNew;
     using StgPool::InitOnMem;
 

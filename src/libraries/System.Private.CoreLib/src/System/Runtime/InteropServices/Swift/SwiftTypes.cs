@@ -28,7 +28,6 @@ namespace System.Runtime.InteropServices.Swift
         /// Creates a new instance of the SwiftSelf struct with the specified pointer value.
         /// </summary>
         /// <param name="value">The pointer value representing the self context.</param>
-        /// <safety>Only stores the supplied pointer value in the struct; it never dereferences the pointed-to memory.</safety>
         public SwiftSelf(void* value)
         {
             Value = value;
@@ -36,7 +35,6 @@ namespace System.Runtime.InteropServices.Swift
         /// <summary>
         /// Gets the pointer of the self context.
         /// </summary>
-        /// <safety>Returns the stored pointer value without dereferencing it.</safety>
         public void* Value { get; }
     }
 
@@ -100,7 +98,6 @@ namespace System.Runtime.InteropServices.Swift
         /// Creates a new instance of the SwiftError struct with the specified pointer value.
         /// </summary>
         /// <param name="value">The pointer value representing the error context.</param>
-        /// <safety>Only stores the supplied pointer value in the struct; it never dereferences the pointed-to memory.</safety>
         public SwiftError(void* value)
         {
             Value = value;
@@ -108,7 +105,6 @@ namespace System.Runtime.InteropServices.Swift
         /// <summary>
         /// Gets the pointer of the error context.
         /// </summary>
-        /// <safety>Returns the stored pointer value without dereferencing it.</safety>
         public void* Value { get; }
     }
 
@@ -137,7 +133,6 @@ namespace System.Runtime.InteropServices.Swift
         /// Creates a new instance of the SwiftIndirectResult struct with the specified pointer value.
         /// </summary>
         /// <param name="value">The pointer value representing return buffer context.</param>
-        /// <safety>Only stores the supplied pointer value in the struct; it never dereferences the pointed-to memory.</safety>
         public SwiftIndirectResult(void* value)
         {
             Value = value;
@@ -146,7 +141,6 @@ namespace System.Runtime.InteropServices.Swift
         /// <summary>
         /// Gets the pointer of the return buffer register.
         /// </summary>
-        /// <safety>Returns the stored pointer value without dereferencing it.</safety>
         public void* Value { get; }
     }
 }

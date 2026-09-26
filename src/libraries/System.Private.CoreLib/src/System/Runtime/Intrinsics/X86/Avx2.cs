@@ -426,7 +426,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector128<byte> BroadcastScalarToVector128(byte* source) => BroadcastScalarToVector128(source);
-
         /// <summary>
         ///   <para>__m128i _mm_broadcastb_epi8 (__m128i a)</para>
         ///   <para>  VPBROADCASTB xmm1,         m8</para>
@@ -434,7 +433,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector128<sbyte> BroadcastScalarToVector128(sbyte* source) => BroadcastScalarToVector128(source);
-
         /// <summary>
         ///   <para>__m128i _mm_broadcastw_epi16 (__m128i a)</para>
         ///   <para>  VPBROADCASTW xmm1,         m16</para>
@@ -442,7 +440,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector128<short> BroadcastScalarToVector128(short* source) => BroadcastScalarToVector128(source);
-
         /// <summary>
         ///   <para>__m128i _mm_broadcastw_epi16 (__m128i a)</para>
         ///   <para>  VPBROADCASTW xmm1,         m16</para>
@@ -450,7 +447,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector128<ushort> BroadcastScalarToVector128(ushort* source) => BroadcastScalarToVector128(source);
-
         /// <summary>
         ///   <para>__m128i _mm_broadcastd_epi32 (__m128i a)</para>
         ///   <para>  VPBROADCASTD xmm1,         m32</para>
@@ -458,7 +454,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector128<int> BroadcastScalarToVector128(int* source) => BroadcastScalarToVector128(source);
-
         /// <summary>
         ///   <para>__m128i _mm_broadcastd_epi32 (__m128i a)</para>
         ///   <para>  VPBROADCASTD xmm1,         m32</para>
@@ -466,7 +461,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector128<uint> BroadcastScalarToVector128(uint* source) => BroadcastScalarToVector128(source);
-
         /// <summary>
         ///   <para>__m128i _mm_broadcastq_epi64 (__m128i a)</para>
         ///   <para>  VPBROADCASTQ xmm1,         m64</para>
@@ -474,7 +468,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector128<long> BroadcastScalarToVector128(long* source) => BroadcastScalarToVector128(source);
-
         /// <summary>
         ///   <para>__m128i _mm_broadcastq_epi64 (__m128i a)</para>
         ///   <para>  VPBROADCASTQ xmm1,         m64</para>
@@ -551,7 +544,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<byte> BroadcastScalarToVector256(byte* source) => BroadcastScalarToVector256(source);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastb_epi8 (__m128i a)</para>
         ///   <para>  VPBROADCASTB ymm1,         m8</para>
@@ -559,7 +551,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<sbyte> BroadcastScalarToVector256(sbyte* source) => BroadcastScalarToVector256(source);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastw_epi16 (__m128i a)</para>
         ///   <para>  VPBROADCASTW ymm1,         m16</para>
@@ -567,7 +558,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<short> BroadcastScalarToVector256(short* source) => BroadcastScalarToVector256(source);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastw_epi16 (__m128i a)</para>
         ///   <para>  VPBROADCASTW ymm1,         m16</para>
@@ -575,7 +565,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<ushort> BroadcastScalarToVector256(ushort* source) => BroadcastScalarToVector256(source);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastd_epi32 (__m128i a)</para>
         ///   <para>  VPBROADCASTD ymm1,         m32</para>
@@ -583,7 +572,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<int> BroadcastScalarToVector256(int* source) => BroadcastScalarToVector256(source);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastd_epi32 (__m128i a)</para>
         ///   <para>  VPBROADCASTD ymm1,         m32</para>
@@ -591,7 +579,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<uint> BroadcastScalarToVector256(uint* source) => BroadcastScalarToVector256(source);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastq_epi64 (__m128i a)</para>
         ///   <para>  VPBROADCASTQ ymm1,         m64</para>
@@ -599,7 +586,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<long> BroadcastScalarToVector256(long* source) => BroadcastScalarToVector256(source);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastq_epi64 (__m128i a)</para>
         ///   <para>  VPBROADCASTQ ymm1,         m64</para>
@@ -615,7 +601,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<sbyte> BroadcastVector128ToVector256(sbyte* address) => BroadcastVector128ToVector256(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastsi128_si256 (__m128i a)</para>
         ///   <para>  VBROADCASTI128  ymm1,         m128</para>
@@ -623,7 +608,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<byte> BroadcastVector128ToVector256(byte* address) => BroadcastVector128ToVector256(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastsi128_si256 (__m128i a)</para>
         ///   <para>  VBROADCASTI128  ymm1,         m128</para>
@@ -631,7 +615,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<short> BroadcastVector128ToVector256(short* address) => BroadcastVector128ToVector256(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastsi128_si256 (__m128i a)</para>
         ///   <para>  VBROADCASTI128  ymm1,         m128</para>
@@ -639,7 +622,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<ushort> BroadcastVector128ToVector256(ushort* address) => BroadcastVector128ToVector256(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastsi128_si256 (__m128i a)</para>
         ///   <para>  VBROADCASTI128  ymm1,         m128</para>
@@ -647,7 +629,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<int> BroadcastVector128ToVector256(int* address) => BroadcastVector128ToVector256(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastsi128_si256 (__m128i a)</para>
         ///   <para>  VBROADCASTI128  ymm1,         m128</para>
@@ -655,7 +636,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<uint> BroadcastVector128ToVector256(uint* address) => BroadcastVector128ToVector256(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastsi128_si256 (__m128i a)</para>
         ///   <para>  VBROADCASTI128  ymm1,         m128</para>
@@ -663,7 +643,6 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The above native signature does not directly correspond to the managed signature.</para>
         /// </summary>
         public static unsafe Vector256<long> BroadcastVector128ToVector256(long* address) => BroadcastVector128ToVector256(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_broadcastsi128_si256 (__m128i a)</para>
         ///   <para>  VBROADCASTI128  ymm1,         m128</para>
@@ -824,77 +803,66 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>The native signature does not exist. We provide this additional overload for completeness.</para>
         /// </summary>
         public static unsafe Vector256<short> ConvertToVector256Int16(sbyte* address) => ConvertToVector256Int16(address);
-
         /// <summary>
         ///   <para>  VPMOVZXBW ymm1,         m128</para>
         ///   <para>  VPMOVZXBW ymm1 {k1}{z}, m128</para>
         ///   <para>The native signature does not exist. We provide this additional overload for completeness.</para>
         /// </summary>
         public static unsafe Vector256<short> ConvertToVector256Int16(byte* address) => ConvertToVector256Int16(address);
-
         /// <summary>
         ///   <para>  VPMOVSXBD ymm1,         m64</para>
         ///   <para>  VPMOVSXBD ymm1 {k1}{z}, m64</para>
         ///   <para>The native signature does not exist. We provide this additional overload for completeness.</para>
         /// </summary>
         public static unsafe Vector256<int> ConvertToVector256Int32(sbyte* address) => ConvertToVector256Int32(address);
-
         /// <summary>
         ///   <para>  VPMOVZXBD ymm1,         m64</para>
         ///   <para>  VPMOVZXBD ymm1 {k1}{z}, m64</para>
         ///   <para>The native signature does not exist. We provide this additional overload for completeness.</para>
         /// </summary>
         public static unsafe Vector256<int> ConvertToVector256Int32(byte* address) => ConvertToVector256Int32(address);
-
         /// <summary>
         ///   <para>  VPMOVSXWD ymm1,         m128</para>
         ///   <para>  VPMOVSXWD ymm1 {k1}{z}, m128</para>
         ///   <para>The native signature does not exist. We provide this additional overload for completeness.</para>
         /// </summary>
         public static unsafe Vector256<int> ConvertToVector256Int32(short* address) => ConvertToVector256Int32(address);
-
         /// <summary>
         ///   <para>  VPMOVZXWD ymm1,         m128</para>
         ///   <para>  VPMOVZXWD ymm1 {k1}{z}, m128</para>
         ///   <para>The native signature does not exist. We provide this additional overload for completeness.</para>
         /// </summary>
         public static unsafe Vector256<int> ConvertToVector256Int32(ushort* address) => ConvertToVector256Int32(address);
-
         /// <summary>
         ///   <para>  VPMOVSXBQ ymm1,         m32</para>
         ///   <para>  VPMOVSXBQ ymm1 {k1}{z}, m32</para>
         ///   <para>The native signature does not exist. We provide this additional overload for completeness.</para>
         /// </summary>
         public static unsafe Vector256<long> ConvertToVector256Int64(sbyte* address) => ConvertToVector256Int64(address);
-
         /// <summary>
         ///   <para>  VPMOVZXBQ ymm1,         m32</para>
         ///   <para>  VPMOVZXBQ ymm1 {k1}{z}, m32</para>
         ///   <para>The native signature does not exist. We provide this additional overload for completeness.</para>
         /// </summary>
         public static unsafe Vector256<long> ConvertToVector256Int64(byte* address) => ConvertToVector256Int64(address);
-
         /// <summary>
         ///   <para>  VPMOVSXWQ ymm1,         m64</para>
         ///   <para>  VPMOVSXWQ ymm1 {k1}{z}, m64</para>
         ///   <para>The native signature does not exist. We provide this additional overload for completeness.</para>
         /// </summary>
         public static unsafe Vector256<long> ConvertToVector256Int64(short* address) => ConvertToVector256Int64(address);
-
         /// <summary>
         ///   <para>  VPMOVZXWQ ymm1,         m64</para>
         ///   <para>  VPMOVZXWQ ymm1 {k1}{z}, m64</para>
         ///   <para>The native signature does not exist. We provide this additional overload for completeness.</para>
         /// </summary>
         public static unsafe Vector256<long> ConvertToVector256Int64(ushort* address) => ConvertToVector256Int64(address);
-
         /// <summary>
         ///   <para>  VPMOVSXDQ ymm1,         m128</para>
         ///   <para>  VPMOVSXDQ ymm1 {k1}{z}, m128</para>
         ///   <para>The native signature does not exist. We provide this additional overload for completeness.</para>
         /// </summary>
         public static unsafe Vector256<long> ConvertToVector256Int64(int* address) => ConvertToVector256Int64(address);
-
         /// <summary>
         ///   <para>  VPMOVZXDQ ymm1,         m128</para>
         ///   <para>  VPMOVZXDQ ymm1 {k1}{z}, m128</para>
@@ -967,7 +935,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_i32gather_epi32 (int const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VPGATHERDD xmm1, vm32x, xmm2</para>
@@ -984,7 +951,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_i32gather_epi64 (__int64 const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VPGATHERDQ xmm1, vm32x, xmm2</para>
@@ -1001,7 +967,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_i32gather_epi64 (__int64 const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VPGATHERDQ xmm1, vm32x, xmm2</para>
@@ -1018,7 +983,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128 _mm_i32gather_ps (float const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VGATHERDPS xmm1, vm32x, xmm2</para>
@@ -1035,7 +999,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128d _mm_i32gather_pd (double const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VGATHERDPD xmm1, vm32x, xmm2</para>
@@ -1052,7 +1015,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_i64gather_epi32 (int const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VPGATHERQD xmm1, vm64x, xmm2</para>
@@ -1069,7 +1031,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_i64gather_epi32 (int const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VPGATHERQD xmm1, vm64x, xmm2</para>
@@ -1086,7 +1047,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_i64gather_epi64 (__int64 const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VPGATHERQQ xmm1, vm64x, xmm2</para>
@@ -1103,7 +1063,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_i64gather_epi64 (__int64 const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VPGATHERQQ xmm1, vm64x, xmm2</para>
@@ -1120,7 +1079,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128 _mm_i64gather_ps (float const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VGATHERQPS xmm1, vm64x, xmm2</para>
@@ -1137,7 +1095,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128d _mm_i64gather_pd (double const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VGATHERQPD xmm1, vm64x, xmm2</para>
@@ -1154,7 +1111,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256i _mm256_i32gather_epi32 (int const* base_addr, __m256i vindex, const int scale)</para>
         ///   <para>  VPGATHERDD ymm1, vm32y, ymm2</para>
@@ -1171,7 +1127,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256i _mm256_i32gather_epi32 (int const* base_addr, __m256i vindex, const int scale)</para>
         ///   <para>  VPGATHERDD ymm1, vm32y, ymm2</para>
@@ -1188,7 +1143,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256i _mm256_i32gather_epi64 (__int64 const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VPGATHERDQ ymm1, vm32y, ymm2</para>
@@ -1205,7 +1159,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256i _mm256_i32gather_epi64 (__int64 const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VPGATHERDQ ymm1, vm32y, ymm2</para>
@@ -1222,7 +1175,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256 _mm256_i32gather_ps (float const* base_addr, __m256i vindex, const int scale)</para>
         ///   <para>  VGATHERDPS ymm1, vm32y, ymm2</para>
@@ -1239,7 +1191,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256d _mm256_i32gather_pd (double const* base_addr, __m128i vindex, const int scale)</para>
         ///   <para>  VGATHERDPD ymm1, vm32y, ymm2</para>
@@ -1256,7 +1207,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm256_i64gather_epi32 (int const* base_addr, __m256i vindex, const int scale)</para>
         ///   <para>  VPGATHERQD xmm1, vm64y, xmm2</para>
@@ -1273,7 +1223,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm256_i64gather_epi32 (int const* base_addr, __m256i vindex, const int scale)</para>
         ///   <para>  VPGATHERQD xmm1, vm64y, xmm2</para>
@@ -1290,7 +1239,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256i _mm256_i64gather_epi64 (__int64 const* base_addr, __m256i vindex, const int scale)</para>
         ///   <para>  VPGATHERQQ ymm1, vm64y, ymm2</para>
@@ -1307,7 +1255,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256i _mm256_i64gather_epi64 (__int64 const* base_addr, __m256i vindex, const int scale)</para>
         ///   <para>  VPGATHERQQ ymm1, vm64y, ymm2</para>
@@ -1324,7 +1271,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128 _mm256_i64gather_ps (float const* base_addr, __m256i vindex, const int scale)</para>
         ///   <para>  VGATHERQPS xmm1, vm64y, xmm2</para>
@@ -1341,7 +1287,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256d _mm256_i64gather_pd (double const* base_addr, __m256i vindex, const int scale)</para>
         ///   <para>  VGATHERQPD ymm1, vm64y, ymm2</para>
@@ -1375,7 +1320,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_mask_i32gather_epi32 (__m128i src, int const* base_addr, __m128i vindex, __m128i mask, const int scale)</para>
         ///   <para>  VPGATHERDD xmm1, vm32x, xmm2</para>
@@ -1392,7 +1336,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_mask_i32gather_epi64 (__m128i src, __int64 const* base_addr, __m128i vindex, __m128i mask, const int scale)</para>
         ///   <para>  VPGATHERDQ xmm1, vm32x, xmm2</para>
@@ -1409,7 +1352,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_mask_i32gather_epi64 (__m128i src, __int64 const* base_addr, __m128i vindex, __m128i mask, const int scale)</para>
         ///   <para>  VPGATHERDQ xmm1, vm32x, xmm2</para>
@@ -1426,7 +1368,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128 _mm_mask_i32gather_ps (__m128 src, float const* base_addr, __m128i vindex, __m128 mask, const int scale)</para>
         ///   <para>  VGATHERDPS xmm1, vm32x, xmm2</para>
@@ -1443,7 +1384,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128d _mm_mask_i32gather_pd (__m128d src, double const* base_addr, __m128i vindex, __m128d mask, const int scale)</para>
         ///   <para>  VGATHERDPD xmm1, vm32x, xmm2</para>
@@ -1460,7 +1400,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_mask_i64gather_epi32 (__m128i src, int const* base_addr, __m128i vindex, __m128i mask, const int scale)</para>
         ///   <para>  VPGATHERQD xmm1, vm64x, xmm2</para>
@@ -1477,7 +1416,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_mask_i64gather_epi32 (__m128i src, int const* base_addr, __m128i vindex, __m128i mask, const int scale)</para>
         ///   <para>  VPGATHERQD xmm1, vm64x, xmm2</para>
@@ -1494,7 +1432,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_mask_i64gather_epi64 (__m128i src, __int64 const* base_addr, __m128i vindex, __m128i mask, const int scale)</para>
         ///   <para>  VPGATHERQQ xmm1, vm64x, xmm2</para>
@@ -1511,7 +1448,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm_mask_i64gather_epi64 (__m128i src, __int64 const* base_addr, __m128i vindex, __m128i mask, const int scale)</para>
         ///   <para>  VPGATHERQQ xmm1, vm64x, xmm2</para>
@@ -1528,7 +1464,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128 _mm_mask_i64gather_ps (__m128 src, float const* base_addr, __m128i vindex, __m128 mask, const int scale)</para>
         ///   <para>  VGATHERQPS xmm1, vm64x, xmm2</para>
@@ -1545,7 +1480,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128d _mm_mask_i64gather_pd (__m128d src, double const* base_addr, __m128i vindex, __m128d mask, const int scale)</para>
         ///   <para>  VGATHERQPD xmm1, vm64x, xmm2</para>
@@ -1562,7 +1496,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256i _mm256_mask_i32gather_epi32 (__m256i src, int const* base_addr, __m256i vindex, __m256i mask, const int scale)</para>
         ///   <para>  VPGATHERDD ymm1, vm32y, ymm2</para>
@@ -1579,7 +1512,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256i _mm256_mask_i32gather_epi32 (__m256i src, int const* base_addr, __m256i vindex, __m256i mask, const int scale)</para>
         ///   <para>  VPGATHERDD ymm1, vm32y, ymm2</para>
@@ -1596,7 +1528,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256i _mm256_mask_i32gather_epi64 (__m256i src, __int64 const* base_addr, __m128i vindex, __m256i mask, const int scale)</para>
         ///   <para>  VPGATHERDQ ymm1, vm32y, ymm2</para>
@@ -1613,7 +1544,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256i _mm256_mask_i32gather_epi64 (__m256i src, __int64 const* base_addr, __m128i vindex, __m256i mask, const int scale)</para>
         ///   <para>  VPGATHERDQ ymm1, vm32y, ymm2</para>
@@ -1630,7 +1560,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256 _mm256_mask_i32gather_ps (__m256 src, float const* base_addr, __m256i vindex, __m256 mask, const int scale)</para>
         ///   <para>  VPGATHERDPS ymm1, vm32y, ymm2</para>
@@ -1647,7 +1576,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256d _mm256_mask_i32gather_pd (__m256d src, double const* base_addr, __m128i vindex, __m256d mask, const int scale)</para>
         ///   <para>  VPGATHERDPD ymm1, vm32y, ymm2</para>
@@ -1664,7 +1592,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm256_mask_i64gather_epi32 (__m128i src, int const* base_addr, __m256i vindex, __m128i mask, const int scale)</para>
         ///   <para>  VPGATHERQD xmm1, vm32y, xmm2</para>
@@ -1681,7 +1608,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128i _mm256_mask_i64gather_epi32 (__m128i src, int const* base_addr, __m256i vindex, __m128i mask, const int scale)</para>
         ///   <para>  VPGATHERQD xmm1, vm32y, xmm2</para>
@@ -1698,7 +1624,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256i _mm256_mask_i64gather_epi64 (__m256i src, __int64 const* base_addr, __m256i vindex, __m256i mask, const int scale)</para>
         ///   <para>  VPGATHERQQ ymm1, vm32y, ymm2</para>
@@ -1715,7 +1640,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256i _mm256_mask_i64gather_epi64 (__m256i src, __int64 const* base_addr, __m256i vindex, __m256i mask, const int scale)</para>
         ///   <para>  VPGATHERQQ ymm1, vm32y, ymm2</para>
@@ -1732,7 +1656,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m128 _mm256_mask_i64gather_ps (__m128 src, float const* base_addr, __m256i vindex, __m128 mask, const int scale)</para>
         ///   <para>  VGATHERQPS xmm1, vm32y, xmm2</para>
@@ -1749,7 +1672,6 @@ namespace System.Runtime.Intrinsics.X86
                 _ => throw new ArgumentOutOfRangeException(nameof(scale)),
             };
         }
-
         /// <summary>
         ///   <para>__m256d _mm256_mask_i64gather_pd (__m256d src, double const* base_addr, __m256i vindex, __m256d mask, const int scale)</para>
         ///   <para>  VGATHERQPD ymm1, vm32y, ymm2</para>
@@ -1855,43 +1777,36 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>  VMOVNTDQA ymm1, m256</para>
         /// </summary>
         public static unsafe Vector256<sbyte> LoadAlignedVector256NonTemporal(sbyte* address) => LoadAlignedVector256NonTemporal(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_stream_load_si256 (__m256i const* mem_addr)</para>
         ///   <para>  VMOVNTDQA ymm1, m256</para>
         /// </summary>
         public static unsafe Vector256<byte> LoadAlignedVector256NonTemporal(byte* address) => LoadAlignedVector256NonTemporal(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_stream_load_si256 (__m256i const* mem_addr)</para>
         ///   <para>  VMOVNTDQA ymm1, m256</para>
         /// </summary>
         public static unsafe Vector256<short> LoadAlignedVector256NonTemporal(short* address) => LoadAlignedVector256NonTemporal(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_stream_load_si256 (__m256i const* mem_addr)</para>
         ///   <para>  VMOVNTDQA ymm1, m256</para>
         /// </summary>
         public static unsafe Vector256<ushort> LoadAlignedVector256NonTemporal(ushort* address) => LoadAlignedVector256NonTemporal(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_stream_load_si256 (__m256i const* mem_addr)</para>
         ///   <para>  VMOVNTDQA ymm1, m256</para>
         /// </summary>
         public static unsafe Vector256<int> LoadAlignedVector256NonTemporal(int* address) => LoadAlignedVector256NonTemporal(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_stream_load_si256 (__m256i const* mem_addr)</para>
         ///   <para>  VMOVNTDQA ymm1, m256</para>
         /// </summary>
         public static unsafe Vector256<uint> LoadAlignedVector256NonTemporal(uint* address) => LoadAlignedVector256NonTemporal(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_stream_load_si256 (__m256i const* mem_addr)</para>
         ///   <para>  VMOVNTDQA ymm1, m256</para>
         /// </summary>
         public static unsafe Vector256<long> LoadAlignedVector256NonTemporal(long* address) => LoadAlignedVector256NonTemporal(address);
-
         /// <summary>
         ///   <para>__m256i _mm256_stream_load_si256 (__m256i const* mem_addr)</para>
         ///   <para>  VMOVNTDQA ymm1, m256</para>
@@ -1903,43 +1818,36 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>  VPMASKMOVD xmm1, xmm2, m128</para>
         /// </summary>
         public static unsafe Vector128<int> MaskLoad(int* address, Vector128<int> mask) => MaskLoad(address, mask);
-
         /// <summary>
         ///   <para>__m128i _mm_maskload_epi32 (int const* mem_addr, __m128i mask)</para>
         ///   <para>  VPMASKMOVD xmm1, xmm2, m128</para>
         /// </summary>
         public static unsafe Vector128<uint> MaskLoad(uint* address, Vector128<uint> mask) => MaskLoad(address, mask);
-
         /// <summary>
         ///   <para>__m128i _mm_maskload_epi64 (__int64 const* mem_addr, __m128i mask)</para>
         ///   <para>  VPMASKMOVQ xmm1, xmm2, m128</para>
         /// </summary>
         public static unsafe Vector128<long> MaskLoad(long* address, Vector128<long> mask) => MaskLoad(address, mask);
-
         /// <summary>
         ///   <para>__m128i _mm_maskload_epi64 (__int64 const* mem_addr, __m128i mask)</para>
         ///   <para>  VPMASKMOVQ xmm1, xmm2, m128</para>
         /// </summary>
         public static unsafe Vector128<ulong> MaskLoad(ulong* address, Vector128<ulong> mask) => MaskLoad(address, mask);
-
         /// <summary>
         ///   <para>__m256i _mm256_maskload_epi32 (int const* mem_addr, __m256i mask)</para>
         ///   <para>  VPMASKMOVD ymm1, ymm2, m256</para>
         /// </summary>
         public static unsafe Vector256<int> MaskLoad(int* address, Vector256<int> mask) => MaskLoad(address, mask);
-
         /// <summary>
         ///   <para>__m256i _mm256_maskload_epi32 (int const* mem_addr, __m256i mask)</para>
         ///   <para>  VPMASKMOVD ymm1, ymm2, m256</para>
         /// </summary>
         public static unsafe Vector256<uint> MaskLoad(uint* address, Vector256<uint> mask) => MaskLoad(address, mask);
-
         /// <summary>
         ///   <para>__m256i _mm256_maskload_epi64 (__int64 const* mem_addr, __m256i mask)</para>
         ///   <para>  VPMASKMOVQ ymm1, ymm2, m256</para>
         /// </summary>
         public static unsafe Vector256<long> MaskLoad(long* address, Vector256<long> mask) => MaskLoad(address, mask);
-
         /// <summary>
         ///   <para>__m256i _mm256_maskload_epi64 (__int64 const* mem_addr, __m256i mask)</para>
         ///   <para>  VPMASKMOVQ ymm1, ymm2, m256</para>
@@ -1951,43 +1859,36 @@ namespace System.Runtime.Intrinsics.X86
         ///   <para>  VPMASKMOVD m128, xmm1, xmm2</para>
         /// </summary>
         public static unsafe void MaskStore(int* address, Vector128<int> mask, Vector128<int> source) => MaskStore(address, mask, source);
-
         /// <summary>
         ///   <para>void _mm_maskstore_epi32 (int* mem_addr, __m128i mask, __m128i a)</para>
         ///   <para>  VPMASKMOVD m128, xmm1, xmm2</para>
         /// </summary>
         public static unsafe void MaskStore(uint* address, Vector128<uint> mask, Vector128<uint> source) => MaskStore(address, mask, source);
-
         /// <summary>
         ///   <para>void _mm_maskstore_epi64 (__int64* mem_addr, __m128i mask, __m128i a)</para>
         ///   <para>  VPMASKMOVQ m128, xmm1, xmm2</para>
         /// </summary>
         public static unsafe void MaskStore(long* address, Vector128<long> mask, Vector128<long> source) => MaskStore(address, mask, source);
-
         /// <summary>
         ///   <para>void _mm_maskstore_epi64 (__int64* mem_addr, __m128i mask, __m128i a)</para>
         ///   <para>  VPMASKMOVQ m128, xmm1, xmm2</para>
         /// </summary>
         public static unsafe void MaskStore(ulong* address, Vector128<ulong> mask, Vector128<ulong> source) => MaskStore(address, mask, source);
-
         /// <summary>
         ///   <para>void _mm256_maskstore_epi32 (int* mem_addr, __m256i mask, __m256i a)</para>
         ///   <para>  VPMASKMOVD m256, ymm1, ymm2</para>
         /// </summary>
         public static unsafe void MaskStore(int* address, Vector256<int> mask, Vector256<int> source) => MaskStore(address, mask, source);
-
         /// <summary>
         ///   <para>void _mm256_maskstore_epi32 (int* mem_addr, __m256i mask, __m256i a)</para>
         ///   <para>  VPMASKMOVD m256, ymm1, ymm2</para>
         /// </summary>
         public static unsafe void MaskStore(uint* address, Vector256<uint> mask, Vector256<uint> source) => MaskStore(address, mask, source);
-
         /// <summary>
         ///   <para>void _mm256_maskstore_epi64 (__int64* mem_addr, __m256i mask, __m256i a)</para>
         ///   <para>  VPMASKMOVQ m256, ymm1, ymm2</para>
         /// </summary>
         public static unsafe void MaskStore(long* address, Vector256<long> mask, Vector256<long> source) => MaskStore(address, mask, source);
-
         /// <summary>
         ///   <para>void _mm256_maskstore_epi64 (__int64* mem_addr, __m256i mask, __m256i a)</para>
         ///   <para>  VPMASKMOVQ m256, ymm1, ymm2</para>

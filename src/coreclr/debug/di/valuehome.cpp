@@ -30,7 +30,7 @@ void RegValueHome::CopyToIPCEType(RemoteAddress * pRegAddr)
 {
     pRegAddr->kind = RAK_REG;
     pRegAddr->reg1 = m_reg1Info.m_kRegNumber;
-    pRegAddr->reg1Addr = m_reg1Info.m_regAddr;
+    pRegAddr->reg1Addr = CORDB_ADDRESS_TO_PTR(m_reg1Info.m_regAddr);
     pRegAddr->reg1Value = m_reg1Info.m_regValue;
 } // RegValueHome::CopyToIPCEType
 
@@ -256,10 +256,10 @@ void RegRegValueHome::CopyToIPCEType(RemoteAddress * pRegAddr)
 {
     pRegAddr->kind = RAK_REGREG;
     pRegAddr->reg1 = m_reg1Info.m_kRegNumber;
-    pRegAddr->reg1Addr = m_reg1Info.m_regAddr;
+    pRegAddr->reg1Addr = CORDB_ADDRESS_TO_PTR(m_reg1Info.m_regAddr);
     pRegAddr->reg1Value = m_reg1Info.m_regValue;
     pRegAddr->u.reg2 = m_reg2Info.m_kRegNumber;
-    pRegAddr->u.reg2Addr = m_reg2Info.m_regAddr;
+    pRegAddr->u.reg2Addr = CORDB_ADDRESS_TO_PTR(m_reg2Info.m_regAddr);
     pRegAddr->u.reg2Value = m_reg2Info.m_regValue;
 } // RegRegValueHome::CopyToIPCEType
 
@@ -268,45 +268,23 @@ void RegRegValueHome::CopyToIPCEType(RemoteAddress * pRegAddr)
 // for full header comment)
 void RegRegValueHome::SetEnregisteredValue(MemoryRange newValue, DT_CONTEXT * pContext, bool fIsSigned)
 {
-    // A two-register value occupies more than one register's worth of space
-    // and at most two registers' worth. On x86 this is 8 bytes (2*4), on
-    // x64 this is up to 16 bytes (2*8). Guard at runtime (not just via assert)
-    // so that an unexpected buffer size cannot cause the memcpy below to read
-    // past the end of newValue in retail builds.
+    _ASSERTE(newValue.Size() == 8);
     _ASSERTE(REG_SIZE == sizeof(void*));
-    if ((newValue.Size() <= sizeof(void*)) || (newValue.Size() > 2 * sizeof(void*)))
-    {
-        ThrowHR(E_INVALIDARG);
-    }
 
     // Split the new value into high and low parts.
-    SIZE_T highPart = 0;
-    SIZE_T lowPart = 0;
+    SIZE_T highPart;
+    SIZE_T lowPart;
 
     memcpy(&lowPart, newValue.StartAddress(), REG_SIZE);
-    // Only read the high part if the value is large enough to span two registers.
-    if (newValue.Size() > REG_SIZE)
-    {
-        memcpy(&highPart, (BYTE *)newValue.StartAddress() + REG_SIZE, newValue.Size() - REG_SIZE);
-    }
+    memcpy(&highPart, (BYTE *)newValue.StartAddress() + REG_SIZE, REG_SIZE);
 
     // Update the proper registers.
     SetContextRegister(pContext, m_reg1Info.m_kRegNumber, highPart); // throws
     SetContextRegister(pContext, m_reg2Info.m_kRegNumber, lowPart); // throws
 
-    // Update the frame's register display for each register individually.
-    // We must not do a single memcpy of the full value into reg1's address
-    // because the two registers may not be contiguous in the CONTEXT layout.
-    UINT_PTR * pReg1 = m_pFrame->GetAddressOfRegister(m_reg1Info.m_kRegNumber);
-    UINT_PTR * pReg2 = m_pFrame->GetAddressOfRegister(m_reg2Info.m_kRegNumber);
-    if (pReg1 != NULL)
-    {
-        *pReg1 = highPart;
-    }
-    if (pReg2 != NULL)
-    {
-        *pReg2 = lowPart;
-    }
+    // update the frame's register display
+    void * valueAddress = (void *)(m_pFrame->GetAddressOfRegister(m_reg1Info.m_kRegNumber));
+    memcpy(valueAddress, newValue.StartAddress(), newValue.Size());
 } // RegRegValueHome::SetEnregisteredValue
 
 // RegRegValueHome::GetEnregisteredValue
@@ -320,40 +298,12 @@ void RegRegValueHome::GetEnregisteredValue(MemoryRange valueOutBuffer)
     UINT_PTR* lowWordAddr = m_pFrame->GetAddressOfRegister(m_reg2Info.m_kRegNumber);
     _ASSERTE(lowWordAddr != NULL);
 
-    // The low half occupies the first register-sized chunk; the high half the second.
-    // The out buffer may be smaller than two registers (e.g. a 12-byte struct returned
-    // in two 8-byte registers), so clamp each copy to the bytes that actually remain.
-    const SIZE_T cbReg = sizeof(*lowWordAddr);
-    const SIZE_T cbTotal = valueOutBuffer.Size();
-    _ASSERTE(cbTotal <= 2 * cbReg);
+    _ASSERTE(sizeof(*highWordAddr) + sizeof(*lowWordAddr) == valueOutBuffer.Size());
 
-    const SIZE_T cbLow = (cbTotal < cbReg) ? cbTotal : cbReg;
-    memcpy(valueOutBuffer.StartAddress(), lowWordAddr, cbLow);
-
-    if (cbTotal > cbReg)
-    {
-        const SIZE_T cbHigh = cbTotal - cbReg;
-        memcpy((BYTE *)valueOutBuffer.StartAddress() + cbReg, highWordAddr, cbHigh);
-    }
+    memcpy(valueOutBuffer.StartAddress(), lowWordAddr, sizeof(*lowWordAddr));
+    memcpy((BYTE *)valueOutBuffer.StartAddress() + sizeof(*lowWordAddr), highWordAddr, sizeof(*highWordAddr));
 
 } // RegRegValueHome::GetEnregisteredValue
-
-
-// ----------------------------------------------------------------------------
-// TwoRegisterValueHome member function implementations
-// ----------------------------------------------------------------------------
-
-// TwoRegisterValueHome::GetEnregisteredValue
-// Gets the snapshot value and returns it to the caller (see EnregisteredValueHome::GetEnregisteredValue
-// for full header comment)
-void TwoRegisterValueHome::GetEnregisteredValue(MemoryRange valueOutBuffer)
-{
-    _ASSERTE(valueOutBuffer.Size() <= sizeof(m_value));
-
-    SIZE_T cbToCopy = (valueOutBuffer.Size() < sizeof(m_value)) ? valueOutBuffer.Size() : sizeof(m_value);
-    memcpy(valueOutBuffer.StartAddress(), m_value, cbToCopy);
-
-} // TwoRegisterValueHome::GetEnregisteredValue
 
 
 // ----------------------------------------------------------------------------
@@ -367,7 +317,7 @@ void RegMemValueHome::CopyToIPCEType(RemoteAddress * pRegAddr)
 {
     pRegAddr->kind = RAK_REGMEM;
     pRegAddr->reg1 = m_reg1Info.m_kRegNumber;
-    pRegAddr->reg1Addr = m_reg1Info.m_regAddr;
+    pRegAddr->reg1Addr = CORDB_ADDRESS_TO_PTR(m_reg1Info.m_regAddr);
     pRegAddr->reg1Value = m_reg1Info.m_regValue;
     pRegAddr->addr = m_memAddr;
 } // RegMemValueHome::CopyToIPCEType
@@ -429,7 +379,7 @@ void MemRegValueHome::CopyToIPCEType(RemoteAddress * pRegAddr)
 {
     pRegAddr->kind = RAK_MEMREG;
     pRegAddr->reg1 = m_reg1Info.m_kRegNumber;
-    pRegAddr->reg1Addr = m_reg1Info.m_regAddr;
+    pRegAddr->reg1Addr = CORDB_ADDRESS_TO_PTR(m_reg1Info.m_regAddr);
     pRegAddr->reg1Value = m_reg1Info.m_regValue;
     pRegAddr->addr = m_memAddr;
 } // MemRegValueHome::CopyToIPCEType
@@ -490,7 +440,7 @@ void MemRegValueHome::GetEnregisteredValue(MemoryRange valueOutBuffer)
 void FloatRegValueHome::CopyToIPCEType(RemoteAddress * pRegAddr)
 {
     pRegAddr->kind = RAK_FLOAT;
-    pRegAddr->reg1Addr = (CORDB_ADDRESS)0;
+    pRegAddr->reg1Addr = NULL;
     pRegAddr->floatIndex = m_floatIndex;
 } // FloatRegValueHome::CopyToIPCEType
 
@@ -670,7 +620,7 @@ void RemoteValueHome::SetValue(MemoryRange src, CordbType * pType)
 // creates an ICDValue for a field or array element or for the value type of a boxed object
 // virtual
 void RemoteValueHome::CreateInternalValue(CordbType *       pType,
-                                          CORDB_ADDRESS     offset,
+                                          SIZE_T            offset,
                                           void *            localAddress,
                                           ULONG32           size,
                                           ICorDebugValue ** ppValue)
@@ -769,7 +719,7 @@ void RegisterValueHome::SetValue(MemoryRange src, CordbType * pType)
 // creates an ICDValue for a field or array element or for the value type of a boxed object
 // virtual
 void RegisterValueHome::CreateInternalValue(CordbType *       pType,
-                                            CORDB_ADDRESS     offset,
+                                            SIZE_T            offset,
                                             void *            localAddress,
                                             ULONG32           size,
                                             ICorDebugValue ** ppValue)
@@ -794,15 +744,12 @@ void RegisterValueHome::CreateInternalValue(CordbType *       pType,
      * and p.x is in a register, while p.y is in memory, then clearly the
      * home of p (RAK_REGMEM) is not the same as the home of p.x (RAK_MEM).
      *
-     * Currently the JIT does not split compound objects in this way for
-     * ordinary locals. However, a multi-register return value can be a genuine
-     * compound with fields at non-zero offsets (e.g. struct { long x; long y; }
-     * returned in RAX:RDX). For reads the caller supplies the field's
-     * offset-adjusted local snapshot in localAddress, so any in-range offset is
-     * valid here. (Write-back to a specific sub-register of such a split value
-     * is a separate, pre-existing limitation and is not handled.)
+     * Currently the JIT does not split compound objects in this way. It
+     * will only split an object that has exactly one field that is twice
+     * the size of the register
      * </TODO>
      */
+    _ASSERTE(offset == 0);
     pRemoteReg.Assign(m_pRemoteRegAddr->Clone());
 
     EnregisteredValueHomeHolder * pRegHolder = pRemoteReg.GetAddr();
@@ -935,7 +882,7 @@ CORDB_ADDRESS HandleValueHome::GetAddress()
     CORDB_ADDRESS handle = PTR_TO_CORDB_ADDRESS((void *)NULL);
     EX_TRY
     {
-        IfFailThrow(m_pProcess->GetDAC()->GetHandleAddressFromVmHandle(m_vmObjectHandle, &handle));
+        handle = m_pProcess->GetDAC()->GetHandleAddressFromVmHandle(m_vmObjectHandle);
     }
     EX_CATCH
     {
@@ -950,7 +897,7 @@ void HandleValueHome::GetValue(MemoryRange dest)
 {
     _ASSERTE((m_pProcess != NULL) && !m_vmObjectHandle.IsNull());
     CORDB_ADDRESS objPtr = PTR_TO_CORDB_ADDRESS((void *)NULL);
-    IfFailThrow(m_pProcess->GetDAC()->GetHandleAddressFromVmHandle(m_vmObjectHandle, &objPtr));
+    objPtr = m_pProcess->GetDAC()->GetHandleAddressFromVmHandle(m_vmObjectHandle);
 
     _ASSERTE(dest.Size() <= sizeof(void *));
     _ASSERTE(dest.StartAddress() != NULL);
@@ -968,9 +915,9 @@ void HandleValueHome::SetValue(MemoryRange src, CordbType * pType)
 
     m_pProcess->InitIPCEvent(&event, DB_IPCE_SET_REFERENCE, true, VMPTR_AppDomain::NullPtr());
 
-    event.SetReference.objectRefAddress = (CORDB_ADDRESS)0;
+    event.SetReference.objectRefAddress = NULL;
     event.SetReference.vmObjectHandle = m_vmObjectHandle;
-    event.SetReference.newReference = PTR_TO_CORDB_ADDRESS(*((void **)src.StartAddress()));
+    event.SetReference.newReference = *((void **)src.StartAddress());
 
     // Note: two-way event here...
     IfFailThrow(m_pProcess->SendIPCEvent(&event, sizeof(DebuggerIPCEvent)));
@@ -983,7 +930,7 @@ void HandleValueHome::SetValue(MemoryRange src, CordbType * pType)
 // creates an ICDValue for a field or array element or for the value type of a boxed object
 // virtual
 void HandleValueHome::CreateInternalValue(CordbType *       pType,
-                                          CORDB_ADDRESS     offset,
+                                          SIZE_T            offset,
                                           void *            localAddress,
                                           ULONG32           size,
                                           ICorDebugValue ** ppValue)
@@ -1038,8 +985,8 @@ void VCRemoteValueHome::SetValue(MemoryRange src, CordbType * pType)
 
     // Finally, send over the Set Value Class message.
     m_pProcess->InitIPCEvent(&event, DB_IPCE_SET_VALUE_CLASS, true, VMPTR_AppDomain::NullPtr());
-    event.SetValueClass.oldData = m_remoteValue.pAddress;
-    event.SetValueClass.newData = PTR_TO_CORDB_ADDRESS(buffer);
+    event.SetValueClass.oldData = CORDB_ADDRESS_TO_PTR(m_remoteValue.pAddress);
+    event.SetValueClass.newData = buffer;
     IfFailThrow(pType->TypeToBasicTypeData(&event.SetValueClass.type));
 
     // Note: two-way event here...
@@ -1097,9 +1044,9 @@ void RefRemoteValueHome::SetValue(MemoryRange src, CordbType * pType)
 
         m_pProcess->InitIPCEvent(&event, DB_IPCE_SET_REFERENCE, true, VMPTR_AppDomain::NullPtr());
 
-        event.SetReference.objectRefAddress = m_remoteValue.pAddress;
+        event.SetReference.objectRefAddress = CORDB_ADDRESS_TO_PTR(m_remoteValue.pAddress);
         event.SetReference.vmObjectHandle = VMPTR_OBJECTHANDLE::NullPtr();
-        event.SetReference.newReference = PTR_TO_CORDB_ADDRESS(*((void **)src.StartAddress()));
+        event.SetReference.newReference = *((void **)src.StartAddress());
 
         // Note: two-way event here...
         IfFailThrow(m_pProcess->SendIPCEvent(&event, sizeof(DebuggerIPCEvent)));

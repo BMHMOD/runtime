@@ -23,6 +23,7 @@ BOOL TypeHandle::Verify()
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
     STATIC_CONTRACT_DEBUG_ONLY;
     STATIC_CONTRACT_SUPPORTS_DAC;
@@ -90,11 +91,11 @@ BOOL TypeHandle::IsString() const
     return !IsTypeDesc() && AsMethodTable()->IsString();
 }
 
-BOOL TypeHandle::IsContinuationWithoutMetadata() const
+BOOL TypeHandle::IsContinuation() const
 {
     LIMITED_METHOD_CONTRACT;
 
-    return !IsTypeDesc() && AsMethodTable()->IsContinuationWithoutMetadata();
+    return !IsTypeDesc() && AsMethodTable()->IsContinuation();
 }
 
 BOOL TypeHandle::IsGenericVariable() const {
@@ -332,7 +333,7 @@ void TypeHandle::AllocateManagedClassObject(RUNTIMETYPEHANDLE* pDest)
     }
     CONTRACTL_END
 
-    if (IsContinuationWithoutMetadata())
+    if (IsContinuation())
     {
         COMPlusThrow(kNotSupportedException, W("NotSupported_Continuation"));
         return;
@@ -453,13 +454,6 @@ bool TypeHandle::IsFloatHfa() const
         return false;
     }
     return (GetHFAType() == CORINFO_HFA_ELEM_FLOAT);
-}
-
-// Returns true when the type is Vector<T> or any instantiation thereof.
-bool TypeHandle::IsVectorT() const
-{
-    LIMITED_METHOD_CONTRACT;
-    return !IsTypeDesc() && AsMethodTable()->HasSameTypeDefAs(CoreLibBinder::GetClass(CLASS__VECTORT));
 }
 
 
@@ -587,6 +581,7 @@ BOOL TypeHandle::IsBoxedAndCanCastTo(TypeHandle type, TypeHandlePairList *pPairL
     {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM());
 
         LOADS_TYPE(CLASS_DEPENDENCIES_LOADED);
 
@@ -597,7 +592,7 @@ BOOL TypeHandle::IsBoxedAndCanCastTo(TypeHandle type, TypeHandlePairList *pPairL
     CONTRACTL_END
 
 
-    CorElementType fromParamCorType = GetInternalCorElementType();
+    CorElementType fromParamCorType = GetVerifierCorElementType();
 
     if (CorTypeInfo::IsObjRef(fromParamCorType))
     {
@@ -633,6 +628,7 @@ BOOL TypeHandle::CanCastTo(TypeHandle type, TypeHandlePairList *pVisited)  const
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
 
         LOADS_TYPE(CLASS_DEPENDENCIES_LOADED);
     }
@@ -698,6 +694,7 @@ void TypeHandle::GetName(SString &result) const
     {
         THROWS;
         GC_NOTRIGGER;
+        INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END
 
@@ -719,6 +716,7 @@ TypeHandle TypeHandle::GetParent()  const
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
 
     if (IsTypeDesc())
         return(AsTypeDesc()->GetParent());
@@ -734,6 +732,7 @@ TypeHandle TypeHandle::MergeClassWithInterface(TypeHandle tClass, TypeHandle tIn
     {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END
 
@@ -774,6 +773,7 @@ TypeHandle TypeHandle::MergeTypeHandlesToCommonParent(TypeHandle ta, TypeHandle 
     {
       THROWS;
       GC_TRIGGERS;
+      INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END
 
@@ -909,6 +909,7 @@ TypeHandle TypeHandle::MergeArrayTypeHandlesToCommonParent(TypeHandle ta, TypeHa
     {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END
 
@@ -970,7 +971,17 @@ TypeHandle TypeHandle::MergeArrayTypeHandlesToCommonParent(TypeHandle ta, TypeHa
         return TypeHandle(g_pArrayClass);
     }
 
-    return ClassLoader::LoadArrayTypeThrowing(tMergeElem, mergeKind, rank);
+
+    {
+        // This should just result in resolving an already loaded type.
+        ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
+        // == FailIfNotLoadedOrNotRestored
+        TypeHandle result = ClassLoader::LoadArrayTypeThrowing(tMergeElem, mergeKind, rank, ClassLoader::DontLoadTypes);
+        _ASSERTE(!result.IsNull());
+
+        // <TODO> should be able to assert IsRestored here </TODO>
+        return result;
+    }
 }
 
 #endif // #ifndef DACCESS_COMPILE
@@ -1051,6 +1062,7 @@ OBJECTREF TypeHandle::GetManagedClassObject() const
         GC_TRIGGERS;
         MODE_COOPERATIVE;
 
+        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END;
 
@@ -1203,6 +1215,24 @@ CorElementType TypeHandle::GetSignatureCorElementType() const
     }
 }
 
+// As its name suggests, this returns the type used by the IL verifier. The basic difference between this
+// type and the type in the meta-data is that enumerations have been normalized to their underlieing
+// primitive type. see code:MethodTable#KindsOfElementTypes for more
+CorElementType TypeHandle::GetVerifierCorElementType() const
+{
+    LIMITED_METHOD_CONTRACT;
+
+    if (IsTypeDesc())
+    {
+        return AsTypeDesc()->GetInternalCorElementType();
+    }
+    else
+    {
+        return AsMethodTable()->GetVerifierCorElementType();
+    }
+}
+
+
 #ifdef DACCESS_COMPILE
 
 void
@@ -1328,6 +1358,7 @@ BOOL TypeHandle::SatisfiesClassConstraints() const
         GC_TRIGGERS;
         MODE_ANY;
 
+        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END;
 

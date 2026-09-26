@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b14640
+namespace DefaultNamespace
 {
     //@BEGINRENAME; Verify this renames
     //@ENDRENAME; Verify this renames
@@ -11,7 +11,6 @@ namespace b14640
 
     public class repro
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

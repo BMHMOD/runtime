@@ -6,9 +6,7 @@ using System;
 using System.Numerics;
 using Xunit;
 
-namespace SIMDTests.VectorIntEqualsTests;
-
-public partial class VectorTest : VectorTestBase
+public partial class VectorTest
 {
     private static int VectorIntEquals()
     {

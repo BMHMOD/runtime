@@ -43,8 +43,6 @@ enum var_types_register
 #define TYP_U_IMPL TYP_UINT
 #endif
 
-#define SIZE_UNKNOWN UINT8_MAX
-
 /*****************************************************************************/
 
 const extern BYTE varTypeClassification[TYP_COUNT];
@@ -379,21 +377,6 @@ inline bool varTypeIsValidHfaType(T vt)
     {
         return false;
     }
-}
-
-//------------------------------------------------------------------------
-// varTypeHasUnknownSize: Determine whether the type has an unknown size
-//
-// Arguments:
-//    vt - the type of interest
-//
-// Return Value:
-//    Returns true iff the type has size equal to SIZE_UNKNOWN
-//
-template <class T>
-inline bool varTypeHasUnknownSize(T vt)
-{
-    return genTypeSize(TypeGet(vt)) == SIZE_UNKNOWN;
 }
 
 /*****************************************************************************/

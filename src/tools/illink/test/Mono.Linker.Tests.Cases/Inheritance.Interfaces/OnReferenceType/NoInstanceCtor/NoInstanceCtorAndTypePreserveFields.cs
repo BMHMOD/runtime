@@ -3,7 +3,7 @@ using Mono.Linker.Tests.Cases.Expectations.Metadata;
 
 namespace Mono.Linker.Tests.Cases.Inheritance.Interfaces.OnReferenceType.NoInstanceCtor
 {
-    [SkipUnresolved(true)]
+    [SetupLinkerArgument("--skip-unresolved", "true")]
     [SetupCompileBefore("library.dll", new[] { "Dependencies/NoInstanceCtorAndAssemblyPreserveAll_Lib.il" })]
 
     // The interfaces should be removed because the interface types are not marked

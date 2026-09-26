@@ -61,9 +61,7 @@ namespace EventPipeTests
 
 
                         var source2 = new EventPipeEventSource(session2.EventStream);
-                        Task processTask2 = Task.Run(() => source2.Process());
-                        session2.Stop();
-                        processTask2.Wait();
+                        Task.Run(() => source2.Process());
                     }
 
                     ManualResetEvent allEventsReceivedEvent = new ManualResetEvent(false);

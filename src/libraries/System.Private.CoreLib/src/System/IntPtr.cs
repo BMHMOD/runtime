@@ -56,10 +56,9 @@ namespace System
 #endif
         }
 
-        /// <safety>Stores the pointer as an integer value; the pointed-to memory is never accessed.</safety>
         [CLSCompliant(false)]
         [NonVersionable]
-        public IntPtr(void* value)
+        public unsafe IntPtr(void* value)
         {
             _value = (nint)value;
         }
@@ -117,15 +116,13 @@ namespace System
         [NonVersionable]
         public static explicit operator nint(long value) => checked((nint)value);
 
-        /// <safety>Converts between a pointer and an integer of the same width; no memory is accessed.</safety>
         [CLSCompliant(false)]
         [NonVersionable]
-        public static explicit operator nint(void* value) => (nint)value;
+        public static unsafe explicit operator nint(void* value) => (nint)value;
 
-        /// <safety>Converts between an integer and a pointer of the same width; no memory is accessed.</safety>
         [CLSCompliant(false)]
         [NonVersionable]
-        public static explicit operator void*(nint value) => (void*)value;
+        public static unsafe explicit operator void*(nint value) => (void*)value;
 
         [NonVersionable]
         public static explicit operator int(nint value)
@@ -164,10 +161,9 @@ namespace System
             get => sizeof(nint_t);
         }
 
-        /// <safety>Returns the stored value reinterpreted as a pointer; no memory is accessed.</safety>
         [CLSCompliant(false)]
         [NonVersionable]
-        public void* ToPointer() => (void*)_value;
+        public unsafe void* ToPointer() => (void*)_value;
 
         /// <inheritdoc cref="IMinMaxValue{TSelf}.MaxValue" />
         public static nint MaxValue
@@ -324,17 +320,6 @@ namespace System
         [Intrinsic]
         public static nint LeadingZeroCount(nint value) => BitOperations.LeadingZeroCount((nuint)value);
 
-        /// <inheritdoc cref="IBinaryInteger{TSelf}.Log10(TSelf)" />
-        public static nint Log10(nint value)
-        {
-            if (value < 0)
-            {
-                ThrowHelper.ThrowValueArgumentOutOfRange_NeedNonNegNumException();
-            }
-
-            return (nint)nuint.Log10((nuint)value);
-        }
-
         /// <inheritdoc cref="IBinaryInteger{TSelf}.PopCount(TSelf)" />
         [Intrinsic]
         public static nint PopCount(nint value) => BitOperations.PopCount((nuint)value);
@@ -396,10 +381,19 @@ namespace System
                     }
                 }
 
+                ref byte sourceRef = ref MemoryMarshal.GetReference(source);
+
                 if (source.Length >= sizeof(nint_t))
                 {
+                    sourceRef = ref Unsafe.Add(ref sourceRef, source.Length - sizeof(nint_t));
+
                     // We have at least 4/8 bytes, so just read the ones we need directly
-                    result = BinaryPrimitives.ReadIntPtrBigEndian(source.Slice(source.Length - sizeof(nint_t)));
+                    result = Unsafe.ReadUnaligned<nint>(ref sourceRef);
+
+                    if (BitConverter.IsLittleEndian)
+                    {
+                        result = BinaryPrimitives.ReverseEndianness(result);
+                    }
                 }
                 else
                 {
@@ -410,7 +404,7 @@ namespace System
                     for (int i = 0; i < source.Length; i++)
                     {
                         result <<= 8;
-                        result |= source[i];
+                        result |= Unsafe.Add(ref sourceRef, i);
                     }
 
                     if (!isUnsigned)
@@ -469,10 +463,17 @@ namespace System
                     }
                 }
 
+                ref byte sourceRef = ref MemoryMarshal.GetReference(source);
+
                 if (source.Length >= sizeof(nint_t))
                 {
                     // We have at least 4/8 bytes, so just read the ones we need directly
-                    result = BinaryPrimitives.ReadIntPtrLittleEndian(source);
+                    result = Unsafe.ReadUnaligned<nint>(ref sourceRef);
+
+                    if (!BitConverter.IsLittleEndian)
+                    {
+                        result = BinaryPrimitives.ReverseEndianness(result);
+                    }
                 }
                 else
                 {
@@ -485,7 +486,7 @@ namespace System
                     for (int i = 0; i < source.Length; i++)
                     {
                         result <<= 8;
-                        result |= source[i];
+                        result |= Unsafe.Add(ref sourceRef, i);
                     }
 
                     result <<= ((sizeof(nint_t) - source.Length) * 8);
@@ -671,17 +672,24 @@ namespace System
         /// <inheritdoc cref="INumber{TSelf}.CopySign(TSelf, TSelf)" />
         public static nint CopySign(nint value, nint sign)
         {
-            // signMask is all-bits-set when value and sign differ in sign, in which case value needs to be negated.
-            nint signMask = (value ^ sign) >> ((Size * 8) - 1);
-            nint result = (value ^ signMask) - signMask;
+            nint absValue = value;
 
-            if ((sign >= 0) && (result < 0))
+            if (absValue < 0)
             {
-                // value was nint.MinValue and a non-negative result was requested, which is unrepresentable.
-                Math.ThrowNegateTwosCompOverflow();
+                absValue = -absValue;
             }
 
-            return result;
+            if (sign >= 0)
+            {
+                if (absValue < 0)
+                {
+                    Math.ThrowNegateTwosCompOverflow();
+                }
+
+                return absValue;
+            }
+
+            return -absValue;
         }
 
         /// <inheritdoc cref="INumber{TSelf}.Max(TSelf, TSelf)" />
@@ -1366,30 +1374,6 @@ namespace System
                 result = default;
                 return false;
             }
-        }
-
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(string, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial([NotNullWhen(true)] string? s, NumberStyles style, IFormatProvider? provider, out nint result, out int charsConsumed)
-        {
-            Unsafe.SkipInit(out result);
-            NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(s.AsSpan(), style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out Unsafe.As<nint, nint_t>(ref result), out charsConsumed) == Number.ParsingStatus.OK;
-        }
-
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(ReadOnlySpan{char}, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider? provider, out nint result, out int charsConsumed)
-        {
-            Unsafe.SkipInit(out result);
-            NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(s, style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out Unsafe.As<nint, nint_t>(ref result), out charsConsumed) == Number.ParsingStatus.OK;
-        }
-
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(ReadOnlySpan{byte}, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial(ReadOnlySpan<byte> utf8Text, NumberStyles style, IFormatProvider? provider, out nint result, out int bytesConsumed)
-        {
-            Unsafe.SkipInit(out result);
-            NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(utf8Text, style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out Unsafe.As<nint, nint_t>(ref result), out bytesConsumed) == Number.ParsingStatus.OK;
         }
 
         //

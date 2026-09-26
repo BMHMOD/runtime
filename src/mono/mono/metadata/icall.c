@@ -483,11 +483,9 @@ array_set_value_impl (MonoArray *arr, MonoObjectHandle value_handle, guint32 pos
 
 	vsize = mono_class_value_size (vc, NULL);
 
-	// An enum nested in a generic type is an inflated type whose byval_arg->type
-	// is MONO_TYPE_GENERICINST rather than MONO_TYPE_VALUETYPE, so check the class
-	// directly instead of relying solely on the MonoTypeEnum tag.
-	et_isenum = (et == MONO_TYPE_VALUETYPE || et == MONO_TYPE_GENERICINST) && m_class_is_enumtype (ec);
-	vt_isenum = (vt == MONO_TYPE_VALUETYPE || vt == MONO_TYPE_GENERICINST) && m_class_is_enumtype (vc);
+	// et/vt = m_class_get_byval_arg (ec/vc)->type so get_klass_unchecked is safe here
+	et_isenum = et == MONO_TYPE_VALUETYPE && m_class_is_enumtype (m_type_data_get_klass_unchecked (m_class_get_byval_arg (ec)));
+	vt_isenum = vt == MONO_TYPE_VALUETYPE && m_class_is_enumtype (m_type_data_get_klass_unchecked (m_class_get_byval_arg (vc)));
 
 	if (strict_enums && et_isenum && !vt_isenum) {
 		INVALID_CAST;
@@ -495,10 +493,10 @@ array_set_value_impl (MonoArray *arr, MonoObjectHandle value_handle, guint32 pos
 	}
 
 	if (et_isenum)
-		et = mono_class_enum_basetype_internal (ec)->type;
+		et = mono_class_enum_basetype_internal (m_type_data_get_klass_unchecked (m_class_get_byval_arg (ec)))->type;
 
 	if (vt_isenum)
-		vt = mono_class_enum_basetype_internal (vc)->type;
+		vt = mono_class_enum_basetype_internal (m_type_data_get_klass_unchecked (m_class_get_byval_arg (vc)))->type;
 
 	// Treat MONO_TYPE_U/I as MONO_TYPE_U8/I8/U4/I4
 #if SIZEOF_VOID_P == 8
@@ -950,7 +948,7 @@ ves_icall_System_Array_SetGenericValue_icall (MonoObjectHandleOnStack *arr_handl
 }
 
 void
-ves_icall_System_SpanHelpers_memmove (void *destination, void *source, size_t byte_count)
+ves_icall_System_Runtime_RuntimeImports_Memmove (guint8 *destination, guint8 *source, size_t byte_count)
 {
 	mono_gc_memmove_atomic (destination, source, byte_count);
 }
@@ -968,9 +966,9 @@ ves_icall_System_Buffer_BulkMoveWithWriteBarrier (guint8 *destination, guint8 *s
 }
 
 void
-ves_icall_System_SpanHelpers_memset (void *p, gint32 value, size_t byte_length)
+ves_icall_System_Runtime_RuntimeImports_ZeroMemory (guint8 *p, size_t byte_length)
 {
-	memset (p, value, byte_length);
+	memset (p, 0, byte_length);
 }
 
 gpointer
@@ -6230,7 +6228,7 @@ ves_icall_System_Environment_FailFast (MonoStringHandle message, MonoExceptionHa
 
 	if (!MONO_HANDLE_IS_NULL (message)) {
 		char *msg = mono_string_handle_to_utf8 (message, error);
-		g_warning_dont_trim ("%s", msg);
+		g_warning_dont_trim (msg);
 		g_free (msg);
 	}
 
@@ -6250,13 +6248,6 @@ gpointer
 ves_icall_RuntimeMethodHandle_GetFunctionPointer (MonoMethod *method, MonoError *error)
 {
 	return mono_method_get_unmanaged_wrapper_ftnptr_internal (method, FALSE, error);
-}
-
-gpointer
-ves_icall_RuntimeMethodHandle_GetNativeCode (MonoMethod *method, MonoError *error)
-{
-	MonoRuntimeCallbacks *callbacks = mono_get_runtime_callbacks ();
-	return callbacks->get_method_code_start ? callbacks->get_method_code_start (method) : NULL;
 }
 
 void*

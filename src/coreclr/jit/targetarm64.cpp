@@ -57,14 +57,6 @@ ABIPassingInformation Arm64Classifier::Classify(Compiler*    comp,
                                                 ClassLayout* structLayout,
                                                 WellKnownArg wellKnownParam)
 {
-    if (wellKnownParam == WellKnownArg::SecretStubParam)
-    {
-        return ABIPassingInformation::FromSegmentByValue(comp, ABIPassingSegment::InRegister(REG_SECRET_STUB_PARAM, 0,
-                                                                                             TARGET_POINTER_SIZE));
-    }
-
-    assert(!varTypeIsMask(type));
-
     if ((wellKnownParam == WellKnownArg::RetBuffer) && hasFixedRetBuffReg(m_info.CallConv))
     {
         return ABIPassingInformation::FromSegmentByValue(comp, ABIPassingSegment::InRegister(REG_ARG_RET_BUFF, 0,
@@ -116,8 +108,7 @@ ABIPassingInformation Arm64Classifier::Classify(Compiler*    comp,
     if (varTypeIsStruct(type))
     {
         unsigned size = structLayout->GetSize();
-        // TODO-SVE: We should be able to pass in a Z register.
-        if (size > 16 || (type == TYP_SIMD))
+        if (size > 16)
         {
             passedByRef = true;
             slots       = 1;
@@ -160,7 +151,7 @@ ABIPassingInformation Arm64Classifier::Classify(Compiler*    comp,
 
         // In varargs methods (only supported on Windows) all parameters go in
         // integer registers.
-        if (varTypeUsesFloatArgReg(type) && !m_info.IsVarArgs && !passedByRef)
+        if (varTypeUsesFloatArgReg(type) && !m_info.IsVarArgs)
         {
             regs = &m_floatRegs;
         }

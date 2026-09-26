@@ -8,7 +8,6 @@ using Xunit;
 public class Program
 {
     [Fact]
-    [ActiveIssue("https://github.com/dotnet/runtimelab/issues/861", typeof(TestLibrary.Utilities), nameof(TestLibrary.Utilities.IsNativeAot))]
     public static int TestEntryPoint()
     {
         bool failed = false;

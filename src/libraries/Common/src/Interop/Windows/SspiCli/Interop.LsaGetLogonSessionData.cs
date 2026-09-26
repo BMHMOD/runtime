@@ -9,7 +9,6 @@ internal static partial class Interop
 {
     internal static partial class SspiCli
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Interop.Libraries.SspiCli, SetLastError = true)]
         internal static partial int LsaGetLogonSessionData(
             ref LUID LogonId,

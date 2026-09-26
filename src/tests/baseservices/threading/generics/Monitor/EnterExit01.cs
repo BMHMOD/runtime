@@ -3,7 +3,6 @@
 using System;
 using System.Threading;
 using Xunit;
-using TestLibrary;
 
 public struct ValX1<T> {}
 public class RefX1<T> {}
@@ -53,7 +52,7 @@ public class Test_EnterExit01
 		}
 	}
 	
-	[ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+	[Fact]
 	public static int TestEntryPoint()
 	{
 		Gen<int>.EnterExitTest();	

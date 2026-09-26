@@ -14,6 +14,8 @@ namespace System.Diagnostics.Tests
         [ConditionalFact(typeof(Helpers), nameof(Helpers.SupportsEventLogs))]
         public void GetPropertyValues()
         {
+            if (PlatformDetection.IsWindows7) // Null events in PowerShell log
+                return;
             var query = new EventLogQuery("Application", PathType.LogName, "*[System]") { ReverseDirection = true };
             var eventLog = new EventLogReader(query, Helpers.GetBookmark("Application", PathType.LogName));
             using (eventLog)
@@ -34,6 +36,8 @@ namespace System.Diagnostics.Tests
         [InlineData("Application")]
         public void FormatDescription(string log)
         {
+            if (PlatformDetection.IsWindows7) // Null events in PowerShell log
+                return;
             var query = new EventLogQuery(log, PathType.LogName, "*[System]") { ReverseDirection = true };
             using (var eventLog = new EventLogReader(query, Helpers.GetBookmark(log, PathType.LogName)))
             {
@@ -50,6 +54,8 @@ namespace System.Diagnostics.Tests
         [ConditionalFact(typeof(Helpers), nameof(Helpers.SupportsEventLogs))]
         public void Properties()
         {
+            if (PlatformDetection.IsWindows7) // Null events in PowerShell log
+                return;
             var query = new EventLogQuery("Application", PathType.LogName, "*[System]") { ReverseDirection = true };
             var eventLog = new EventLogReader(query, Helpers.GetBookmark("Application", PathType.LogName));
             using (eventLog)
@@ -68,6 +74,8 @@ namespace System.Diagnostics.Tests
         [ConditionalFact(typeof(Helpers), nameof(Helpers.SupportsEventLogs))]
         public void ToXml()
         {
+            if (PlatformDetection.IsWindows7) // Null events in PowerShell log
+                return;
             var query = new EventLogQuery("Application", PathType.LogName, "*[System]") { ReverseDirection = true };
             var eventLog = new EventLogReader(query, Helpers.GetBookmark("Application", PathType.LogName));
             using (eventLog)
@@ -82,7 +90,8 @@ namespace System.Diagnostics.Tests
         [ConditionalFact(typeof(Helpers), nameof(Helpers.SupportsEventLogs))]
         public void ExceptionOnce()
         {
-            if (PlatformDetection.IsWindows10Version22000OrGreater ||  // Windows 11 and Windows Server 2022:
+            if (PlatformDetection.IsWindows7 ||  // Null events in PowerShell log
+                PlatformDetection.IsWindows10Version22000OrGreater ||  // Windows 11 and Windows Server 2022:
                 PlatformDetection.IsWindows10Version20348OrGreater)    // ActiveIssue("https://github.com/dotnet/runtime/issues/58829")
                 return;
             var query = new EventLogQuery("Application", PathType.LogName, "*[System]") { ReverseDirection = true };
@@ -117,6 +126,9 @@ namespace System.Diagnostics.Tests
         [ConditionalFact(typeof(Helpers), nameof(Helpers.SupportsEventLogs))]
         public void EventLogRecord_CheckProperties_RemainSame()
         {
+            if (PlatformDetection.IsWindows7) // Null events in PowerShell log
+                return;
+
             SecurityIdentifier userId;
             byte? version, level;
             short? opcode;

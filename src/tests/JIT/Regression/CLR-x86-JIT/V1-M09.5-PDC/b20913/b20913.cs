@@ -17,7 +17,6 @@ namespace Bug
             return new double[5];
         }
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

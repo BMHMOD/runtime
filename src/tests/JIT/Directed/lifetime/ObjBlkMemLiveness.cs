@@ -4,8 +4,6 @@
 
 // Test that memory liveness does not miss a memory use (in the form of an OBJ/BLK).
 
-namespace JitTest_Directed_lifetime_ObjBlkMemLiveness;
-
 using System;
 using System.Runtime.Intrinsics;
 using System.Runtime.CompilerServices;
@@ -13,7 +11,6 @@ using Xunit;
 
 public unsafe class ObjBlkLiveness
 {
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

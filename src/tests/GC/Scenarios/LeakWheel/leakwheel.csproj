@@ -12,7 +12,4 @@
   <ItemGroup>
     <Compile Include="leakwheel.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

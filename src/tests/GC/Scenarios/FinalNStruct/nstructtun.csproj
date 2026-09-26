@@ -12,9 +12,6 @@
     <Compile Include="nstructtun.cs" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
-  <ItemGroup>
     <ProjectReference Include="strmap.csproj" />
   </ItemGroup>
 </Project>

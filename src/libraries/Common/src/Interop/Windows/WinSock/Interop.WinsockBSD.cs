@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 
@@ -82,16 +81,16 @@ internal static partial class Interop
                 public static Native ConvertToUnmanaged(IPv6MulticastRequest managed) => new(managed);
                 public static IPv6MulticastRequest ConvertToManaged(Native native) => native.ToManaged();
 
-                public struct Native
+                public unsafe struct Native
                 {
                     private const int MulticastAddressLength = 16;
-                    private InlineArray16<byte> _multicastAddress;
+                    private fixed byte _multicastAddress[MulticastAddressLength];
                     private int _interfaceIndex;
 
                     public Native(IPv6MulticastRequest managed)
                     {
                         Debug.Assert(managed.MulticastAddress.Length == MulticastAddressLength);
-                        managed.MulticastAddress.CopyTo((Span<byte>)_multicastAddress);
+                        managed.MulticastAddress.CopyTo(MemoryMarshal.CreateSpan(ref _multicastAddress[0], MulticastAddressLength));
                         _interfaceIndex = managed.InterfaceIndex;
                     }
 
@@ -102,7 +101,7 @@ internal static partial class Interop
                             MulticastAddress = new byte[MulticastAddressLength],
                             InterfaceIndex = _interfaceIndex
                         };
-                        ((ReadOnlySpan<byte>)_multicastAddress).CopyTo(managed.MulticastAddress);
+                        MemoryMarshal.CreateReadOnlySpan(ref _multicastAddress[0], MulticastAddressLength).CopyTo(managed.MulticastAddress);
                         return managed;
                     }
                 }

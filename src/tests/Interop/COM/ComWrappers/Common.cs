@@ -94,13 +94,13 @@ namespace ComWrappersTests.Common
         }
     }
 
-    public class ITestObjectWrapperBase : ITest
+    public class ITestObjectWrapper : ITest
     {
         private readonly ITestVtbl._SetValue _setValue;
-        protected readonly IntPtr _ptr;
-        protected bool _released;
+        private readonly IntPtr _ptr;
+        private bool _released;
 
-        public ITestObjectWrapperBase(IntPtr ptr)
+        public ITestObjectWrapper(IntPtr ptr)
         {
             _ptr = ptr;
             VtblPtr inst = Marshal.PtrToStructure<VtblPtr>(ptr);
@@ -117,24 +117,6 @@ namespace ComWrappersTests.Common
             return count;
         }
 
-        public void SetValue(int i) => _setValue(_ptr, i);
-    }
-
-    public class ManualReleaseITestObjectWrapper : ITestObjectWrapperBase
-    {
-        public ManualReleaseITestObjectWrapper(IntPtr ptr)
-            : base(ptr)
-        {
-        }
-    }
-
-    public class ITestObjectWrapper : ITestObjectWrapperBase
-    {
-        public ITestObjectWrapper(IntPtr ptr)
-            : base(ptr)
-        {
-        }
-
         ~ITestObjectWrapper()
         {
             if (_ptr != IntPtr.Zero && !_released)
@@ -142,6 +124,8 @@ namespace ComWrappersTests.Common
                 Marshal.Release(_ptr);
             }
         }
+
+        public void SetValue(int i) => _setValue(_ptr, i);
     }
 
     //

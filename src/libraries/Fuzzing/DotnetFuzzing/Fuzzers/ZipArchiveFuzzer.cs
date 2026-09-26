@@ -11,7 +11,7 @@ internal sealed class ZipArchiveFuzzer : IFuzzer
 {
     public string[] TargetAssemblies { get; } = ["System.IO.Compression"];
     public string[] TargetCoreLibPrefixes => [];
-    public string Corpus => "ziparchive";
+    public string Dictionary => "ziparchive.dict";
 
     public void FuzzTarget(ReadOnlySpan<byte> bytes)
     {

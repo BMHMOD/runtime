@@ -71,7 +71,6 @@ namespace System.Speech.Recognition.SrgsGrammar
                     }
                     readers[iFile] = new XmlTextReader(new Uri(inputPaths[iFile], UriKind.RelativeOrAbsolute).ToString());
                 }
-
                 SrgsCompiler.CompileStream(readers, outputPath, null, false, null, referencedAssemblies, keyFile);
             }
             finally
@@ -130,7 +129,7 @@ namespace System.Speech.Recognition.SrgsGrammar
         internal static void CompileXmlOrCopyCfg(
             Stream inputStream,
             Stream outputStream,
-            Uri? originalUri)
+            Uri originalUri)
         {
             // Wrap stream in case Seek is not supported:
             SeekableReadStream seekableInputStream = new(inputStream);

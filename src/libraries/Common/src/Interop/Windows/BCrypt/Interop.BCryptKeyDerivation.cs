@@ -11,7 +11,6 @@ internal static partial class Interop
 {
     internal static partial class BCrypt
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.BCrypt)]
         internal static unsafe partial NTSTATUS BCryptKeyDerivation(
             SafeBCryptKeyHandle hKey,

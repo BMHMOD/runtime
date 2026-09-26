@@ -17,7 +17,6 @@ set(NATIVECRYPTO_SOURCES
     pal_cipher.c
     pal_hmac.c
     pal_jni.c
-    pal_jni_onload.c
     pal_lifetime.c
     pal_memory.c
     pal_misc.c
@@ -27,7 +26,6 @@ set(NATIVECRYPTO_SOURCES
     pal_ssl.c
     pal_sslstream.c
     pal_trust_manager.c
-    pal_x25519.c
     pal_x509.c
     pal_x509chain.c
     pal_x509store.c
@@ -35,7 +33,7 @@ set(NATIVECRYPTO_SOURCES
 
 add_library(System.Security.Cryptography.Native.Android
     SHARED
-    ${NATIVECRYPTO_SOURCES}
+    ${NATIVECRYPTO_SOURCES} pal_jni_onload.c
     ${VERSION_FILE_PATH}
 )
 

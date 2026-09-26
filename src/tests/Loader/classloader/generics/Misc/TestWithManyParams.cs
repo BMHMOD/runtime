@@ -6,7 +6,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 
 public class Test_TestWithManyParams
@@ -14,7 +13,6 @@ public class Test_TestWithManyParams
 	public static int i = 0;
 
 
- [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
 	[Fact]
 	public static int TestEntryPoint()
 	{

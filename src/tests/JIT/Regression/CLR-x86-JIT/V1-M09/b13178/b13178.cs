@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b13178
+namespace DefaultNamespace
 {
     //@BEGINRENAME; Verify this renames
     //@ENDRENAME; Verify this renames
@@ -13,7 +13,6 @@ namespace b13178
 
     public class Ternary3b
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

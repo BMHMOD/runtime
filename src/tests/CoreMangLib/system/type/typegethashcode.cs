@@ -13,7 +13,6 @@ using Xunit;
 /// </summary>
 public class TypeGetHashCode
 {
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

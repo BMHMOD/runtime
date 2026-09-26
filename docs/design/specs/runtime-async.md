@@ -73,8 +73,7 @@ Async methods have some temporary restrictions with may be lifted later:
 
 Other restrictions are likely to be permanent, including
 * By-ref locals cannot be hoisted across suspension points
-* Suspension points may not appear in a handler block (`catch`, `filter`,
-  `finally`, or `fault`). They are permitted in the protected `try` block.
+* Suspension points may not appear in exception handling blocks.
 * Only four types will be supported as the return type for "runtime-async" methods: `System.Threading.Task`, `System.Threading.ValueTask`, `System.Threading.Task<T>`, and `System.Threading.ValueTask<T>`
 
 

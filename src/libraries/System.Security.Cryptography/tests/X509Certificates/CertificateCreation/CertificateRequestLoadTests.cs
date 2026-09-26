@@ -914,11 +914,11 @@ BgkqhkiG9w0BAQsFAAMBAA==
                     //      signatureAlgorithm   AlgorithmIdentifier,
                     //      signature            BIT STRING  }
 
-                    ValueAsnReader readerOne = new ValueAsnReader(one.RawDataMemory.Span, AsnEncodingRules.DER);
-                    ValueAsnReader readerTwo = new ValueAsnReader(two.RawDataMemory.Span, AsnEncodingRules.DER);
+                    AsnValueReader readerOne = new AsnValueReader(one.RawDataMemory.Span, AsnEncodingRules.DER);
+                    AsnValueReader readerTwo = new AsnValueReader(two.RawDataMemory.Span, AsnEncodingRules.DER);
 
-                    ValueAsnReader certOne = readerOne.ReadSequence();
-                    ValueAsnReader certTwo = readerTwo.ReadSequence();
+                    AsnValueReader certOne = readerOne.ReadSequence();
+                    AsnValueReader certTwo = readerTwo.ReadSequence();
                     readerOne.ThrowIfNotEmpty();
                     readerTwo.ThrowIfNotEmpty();
 

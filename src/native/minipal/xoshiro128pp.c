@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 #include <minipal/xoshiro128pp.h>
-#include <stddef.h>
 
 // This code is a slightly modified version of the xoshiro128++ generator from http://prng.di.unimi.it/xoshiro128plusplus.c
 
@@ -30,7 +29,7 @@ static void jump(struct minipal_xoshiro128pp* pState) {
 	uint32_t s1 = 0;
 	uint32_t s2 = 0;
 	uint32_t s3 = 0;
-	for (size_t i = 0; i < sizeof JUMP / sizeof * JUMP; i++)
+	for (int i = 0; i < sizeof JUMP / sizeof * JUMP; i++)
 		for (int b = 0; b < 32; b++) {
 			if (JUMP[i] & UINT32_C(1) << b) {
 				s0 ^= s[0];
@@ -78,4 +77,5 @@ uint32_t minipal_xoshiro128pp_next(struct minipal_xoshiro128pp* pState) {
 
 	return result;
 }
+
 

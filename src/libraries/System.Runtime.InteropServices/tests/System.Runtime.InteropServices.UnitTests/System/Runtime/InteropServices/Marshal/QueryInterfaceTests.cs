@@ -22,7 +22,6 @@ namespace System.Runtime.InteropServices.Tests
         [Theory]
         [MemberData(nameof(QueryInterface_ValidInterface_TestData))]
         [SkipOnMono("ComWrappers are not supported on Mono")]
-        [SkipOnPlatform(TestPlatforms.Browser, "Built-in COM / ComWrappers is not supported on WebAssembly")]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/76005", typeof(PlatformDetection), nameof(PlatformDetection.IsNativeAot), nameof(PlatformDetection.IsNotWindows))]
         public void QueryInterface_ValidInterface_Success(object o, string iidString)
         {
@@ -57,7 +56,6 @@ namespace System.Runtime.InteropServices.Tests
         [Theory]
         [MemberData(nameof(QueryInterface_NoSuchInterface_TestData))]
         [SkipOnMono("ComWrappers are not supported on Mono")]
-        [SkipOnPlatform(TestPlatforms.Browser, "Built-in COM / ComWrappers is not supported on WebAssembly")]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/76005", typeof(PlatformDetection), nameof(PlatformDetection.IsNativeAot), nameof(PlatformDetection.IsNotWindows))]
         public void QueryInterface_NoSuchInterface_Success(object o, string iidString)
         {

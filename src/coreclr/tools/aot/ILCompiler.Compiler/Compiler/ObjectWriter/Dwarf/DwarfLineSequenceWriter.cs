@@ -4,7 +4,6 @@
 using System.Buffers;
 using System.Diagnostics;
 using ILCompiler.DependencyAnalysis;
-using Internal.Text;
 using static ILCompiler.ObjectWriter.DwarfNative;
 
 namespace ILCompiler.ObjectWriter
@@ -12,7 +11,7 @@ namespace ILCompiler.ObjectWriter
     internal sealed class DwarfLineSequenceWriter
     {
         private readonly ArrayBufferWriter<byte> _writer;
-        private readonly Utf8String _sectionName;
+        private readonly string _sectionName;
         private readonly byte _minimumInstructionLength;
         private readonly uint _maxDeltaAddressPerSpecialCode;
 
@@ -22,7 +21,7 @@ namespace ILCompiler.ObjectWriter
         private int _line = 1;
         private int _column;
 
-        public DwarfLineSequenceWriter(Utf8String sectionName, byte minimumInstructionLength)
+        public DwarfLineSequenceWriter(string sectionName, byte minimumInstructionLength)
         {
             _writer = new ArrayBufferWriter<byte>();
             _sectionName = sectionName;

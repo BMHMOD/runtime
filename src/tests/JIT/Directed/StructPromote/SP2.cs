@@ -3,8 +3,6 @@
 //
 
 #define USE_STRUCT
-namespace JitTest_Directed_StructPromote_SP2;
-
 using System.Runtime.CompilerServices;
 using System;
 using Xunit;
@@ -46,7 +44,6 @@ public class SP2
 #endif
     }
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

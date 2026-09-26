@@ -13,11 +13,10 @@ namespace System.Diagnostics.Eventing.Reader
     public sealed class EventOpcode
     {
         private readonly int _value;
-        private string? _name;
-        private string? _displayName;
-        [MemberNotNullWhen(false, nameof(_pmReference))]
-        private bool DataReady { get; set; }
-        private readonly ProviderMetadata? _pmReference;
+        private string _name;
+        private string _displayName;
+        private bool _dataReady;
+        private readonly ProviderMetadata _pmReference;
         private readonly object _syncObject;
 
         internal EventOpcode(int value, ProviderMetadata pmReference)
@@ -27,12 +26,12 @@ namespace System.Diagnostics.Eventing.Reader
             _syncObject = new object();
         }
 
-        internal EventOpcode(string? name, int value, string? displayName)
+        internal EventOpcode(string name, int value, string displayName)
         {
             _value = value;
             _name = name;
             _displayName = displayName;
-            DataReady = true;
+            _dataReady = true;
             _syncObject = new object();
         }
 
@@ -40,7 +39,7 @@ namespace System.Diagnostics.Eventing.Reader
         {
             lock (_syncObject)
             {
-                if (DataReady)
+                if (_dataReady)
                     return;
 
                 // Get the data
@@ -48,21 +47,21 @@ namespace System.Diagnostics.Eventing.Reader
                 // Set the names and display names to null
                 _name = null;
                 _displayName = null;
-                DataReady = true;
+                _dataReady = true;
                 foreach (EventOpcode op in result)
                 {
                     if (op.Value == _value)
                     {
                         _name = op.Name;
                         _displayName = op.DisplayName;
-                        DataReady = true;
+                        _dataReady = true;
                         break;
                     }
                 }
             }
         } // End Prepare Data
 
-        public string? Name
+        public string Name
         {
             get
             {
@@ -79,7 +78,7 @@ namespace System.Diagnostics.Eventing.Reader
             }
         }
 
-        public string? DisplayName
+        public string DisplayName
         {
             get
             {

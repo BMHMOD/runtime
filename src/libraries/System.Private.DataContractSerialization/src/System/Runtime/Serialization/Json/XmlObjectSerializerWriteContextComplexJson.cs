@@ -26,7 +26,7 @@ namespace System.Runtime.Serialization.Json
 
         internal XmlObjectSerializerWriteContextComplexJson(DataContractJsonSerializer serializer, DataContract rootTypeDataContract)
 #pragma warning disable SYSLIB0050 // StreamingContext ctor is obsolete
-            : base(serializer, serializer.MaxItemsInObjectGraph, new StreamingContext(StreamingContextStates.All), serializer.IgnoreExtensionDataObject, serializer.SerializationSurrogateProvider)
+            : base(serializer, serializer.MaxItemsInObjectGraph, new StreamingContext(StreamingContextStates.All), serializer.IgnoreExtensionDataObject)
 #pragma warning restore SYSLIB0050
         {
             _emitXsiType = serializer.EmitTypeInformation;

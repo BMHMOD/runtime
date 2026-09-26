@@ -8,7 +8,6 @@ namespace strswitch
 {
     public class Class1
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

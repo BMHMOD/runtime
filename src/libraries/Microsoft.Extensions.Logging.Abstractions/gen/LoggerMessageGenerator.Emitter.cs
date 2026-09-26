@@ -3,16 +3,16 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp;
 
 namespace Microsoft.Extensions.Logging.Generators
 {
     public partial class LoggerMessageGenerator
     {
-        internal sealed class Emitter
+        internal sealed class Emitter(Compilation compilation)
         {
             // The maximum arity of LoggerMessage.Define.
             private const int MaxLoggerMessageDefineArguments = 6;
@@ -31,14 +31,15 @@ namespace Microsoft.Extensions.Logging.Generators
                 "global::System.ComponentModel.EditorBrowsableAttribute(" +
                 "global::System.ComponentModel.EditorBrowsableState.Never)";
 
-            private readonly bool _hasStringCreate;
+            private readonly bool _hasStringCreate =
+                compilation.GetSpecialType(SpecialType.System_String).GetMembers("Create").OfType<IMethodSymbol>()
+                    .Any(m => m.IsStatic &&
+                              m.Parameters.Length == 2 &&
+                              m.Parameters[0].Type.Name == "IFormatProvider" &&
+                              m.Parameters[1].RefKind == RefKind.Ref);
+
             private readonly StringBuilder _builder = new StringBuilder(DefaultStringBuilderCapacity);
             private bool _needEnumerationHelper;
-
-            public Emitter(bool hasStringCreate)
-            {
-                _hasStringCreate = hasStringCreate;
-            }
 
             public string Emit(IReadOnlyList<LoggerClass> logClasses, CancellationToken cancellationToken)
             {
@@ -59,7 +60,6 @@ namespace Microsoft.Extensions.Logging.Generators
             private static bool UseLoggerMessageDefine(LoggerMethod lm)
             {
                 bool result =
-                    (lm.TypeParameters.Count == 0) &&                                   // generic methods can't use LoggerMessage.Define's static callback
                     (lm.TemplateParameters.Count <= MaxLoggerMessageDefineArguments) && // more args than LoggerMessage.Define can handle
                     (lm.Level != null) &&                                               // dynamic log level, which LoggerMessage.Define can't handle
                     (lm.TemplateList.Count == lm.TemplateParameters.Count);             // mismatch in template to args, which LoggerMessage.Define can't handle
@@ -146,15 +146,11 @@ namespace {lc.Namespace}
 
             private void GenStruct(LoggerMethod lm, string nestedIndentation)
             {
-                _builder.Append($@"
+                _builder.AppendLine($@"
         {nestedIndentation}/// {GeneratedTypeSummary}
         {nestedIndentation}[{s_generatedCodeAttribute}]
         {nestedIndentation}[{EditorBrowsableAttribute}]
-        {nestedIndentation}private readonly struct __{lm.UniqueName}Struct");
-                GenTypeParameterList(lm);
-                _builder.Append($" : global::System.Collections.Generic.IReadOnlyList<global::System.Collections.Generic.KeyValuePair<string, object?>>");
-                GenTypeConstraints(lm, nestedIndentation + "    ");
-                _builder.AppendLine($@"
+        {nestedIndentation}private readonly struct __{lm.UniqueName}Struct : global::System.Collections.Generic.IReadOnlyList<global::System.Collections.Generic.KeyValuePair<string, object?>>
         {nestedIndentation}{{");
                 GenFields(lm, nestedIndentation);
 
@@ -179,19 +175,17 @@ namespace {lc.Namespace}
                 GenVariableAssignments(lm, nestedIndentation);
 
                 string formatMethodBegin =
-                    lm.Message.IndexOf('{') < 0 ? "" :
+                    !lm.Message.Contains('{') ? "" :
                     _hasStringCreate ? "string.Create(global::System.Globalization.CultureInfo.InvariantCulture, " :
                     "global::System.FormattableString.Invariant(";
                 string formatMethodEnd = formatMethodBegin.Length > 0 ? ")" : "";
 
                 _builder.Append($@"
-                {nestedIndentation}return {formatMethodBegin}${SymbolDisplay.FormatLiteral(lm.Message, quote: true)}{formatMethodEnd};
+                {nestedIndentation}return {formatMethodBegin}$""{ConvertEndOfLineAndQuotationCharactersToEscapeForm(lm.Message)}""{formatMethodEnd};
             {nestedIndentation}}}
 ");
                 _builder.Append($@"
-            {nestedIndentation}public static readonly global::System.Func<__{lm.UniqueName}Struct");
-                GenTypeParameterList(lm);
-                _builder.Append($@", global::System.Exception?, string> Format = (state, ex) => state.ToString();
+            {nestedIndentation}public static readonly global::System.Func<__{lm.UniqueName}Struct, global::System.Exception?, string> Format = (state, ex) => state.ToString();
 
             {nestedIndentation}public int Count => {lm.TemplateParameters.Count + 1};
 
@@ -286,7 +280,7 @@ namespace {lc.Namespace}
                     _builder.AppendLine($"                    {nestedIndentation}{index++} => new global::System.Collections.Generic.KeyValuePair<string, object?>(\"{name}\", this.{NormalizeSpecialSymbol(p.CodeName)}),");
                 }
 
-                _builder.AppendLine($"                    {nestedIndentation}{index++} => new global::System.Collections.Generic.KeyValuePair<string, object?>(\"{{OriginalFormat}}\", {SymbolDisplay.FormatLiteral(lm.Message, quote: true)}),");
+                _builder.AppendLine($"                    {nestedIndentation}{index++} => new global::System.Collections.Generic.KeyValuePair<string, object?>(\"{{OriginalFormat}}\", \"{ConvertEndOfLineAndQuotationCharactersToEscapeForm(lm.Message)}\"),");
             }
 
             private void GenCallbackArguments(LoggerMethod lm)
@@ -375,9 +369,9 @@ namespace {lc.Namespace}
 
             private void GenHolder(LoggerMethod lm)
             {
-                _builder.Append($"new __{lm.UniqueName}Struct");
-                GenTypeParameterList(lm);
-                _builder.Append('(');
+                string typeName = $"__{lm.UniqueName}Struct";
+
+                _builder.Append($"new {typeName}(");
                 foreach (LoggerParameter p in lm.TemplateParameters)
                 {
                     if (p != lm.TemplateParameters[0])
@@ -389,44 +383,6 @@ namespace {lc.Namespace}
                 }
 
                 _builder.Append(')');
-            }
-
-            private void GenTypeParameterList(LoggerMethod lm)
-            {
-                if (lm.TypeParameters.Count == 0)
-                {
-                    return;
-                }
-
-                _builder.Append('<');
-                bool firstItem = true;
-                foreach (LoggerMethodTypeParameter tp in lm.TypeParameters)
-                {
-                    if (firstItem)
-                    {
-                        firstItem = false;
-                    }
-                    else
-                    {
-                        _builder.Append(", ");
-                    }
-
-                    _builder.Append(tp.Name);
-                }
-
-                _builder.Append('>');
-            }
-
-            private void GenTypeConstraints(LoggerMethod lm, string nestedIndentation)
-            {
-                foreach (LoggerMethodTypeParameter tp in lm.TypeParameters)
-                {
-                    if (tp.Constraints is not null)
-                    {
-                        _builder.Append(@$"
-            {nestedIndentation}where {tp.Name} : {tp.Constraints}");
-                    }
-                }
             }
 
             private void GenLogMethod(LoggerMethod lm, string nestedIndentation)
@@ -450,23 +406,17 @@ namespace {lc.Namespace}
 
                     GenDefineTypes(lm, brackets: true);
 
-                    _builder.Append(@$"({level}, new global::Microsoft.Extensions.Logging.EventId({lm.EventId}, {eventName}), {SymbolDisplay.FormatLiteral(lm.Message, quote: true)}, new global::Microsoft.Extensions.Logging.LogDefineOptions() {{ SkipEnabledCheck = true }});
+                    _builder.Append(@$"({level}, new global::Microsoft.Extensions.Logging.EventId({lm.EventId}, {eventName}), ""{ConvertEndOfLineAndQuotationCharactersToEscapeForm(lm.Message)}"", new global::Microsoft.Extensions.Logging.LogDefineOptions() {{ SkipEnabledCheck = true }}); 
 ");
                 }
 
-                GenMethodDocumentation(lm, nestedIndentation);
-
                 _builder.Append($@"
         {nestedIndentation}[{s_generatedCodeAttribute}]
-        {nestedIndentation}{lm.Modifiers} void {lm.Name}");
-                GenTypeParameterList(lm);
-                _builder.Append($"({extension}");
+        {nestedIndentation}{lm.Modifiers} void {lm.Name}({extension}");
 
                 GenParameters(lm);
 
-                _builder.Append(')');
-                GenTypeConstraints(lm, nestedIndentation);
-                _builder.Append($@"
+                _builder.Append($@")
         {nestedIndentation}{{");
 
                 string enabledCheckIndentation = lm.SkipEnabledCheck ? "" : "    ";
@@ -496,9 +446,7 @@ namespace {lc.Namespace}
                 GenHolder(lm);
                 _builder.Append($@",
                 {nestedIndentation}{enabledCheckIndentation}{exceptionArg},
-                {nestedIndentation}{enabledCheckIndentation}__{lm.UniqueName}Struct");
-                GenTypeParameterList(lm);
-                _builder.Append(".Format);");
+                {nestedIndentation}{enabledCheckIndentation}__{lm.UniqueName}Struct.Format);");
                 }
 
                 if (!lm.SkipEnabledCheck)
@@ -555,111 +503,21 @@ namespace {lc.Namespace}
                     }
                     else
                     {
-                        level = GetLogLevelFullName(lm.Level.Value);
+                        level = lm.Level switch
+                        {
+                            0 => "global::Microsoft.Extensions.Logging.LogLevel.Trace",
+                            1 => "global::Microsoft.Extensions.Logging.LogLevel.Debug",
+                            2 => "global::Microsoft.Extensions.Logging.LogLevel.Information",
+                            3 => "global::Microsoft.Extensions.Logging.LogLevel.Warning",
+                            4 => "global::Microsoft.Extensions.Logging.LogLevel.Error",
+                            5 => "global::Microsoft.Extensions.Logging.LogLevel.Critical",
+                            6 => "global::Microsoft.Extensions.Logging.LogLevel.None",
+                            _ => $"(global::Microsoft.Extensions.Logging.LogLevel){lm.Level}",
+                        };
                     }
 
                     return level;
                 }
-            }
-
-            private void GenMethodDocumentation(LoggerMethod lm, string nestedIndentation)
-            {
-                _builder.Append($@"
-        {nestedIndentation}/// <summary>
-        {nestedIndentation}/// <para><b>Message:</b> {EscapeForXmlDoc(lm.Message)}</para>");
-
-                if (lm.Level != null)
-                {
-                    _builder.Append($@"
-        {nestedIndentation}/// <para><b>Level:</b> {GetLogLevelName(lm.Level.Value)}</para>");
-                }
-
-                _builder.Append($@"
-        {nestedIndentation}/// </summary>");
-            }
-
-            private static string EscapeForXmlDoc(string text)
-            {
-                if (string.IsNullOrEmpty(text))
-                {
-                    return text;
-                }
-
-                foreach (char c in text)
-                {
-                    if (c is '<' or '>' or '&' or '"' or '\'' or '\n' or '\r')
-                    {
-                        return PerformEscaping(text);
-                    }
-                }
-
-                return text;
-
-                static string PerformEscaping(string text)
-                {
-                    var sb = new StringBuilder(text.Length + 20);
-                    foreach (char c in text)
-                    {
-                        switch (c)
-                        {
-                            case '<':
-                                sb.Append("&lt;");
-                                break;
-                            case '>':
-                                sb.Append("&gt;");
-                                break;
-                            case '&':
-                                sb.Append("&amp;");
-                                break;
-                            case '"':
-                                sb.Append("&quot;");
-                                break;
-                            case '\'':
-                                sb.Append("&apos;");
-                                break;
-                            case '\n':
-                                sb.Append("&#10;");
-                                break;
-                            case '\r':
-                                sb.Append("&#13;");
-                                break;
-                            default:
-                                sb.Append(c);
-                                break;
-                        }
-                    }
-                    return sb.ToString();
-                }
-            }
-
-            private static string GetLogLevelName(int level)
-            {
-                return level switch
-                {
-                    0 => "Trace",
-                    1 => "Debug",
-                    2 => "Information",
-                    3 => "Warning",
-                    4 => "Error",
-                    5 => "Critical",
-                    6 => "None",
-                    _ => level.ToString(),
-                };
-            }
-
-            private static string GetLogLevelFullName(int level)
-            {
-                return level switch
-                {
-                    0 => "global::Microsoft.Extensions.Logging.LogLevel.Trace",
-                    1 => "global::Microsoft.Extensions.Logging.LogLevel.Debug",
-                    2 => "global::Microsoft.Extensions.Logging.LogLevel.Information",
-                    3 => "global::Microsoft.Extensions.Logging.LogLevel.Warning",
-                    4 => "global::Microsoft.Extensions.Logging.LogLevel.Error",
-                    5 => "global::Microsoft.Extensions.Logging.LogLevel.Critical",
-                    6 => "global::Microsoft.Extensions.Logging.LogLevel.None",
-                    _ => $"(global::Microsoft.Extensions.Logging.LogLevel){level}",
-                };
             }
 
             private void GenEnumerationHelper()
@@ -718,6 +576,55 @@ internal static class __LoggerMessageGenerator
             }
         }
 
+        private static string ConvertEndOfLineAndQuotationCharactersToEscapeForm(string s)
+        {
+            int index = 0;
+            while (index < s.Length)
+            {
+                if (s[index] is '\n' or '\r' or '"')
+                {
+                    break;
+                }
+                index++;
+            }
+
+            if (index >= s.Length)
+            {
+                return s;
+            }
+
+            StringBuilder sb = new StringBuilder(s.Length);
+            sb.Append(s, 0, index);
+
+            while (index < s.Length)
+            {
+                switch (s[index])
+                {
+                    case '\n':
+                        sb.Append('\\');
+                        sb.Append('n');
+                        break;
+
+                    case '\r':
+                        sb.Append('\\');
+                        sb.Append('r');
+                        break;
+
+                    case '"':
+                        sb.Append('\\');
+                        sb.Append('"');
+                        break;
+
+                    default:
+                        sb.Append(s[index]);
+                        break;
+                }
+
+                index++;
+            }
+
+            return sb.ToString();
+        }
         /// <summary>
         /// Checks if variableOrTemplateName contains a special symbol ('@') as starting char
         /// </summary>

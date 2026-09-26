@@ -138,6 +138,7 @@ namespace System.IO.Tests
         }
 
         [Fact]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/83197", TestPlatforms.Browser)]
         public void SetLastWriteTimeTicks()
         {
             string firstFile = GetTestFilePath();
@@ -152,7 +153,7 @@ namespace System.IO.Tests
             Assert.True(firstFileTicks <= secondFileTicks, $"First File Ticks\t{firstFileTicks}\nSecond File Ticks\t{secondFileTicks}");
         }
 
-        [ConditionalFact(typeof(File_GetSetTimes), nameof(NanoSecondTemporalResolution))]
+        [ConditionalFact(nameof(HighTemporalResolution))] // OSX HFS driver format/Browser Platform do not support nanosecond granularity.
         public void SetUptoNanoseconds()
         {
             string file = GetTestFilePath();
@@ -169,7 +170,7 @@ namespace System.IO.Tests
 
         // Linux kernels no longer have long max date time support. Discussed in https://github.com/dotnet/runtime/issues/43166.
         [PlatformSpecific(~TestPlatforms.Linux)]
-        [ConditionalFact(typeof(File_GetSetTimes), nameof(SupportsLongMaxDateTime))]
+        [ConditionalFact(nameof(SupportsLongMaxDateTime))]
         public void SetDateTimeMax()
         {
             string file = GetTestFilePath();
@@ -184,6 +185,7 @@ namespace System.IO.Tests
         }
 
         [Fact]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/83197", TestPlatforms.Browser)]
         public void SetLastAccessTimeTicks()
         {
             string firstFile = GetTestFilePath();

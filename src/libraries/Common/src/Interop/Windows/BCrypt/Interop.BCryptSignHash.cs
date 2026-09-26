@@ -12,7 +12,6 @@ internal static partial class Interop
 {
     internal static partial class BCrypt
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.BCrypt)]
         private static unsafe partial NTSTATUS BCryptSignHash(
             SafeBCryptKeyHandle hKey,
@@ -77,7 +76,7 @@ internal static partial class Interop
             }
         }
 
-        internal static unsafe int BCryptSignHashPqcPure(
+        internal static unsafe void BCryptSignHashPqcPure(
             SafeBCryptKeyHandle key,
             ReadOnlySpan<byte> data,
             ReadOnlySpan<byte> context,
@@ -105,14 +104,12 @@ internal static partial class Interop
                     BCryptSignVerifyFlags.BCRYPT_PAD_PQDSA);
             }
 
+            Debug.Assert(bytesWritten == destination.Length);
+
             if (status != Interop.BCrypt.NTSTATUS.STATUS_SUCCESS)
             {
                 throw Interop.BCrypt.CreateCryptographicException(status);
             }
-
-            Debug.Assert(bytesWritten <= destination.Length);
-
-            return bytesWritten;
         }
 
         internal static unsafe void BCryptSignHashPqcPreHash(

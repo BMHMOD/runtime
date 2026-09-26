@@ -13,12 +13,16 @@ class ILLocation
 {
 public:
     ILLocation()
+        : m_offset(BAD_IL_OFFSET)
+        , m_isStackEmpty(false)
+        , m_isCall(false)
     {
     }
 
-    ILLocation(IL_OFFSET offset, ICorDebugInfo::SourceTypes sourceTypes)
+    ILLocation(IL_OFFSET offset, bool isStackEmpty, bool isCall)
         : m_offset(offset)
-        , m_sourceTypes(sourceTypes)
+        , m_isStackEmpty(isStackEmpty)
+        , m_isCall(isCall)
     {
     }
 
@@ -27,19 +31,18 @@ public:
         return m_offset;
     }
 
-    ICorDebugInfo::SourceTypes GetSourceTypes() const
+    // Is this source location at a stack empty point? We need to be able to
+    // report this information back to the debugger since we only allow EnC
+    // transitions at stack empty points.
+    bool IsStackEmpty() const
     {
-        return m_sourceTypes;
+        return m_isStackEmpty;
     }
 
-    bool IsCallInstruction() const
+    // Is this a call instruction? Used for managed return values.
+    bool IsCall() const
     {
-        return (m_sourceTypes & ICorDebugInfo::CALL_INSTRUCTION) != 0;
-    }
-
-    bool IsAsync() const
-    {
-        return (m_sourceTypes & ICorDebugInfo::ASYNC) != 0;
+        return m_isCall;
     }
 
     bool IsValid() const
@@ -49,7 +52,7 @@ public:
 
     inline bool operator==(const ILLocation& other) const
     {
-        return (m_offset == other.m_offset) && (m_sourceTypes == other.m_sourceTypes);
+        return (m_offset == other.m_offset) && (m_isStackEmpty == other.m_isStackEmpty) && (m_isCall == other.m_isCall);
     }
 
     inline bool operator!=(const ILLocation& other) const
@@ -57,14 +60,17 @@ public:
         return !(*this == other);
     }
 
+    ICorDebugInfo::SourceTypes EncodeSourceTypes() const;
+
 #ifdef DEBUG
     // Dump textual representation of this ILLocation to jitstdout.
     void Dump() const;
 #endif
 
 private:
-    IL_OFFSET                  m_offset      = BAD_IL_OFFSET;
-    ICorDebugInfo::SourceTypes m_sourceTypes = ICorDebugInfo::SOURCE_TYPE_INVALID;
+    IL_OFFSET m_offset;
+    bool      m_isStackEmpty : 1;
+    bool      m_isCall       : 1;
 };
 
 // Represents debug information about a statement.

@@ -479,12 +479,7 @@ namespace System.Reflection.Metadata
             // The value is not used, other than for calculating the value of Count property.
             suffix._previousLengthOrFrozenSuffixLengthDelta = suffixPreviousLength + oldSuffixLength - suffix.Length;
 
-            if (isEmpty)
-            {
-                var suffixLast = suffix._nextOrPrevious;
-                _nextOrPrevious = (suffixLast != suffix) ? suffixLast : this;
-            }
-            else
+            if (!isEmpty)
             {
                 // First and last chunks:
                 //
@@ -594,7 +589,6 @@ namespace System.Reflection.Metadata
             }
 
             int start = ReserveBytesImpl(byteCount);
-            Array.Clear(_buffer, start, byteCount);
             return new Blob(_buffer, start, byteCount);
         }
 
@@ -828,7 +822,7 @@ namespace System.Reflection.Metadata
         public void WriteByte(byte value)
         {
             int start = ReserveBytesPrimitive(sizeof(byte));
-            _buffer[start] = value;
+            _buffer.WriteByte(start, value);
         }
 
         /// <exception cref="InvalidOperationException">Builder is not writable, it has been linked with another one.</exception>

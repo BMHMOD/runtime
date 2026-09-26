@@ -95,7 +95,7 @@ namespace System.Reflection.TypeLoading.Ecma
             }
             return genericParameters;
         }
-        private RoType[]? _lazyGenericParameters;
+        private volatile RoType[]? _lazyGenericParameters;
 
         protected internal sealed override RoType ComputeEnumUnderlyingType()
         {

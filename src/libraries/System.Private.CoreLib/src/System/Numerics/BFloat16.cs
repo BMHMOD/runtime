@@ -6,6 +6,8 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
+using static System.Reflection.Emit.TypeNameBuilder;
 
 namespace System.Numerics
 {
@@ -48,8 +50,8 @@ namespace System.Numerics
         internal const sbyte MinExponent = -126;
         internal const sbyte MaxExponent = +127;
 
-        internal const byte MinTrailingSignificand = 0x00;
-        internal const byte MaxTrailingSignificand = 0x7F;
+        internal const ushort MinTrailingSignificand = 0x0000;
+        internal const ushort MaxTrailingSignificand = 0x007F;
 
         internal const int TrailingSignificandLength = 7;
         internal const int SignificandLength = TrailingSignificandLength + 1;
@@ -116,15 +118,15 @@ namespace System.Numerics
             }
         }
 
-        internal byte Significand
+        internal ushort Significand
         {
             get
             {
-                return (byte)(TrailingSignificand | ((BiasedExponent != 0) ? (1U << BiasedExponentShift) : 0U));
+                return (ushort)(TrailingSignificand | ((BiasedExponent != 0) ? (1U << BiasedExponentShift) : 0U));
             }
         }
 
-        internal byte TrailingSignificand
+        internal ushort TrailingSignificand
         {
             get
             {
@@ -138,9 +140,9 @@ namespace System.Numerics
             return (byte)((bits >> BiasedExponentShift) & ShiftedBiasedExponentMask);
         }
 
-        internal static byte ExtractTrailingSignificandFromBits(ushort bits)
+        internal static ushort ExtractTrailingSignificandFromBits(ushort bits)
         {
-            return (byte)(bits & TrailingSignificandMask);
+            return (ushort)(bits & TrailingSignificandMask);
         }
 
         // INumberBase
@@ -308,7 +310,13 @@ namespace System.Numerics
         public static bool TryParse([NotNullWhen(true)] string? s, NumberStyles style, IFormatProvider? provider, out BFloat16 result)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Number.TryParseFloat(s.AsSpan(), style, NumberFormatInfo.GetInstance(provider), out result, out _);
+
+            if (s == null)
+            {
+                result = Zero;
+                return false;
+            }
+            return Number.TryParseFloat(s.AsSpan(), style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
         /// <summary>
@@ -322,7 +330,7 @@ namespace System.Numerics
         public static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider? provider, out BFloat16 result)
         {
             NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Number.TryParseFloat(s, style, NumberFormatInfo.GetInstance(provider), out result, out _);
+            return Number.TryParseFloat(s, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
         // Comparison
@@ -442,9 +450,7 @@ namespace System.Numerics
         /// <summary>Explicitly converts a <see cref="decimal" /> value to its nearest representable <see cref="BFloat16"/> value.</summary>
         /// <param name="value">The value to convert.</param>
         /// <returns><paramref name="value" /> converted to its nearest representable <see cref="BFloat16"/> value.</returns>
-        // Round through double, not float: decimal -> double is correctly rounded and double (53-bit significand)
-        // -> BFloat16 is an innocuous double rounding (53 >= 2 * 8 + 2), so the result is correctly rounded.
-        public static explicit operator BFloat16(decimal value) => (BFloat16)(double)value;
+        public static explicit operator BFloat16(decimal value) => (BFloat16)(float)value;
 
         /// <summary>Explicitly converts a <see cref="double" /> value to its nearest representable <see cref="BFloat16"/> value.</summary>
         /// <param name="value">The value to convert.</param>
@@ -588,12 +594,8 @@ namespace System.Numerics
             uint bits = BitConverter.SingleToUInt32Bits(value);
             uint roundedBits = RoundMidpointToEven(bits, 16);
 
-            // Only do rounding for non-NaN. For NaN we truncate to the top 16 bits, but that can
-            // zero out all of BFloat16's significand bits (e.g. 0x7F80_0001 -> 0x7F80, which is
-            // +Infinity), silently turning the NaN into an Infinity. Force the MSB of the significand
-            // (the quiet bit) so the result stays a NaN while preserving the sign and any surviving payload.
-            const uint QuietBit = 1u << (TrailingSignificandLength - 1);
-            return new BFloat16((ushort)(!float.IsNaN(value) ? roundedBits : ((bits >> 16) | QuietBit)));
+            // Only do rounding for non-NaN
+            return new BFloat16((ushort)(!float.IsNaN(value) ? roundedBits : (bits >> 16)));
         }
 
         private static unsafe BFloat16 RoundFromUnsigned<TInteger>(TInteger value)
@@ -877,12 +879,12 @@ namespace System.Numerics
             }
 
             byte biasedExponent = ExtractBiasedExponentFromBits(bits);
-            byte trailingSignificand = ExtractTrailingSignificandFromBits(bits);
+            ushort trailingSignificand = ExtractTrailingSignificandFromBits(bits);
 
             if (biasedExponent == MinBiasedExponent)
             {
                 // Subnormal values have 1 bit set when they're powers of 2
-                return byte.PopCount(trailingSignificand) == 1;
+                return ushort.PopCount(trailingSignificand) == 1;
             }
             else if (biasedExponent == MaxBiasedExponent)
             {
@@ -1010,7 +1012,7 @@ namespace System.Numerics
         }
 
         /// <inheritdoc cref="IFloatingPoint{TSelf}.GetSignificandByteCount()" />
-        int IFloatingPoint<BFloat16>.GetSignificandByteCount() => sizeof(byte);
+        int IFloatingPoint<BFloat16>.GetSignificandByteCount() => sizeof(ushort);
 
         /// <inheritdoc cref="IFloatingPoint{TSelf}.GetSignificandBitLength()" />
         int IFloatingPoint<BFloat16>.GetSignificandBitLength() => SignificandLength;
@@ -1046,10 +1048,9 @@ namespace System.Numerics
         /// <inheritdoc cref="IFloatingPoint{TSelf}.TryWriteSignificandBigEndian(Span{byte}, out int)" />
         bool IFloatingPoint<BFloat16>.TryWriteSignificandBigEndian(Span<byte> destination, out int bytesWritten)
         {
-            if (destination.Length >= sizeof(byte))
+            if (BinaryPrimitives.TryWriteUInt16BigEndian(destination, Significand))
             {
-                destination[0] = Significand;
-                bytesWritten = sizeof(byte);
+                bytesWritten = sizeof(uint);
                 return true;
             }
 
@@ -1060,10 +1061,9 @@ namespace System.Numerics
         /// <inheritdoc cref="IFloatingPoint{TSelf}.TryWriteSignificandLittleEndian(Span{byte}, out int)" />
         bool IFloatingPoint<BFloat16>.TryWriteSignificandLittleEndian(Span<byte> destination, out int bytesWritten)
         {
-            if (destination.Length >= sizeof(byte))
+            if (BinaryPrimitives.TryWriteUInt16LittleEndian(destination, Significand))
             {
-                destination[0] = Significand;
-                bytesWritten = sizeof(byte);
+                bytesWritten = sizeof(uint);
                 return true;
             }
 
@@ -1191,7 +1191,7 @@ namespace System.Numerics
                 }
 
                 Debug.Assert(IsSubnormal(x));
-                return MinExponent - byte.LeadingZeroCount(x.TrailingSignificand);
+                return MinExponent - (BitOperations.LeadingZeroCount(x.TrailingSignificand) - BiasedExponentLength);
             }
 
             return x.Exponent;
@@ -1941,27 +1941,6 @@ namespace System.Numerics
             }
         }
 
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(string, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial([NotNullWhen(true)] string? s, NumberStyles style, IFormatProvider? provider, out BFloat16 result, out int charsConsumed)
-        {
-            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Number.TryParseFloat(s.AsSpan(), style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out result, out charsConsumed);
-        }
-
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(ReadOnlySpan{char}, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider? provider, out BFloat16 result, out int charsConsumed)
-        {
-            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Number.TryParseFloat(s, style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out result, out charsConsumed);
-        }
-
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(ReadOnlySpan{byte}, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial(ReadOnlySpan<byte> utf8Text, NumberStyles style, IFormatProvider? provider, out BFloat16 result, out int bytesConsumed)
-        {
-            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Number.TryParseFloat(utf8Text, style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out result, out bytesConsumed);
-        }
-
         //
         // IParsable
         //
@@ -2045,10 +2024,22 @@ namespace System.Numerics
         public static BFloat16 CosPi(BFloat16 x) => (BFloat16)float.CosPi((float)x);
 
         /// <inheritdoc cref="ITrigonometricFunctions{TSelf}.DegreesToRadians(TSelf)" />
-        public static BFloat16 DegreesToRadians(BFloat16 degrees) => (BFloat16)float.DegreesToRadians((float)degrees);
+        public static BFloat16 DegreesToRadians(BFloat16 degrees)
+        {
+            // NOTE: Don't change the algorithm without consulting the DIM
+            // which elaborates on why this implementation was chosen
+
+            return (BFloat16)float.DegreesToRadians((float)degrees);
+        }
 
         /// <inheritdoc cref="ITrigonometricFunctions{TSelf}.RadiansToDegrees(TSelf)" />
-        public static BFloat16 RadiansToDegrees(BFloat16 radians) => (BFloat16)float.RadiansToDegrees((float)radians);
+        public static BFloat16 RadiansToDegrees(BFloat16 radians)
+        {
+            // NOTE: Don't change the algorithm without consulting the DIM
+            // which elaborates on why this implementation was chosen
+
+            return (BFloat16)float.RadiansToDegrees((float)radians);
+        }
 
         /// <inheritdoc cref="ITrigonometricFunctions{TSelf}.Sin(TSelf)" />
         public static BFloat16 Sin(BFloat16 x) => (BFloat16)float.Sin((float)x);
@@ -2097,15 +2088,15 @@ namespace System.Numerics
         /// <inheritdoc cref="INumberBase{TSelf}.Parse(ReadOnlySpan{byte}, NumberStyles, IFormatProvider?)" />
         public static BFloat16 Parse(ReadOnlySpan<byte> utf8Text, NumberStyles style = DefaultParseStyle, IFormatProvider? provider = null)
         {
-            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
+            NumberFormatInfo.ValidateParseStyleInteger(style);
             return Number.ParseFloat<byte, BFloat16>(utf8Text, style, NumberFormatInfo.GetInstance(provider));
         }
 
         /// <inheritdoc cref="INumberBase{TSelf}.TryParse(ReadOnlySpan{byte}, NumberStyles, IFormatProvider?, out TSelf)" />
         public static bool TryParse(ReadOnlySpan<byte> utf8Text, NumberStyles style, IFormatProvider? provider, out BFloat16 result)
         {
-            NumberFormatInfo.ValidateParseStyleFloatingPoint(style);
-            return Number.TryParseFloat(utf8Text, style, NumberFormatInfo.GetInstance(provider), out result, out _);
+            NumberFormatInfo.ValidateParseStyleInteger(style);
+            return Number.TryParseFloat(utf8Text, style, NumberFormatInfo.GetInstance(provider), out result);
         }
 
         /// <inheritdoc cref="IUtf8SpanParsable{TSelf}.Parse(ReadOnlySpan{byte}, IFormatProvider?)" />

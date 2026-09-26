@@ -146,11 +146,6 @@ inline bool Thread::IsDoNotTriggerGcSet()
     return IsStateSet(TSF_DoNotTriggerGc);
 }
 
-inline bool Thread::IsSuspensionTrapped()
-{
-    return IsStateSet(TSF_SuspensionTrapped);
-}
-
 inline bool Thread::IsCurrentThreadInCooperativeMode()
 {
 #ifndef DACCESS_COMPILE
@@ -203,8 +198,8 @@ FORCEINLINE bool Thread::InlineTryFastReversePInvoke(ReversePInvokeFrame* pFrame
     // We will allow threads in DoNotTriggerGc mode to do reverse PInvoke regardless of their coop state.
     if (IsDoNotTriggerGcSet())
     {
-        // We expect this scenario only when EE is stopped or we're on a GC worker thread.
-        ASSERT(ThreadStore::IsTrapThreadsRequested() || IsGCSpecial());
+        // We expect this scenario only when EE is stopped.
+        ASSERT(ThreadStore::IsTrapThreadsRequested());
         // no need to do anything
         return true;
     }

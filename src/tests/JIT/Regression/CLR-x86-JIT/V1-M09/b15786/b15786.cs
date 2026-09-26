@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b15786
+namespace DefaultNamespace
 {
     //@BEGINRENAME; Verify this renames
     //@ENDRENAME; Verify this renames
@@ -17,7 +17,6 @@ namespace b15786
             return (UInt16)i;
         }
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

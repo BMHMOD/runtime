@@ -276,7 +276,6 @@ namespace ILCompiler
                 win32Resources,
                 flags,
                 _nodeFactoryOptimizationFlags,
-                _format,
                 _imageBase,
                 automaticTypeValidation ? singleModule : null,
                 genericCycleDepthCutoff: _genericCycleDetectionDepthCutoff,

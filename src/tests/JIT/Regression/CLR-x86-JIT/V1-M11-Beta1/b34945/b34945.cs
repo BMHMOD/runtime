@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b34945
+namespace DefaultNamespace
 {
 
     using System;

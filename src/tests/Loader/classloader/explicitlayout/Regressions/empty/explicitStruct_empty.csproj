@@ -2,7 +2,4 @@
   <ItemGroup>
     <Compile Include="explicitStruct_empty.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

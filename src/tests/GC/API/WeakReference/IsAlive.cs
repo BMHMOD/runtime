@@ -26,7 +26,6 @@ public class Test_IsAlive {
         array = null;
     }
 
-    [SkipOnCoreClr("This test is sensitive to JIT optimizations.", RuntimeTestModes.AnyJitOptimizationStress)]
     [Fact]
     public static int TestEntryPoint() {
         CreateArray();

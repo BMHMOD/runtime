@@ -18,6 +18,7 @@
 #include "stubgen.h"
 #include "eventtrace.h"
 #include "array.h"
+#include "fstream.h"
 #include "hash.h"
 #include "minipal/time.h"
 
@@ -27,7 +28,6 @@
 #include "eventtracebase.h"
 #include "multicorejit.h"
 #include "multicorejitimpl.h"
-#include <dn-stdio.h>
 
 void MulticoreJitFireEtw(const WCHAR * pAction, const WCHAR * pTarget, int p1, int p2, int p3)
 {
@@ -154,12 +154,11 @@ HRESULT MulticoreJitRecorder::WriteOutput()
 
     EX_TRY
     {
-        FILE* fp;
+        CFileStream fileStream;
 
-        if (fopen_lp(&fp, m_fullFileName.GetUnicode(), W("wb")) == 0)
+        if (SUCCEEDED(hr = fileStream.OpenForWrite(m_fullFileName.GetUnicode())))
         {
-            hr = WriteOutput(fp);
-            fclose(fp);
+            hr = WriteOutput(& fileStream);
         }
     }
     EX_CATCH
@@ -170,7 +169,7 @@ HRESULT MulticoreJitRecorder::WriteOutput()
 }
 
 
-HRESULT WriteData(FILE * fp, const void * pData, unsigned len)
+HRESULT WriteData(IStream * pStream, const void * pData, unsigned len)
 {
     CONTRACTL
     {
@@ -180,11 +179,11 @@ HRESULT WriteData(FILE * fp, const void * pData, unsigned len)
     }
     CONTRACTL_END
 
-    size_t cbWritten = fwrite(pData, 1, len, fp);
+    ULONG cbWritten;
 
-    HRESULT hr = S_OK;
+    HRESULT hr = pStream->Write(pData, len, & cbWritten);
 
-    if (cbWritten != len)
+    if (SUCCEEDED(hr) && (cbWritten != len))
     {
         hr = E_FAIL;
     }
@@ -193,7 +192,7 @@ HRESULT WriteData(FILE * fp, const void * pData, unsigned len)
 }
 
 // Write string, round to DWORD alignment
-HRESULT WriteString(const void * pString, unsigned len, FILE * fp)
+HRESULT WriteString(const void * pString, unsigned len, IStream * pStream)
 {
     CONTRACTL
     {
@@ -203,25 +202,25 @@ HRESULT WriteString(const void * pString, unsigned len, FILE * fp)
     }
     CONTRACTL_END;
 
-    size_t cbWritten = fwrite(pString, 1, len, fp);
+    ULONG cbWritten = 0;
 
-    if (cbWritten == (size_t)len)
+    HRESULT hr;
+
+    hr = pStream->Write(pString, len, & cbWritten);
+
+    if (SUCCEEDED(hr))
     {
         len = RoundUp(len) - len;
 
-        if (len == 0)
+        if (len != 0)
         {
-            return S_OK;
+            cbWritten = 0;
+
+            hr = pStream->Write(& cbWritten, len, & cbWritten);
         }
-
-        uint32_t temp = 0;
-        cbWritten = fwrite(&temp, 1, len, fp);
-
-        if (cbWritten == (size_t)len)
-            return S_OK;
     }
 
-    return E_FAIL;
+    return hr;
 }
 
 
@@ -330,7 +329,7 @@ bool RecorderModuleInfo::SetModule(Module * pMod)
 //
 /////////////////////////////////////////////////////
 
-HRESULT MulticoreJitRecorder::WriteModuleRecord(FILE * fp, const RecorderModuleInfo & module)
+HRESULT MulticoreJitRecorder::WriteModuleRecord(IStream * pStream, const RecorderModuleInfo & module)
 {
     CONTRACTL
     {
@@ -356,15 +355,15 @@ HRESULT MulticoreJitRecorder::WriteModuleRecord(FILE * fp, const RecorderModuleI
     mod.wLoadLevel     = (unsigned short) module.loadLevel;
     mod.flags          = module.flags;
 
-    hr = WriteData(fp, & mod, sizeof(mod));
+    hr = WriteData(pStream, & mod, sizeof(mod));
 
     if (SUCCEEDED(hr))
     {
-        hr = WriteString(pModuleName, lenModuleName, fp);
+        hr = WriteString(pModuleName, lenModuleName, pStream);
 
         if (SUCCEEDED(hr))
         {
-            hr = WriteString(pAssemblyName, lenAssemblyName, fp);
+            hr = WriteString(pAssemblyName, lenAssemblyName, pStream);
         }
     }
 
@@ -372,7 +371,7 @@ HRESULT MulticoreJitRecorder::WriteModuleRecord(FILE * fp, const RecorderModuleI
 }
 
 
-HRESULT MulticoreJitRecorder::WriteOutput(FILE * fp)
+HRESULT MulticoreJitRecorder::WriteOutput(IStream * pStream)
 {
     CONTRACTL
     {
@@ -402,7 +401,7 @@ HRESULT MulticoreJitRecorder::WriteOutput(FILE * fp)
         MethodDesc * pMethod = m_JitInfoArray[i].GetMethodDescAndClean();
         if (pMethod->IsAsyncVariantMethod())
         {
-            // TODO: (async) Multicore JIT https://github.com/dotnet/runtime/issues/115097
+            // TODO: (async) consider adding support for async variants in the future
             skipped++;
             continue;
         }
@@ -487,14 +486,14 @@ HRESULT MulticoreJitRecorder::WriteOutput(FILE * fp)
 
         _ASSERTE((sizeof(header) % sizeof(unsigned)) == 0);
 
-        hr = WriteData(fp, & header, sizeof(header));
+        hr = WriteData(pStream, & header, sizeof(header));
     }
 
     DWORD dwData = 0;
 
     for (unsigned i = 0; SUCCEEDED(hr) && (i < m_ModuleCount); i ++)
     {
-        hr = WriteModuleRecord(fp, m_ModuleList[i]);
+        hr = WriteModuleRecord(pStream, m_ModuleList[i]);
     }
 
     for (LONG i = 0 ; i < m_JitInfoCount && SUCCEEDED(hr); i++)
@@ -505,7 +504,7 @@ HRESULT MulticoreJitRecorder::WriteOutput(FILE * fp)
             _ASSERTE(m_JitInfoArray[i].IsFullyInitialized());
 
             DWORD data1 = m_JitInfoArray[i].GetRawModuleData();
-            hr = WriteData(fp, &data1, sizeof(data1));
+            hr = WriteData(pStream, &data1, sizeof(data1));
         }
         else if (m_JitInfoArray[i].IsGenericMethodInfo())
         {
@@ -523,19 +522,19 @@ HRESULT MulticoreJitRecorder::WriteOutput(FILE * fp)
             DWORD sigSize = m_JitInfoArray[i].GetMethodSignatureSize();
             DWORD paddingSize = m_JitInfoArray[i].GetMethodRecordPaddingSize();
 
-            hr = WriteData(fp, &data1, sizeof(data1));
+            hr = WriteData(pStream, &data1, sizeof(data1));
             if (SUCCEEDED(hr))
             {
-                hr = WriteData(fp, &data2, sizeof(data2));
+                hr = WriteData(pStream, &data2, sizeof(data2));
             }
             if (SUCCEEDED(hr))
             {
-                hr = WriteData(fp, pSignature, sigSize);
+                hr = WriteData(pStream, pSignature, sigSize);
             }
             if (SUCCEEDED(hr) && paddingSize > 0)
             {
                 DWORD tmp = 0;
-                hr = WriteData(fp, &tmp, paddingSize);
+                hr = WriteData(pStream, &tmp, paddingSize);
             }
         }
         else
@@ -546,10 +545,10 @@ HRESULT MulticoreJitRecorder::WriteOutput(FILE * fp)
             DWORD data1 = m_JitInfoArray[i].GetRawMethodData1();
             unsigned data2 = m_JitInfoArray[i].GetRawMethodData2NonGeneric();
 
-            hr = WriteData(fp, &data1, sizeof(data1));
+            hr = WriteData(pStream, &data1, sizeof(data1));
             if (SUCCEEDED(hr))
             {
-                hr = WriteData(fp, &data2, sizeof(data2));
+                hr = WriteData(pStream, &data2, sizeof(data2));
             }
         }
     }
@@ -1168,6 +1167,7 @@ void MulticoreJitManager::StartProfile(AppDomain * pDomain, AssemblyBinder *pBin
     {
         THROWS;
         MODE_PREEMPTIVE;
+        INJECT_FAULT(COMPlusThrowOM(););
         CAN_TAKE_LOCK;
     }
     CONTRACTL_END;
@@ -1324,6 +1324,7 @@ void MulticoreJitManager::AutoStartProfile(AppDomain * pDomain)
         THROWS;
         GC_TRIGGERS;
         MODE_PREEMPTIVE;
+        INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
 

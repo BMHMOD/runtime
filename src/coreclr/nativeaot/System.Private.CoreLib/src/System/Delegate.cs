@@ -1,6 +1,7 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
@@ -40,10 +41,12 @@ namespace System
             throw new PlatformNotSupportedException();
         }
 
+        // New Delegate Implementation
+
+        private object _firstParameter;
         private object _helperObject;
-        private object _target; // Keep _target and _methodPtr next to each other for optimal delegate invoke performance
-        private IntPtr _methodPtr;
         private nint _extraFunctionPointerOrData;
+        private IntPtr _functionPointer;
 
         // _helperObject may point to an array of delegates if this is a multicast delegate. We use this wrapper to distinguish between
         // our own array of delegates and user provided Wrapper[]. As a added benefit, this wrapper also eliminates array co-variance
@@ -89,7 +92,7 @@ namespace System
 
             if (_extraFunctionPointerOrData != 0)
             {
-                if (GetThunk(OpenInstanceThunk) == _methodPtr)
+                if (GetThunk(OpenInstanceThunk) == _functionPointer)
                 {
                     typeOfFirstParameterIfInstanceDelegate = ((OpenMethodResolver*)_extraFunctionPointerOrData)->DeclaringType;
                     isOpenResolver = true;
@@ -98,10 +101,10 @@ namespace System
             }
             else
             {
-                if (_target != null)
-                    typeOfFirstParameterIfInstanceDelegate = new RuntimeTypeHandle(_target.GetMethodTable());
+                if (_firstParameter != null)
+                    typeOfFirstParameterIfInstanceDelegate = new RuntimeTypeHandle(_firstParameter.GetMethodTable());
 
-                return _methodPtr;
+                return _functionPointer;
             }
         }
 
@@ -111,8 +114,8 @@ namespace System
             if (firstParameter is null)
                 throw new ArgumentException(SR.Arg_DlgtNullInst);
 
-            _methodPtr = functionPointer;
-            _target = firstParameter;
+            _functionPointer = functionPointer;
+            _firstParameter = firstParameter;
         }
 
         // This function is known to the compiler.
@@ -125,25 +128,25 @@ namespace System
 
             if (!FunctionPointerOps.IsGenericMethodPointer(functionPointer))
             {
-                _methodPtr = functionPointer;
-                _target = firstParameter;
+                _functionPointer = functionPointer;
+                _firstParameter = firstParameter;
             }
             else
             {
-                _target = this;
-                _methodPtr = GetThunk(ClosedInstanceThunkOverGenericMethod);
+                _firstParameter = this;
+                _functionPointer = GetThunk(ClosedInstanceThunkOverGenericMethod);
                 _extraFunctionPointerOrData = functionPointer;
                 _helperObject = firstParameter;
             }
         }
 
         // This function is known to the compiler.
-        private void InitializeClosedInstanceWithGVMResolution(object firstParameter, IntPtr dispatchCell)
+        private void InitializeClosedInstanceWithGVMResolution(object firstParameter, RuntimeMethodHandle tokenOfGenericVirtualMethod)
         {
             if (firstParameter is null)
                 throw new NullReferenceException();
 
-            IntPtr functionResolution = RuntimeImports.RhpResolveInterfaceMethod(firstParameter, dispatchCell);
+            IntPtr functionResolution = TypeLoaderExports.GVMLookupForSlot(firstParameter, tokenOfGenericVirtualMethod);
 
             if (functionResolution == IntPtr.Zero)
             {
@@ -152,13 +155,13 @@ namespace System
             }
             if (!FunctionPointerOps.IsGenericMethodPointer(functionResolution))
             {
-                _methodPtr = functionResolution;
-                _target = firstParameter;
+                _functionPointer = functionResolution;
+                _firstParameter = firstParameter;
             }
             else
             {
-                _target = this;
-                _methodPtr = GetThunk(ClosedInstanceThunkOverGenericMethod);
+                _firstParameter = this;
+                _functionPointer = GetThunk(ClosedInstanceThunkOverGenericMethod);
                 _extraFunctionPointerOrData = functionResolution;
                 _helperObject = firstParameter;
             }
@@ -172,8 +175,8 @@ namespace System
             if (firstParameter is null)
                 throw new NullReferenceException();
 
-            _methodPtr = RuntimeImports.RhpResolveInterfaceMethod(firstParameter, dispatchCell);
-            _target = firstParameter;
+            _functionPointer = RuntimeImports.RhpResolveInterfaceMethod(firstParameter, dispatchCell);
+            _firstParameter = firstParameter;
         }
 
         // This is used to implement MethodInfo.CreateDelegate() in a desktop-compatible way. Yes, the desktop really
@@ -182,13 +185,13 @@ namespace System
         {
             if (!FunctionPointerOps.IsGenericMethodPointer(functionPointer))
             {
-                _methodPtr = functionPointer;
-                _target = firstParameter;
+                _functionPointer = functionPointer;
+                _firstParameter = firstParameter;
             }
             else
             {
-                _target = this;
-                _methodPtr = GetThunk(ClosedInstanceThunkOverGenericMethod);
+                _firstParameter = this;
+                _functionPointer = GetThunk(ClosedInstanceThunkOverGenericMethod);
                 _extraFunctionPointerOrData = functionPointer;
                 _helperObject = firstParameter;
             }
@@ -199,24 +202,24 @@ namespace System
         {
             _extraFunctionPointerOrData = functionPointer;
             _helperObject = firstParameter;
-            _methodPtr = functionPointerThunk;
-            _target = this;
+            _functionPointer = functionPointerThunk;
+            _firstParameter = this;
         }
 
         // This function is known to the compiler.
         private void InitializeOpenStaticThunk(object _ /*firstParameter*/, IntPtr functionPointer, IntPtr functionPointerThunk)
         {
             // This sort of delegate is invoked by calling the thunk function pointer with the arguments to the delegate + a reference to the delegate object itself.
-            _target = this;
-            _methodPtr = functionPointerThunk;
+            _firstParameter = this;
+            _functionPointer = functionPointerThunk;
             _extraFunctionPointerOrData = functionPointer;
         }
 
         private void InitializeOpenInstanceThunkDynamic(IntPtr functionPointer, IntPtr functionPointerThunk)
         {
             // This sort of delegate is invoked by calling the thunk function pointer with the arguments to the delegate + a reference to the delegate object itself.
-            _target = this;
-            _methodPtr = functionPointerThunk;
+            _firstParameter = this;
+            _functionPointer = functionPointerThunk;
             _extraFunctionPointerOrData = functionPointer;
         }
 
@@ -228,15 +231,27 @@ namespace System
             return OpenMethodResolver.ResolveMethod(_extraFunctionPointerOrData, thisObject);
         }
 
+        internal bool IsDynamicDelegate() => GetThunk(MulticastThunk) == IntPtr.Zero;
+
         [DebuggerGuidedStepThroughAttribute]
         protected virtual object? DynamicInvokeImpl(object?[]? args)
         {
-            DynamicInvokeInfo dynamicInvokeInfo = ReflectionAugments.GetDelegateDynamicInvokeInfo(GetType());
+            if (IsDynamicDelegate())
+            {
+                // DynamicDelegate case
+                object? result = ((Func<object?[]?, object?>)_helperObject)(args);
+                DebugAnnotations.PreviousCallContainsDebuggerStepInCode();
+                return result;
+            }
+            else
+            {
+                DynamicInvokeInfo dynamicInvokeInfo = ReflectionAugments.GetDelegateDynamicInvokeInfo(GetType());
 
-            object? result = dynamicInvokeInfo.Invoke(_target, _methodPtr,
-                args, binderBundle: null, wrapInTargetInvocationException: true);
-            DebugAnnotations.PreviousCallContainsDebuggerStepInCode();
-            return result;
+                object? result = dynamicInvokeInfo.Invoke(_firstParameter, _functionPointer,
+                    args, binderBundle: null, wrapInTargetInvocationException: true);
+                DebugAnnotations.PreviousCallContainsDebuggerStepInCode();
+                return result;
+            }
         }
 
         protected virtual MethodInfo GetMethodImpl()
@@ -251,7 +266,7 @@ namespace System
             }
 
             // Return the delegate Invoke method for marshalled function pointers and LINQ expressions
-            if ((_target is NativeFunctionPointerWrapper) || (_methodPtr == GetThunk(ObjectArrayThunk)))
+            if ((_firstParameter is NativeFunctionPointerWrapper) || (_functionPointer == GetThunk(ObjectArrayThunk)))
             {
                 return GetType().GetMethod("Invoke");
             }
@@ -271,7 +286,7 @@ namespace System
             }
 
             // Return the delegate Invoke method for marshalled function pointers and LINQ expressions
-            if ((_target is NativeFunctionPointerWrapper) || (_methodPtr == GetThunk(ObjectArrayThunk)))
+            if ((_firstParameter is NativeFunctionPointerWrapper) || (_functionPointer == GetThunk(ObjectArrayThunk)))
             {
                 Type t = GetType();
                 return new DiagnosticMethodInfo("Invoke", t.FullName, t.Module.Assembly.FullName);
@@ -321,25 +336,25 @@ namespace System
                 }
 
                 // Closed static delegates place a value in _helperObject that they pass to the target method.
-                if (_methodPtr == GetThunk(ClosedStaticThunk) ||
-                    _methodPtr == GetThunk(ClosedInstanceThunkOverGenericMethod) ||
-                    _methodPtr == GetThunk(ObjectArrayThunk))
+                if (_functionPointer == GetThunk(ClosedStaticThunk) ||
+                    _functionPointer == GetThunk(ClosedInstanceThunkOverGenericMethod) ||
+                    _functionPointer == GetThunk(ObjectArrayThunk))
                     return _helperObject;
 
-                // Other non-closed thunks can be identified as the _target field points at this.
-                if (object.ReferenceEquals(_target, this))
+                // Other non-closed thunks can be identified as the _firstParameter field points at this.
+                if (object.ReferenceEquals(_firstParameter, this))
                 {
                     return null;
                 }
 
                 // NativeFunctionPointerWrapper used by marshalled function pointers is not returned as a public target
-                if (_target is NativeFunctionPointerWrapper)
+                if (_firstParameter is NativeFunctionPointerWrapper)
                 {
                     return null;
                 }
 
-                // Closed instance delegates place a value in _target, and we've ruled out all other types of delegates
-                return _target;
+                // Closed instance delegates place a value in _firstParameter, and we've ruled out all other types of delegates
+                return _firstParameter;
             }
         }
 
@@ -356,9 +371,9 @@ namespace System
         // V1 api: Creates open delegates to static methods only, relaxed signature checking disallowed.
         public static Delegate CreateDelegate(Type type, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.AllMethods)] Type target, string method, bool ignoreCase, bool throwOnBindFailure) => ReflectionAugments.CreateDelegate(type, target, method, ignoreCase, throwOnBindFailure);
 
-        internal IntPtr TryGetOpenStaticFunctionPointer() => (GetThunk(OpenStaticThunk) == _methodPtr) ? _extraFunctionPointerOrData : 0;
+        internal IntPtr TryGetOpenStaticFunctionPointer() => (GetThunk(OpenStaticThunk) == _functionPointer) ? _extraFunctionPointerOrData : 0;
 
-        internal NativeFunctionPointerWrapper? TryGetNativeFunctionPointerWrapper() => _target as NativeFunctionPointerWrapper;
+        internal NativeFunctionPointerWrapper? TryGetNativeFunctionPointerWrapper() => _firstParameter as NativeFunctionPointerWrapper;
 
         internal static unsafe bool InternalEqualTypes(object a, object b)
         {
@@ -386,8 +401,8 @@ namespace System
             }
 
             del._helperObject = handler;
-            del._methodPtr = objArrayThunk;
-            del._target = del;
+            del._functionPointer = objArrayThunk;
+            del._firstParameter = del;
             return del;
         }
 
@@ -440,9 +455,9 @@ namespace System
             Delegate result = Unsafe.As<Delegate>(RuntimeImports.RhNewObject(this.GetMethodTable()));
 
             // Performance optimization - if this already points to a true multicast delegate,
-            // copy _methodPtr field rather than calling GetThunk to get it
-            result._methodPtr = thisIsMultiCastAlready ? _methodPtr : GetThunk(MulticastThunk);
-            result._target = result;
+            // copy _functionPointer field rather than calling GetThunk to get it
+            result._functionPointer = thisIsMultiCastAlready ? _functionPointer : GetThunk(MulticastThunk);
+            result._firstParameter = result;
             result._helperObject = invocationList;
             result._extraFunctionPointerOrData = (IntPtr)invocationCount;
 
@@ -458,10 +473,10 @@ namespace System
             // Optimize this case, because it's cheaper than copying the array.
             if (a[index].Value is Delegate dd)
             {
-                if (object.ReferenceEquals(dd._target, o._target) &&
+                if (object.ReferenceEquals(dd._firstParameter, o._firstParameter) &&
                     object.ReferenceEquals(dd._helperObject, o._helperObject) &&
                     dd._extraFunctionPointerOrData == o._extraFunctionPointerOrData &&
-                    dd._methodPtr == o._methodPtr)
+                    dd._functionPointer == o._functionPointer)
                 {
                     return true;
                 }
@@ -471,7 +486,7 @@ namespace System
 
         // This method will combine this delegate with the passed delegate
         //  to form a new delegate.
-        protected Delegate CombineImpl(Delegate? d)
+        protected virtual Delegate CombineImpl(Delegate? d)
         {
             if (d is null)
                 return this;
@@ -479,6 +494,9 @@ namespace System
             // Verify that the types are the same...
             if (!InternalEqualTypes(this, d))
                 throw new ArgumentException(SR.Arg_DlgtTypeMis);
+
+            if (IsDynamicDelegate())
+                throw new InvalidOperationException();
 
             int followCount = 1;
             Wrapper[]? followList = d._helperObject as Wrapper[];
@@ -586,7 +604,7 @@ namespace System
         //  look at the invocation list.)  If this is found we remove it from
         //  this list and return a new delegate.  If its not found a copy of the
         //  current list is returned.
-        protected Delegate? RemoveImpl(Delegate? d)
+        protected virtual Delegate? RemoveImpl(Delegate d)
         {
             // There is a special case were we are removing using a delegate as
             //    the value we need to check for this case
@@ -655,7 +673,7 @@ namespace System
             return this;
         }
 
-        public Delegate[] GetInvocationList()
+        public virtual Delegate[] GetInvocationList()
         {
             if (_helperObject is Wrapper[] invocationList)
             {
@@ -672,7 +690,7 @@ namespace System
             return new Delegate[] { this };
         }
 
-        public sealed override bool Equals([NotNullWhen(true)] object? obj)
+        public override bool Equals([NotNullWhen(true)] object? obj)
         {
             if (obj == null)
                 return false;
@@ -702,9 +720,9 @@ namespace System
                 return true;
             }
 
-            if (_target is NativeFunctionPointerWrapper nativeFunctionPointerWrapper)
+            if (_firstParameter is NativeFunctionPointerWrapper nativeFunctionPointerWrapper)
             {
-                if (d._target is not NativeFunctionPointerWrapper dnativeFunctionPointerWrapper)
+                if (d._firstParameter is not NativeFunctionPointerWrapper dnativeFunctionPointerWrapper)
                     return false;
 
                 return nativeFunctionPointerWrapper.NativeFunctionPointer == dnativeFunctionPointerWrapper.NativeFunctionPointer;
@@ -712,22 +730,22 @@ namespace System
 
             if (!object.ReferenceEquals(_helperObject, d._helperObject) ||
                 (!FunctionPointerOps.Compare(_extraFunctionPointerOrData, d._extraFunctionPointerOrData)) ||
-                (!FunctionPointerOps.Compare(_methodPtr, d._methodPtr)))
+                (!FunctionPointerOps.Compare(_functionPointer, d._functionPointer)))
             {
                 return false;
             }
 
-            // Those delegate kinds with thunks put themselves into the _target, so we can't
-            // blindly compare the _target fields for equality.
-            if (object.ReferenceEquals(_target, this))
+            // Those delegate kinds with thunks put themselves into the _firstParameter, so we can't
+            // blindly compare the _firstParameter fields for equality.
+            if (object.ReferenceEquals(_firstParameter, this))
             {
-                return object.ReferenceEquals(d._target, d);
+                return object.ReferenceEquals(d._firstParameter, d);
             }
 
-            return object.ReferenceEquals(_target, d._target);
+            return object.ReferenceEquals(_firstParameter, d._firstParameter);
         }
 
-        public sealed override int GetHashCode()
+        public override int GetHashCode()
         {
             if (_helperObject is Wrapper[] invocationList)
             {
@@ -739,24 +757,24 @@ namespace System
                 return multiCastHash;
             }
 
-            if (_target is NativeFunctionPointerWrapper nativeFunctionPointerWrapper)
+            if (_firstParameter is NativeFunctionPointerWrapper nativeFunctionPointerWrapper)
             {
                 return nativeFunctionPointerWrapper.NativeFunctionPointer.GetHashCode();
             }
 
             int hash = RuntimeHelpers.GetHashCode(_helperObject) +
                 7 * FunctionPointerOps.GetHashCode(_extraFunctionPointerOrData) +
-                13 * FunctionPointerOps.GetHashCode(_methodPtr);
+                13 * FunctionPointerOps.GetHashCode(_functionPointer);
 
-            if (!object.ReferenceEquals(_target, this))
+            if (!object.ReferenceEquals(_firstParameter, this))
             {
-                hash += 17 * RuntimeHelpers.GetHashCode(_target);
+                hash += 17 * RuntimeHelpers.GetHashCode(_firstParameter);
             }
 
             return hash;
         }
 
-        public partial bool HasSingleTarget => _helperObject is not Wrapper[];
+        public bool HasSingleTarget => _helperObject is not Wrapper[];
 
         // Used by delegate invocation list enumerator
         internal Delegate? TryGetAt(int index)

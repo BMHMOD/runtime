@@ -389,8 +389,8 @@ add_signal_handler (int signo, MonoSignalHandler handler, int flags)
 	}
 }
 
-void
-mono_runtime_posix_restore_handler (int signo)
+static void
+remove_signal_handler (int signo)
 {
 	struct sigaction sa;
 	struct sigaction *saved_action = get_saved_signal_handler (signo);
@@ -400,10 +400,11 @@ mono_runtime_posix_restore_handler (int signo)
 		sigemptyset (&sa.sa_mask);
 		sa.sa_flags = 0;
 
-		g_assert (sigaction (signo, &sa, NULL) != -1);
+		sigaction (signo, &sa, NULL);
 	} else {
 		g_assert (sigaction (signo, saved_action, NULL) != -1);
 	}
+	remove_saved_signal_handler(signo);
 }
 
 void

@@ -317,7 +317,6 @@ namespace System.Text.RegularExpressions
         ECMAScript = 256,
         CultureInvariant = 512,
         NonBacktracking = 1024,
-        AnyNewLine = 2048,
     }
     public enum RegexParseError
     {

@@ -23,8 +23,8 @@ namespace ILCompiler.DependencyAnalysis
             Debug.Assert(method.HasInstantiation);
 
             // This is either a generic virtual method or a MethodImpl for a static interface method.
-            // We can't test for static MethodImpl so at least sanity check it's static and nonabstract.
-            Debug.Assert(method.IsVirtual || (method.Signature.IsStatic && !method.IsAbstract));
+            // We can't test for static MethodImpl so at least sanity check it's static and noninterface.
+            Debug.Assert(method.IsVirtual || (method.Signature.IsStatic && !method.OwningType.IsInterface));
 
             _method = method;
         }
@@ -56,7 +56,6 @@ namespace ILCompiler.DependencyAnalysis
                 {
                     dependencies.Add(factory.NativeLayout.TemplateMethodEntry(_method), "GVM Dependency - Template entry");
                     dependencies.Add(factory.NativeLayout.TemplateMethodLayout(_method), "GVM Dependency - Template");
-                    dependencies.Add(factory.ShadowNonConcreteMethod(_method), "GVM Dependency - shadow generic method");
                 }
                 else
                 {

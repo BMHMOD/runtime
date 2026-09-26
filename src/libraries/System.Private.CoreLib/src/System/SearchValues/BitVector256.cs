@@ -7,9 +7,9 @@ using System.Runtime.CompilerServices;
 
 namespace System.Buffers
 {
-    internal struct BitVector256
+    internal unsafe struct BitVector256
     {
-        private InlineArray8<uint> _values;
+        private fixed uint _values[8];
 
         public readonly BitVector256 CreateInverse()
         {
@@ -28,7 +28,7 @@ namespace System.Buffers
             Debug.Assert(c < 256);
             uint offset = (uint)(c >> 5);
             uint significantBit = 1u << c;
-            _values[(int)offset] |= significantBit;
+            _values[offset] |= significantBit;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -45,10 +45,10 @@ namespace System.Buffers
             Debug.Assert(b < 256);
             uint offset = (uint)(b >> 5);
             uint significantBit = 1u << b;
-            return (_values[(int)offset] & significantBit) != 0;
+            return (_values[offset] & significantBit) != 0;
         }
 
-        public readonly unsafe char[] GetCharValues()
+        public readonly char[] GetCharValues()
         {
             Span<char> chars = stackalloc char[256];
             int size = 0;
@@ -63,7 +63,7 @@ namespace System.Buffers
             return chars.Slice(0, size).ToArray();
         }
 
-        public readonly unsafe byte[] GetByteValues()
+        public readonly byte[] GetByteValues()
         {
             Span<byte> bytes = stackalloc byte[256];
             int size = 0;

@@ -1,7 +1,6 @@
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 public interface IPublisher<out TData>
 {
@@ -113,7 +112,6 @@ public class ProgramBase<TT> : TestItf4<TT>
 
 public class Program : ProgramBase<InputData>, TestItf2<InputData>
 {
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint()
     {

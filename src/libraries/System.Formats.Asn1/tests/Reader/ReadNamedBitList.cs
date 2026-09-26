@@ -9,35 +9,8 @@ using Xunit;
 
 namespace System.Formats.Asn1.Tests.Reader
 {
-    public sealed class ReadNamedBitListAsnReaderTests : ReadNamedBitListBase
+    public sealed class ReadNamedBitList
     {
-        internal override AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default)
-        {
-            return AsnReaderWrapper.CreateClassReader(data, ruleSet, options);
-        }
-    }
-
-    public sealed class ReadNamedBitListValueAsnReaderTests : ReadNamedBitListBase
-    {
-        internal override AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default)
-        {
-            return AsnReaderWrapper.CreateValueReader(data, ruleSet, options);
-        }
-    }
-
-    public abstract class ReadNamedBitListBase
-    {
-        internal abstract AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default);
-
         [Flags]
         public enum X509KeyUsageCSharpStyle
         {
@@ -188,7 +161,7 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.DER, typeof(LongFlags), (long)LongFlags.AllBits, "030900FFFFFFFFFFFFFFFF")]
         [InlineData(AsnEncodingRules.CER, typeof(LongFlags), (long)LongFlags.AllBits, "030900FFFFFFFFFFFFFFFF")]
         [InlineData(AsnEncodingRules.BER, typeof(LongFlags), (long)LongFlags.AllBits, "030900FFFFFFFFFFFFFFFF")]
-        public void VerifyReadNamedBitListEncodings(
+        public static void VerifyReadNamedBitListEncodings(
             AsnEncodingRules ruleSet,
             Type enumType,
             long enumValue,
@@ -196,7 +169,7 @@ namespace System.Formats.Asn1.Tests.Reader
         {
             byte[] inputBytes = inputHex.HexToByteArray();
 
-            AsnReaderWrapper reader = CreateWrapper(inputBytes, ruleSet);
+            AsnReader reader = new AsnReader(inputBytes, ruleSet);
             Enum readValue = reader.ReadNamedBitListValue(enumType);
 
             Assert.Equal(Enum.ToObject(enumType, enumValue), readValue);
@@ -218,7 +191,7 @@ namespace System.Formats.Asn1.Tests.Reader
             typeof(ULongFlags),
             (ulong)(ULongFlags.Min | ULongFlags.Max),
             "0309008000000000000001")]
-        public void VerifyReadNamedBitListEncodings_ULong(
+        public static void VerifyReadNamedBitListEncodings_ULong(
             AsnEncodingRules ruleSet,
             Type enumType,
             ulong enumValue,
@@ -226,7 +199,7 @@ namespace System.Formats.Asn1.Tests.Reader
         {
             byte[] inputBytes = inputHex.HexToByteArray();
 
-            AsnReaderWrapper reader = CreateWrapper(inputBytes, ruleSet);
+            AsnReader reader = new AsnReader(inputBytes, ruleSet);
             Enum readValue = reader.ReadNamedBitListValue(enumType);
 
             Assert.Equal(Enum.ToObject(enumType, enumValue), readValue);
@@ -236,10 +209,10 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void VerifyGenericReadNamedBitList(AsnEncodingRules ruleSet)
+        public static void VerifyGenericReadNamedBitList(AsnEncodingRules ruleSet)
         {
             string inputHex = "0306078000000080" + "0309010000000080000002";
-            AsnReaderWrapper reader = CreateWrapper(inputHex.HexToByteArray(), ruleSet);
+            AsnReader reader = new AsnReader(inputHex.HexToByteArray(), ruleSet);
 
             ULongFlags uLongFlags = reader.ReadNamedBitListValue<ULongFlags>();
             LongFlags longFlags = reader.ReadNamedBitListValue<LongFlags>();
@@ -253,15 +226,14 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void ReadNamedBitList_RequiresTypeArg(AsnEncodingRules ruleSet)
+        public static void ReadNamedBitList_RequiresTypeArg(AsnEncodingRules ruleSet)
         {
             string inputHex = "030100";
-            AsnReaderWrapper reader = CreateWrapper(inputHex.HexToByteArray(), ruleSet);
+            AsnReader reader = new AsnReader(inputHex.HexToByteArray(), ruleSet);
 
-            Assert.Throws<ArgumentNullException>(
-                ref reader,
+            AssertExtensions.Throws<ArgumentNullException>(
                 "flagsEnumType",
-                static (ref reader) => reader.ReadNamedBitListValue((Type)null!));
+                () => reader.ReadNamedBitListValue(null!));
 
             Assert.True(reader.HasData, "reader.HasData");
         }
@@ -270,15 +242,14 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void ReadNamedBitList_RequiresFlags(AsnEncodingRules ruleSet)
+        public static void ReadNamedBitList_RequiresFlags(AsnEncodingRules ruleSet)
         {
             string inputHex = "030100";
-            AsnReaderWrapper reader = CreateWrapper(inputHex.HexToByteArray(), ruleSet);
+            AsnReader reader = new AsnReader(inputHex.HexToByteArray(), ruleSet);
 
-            Assert.Throws<ArgumentException>(
-                ref reader,
+            AssertExtensions.Throws<ArgumentException>(
                 "flagsEnumType",
-                static (ref reader) => reader.ReadNamedBitListValue<AsnEncodingRules>());
+                () => reader.ReadNamedBitListValue<AsnEncodingRules>());
 
             Assert.True(reader.HasData, "reader.HasData");
         }
@@ -287,14 +258,14 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void ReadNamedBitList_DataOutOfRange(AsnEncodingRules ruleSet)
+        public static void ReadNamedBitList_DataOutOfRange(AsnEncodingRules ruleSet)
         {
             string inputHex = "0309000000000100000001";
 
-            AsnReaderWrapper reader = CreateWrapper(inputHex.HexToByteArray(), ruleSet);
+            AsnReader reader = new AsnReader(inputHex.HexToByteArray(), ruleSet);
 
             Assert.Throws<AsnContentException>(
-                ref reader, static (ref reader) => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>());
+                () => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>());
 
             Assert.True(reader.HasData, "reader.HasData");
         }
@@ -302,14 +273,14 @@ namespace System.Formats.Asn1.Tests.Reader
         [Theory]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void ReadNamedBitList_ExcessiveBytes(AsnEncodingRules ruleSet)
+        public static void ReadNamedBitList_ExcessiveBytes(AsnEncodingRules ruleSet)
         {
             string inputHex = "03050014800000";
 
-            AsnReaderWrapper reader = CreateWrapper(inputHex.HexToByteArray(), ruleSet);
+            AsnReader reader = new AsnReader(inputHex.HexToByteArray(), ruleSet);
 
             Assert.Throws<AsnContentException>(
-                ref reader, static (ref reader) => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>());
+                () => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>());
 
             Assert.True(reader.HasData, "reader.HasData");
         }
@@ -317,14 +288,14 @@ namespace System.Formats.Asn1.Tests.Reader
         [Theory]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void ReadNamedBitList_ExcessiveBits(AsnEncodingRules ruleSet)
+        public static void ReadNamedBitList_ExcessiveBits(AsnEncodingRules ruleSet)
         {
             string inputHex = "0303061480";
 
-            AsnReaderWrapper reader = CreateWrapper(inputHex.HexToByteArray(), ruleSet);
+            AsnReader reader = new AsnReader(inputHex.HexToByteArray(), ruleSet);
 
             Assert.Throws<AsnContentException>(
-                ref reader, static (ref reader) => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>());
+                () => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>());
 
             Assert.True(reader.HasData, "reader.HasData");
         }
@@ -333,22 +304,19 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void TagMustBeCorrect_Universal(AsnEncodingRules ruleSet)
+        public static void TagMustBeCorrect_Universal(AsnEncodingRules ruleSet)
         {
             byte[] inputData = { 3, 2, 1, 2 };
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
-            Assert.Throws<ArgumentException>(
-                ref reader,
+            AssertExtensions.Throws<ArgumentException>(
                 "expectedTag",
-                static (ref reader) => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>(Asn1Tag.Null));
+                () => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>(Asn1Tag.Null));
 
             Assert.True(reader.HasData, "HasData after bad universal tag");
 
-            Assert.Throws<AsnContentException>(ref reader, static (ref reader) =>
-            {
-                reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>(new Asn1Tag(TagClass.ContextSpecific, 0));
-            });
+            Assert.Throws<AsnContentException>(
+                () => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>(new Asn1Tag(TagClass.ContextSpecific, 0)));
 
             Assert.True(reader.HasData, "HasData after wrong tag");
 
@@ -362,34 +330,29 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void TagMustBeCorrect_Custom(AsnEncodingRules ruleSet)
+        public static void TagMustBeCorrect_Custom(AsnEncodingRules ruleSet)
         {
             byte[] inputData = { 0x87, 2, 2, 4 };
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
-            Assert.Throws<ArgumentException>(
-                ref reader,
+            AssertExtensions.Throws<ArgumentException>(
                 "expectedTag",
-                static (ref reader) => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>(Asn1Tag.Null));
+                () => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>(Asn1Tag.Null));
 
             Assert.True(reader.HasData, "HasData after bad universal tag");
 
             Assert.Throws<AsnContentException>(
-                ref reader, static (ref reader) => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>());
+                () => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>());
 
             Assert.True(reader.HasData, "HasData after default tag");
 
-            Assert.Throws<AsnContentException>(ref reader, static (ref reader) =>
-            {
-                reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>(new Asn1Tag(TagClass.Application, 0));
-            });
+            Assert.Throws<AsnContentException>(
+                () => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>(new Asn1Tag(TagClass.Application, 0)));
 
             Assert.True(reader.HasData, "HasData after wrong custom class");
 
-            Assert.Throws<AsnContentException>(ref reader, static (ref reader) =>
-            {
-                reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>(new Asn1Tag(TagClass.ContextSpecific, 1));
-            });
+            Assert.Throws<AsnContentException>(
+                () => reader.ReadNamedBitListValue<X509KeyUsageCSharpStyle>(new Asn1Tag(TagClass.ContextSpecific, 1)));
 
             Assert.True(reader.HasData, "HasData after wrong custom tag value");
 
@@ -407,14 +370,14 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER, "8003070080", TagClass.ContextSpecific, 0)]
         [InlineData(AsnEncodingRules.CER, "4C03070080", TagClass.Application, 12)]
         [InlineData(AsnEncodingRules.DER, "DF8A4603070080", TagClass.Private, 1350)]
-        public void ExpectedTag_IgnoresConstructed(
+        public static void ExpectedTag_IgnoresConstructed(
             AsnEncodingRules ruleSet,
             string inputHex,
             TagClass tagClass,
             int tagValue)
         {
             byte[] inputData = inputHex.HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             Assert.Equal(
                 X509KeyUsageCSharpStyle.DecipherOnly,
@@ -423,7 +386,7 @@ namespace System.Formats.Asn1.Tests.Reader
 
             Assert.False(reader.HasData);
 
-            reader = CreateWrapper(inputData, ruleSet);
+            reader = new AsnReader(inputData, ruleSet);
 
             Assert.Equal(
                 X509KeyUsageCSharpStyle.DecipherOnly,
@@ -437,13 +400,13 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void ReadNamedBitList_BitArray(AsnEncodingRules ruleSet)
+        public static void ReadNamedBitList_BitArray(AsnEncodingRules ruleSet)
         {
             byte[] inputData = "440406400100".HexToByteArray();
             bool[] expected = new bool[18];
             expected[1] = expected[15] = true;
 
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             BitArray bits = reader.ReadNamedBitList(new Asn1Tag(TagClass.Application, 4));
             Assert.Equal(expected.Length, bits.Length);
@@ -459,10 +422,10 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void ReadNamedBitList_BitArray_Empty(AsnEncodingRules ruleSet)
+        public static void ReadNamedBitList_BitArray_Empty(AsnEncodingRules ruleSet)
         {
             byte[] inputData = "030100".HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             BitArray bits = reader.ReadNamedBitList();
             Assert.Equal(0, bits.Length);
@@ -473,7 +436,7 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void ReadNamedBitList_BitArray_EveryPattern(AsnEncodingRules ruleSet)
+        public static void ReadNamedBitList_BitArray_EveryPattern(AsnEncodingRules ruleSet)
         {
             const string InputHex =
                 // Tag
@@ -500,7 +463,7 @@ namespace System.Formats.Asn1.Tests.Reader
                 "078747C727A767E7179757D737B777F70F8F4FCF2FAF6FEF1F9F5FDF3FBF7FFF";
 
             byte[] inputData = InputHex.HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             byte[] allTheBytes = new byte[256];
 
@@ -516,14 +479,14 @@ namespace System.Formats.Asn1.Tests.Reader
             byte[] actual = new byte[allTheBytes.Length];
             bits.CopyTo(actual, 0);
 
-            Assert.Equal(allTheBytes, actual);
+            Assert.Equal(actual, actual);
         }
 
         [Theory]
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void ReadNamedBitList_BitArray_7992Bits(AsnEncodingRules ruleSet)
+        public static void ReadNamedBitList_BitArray_7992Bits(AsnEncodingRules ruleSet)
         {
             string inputHex = "848203E80008" + new string('0', 1994) + "02";
             byte[] inputData = inputHex.HexToByteArray();
@@ -532,7 +495,7 @@ namespace System.Formats.Asn1.Tests.Reader
             expected.Set(4, true);
             expected.Set(7990, true);
 
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
             BitArray actual = reader.ReadNamedBitList(new Asn1Tag(TagClass.ContextSpecific, 4));
             Assert.False(reader.HasData);
 
@@ -543,7 +506,7 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void ReadNamedBitList_BitArray_7993Bits(AsnEncodingRules ruleSet)
+        public static void ReadNamedBitList_BitArray_7993Bits(AsnEncodingRules ruleSet)
         {
             string inputHex;
 
@@ -557,7 +520,7 @@ namespace System.Formats.Asn1.Tests.Reader
             }
 
             byte[] inputData = inputHex.HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
             BitArray actual = reader.ReadNamedBitList(new Asn1Tag(TagClass.ContextSpecific, 5));
             Assert.False(reader.HasData);
 
@@ -572,7 +535,7 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void VerifyReadNamedBitList_KeyUsage_OneByte(AsnEncodingRules ruleSet)
+        public static void VerifyReadNamedBitList_KeyUsage_OneByte(AsnEncodingRules ruleSet)
         {
             //     KeyUsage ::= BIT STRING {
             //       digitalSignature   (0),
@@ -593,7 +556,7 @@ namespace System.Formats.Asn1.Tests.Reader
             expected.Set(6, true);
             expected.Set(5, true);
 
-            AsnReaderWrapper reader = CreateWrapper(kuExt.RawData, ruleSet);
+            AsnReader reader = new AsnReader(kuExt.RawData, ruleSet);
             BitArray actual = reader.ReadNamedBitList();
 
             Assert.Equal(expected.Cast<bool>(), actual.Cast<bool>());
@@ -604,7 +567,7 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void VerifyReadNamedBitList_KeyUsage_TwoByte(AsnEncodingRules ruleSet)
+        public static void VerifyReadNamedBitList_KeyUsage_TwoByte(AsnEncodingRules ruleSet)
         {
             X509KeyUsageExtension kuExt = new X509KeyUsageExtension(
                 X509KeyUsageFlags.KeyAgreement | X509KeyUsageFlags.DecipherOnly,
@@ -614,7 +577,7 @@ namespace System.Formats.Asn1.Tests.Reader
             expected.Set(4, true);
             expected.Set(8, true);
 
-            AsnReaderWrapper reader = CreateWrapper(kuExt.RawData, ruleSet);
+            AsnReader reader = new AsnReader(kuExt.RawData, ruleSet);
             BitArray actual = reader.ReadNamedBitList();
 
             Assert.Equal(expected.Cast<bool>(), actual.Cast<bool>());

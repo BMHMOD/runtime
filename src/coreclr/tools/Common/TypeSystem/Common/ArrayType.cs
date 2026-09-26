@@ -5,8 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 
-using Internal.Text;
-
 namespace Internal.TypeSystem
 {
     /// <summary>
@@ -301,7 +299,7 @@ namespace Internal.TypeSystem
             }
         }
 
-        public override Utf8Span Name
+        public override ReadOnlySpan<byte> Name
         {
             get
             {

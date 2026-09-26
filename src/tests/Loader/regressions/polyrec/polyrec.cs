@@ -9,7 +9,6 @@
 using System;
 using System.Threading;
 using Xunit;
-using TestLibrary;
 
 // Spice things up a bit with some mutual recursion between instantiations
 class C<T>
@@ -80,7 +79,7 @@ public class P
     Console.WriteLine("Main thread exited");
   }
 
-  [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+  [Fact]
   public static void Test_4_50()
   {
     Test(4, 50);

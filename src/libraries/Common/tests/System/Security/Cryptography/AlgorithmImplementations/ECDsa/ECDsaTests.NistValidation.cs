@@ -352,7 +352,7 @@ namespace System.Security.Cryptography.EcDsa.Tests
                 HashAlgorithmName.SHA3_512);
         }
 
-        private void Validate(
+        private static void Validate(
             ECParameters parameters,
             ECCurve explicitCurve,
             byte[] msg,

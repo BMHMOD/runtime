@@ -107,7 +107,7 @@ namespace System.Net.Http.Tests
         {
             byte[] input = CreateByteArray(8192);
             MemoryStream source = CreateSourceMemoryStream(sourceIsExposable, input);
-            var destination = new HttpContent.LimitArrayPoolWriteStream(int.MaxValue, 0, getFinalSizeFromPool: false);
+            using var destination = new HttpContent.LimitArrayPoolWriteStream(int.MaxValue, 0, getFinalSizeFromPool: false);
 
             await StreamToStreamCopy.CopyAsync(source, destination, 4096, disposeSource);
 
@@ -128,7 +128,7 @@ namespace System.Net.Http.Tests
         {
             byte[] input = CreateByteArray(8192);
             MemoryStream source = CreateSourceMemoryStream(sourceIsExposable, input);
-            var destination = new HttpContent.LimitArrayPoolWriteStream(int.MaxValue, input.Length, getFinalSizeFromPool);
+            using var destination = new HttpContent.LimitArrayPoolWriteStream(int.MaxValue, input.Length, getFinalSizeFromPool);
 
             await StreamToStreamCopy.CopyAsync(source, destination, 4096, disposeSource);
 
@@ -292,14 +292,13 @@ namespace System.Net.Http.Tests
                     }
                     else
                     {
-                        var smallDestination = new HttpContent.LimitArrayPoolWriteStream(maxBufferSize: actualSize - 1, expectedSize, getFinalSizeFromPool);
+                        using var smallDestination = new HttpContent.LimitArrayPoolWriteStream(maxBufferSize: actualSize - 1, expectedSize, getFinalSizeFromPool);
                         capacityEx = Assert.Throws<HttpRequestException>(() => WriteChunks(smallDestination, actualSize));
-                        smallDestination.ReturnAllPooledBuffers();
                     }
 
                     Assert.Equal(HttpRequestError.ConfigurationLimitExceeded, capacityEx.HttpRequestError);
 
-                    var destination = new HttpContent.LimitArrayPoolWriteStream(maxBufferSize: actualSize + 42, expectedSize, getFinalSizeFromPool);
+                    using var destination = new HttpContent.LimitArrayPoolWriteStream(maxBufferSize: actualSize + 42, expectedSize, getFinalSizeFromPool);
                     WriteChunks(destination, actualSize);
 
                     if (!getFinalSizeFromPool && expectedSize == actualSize)
@@ -324,8 +323,6 @@ namespace System.Net.Http.Tests
                     {
                         Assert.True(actualSize <= destination.GetSingleBuffer().Length);
                     }
-
-                    destination.ReturnAllPooledBuffers();
                 }
             }
 

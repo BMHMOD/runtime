@@ -45,9 +45,13 @@ public class TestClass
         }
     }
 
-    [ConditionalFact(typeof(Sve), nameof(Sve.IsSupported))]
+    [Fact]
     public static void TestEntryPoint()
     {
-        new TestClass().Method0();
+        if (Sve.IsSupported)
+        {
+            new TestClass().Method0();
+        }
+        return;
     }
 }

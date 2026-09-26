@@ -3,11 +3,15 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType]
-internal sealed partial class ImageDosHeader : IData<ImageDosHeader>
+internal sealed class ImageDosHeader : IData<ImageDosHeader>
 {
+    static ImageDosHeader IData<ImageDosHeader>.Create(Target target, TargetPointer address)
+        => new ImageDosHeader(target, address);
     private const int LfanewOffset = 60;
 
-    [RawOffset(LfanewOffset, LittleEndian = true)]
-    public partial int Lfanew { get; }
+    public ImageDosHeader(Target target, TargetPointer address)
+    {
+        Lfanew = target.ReadLittleEndian<int>(address + LfanewOffset);
+    }
+    public int Lfanew { get; init; }
 }

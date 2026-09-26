@@ -11,8 +11,10 @@
 #ifndef SHIMDATATARGET_H_
 #define SHIMDATATARGET_H_
 
+
 // Function to invoke for
 typedef HRESULT (*FPContinueStatusChanged)(void * pUserData, DWORD dwThreadId, CORDB_CONTINUE_STATUS dwContinueStatus);
+
 
 //---------------------------------------------------------------------------------------
 // Data target for a live process. This is used by Shim.
@@ -20,7 +22,6 @@ typedef HRESULT (*FPContinueStatusChanged)(void * pUserData, DWORD dwThreadId, C
 class ShimDataTarget : public ICorDebugMutableDataTarget, ICorDebugDataTarget4
 {
 public:
-    ShimDataTarget() {}
     virtual ~ShimDataTarget() {}
 
     // Allow hooking an implementation for ContinueStatusChanged.
@@ -128,3 +129,4 @@ HRESULT BuildPlatformSpecificDataTarget(MachineInfo machineInfo,
                                         ShimDataTarget ** ppDataTarget);
 
 #endif //  SHIMDATATARGET_H_
+

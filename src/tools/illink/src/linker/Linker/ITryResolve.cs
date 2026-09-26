@@ -7,7 +7,7 @@ using Mono.Cecil;
 
 namespace Mono.Linker
 {
-    public interface ITryResolveMetadata
+    internal interface ITryResolveMetadata
     {
         MethodDefinition? TryResolve(MethodReference methodReference);
         TypeDefinition? TryResolve(TypeReference typeReference);

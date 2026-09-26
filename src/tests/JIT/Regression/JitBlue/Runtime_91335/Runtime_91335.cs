@@ -3,9 +3,6 @@
 
 // Found by Antigen
 
-
-namespace Runtime_91335;
-
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
@@ -82,9 +79,12 @@ public class TestClass
                 Vector256<int>.AllBitsSet & s_v256_int_42 ^ (s_v256_int_42 *= v256_int_101) - (v256_int_101 ^ Vector256<int>.Zero) & (v256_int_101 *= v256_int_101) - Avx2.ShiftRightLogical(v256_int_101, byte_929);
     }
 
-    [ConditionalFact(typeof(Avx2), nameof(Avx2.IsSupported))]
+    [Fact]
     public static void TestEntryPoint()
     {
-        new TestClass().Method31();
+        if (Avx2.IsSupported)
+        {
+            new TestClass().Method31();
+        }
     }
 }

@@ -1069,21 +1069,29 @@ namespace System.Net.Http.Tests
             Assert.Equal(2, headers.Parser.TryParseValueCallCount);
         }
 
-        [Theory]
-        [InlineData(null)]
-        [InlineData("")]
-        public void Remove_UseNullOrEmptyHeaderName_ReturnsFalse(string? headerName)
+        [Fact]
+        public void Remove_UseNullHeaderName_Throw()
         {
             MockHeaders headers = new MockHeaders();
-            Assert.False(headers.Remove(headerName));
+
+            AssertExtensions.Throws<ArgumentNullException>("name", () => { headers.Remove(null); });
+        }
+
+        [Fact]
+        public void Remove_UseEmptyHeaderName_Throw()
+        {
+            MockHeaders headers = new MockHeaders();
+
+            AssertExtensions.Throws<ArgumentException>("name", () => { headers.Remove(""); });
         }
 
         [Theory]
         [MemberData(nameof(GetInvalidHeaderNames))]
-        public void Remove_UseInvalidHeaderName_ReturnsFalse(string headerName)
+        public void Remove_UseInvalidHeaderName_Throw(string headerName)
         {
             MockHeaders headers = new MockHeaders();
-            Assert.False(headers.Remove(headerName));
+
+            Assert.Throws<FormatException>(() => { headers.Remove(headerName); });
         }
 
         [Fact]
@@ -1585,21 +1593,29 @@ namespace System.Net.Http.Tests
             }
         }
 
-        [Theory]
-        [InlineData(null)]
-        [InlineData("")]
-        public void Contains_UseNullOrEmptyHeaderName_ReturnsFalse(string? headerName)
+        [Fact]
+        public void Contains_UseNullHeaderName_Throw()
         {
             MockHeaders headers = new MockHeaders();
-            Assert.False(headers.Contains(headerName));
+
+            AssertExtensions.Throws<ArgumentNullException>("name", () => { headers.Contains(null); });
+        }
+
+        [Fact]
+        public void Contains_UseEmptyHeaderName_Throw()
+        {
+            MockHeaders headers = new MockHeaders();
+
+            AssertExtensions.Throws<ArgumentException>("name", () => { headers.Contains(""); });
         }
 
         [Theory]
         [MemberData(nameof(GetInvalidHeaderNames))]
-        public void Contains_UseInvalidHeaderName_ReturnsFalse(string headerName)
+        public void Contains_UseInvalidHeaderName_Throw(string headerName)
         {
             MockHeaders headers = new MockHeaders();
-            Assert.False(headers.Contains(headerName));
+
+            Assert.Throws<FormatException>(() => { headers.Contains(headerName); });
         }
 
         [Fact]
@@ -2533,10 +2549,10 @@ namespace System.Net.Http.Tests
         }
 
         [Fact]
-        public void Remove_InvalidHeaderName_ReturnsFalse()
+        public void TryAddInvalidHeader_ShouldThrowFormatException()
         {
             MockHeaders headers = new MockHeaders();
-            Assert.False(headers.Remove("\u0080"));
+            AssertExtensions.ThrowsContains<FormatException>(() => headers.Remove("\u0080"), "\u0080");
         }
 
         [Theory]

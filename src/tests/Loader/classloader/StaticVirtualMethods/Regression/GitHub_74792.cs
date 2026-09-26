@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 // This regression test tracks an externally reported issue where this
 // code fails at runtime with a BadImageFormatException because the
@@ -18,7 +17,6 @@ using TestLibrary;
 
 public class Program
 {
-    [ActiveIssue("needs triage", TestPlatforms.tvOS)]
     [Fact]
     public static void TestEntryPoint()
     {

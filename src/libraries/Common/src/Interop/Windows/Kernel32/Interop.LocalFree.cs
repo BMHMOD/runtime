@@ -8,7 +8,6 @@ internal static partial class Interop
     internal static partial class Kernel32
     {
         // https://learn.microsoft.com/windows/win32/api/winbase/nf-winbase-localfree
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Kernel32)]
         // [return: NativeTypeName("HLOCAL")]
         private static partial nint LocalFree(

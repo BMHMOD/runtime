@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-namespace DevDiv_280123;
-
 using System.Runtime.CompilerServices;
 using Xunit;
 
@@ -37,7 +34,6 @@ public static class C
         return b ? 0 : 1;
     }
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

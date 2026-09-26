@@ -70,23 +70,7 @@ constexpr CorDebugRegister g_JITToCorDbgReg[] =
     REGISTER_AMD64_R12,
     REGISTER_AMD64_R13,
     REGISTER_AMD64_R14,
-    REGISTER_AMD64_R15,
-    REGISTER_AMD64_XMM0,
-    REGISTER_AMD64_XMM1,
-    REGISTER_AMD64_XMM2,
-    REGISTER_AMD64_XMM3,
-    REGISTER_AMD64_XMM4,
-    REGISTER_AMD64_XMM5,
-    REGISTER_AMD64_XMM6,
-    REGISTER_AMD64_XMM7,
-    REGISTER_AMD64_XMM8,
-    REGISTER_AMD64_XMM9,
-    REGISTER_AMD64_XMM10,
-    REGISTER_AMD64_XMM11,
-    REGISTER_AMD64_XMM12,
-    REGISTER_AMD64_XMM13,
-    REGISTER_AMD64_XMM14,
-    REGISTER_AMD64_XMM15
+    REGISTER_AMD64_R15
 };
 
 //
@@ -132,7 +116,7 @@ inline void CORDbgSetIP(DT_CONTEXT* context, LPVOID rip)
     context->Rip = (DWORD64) rip;
 }
 
-inline CORDB_ADDRESS CORDbgGetSP(const DT_CONTEXT * context)
+inline LPVOID CORDbgGetSP(const DT_CONTEXT * context)
 {
     CONTRACTL
     {
@@ -143,7 +127,7 @@ inline CORDB_ADDRESS CORDbgGetSP(const DT_CONTEXT * context)
     }
     CONTRACTL_END;
 
-    return (CORDB_ADDRESS)context->Rsp;
+    return (LPVOID)context->Rsp;
 }
 inline void CORDbgSetSP(DT_CONTEXT *context, LPVOID rsp)
 {
@@ -163,12 +147,14 @@ inline void CORDbgSetSP(DT_CONTEXT *context, LPVOID rsp)
 #define CORDbgSetFP(context, rbp)
 #define CORDbgGetFP(context) 0
 
+// compare the RIP, RSP, and RBP
 inline BOOL CompareControlRegisters(const DT_CONTEXT * pCtx1, const DT_CONTEXT * pCtx2)
 {
     LIMITED_METHOD_DAC_CONTRACT;
 
     if ((pCtx1->Rip == pCtx2->Rip) &&
-        (pCtx1->Rsp == pCtx2->Rsp))
+        (pCtx1->Rsp == pCtx2->Rsp) &&
+        (pCtx1->Rbp == pCtx2->Rbp))
     {
         return TRUE;
     }

@@ -4,7 +4,7 @@ using Mono.Linker.Tests.Cases.Expectations.Metadata;
 
 namespace Mono.Linker.Tests.Cases.TestFramework
 {
-    [SkipUnresolved(true)]
+    [SetupLinkerArgument("--skip-unresolved", "true")]
     [Define("IL_ASSEMBLY_AVAILABLE")]
     [SetupCompileBefore("ILAssembly.dll", new[] { "Dependencies/ILAssemblySample.il" })]
     [KeptMemberInAssembly("ILAssembly.dll", "Mono.Linker.Tests.Cases.TestFramework.Dependencies.ILAssemblySample", "GiveMeAValue()")]

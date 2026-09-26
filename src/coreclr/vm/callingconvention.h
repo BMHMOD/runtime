@@ -12,10 +12,7 @@
 #ifndef __CALLING_CONVENTION_INCLUDED
 #define __CALLING_CONVENTION_INCLUDED
 
-#include <algorithm>
-
 #ifdef FEATURE_INTERPRETER
-#include <cgencpu.h>
 #include <interpretershared.h>
 #endif // FEATURE_INTERPRETER
 
@@ -54,11 +51,8 @@ struct ArgLocDesc
 
 #if defined(UNIX_AMD64_ABI)
 
-#ifdef DEBUG
-    TypeHandle m_thStructInRegs;           // For structs passed in register, add a debug field to make it a bit easier to debug
-#endif // DEBUG
+    EEClass* m_eeClass;           // For structs passed in register, it points to the EEClass of the struct
 
-    SystemVEightByteRegistersInfo m_eightByteInfo;
 #endif // UNIX_AMD64_ABI
 
 #ifdef FEATURE_HFA
@@ -110,7 +104,7 @@ struct ArgLocDesc
         m_structFields = {};
 #endif
 #if defined(UNIX_AMD64_ABI)
-        m_eightByteInfo.InitEmpty();
+        m_eeClass = NULL;
 #endif
     }
 };
@@ -211,10 +205,7 @@ struct TransitionBlock
             TADDR m_ReturnAddress;
         };
     };
-    union {
-        ArgumentRegisters       m_argumentRegisters;
-        TADDR m_StackPointer;
-    };
+    ArgumentRegisters       m_argumentRegisters;
 #else
     PORTABILITY_ASSERT("TransitionBlock");
 #endif
@@ -578,12 +569,6 @@ public:
 #ifdef TARGET_AMD64
         return IsArgPassedByRef(size);
 #elif defined(TARGET_ARM64)
-        // TODO-SVE: This should be removed when Vector<T> has an HFA type.
-        if (ExecutionManager::GetEEJitManager()->UseScalableVectorT() && th.IsVectorT())
-        {
-            return TRUE;
-        }
-
         // Composites greater than 16 bytes are passed by reference
         return ((size > ENREGISTERED_PARAMTYPE_MAXSIZE) && !th.IsHFA());
 #elif defined(TARGET_LOONGARCH64)
@@ -642,14 +627,7 @@ public:
         if (m_argType == ELEMENT_TYPE_VALUETYPE)
         {
             _ASSERTE(!m_argTypeHandle.IsNull());
-
-            // TODO-SVE: This should be removed when Vector<T> has an HFA type.
-            if (ExecutionManager::GetEEJitManager()->UseScalableVectorT() && m_argTypeHandle.IsVectorT())
-            {
-                return TRUE;
-            }
-
-            return (((m_argSize > ENREGISTERED_PARAMTYPE_MAXSIZE) && (!m_argTypeHandle.IsHFA() || this->IsVarArg())));
+            return ((m_argSize > ENREGISTERED_PARAMTYPE_MAXSIZE) && (!m_argTypeHandle.IsHFA() || this->IsVarArg()));
         }
         return FALSE;
 #elif defined(TARGET_LOONGARCH64) || defined(TARGET_RISCV64)
@@ -1110,15 +1088,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetRetBuffArgOffset()
     // x86 is special as always
     ret += this->HasThis() ? offsetof(ArgumentRegisters, EDX) : offsetof(ArgumentRegisters, ECX);
 #elif TARGET_ARM64
-    if (this->IsRetBuffPassedAsFirstArg())
-    {
-        if (this->HasThis())
-            ret += TARGET_REGISTER_SIZE;
-    }
-    else
-    {
-        ret = TransitionBlock::GetOffsetOfRetBuffArgReg();
-    }
+    ret = TransitionBlock::GetOffsetOfRetBuffArgReg();
 #else
     if (this->HasThis())
         ret += TARGET_REGISTER_SIZE;
@@ -1146,7 +1116,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetVASigCookieOffset()
         ret += TARGET_REGISTER_SIZE;
     }
 
-    if (this->HasRetBuffArg() && this->IsRetBuffPassedAsFirstArg())
+    if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
     {
         ret += TARGET_REGISTER_SIZE;
     }
@@ -1166,6 +1136,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetParamTypeArgOffset()
         INSTANCE_CHECK;
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
         if (FORBIDGC_LOADER_USE_ENABLED()) GC_NOTRIGGER; else GC_TRIGGERS;
+        if (FORBIDGC_LOADER_USE_ENABLED()) FORBID_FAULT; else { INJECT_FAULT(COMPlusThrowOM()); }
         MODE_ANY;
     }
     CONTRACTL_END
@@ -1198,7 +1169,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetParamTypeArgOffset()
         ret += TARGET_REGISTER_SIZE;
     }
 
-    if (this->HasRetBuffArg() && this->IsRetBuffPassedAsFirstArg())
+    if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
     {
         ret += TARGET_REGISTER_SIZE;
     }
@@ -1215,6 +1186,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetAsyncContinuationArgOffset()
         INSTANCE_CHECK;
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
         if (FORBIDGC_LOADER_USE_ENABLED()) GC_NOTRIGGER; else GC_TRIGGERS;
+        if (FORBIDGC_LOADER_USE_ENABLED()) FORBID_FAULT; else { INJECT_FAULT(COMPlusThrowOM()); }
         MODE_ANY;
     }
     CONTRACTL_END
@@ -1254,7 +1226,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetAsyncContinuationArgOffset()
         ret += TARGET_REGISTER_SIZE;
     }
 
-    if (this->HasRetBuffArg() && this->IsRetBuffPassedAsFirstArg())
+    if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
     {
         ret += TARGET_REGISTER_SIZE;
     }
@@ -1290,7 +1262,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         if (this->HasThis())
             numRegistersUsed++;
 
-        if (this->HasRetBuffArg() && this->IsRetBuffPassedAsFirstArg())
+        if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
             numRegistersUsed++;
 
         _ASSERTE(!this->IsVarArg() || !this->HasParamType());
@@ -1408,15 +1380,14 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
 
     case ELEMENT_TYPE_VALUETYPE:
     {
-        if (this->IsRegPassedStruct(m_argTypeHandle))
+        MethodTable *pMT = m_argTypeHandle.GetMethodTable();
+        if (this->IsRegPassedStruct(pMT))
         {
+            EEClass* eeClass = pMT->GetClass();
             cGenRegs = 0;
-            SystemVEightByteRegistersInfo eightByteInfo = this->GetEightByteRegistersInfo(m_argTypeHandle);
-
-            uint8_t numberEightBytes = eightByteInfo.GetNumEightBytes();
-            for (int i = 0; i < numberEightBytes; i++)
+            for (int i = 0; i < eeClass->GetNumberEightBytes(); i++)
             {
-                switch (eightByteInfo.GetEightByteClassification(i))
+                switch (eeClass->GetEightByteClassification(i))
                 {
                     case SystemVClassificationTypeInteger:
                     case SystemVClassificationTypeIntegerReference:
@@ -1440,10 +1411,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
                 m_argLocDescForStructInRegs.m_cFloatReg = cFPRegs;
                 m_argLocDescForStructInRegs.m_idxGenReg = m_idxGenReg;
                 m_argLocDescForStructInRegs.m_idxFloatReg = m_idxFPReg;
-#ifdef DEBUG
-                m_argLocDescForStructInRegs.m_thStructInRegs = m_argTypeHandle;
-#endif
-                m_argLocDescForStructInRegs.m_eightByteInfo = eightByteInfo;
+                m_argLocDescForStructInRegs.m_eeClass = eeClass;
 
                 m_hasArgLocDescForStructInRegs = true;
 
@@ -1682,7 +1650,7 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
     {
         // Handle HFAs: packed structures of 1-4 floats, doubles, or short vectors
         // that are passed in FP argument registers if possible.
-        if (thValueType.IsHFA() && !this->IsVarArg())
+        if (thValueType.IsHFA())
         {
             CorInfoHFAElemType type = thValueType.GetHFAType();
 
@@ -1701,7 +1669,8 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
         }
         else
         {
-            if (IsArgPassedByRef())
+            // Composite greater than 16bytes should be passed by reference
+            if (argSize > ENREGISTERED_PARAMTYPE_MAXSIZE)
             {
                 argSize = sizeof(TADDR);
             }
@@ -1918,21 +1887,6 @@ int ArgIteratorTemplate<ARGITERATOR_BASE>::GetNextOffset()
 
     return argOfs;
 #elif defined(TARGET_WASM)
-
-    unsigned align;
-    if (argType == ELEMENT_TYPE_VALUETYPE)
-    {
-        align = std::clamp(CEEInfo::getClassAlignmentRequirementStatic(thValueType.GetMethodTable()), INTERP_STACK_SLOT_SIZE, INTERP_STACK_ALIGNMENT);
-    }
-    else
-    {
-        align = INTERP_STACK_SLOT_SIZE;
-    }
-
-    _ASSERTE(!HasRetBuffArg());
-
-    m_ofsStack = ALIGN_UP(m_ofsStack, align);
-
     int cbArg = ALIGN_UP(argSize, INTERP_STACK_SLOT_SIZE);
     int argOfs = TransitionBlock::GetOffsetOfArgs() + m_ofsStack;
 
@@ -1953,6 +1907,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
         INSTANCE_CHECK;
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
         if (FORBIDGC_LOADER_USE_ENABLED()) GC_NOTRIGGER; else GC_TRIGGERS;
+        if (FORBIDGC_LOADER_USE_ENABLED()) FORBID_FAULT; else { INJECT_FAULT(COMPlusThrowOM()); }
         MODE_ANY;
     }
     CONTRACTL_END
@@ -1998,29 +1953,30 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
             _ASSERTE(!thValueType.IsNull());
 
 #if defined(UNIX_AMD64_ABI)
-            if (this->IsRegPassedStruct(thValueType))
+            MethodTable *pMT = thValueType.AsMethodTable();
+            if (pMT->IsRegPassedStruct())
             {
-                SystemVEightByteRegistersInfo eightByteInfo = this->GetEightByteRegistersInfo(thValueType);
-                if (eightByteInfo.GetNumEightBytes() == 1)
+                EEClass* eeClass = pMT->GetClass();
+
+                if (eeClass->GetNumberEightBytes() == 1)
                 {
                     // Structs occupying just one eightbyte are treated as int / double
-                    if (eightByteInfo.GetEightByteClassification(0) == SystemVClassificationTypeSSE)
+                    if (eeClass->GetEightByteClassification(0) == SystemVClassificationTypeSSE)
                     {
                         flags |= sizeof(double) << RETURN_FP_SIZE_SHIFT;
                     }
                 }
                 else
                 {
-                    _ASSERTE(eightByteInfo.GetNumEightBytes() == 2);
                     // Size of the struct is 16 bytes
                     flags |= (16 << RETURN_FP_SIZE_SHIFT);
                     // The lowest two bits of the size encode the order of the int and SSE fields
-                    if (eightByteInfo.GetEightByteClassification(0) == SystemVClassificationTypeSSE)
+                    if (eeClass->GetEightByteClassification(0) == SystemVClassificationTypeSSE)
                     {
                         flags |= (1 << RETURN_FP_SIZE_SHIFT);
                     }
 
-                    if (eightByteInfo.GetEightByteClassification(1) == SystemVClassificationTypeSSE)
+                    if (eeClass->GetEightByteClassification(1) == SystemVClassificationTypeSSE)
                     {
                         flags |= (2 << RETURN_FP_SIZE_SHIFT);
                     }
@@ -2062,11 +2018,6 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
                 m_returnedFpFieldOffsets[1] = info.offset2nd;
                 break;
             }
-#elif defined(TARGET_ARM64)
-            // On ARM64, the return value follows the same rules as arguments, when deciding
-            // whether to pass by reference (therefore through the return buffer).
-            if  (!IsArgPassedByRef(thValueType))
-                break;
 #else
             if  (size <= ENREGISTERED_RETURNTYPE_INTEGER_MAXSIZE)
                 break;
@@ -2083,11 +2034,6 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ComputeReturnFlags()
         break;
     }
 
-#ifdef TARGET_WASM
-    // WebAssembly ArgIterator follows the Interpreter calling convention which does not use a return buffer arg in the normal argument stream
-    flags &= ~RETURN_HAS_RET_BUFFER;
-#endif
-
     m_dwFlags |= flags;
 }
 
@@ -2099,6 +2045,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ForceSigWalk()
         INSTANCE_CHECK;
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
         if (FORBIDGC_LOADER_USE_ENABLED()) GC_NOTRIGGER; else GC_TRIGGERS;
+        if (FORBIDGC_LOADER_USE_ENABLED()) FORBID_FAULT; else { INJECT_FAULT(COMPlusThrowOM()); }
         MODE_ANY;
     }
     CONTRACTL_END
@@ -2117,7 +2064,7 @@ void ArgIteratorTemplate<ARGITERATOR_BASE>::ForceSigWalk()
     if (this->HasThis())
         numRegistersUsed++;
 
-    if (this->HasRetBuffArg() && this->IsRetBuffPassedAsFirstArg())
+    if (this->HasRetBuffArg() && IsRetBuffPassedAsFirstArg())
         numRegistersUsed++;
 
     if (this->IsVarArg())
@@ -2301,24 +2248,12 @@ protected:
         m_pSig->Reset();
     }
 
-    FORCEINLINE BOOL IsRegPassedStruct(TypeHandle th)
+    FORCEINLINE BOOL IsRegPassedStruct(MethodTable* pMT)
     {
-        return th.AsMethodTable()->IsRegPassedStruct();
+        return pMT->IsRegPassedStruct();
     }
-
-#if defined(UNIX_AMD64_ABI)
-    FORCEINLINE SystemVEightByteRegistersInfo GetEightByteRegistersInfo(TypeHandle th)
-    {
-        return th.AsMethodTable()->GetClass()->GetEightByteRegistersInfo();
-    }
-#endif // defined(UNIX_AMD64_ABI)
 
 public:
-    FORCEINLINE BOOL IsRetBuffPassedAsFirstArg()
-    {
-        return ::IsRetBuffPassedAsFirstArg();
-    }
-
     BOOL HasThis()
     {
         LIMITED_METHOD_CONTRACT;
@@ -2394,45 +2329,6 @@ public:
     }
 };
 
-class ArgIteratorBaseForPInvoke : public ArgIteratorBase
-{
-protected:
-    BOOL IsRegPassedStruct(TypeHandle th);
-
-#if defined(UNIX_AMD64_ABI)
-    SystemVEightByteRegistersInfo GetEightByteRegistersInfo(TypeHandle th);
-#endif
-};
-
-class PInvokeArgIterator : public ArgIteratorTemplate<ArgIteratorBaseForPInvoke>
-{
-public:
-    PInvokeArgIterator(MetaSig* pSig)
-    {
-        m_pSig = pSig;
-    }
-};
-
-#if defined(TARGET_ARM64) && defined(TARGET_WINDOWS)
-class ArgIteratorBaseForWindowsArm64PInvokeThisCall : public ArgIteratorBaseForPInvoke
-{
-public:
-    FORCEINLINE BOOL IsRetBuffPassedAsFirstArg()
-    {
-        return TRUE;
-    }
-};
-
-class WindowsArm64PInvokeThisCallArgIterator : public ArgIteratorTemplate<ArgIteratorBaseForWindowsArm64PInvokeThisCall>
-{
-public:
-    WindowsArm64PInvokeThisCallArgIterator(MetaSig* pSig)
-    {
-        m_pSig = pSig;
-    }
-};
-#endif // defined(TARGET_ARM64) && defined(TARGET_WINDOWS)
-
 // Conventience helper
 inline BOOL HasRetBuffArg(MetaSig * pSig)
 {
@@ -2447,7 +2343,7 @@ inline BOOL HasRetBuffArgUnmanagedFixup(MetaSig * pSig)
 {
     WRAPPER_NO_CONTRACT;
     // We cannot just pSig->GetReturnType() here since it will return ELEMENT_TYPE_VALUETYPE for enums
-    CorElementType type = pSig->GetRetTypeHandleThrowing().GetInternalCorElementType();
+    CorElementType type = pSig->GetRetTypeHandleThrowing().GetVerifierCorElementType();
     return type == ELEMENT_TYPE_VALUETYPE;
 }
 #endif

@@ -12,29 +12,9 @@ namespace System.Security.Cryptography.EcDsa.Tests
     [SkipOnPlatform(TestPlatforms.Browser, "Not supported on Browser")]
     public abstract class ECDsaSignatureFormatTests : DsaFamilySignatureFormatTests
     {
-        private static readonly Dictionary<(ECDsaProvider Provider, Type TestClass), KeyDescription[]> s_keyCache = new();
-
-        protected abstract ECDsaProvider ECDsaFactory { get; }
-
         protected override bool SupportsSha2 => true;
 
-        protected override KeyDescription[] GenerateTestKeys()
-        {
-            lock (s_keyCache)
-            {
-                (ECDsaProvider Provider, Type TestClass) cacheKey = (ECDsaFactory, GetType());
-
-                if (!s_keyCache.TryGetValue(cacheKey, out KeyDescription[] keys))
-                {
-                    keys = LocalGenerateTestKeys().ToArray();
-                    s_keyCache.Add(cacheKey, keys);
-                }
-
-                return keys;
-            }
-        }
-
-        private KeyDescription CreateKey(ECCurve curve)
+        private static KeyDescription CreateKey(ECCurve curve)
         {
             ECDsa dsa = ECDsaFactory.Create(curve);
 
@@ -44,7 +24,7 @@ namespace System.Security.Cryptography.EcDsa.Tests
                 dsa.KeySize);
         }
 
-        private KeyDescription OpenKey(in ECParameters ecParameters)
+        private static KeyDescription OpenKey(in ECParameters ecParameters)
         {
             ECDsa dsa = ECDsaFactory.Create();
             dsa.ImportParameters(ecParameters);
@@ -55,7 +35,7 @@ namespace System.Security.Cryptography.EcDsa.Tests
                 dsa.KeySize);
         }
 
-        protected IEnumerable<KeyDescription> LocalGenerateTestKeys()
+        protected static IEnumerable<KeyDescription> LocalGenerateTestKeys()
         {
             if (ECDsaFactory.IsCurveValid(EccTestData.BrainpoolP160r1Key1.Curve.Oid))
             {
@@ -76,8 +56,11 @@ namespace System.Security.Cryptography.EcDsa.Tests
         }
     }
 
-    public abstract class ECDsaArraySignatureFormatTests : ECDsaSignatureFormatTests
+    public sealed class ECDsaArraySignatureFormatTests : ECDsaSignatureFormatTests
     {
+        private static readonly KeyDescription[] s_keys = LocalGenerateTestKeys().ToArray();
+
+        protected override KeyDescription[] GenerateTestKeys() => s_keys;
         protected override bool IsArrayBased => true;
         
         protected override byte[] SignHash(
@@ -117,8 +100,11 @@ namespace System.Security.Cryptography.EcDsa.Tests
         }
     }
 
-    public abstract class ECDsaArrayOffsetSignatureFormatTests : ECDsaSignatureFormatTests
+    public sealed class ECDsaArrayOffsetSignatureFormatTests : ECDsaSignatureFormatTests
     {
+        private static readonly KeyDescription[] s_keys = LocalGenerateTestKeys().ToArray();
+
+        protected override KeyDescription[] GenerateTestKeys() => s_keys;
         protected override bool IsArrayBased => true;
 
         protected override byte[] SignHash(
@@ -235,8 +221,11 @@ namespace System.Security.Cryptography.EcDsa.Tests
         }
     }
 
-    public abstract class ECDsaSpanSignatureFormatTests : ECDsaSignatureFormatTests
+    public sealed class ECDsaSpanSignatureFormatTests : ECDsaSignatureFormatTests
     {
+        private static readonly KeyDescription[] s_keys = LocalGenerateTestKeys().ToArray();
+
+        protected override KeyDescription[] GenerateTestKeys() => s_keys;
         protected override bool IsArrayBased => false;
 
         protected override byte[] SignHash(

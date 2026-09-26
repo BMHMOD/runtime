@@ -108,7 +108,7 @@ extern "C" bool RhRegisterOSModule(void * pModule,
     void * pvUnboxingStubsStartRange, uint32_t cbUnboxingStubsRange,
     void ** pClasslibFunctions, uint32_t nClasslibFunctions);
 
-void* PalGetModuleHandleFromPointer(void* pointer, bool pinModule = false);
+void* PalGetModuleHandleFromPointer(void* pointer);
 
 #if defined(HOST_X86) && defined(HOST_WINDOWS)
 #define STRINGIFY(s) #s
@@ -128,7 +128,6 @@ void* PalGetModuleHandleFromPointer(void* pointer, bool pinModule = false);
 MANAGED_RUNTIME_EXPORT(GetRuntimeException)
 MANAGED_RUNTIME_EXPORT(RuntimeFailFast)
 MANAGED_RUNTIME_EXPORT(AppendExceptionStackFrame)
-MANAGED_RUNTIME_EXPORT(ResolveDispatch)
 MANAGED_RUNTIME_EXPORT(GetSystemArrayEEType)
 MANAGED_RUNTIME_EXPORT(OnFirstChanceException)
 MANAGED_RUNTIME_EXPORT(OnUnhandledException)
@@ -152,7 +151,7 @@ static const pfn c_classlibFunctions[] = {
     &MANAGED_RUNTIME_EXPORT_NAME(RuntimeFailFast),
     (pfn)&ThreadEntryPoint,
     &MANAGED_RUNTIME_EXPORT_NAME(AppendExceptionStackFrame),
-    &MANAGED_RUNTIME_EXPORT_NAME(ResolveDispatch),
+    nullptr, // &CheckStaticClassConstruction,
     &MANAGED_RUNTIME_EXPORT_NAME(GetSystemArrayEEType),
     &MANAGED_RUNTIME_EXPORT_NAME(OnFirstChanceException),
     &MANAGED_RUNTIME_EXPORT_NAME(OnUnhandledException),

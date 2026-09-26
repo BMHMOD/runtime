@@ -8,7 +8,6 @@ internal static partial class Interop
 {
     internal static partial class Activeds
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Activeds)]
         internal static partial int ADsGetLastError(out int error, char[] errorBuffer, int errorBufferLength, char[] nameBuffer, int nameBufferLength);
     }

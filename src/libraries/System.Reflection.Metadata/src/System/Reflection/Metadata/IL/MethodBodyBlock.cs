@@ -191,8 +191,8 @@ namespace System.Reflection.Metadata
 
         private static ImmutableArray<ExceptionRegion> ReadSmallExceptionHandlers(ref BlobReader memReader, int count)
         {
-            var result = ImmutableArray.CreateBuilder<ExceptionRegion>(count);
-            for (int i = 0; i < count; i++)
+            var result = new ExceptionRegion[count];
+            for (int i = 0; i < result.Length; i++)
             {
                 var kind = (ExceptionRegionKind)memReader.ReadUInt16();
                 var tryOffset = memReader.ReadUInt16();
@@ -200,27 +200,27 @@ namespace System.Reflection.Metadata
                 var handlerOffset = memReader.ReadUInt16();
                 var handlerLength = memReader.ReadByte();
                 var classTokenOrFilterOffset = memReader.ReadInt32();
-                result.Add(new ExceptionRegion(kind, tryOffset, tryLength, handlerOffset, handlerLength, classTokenOrFilterOffset));
+                result[i] = new ExceptionRegion(kind, tryOffset, tryLength, handlerOffset, handlerLength, classTokenOrFilterOffset);
             }
 
-            return result.MoveToImmutable();
+            return ImmutableArray.Create(result);
         }
 
         private static ImmutableArray<ExceptionRegion> ReadFatExceptionHandlers(ref BlobReader memReader, int count)
         {
-            var result = ImmutableArray.CreateBuilder<ExceptionRegion>(count);
-            for (int i = 0; i < count; i++)
+            var result = new ExceptionRegion[count];
+            for (int i = 0; i < result.Length; i++)
             {
-                var kind = (ExceptionRegionKind)memReader.ReadUInt32();
+                var sehFlags = (ExceptionRegionKind)memReader.ReadUInt32();
                 int tryOffset = memReader.ReadInt32();
                 int tryLength = memReader.ReadInt32();
                 int handlerOffset = memReader.ReadInt32();
                 int handlerLength = memReader.ReadInt32();
                 int classTokenOrFilterOffset = memReader.ReadInt32();
-                result.Add(new ExceptionRegion(kind, tryOffset, tryLength, handlerOffset, handlerLength, classTokenOrFilterOffset));
+                result[i] = new ExceptionRegion(sehFlags, tryOffset, tryLength, handlerOffset, handlerLength, classTokenOrFilterOffset);
             }
 
-            return result.MoveToImmutable();
+            return ImmutableArray.Create(result);
         }
     }
 }

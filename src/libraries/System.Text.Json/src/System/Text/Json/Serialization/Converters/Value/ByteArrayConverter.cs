@@ -19,7 +19,7 @@ namespace System.Text.Json.Serialization.Converters
 
         public override void Write(Utf8JsonWriter writer, byte[]? value, JsonSerializerOptions options)
         {
-            if (value is null)
+            if (value == null)
             {
                 writer.WriteNullValue();
             }
@@ -29,8 +29,6 @@ namespace System.Text.Json.Serialization.Converters
             }
         }
 
-        internal override JsonSchema? GetSchema(JsonNumberHandling _) => new() { Type = JsonSchemaType.String, ContentEncoding = "base64" };
-
-        internal override JsonValueType GetSupportedJsonValueTypes(JsonNumberHandling _) => JsonValueType.String;
+        internal override JsonSchema? GetSchema(JsonNumberHandling _) => new() { Type = JsonSchemaType.String };
     }
 }

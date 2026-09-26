@@ -8,8 +8,7 @@ using Microsoft.CodeAnalysis.Testing;
 using Microsoft.Interop;
 using Xunit;
 using static Microsoft.Interop.UnitTests.TestUtils;
-using VerifyAnalyzerCS = Microsoft.Interop.UnitTests.Verifiers.CSharpAnalyzerVerifier<Microsoft.Interop.Analyzers.LibraryImportDiagnosticsAnalyzer>;
-using VerifyGeneratorCS = Microsoft.Interop.UnitTests.Verifiers.CSharpSourceGeneratorVerifier<Microsoft.Interop.LibraryImportGenerator, Microsoft.Interop.Analyzers.LibraryImportDiagnosticsAnalyzer>;
+using VerifyCS = Microsoft.Interop.UnitTests.Verifiers.CSharpSourceGeneratorVerifier<Microsoft.Interop.LibraryImportGenerator>;
 
 namespace LibraryImportGenerator.UnitTests
 {
@@ -123,12 +122,11 @@ namespace LibraryImportGenerator.UnitTests
         public async Task VerifyByValueMarshallingAttributeUsageInfoMessages(string id, string source, DiagnosticResult[] diagnostics)
         {
             _ = id;
-            // Use a custom test setup that enables SYSLIB1092 (which is disabled by default)
-            var test = new VerifyAnalyzerCS.Test
+            VerifyCS.Test test = new(referenceAncillaryInterop: false)
             {
                 TestCode = source,
+                TestBehaviors = TestBehaviors.SkipGeneratedSourcesCheck,
             };
-            // Re-enable SYSLIB1092 for these tests since we're specifically testing it
             test.DisabledDiagnostics.Remove(GeneratorDiagnostics.Ids.NotRecommendedGeneratedComInterfaceUsage);
             test.ExpectedDiagnostics.AddRange(diagnostics);
             await test.RunAsync();

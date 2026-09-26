@@ -12,9 +12,6 @@
 // 
 // Further simplified by hand
 
-
-namespace Runtime_107543;
-
 using System;
 using Xunit;
 

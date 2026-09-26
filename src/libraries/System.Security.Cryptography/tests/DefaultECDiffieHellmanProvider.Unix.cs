@@ -1,11 +1,13 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Runtime.InteropServices;
+
 namespace System.Security.Cryptography.EcDiffieHellman.Tests
 {
-    public partial class DefaultECDiffieHellmanProvider : ECDiffieHellmanProvider
+    public partial class ECDiffieHellmanProvider : IECDiffieHellmanProvider
     {
-        public override bool IsCurveValid(Oid oid)
+        public bool IsCurveValid(Oid oid)
         {
             if (PlatformDetection.IsApplePlatform)
             {
@@ -19,7 +21,7 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
             return IsValueOrFriendlyNameValid(oid.FriendlyName);
         }
 
-        public override bool ExplicitCurvesSupported
+        public bool ExplicitCurvesSupported
         {
             get
             {
@@ -32,9 +34,9 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
             }
         }
 
-        public override bool CanDeriveNewPublicKey => !PlatformDetection.IsiOS && !PlatformDetection.IstvOS && !PlatformDetection.IsMacCatalyst;
-        public override bool SupportsRawDerivation => true;
-        public override bool SupportsSha3 => PlatformDetection.SupportsSha3;
+        public bool CanDeriveNewPublicKey { get; } = !PlatformDetection.IsiOS && !PlatformDetection.IstvOS && !PlatformDetection.IsMacCatalyst;
+        public bool SupportsRawDerivation => true;
+        public bool SupportsSha3 => PlatformDetection.SupportsSha3;
 
         private static bool IsValueOrFriendlyNameValid(string friendlyNameOrValue)
         {

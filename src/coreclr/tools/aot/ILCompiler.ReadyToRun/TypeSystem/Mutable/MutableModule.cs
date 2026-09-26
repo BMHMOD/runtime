@@ -11,7 +11,6 @@ using System.Diagnostics;
 using System.IO;
 
 using ILCompiler;
-using Internal.Text;
 using System.Runtime.CompilerServices;
 
 namespace Internal.TypeSystem.Ecma
@@ -40,8 +39,7 @@ namespace Internal.TypeSystem.Ecma
                 if (!_mutableModule._moduleToModuleRefString.TryGetValue(module, out moduleRefString))
                 {
                     Debug.Assert(_mutableModule.ModuleThatIsCurrentlyTheSourceOfNewReferences != null &&
-                        (_mutableModule._compilationGroup.CrossModuleInlineableModule(_mutableModule.ModuleThatIsCurrentlyTheSourceOfNewReferences)
-                        || _mutableModule.CreatingTokensForAsyncMethod));
+                        _mutableModule._compilationGroup.CrossModuleInlineableModule(_mutableModule.ModuleThatIsCurrentlyTheSourceOfNewReferences));
 
                     if (module == _typeSystemContext.SystemModule)
                     {
@@ -132,20 +130,7 @@ namespace Internal.TypeSystem.Ecma
                     s_assemblyNameFromTypeLookups.AddOrUpdate(module, lookupTable);
                 }
 
-                if (lookupTable.TryGetValue(type, out string assemblyName))
-                {
-                    return assemblyName;
-                }
-
-                // Some producers encode type map custom attributes without emitting matching TypeRef rows
-                // for the referenced types. In that case, fall back to the target type's defining assembly.
-                if (module is EcmaModule ecmaModule && type.Module is EcmaModule targetTypeModule)
-                {
-                    string targetAssemblyName = targetTypeModule.Assembly.GetName().Name;
-                    return targetAssemblyName;
-                }
-
-                throw new KeyNotFoundException($"Unable to resolve an assembly reference from module '{module}' to type '{type}'.");
+                return lookupTable[type];
             }
         }
 
@@ -368,8 +353,6 @@ namespace Internal.TypeSystem.Ecma
 
         public int ModuleTypeSort => 1;
 
-        public bool CreatingTokensForAsyncMethod { get; set; }
-
         public int CompareTo(IEcmaModule other)
         {
             if (other == this)
@@ -417,7 +400,7 @@ namespace Internal.TypeSystem.Ecma
             }
             throw new ArgumentException("Invalid UserStringHandle passed to MutableModule.GetObject");
         }
-        public override object GetType(Utf8Span nameSpace, Utf8Span name, NotFoundBehavior notFoundBehavior) => throw new NotImplementedException();
+        public override object GetType(ReadOnlySpan<byte> nameSpace, ReadOnlySpan<byte> name, NotFoundBehavior notFoundBehavior) => throw new NotImplementedException();
         public TypeDesc GetType(EntityHandle handle)
         {
             TypeDesc type = GetObject(handle, NotFoundBehavior.Throw) as TypeDesc;

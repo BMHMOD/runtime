@@ -1,12 +1,20 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.MethodDescCodeData))]
-internal sealed partial class MethodDescCodeData : IData<MethodDescCodeData>
+internal sealed class MethodDescCodeData : IData<MethodDescCodeData>
 {
-    [Field] public partial TargetCodePointer TemporaryEntryPoint { get; }
-    [Field] public partial TargetPointer VersioningState { get; }
-    [Field] public partial uint OptimizationTier { get; }
+    static MethodDescCodeData IData<MethodDescCodeData>.Create(Target target, TargetPointer address) => new MethodDescCodeData(target, address);
+    public MethodDescCodeData(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.MethodDescCodeData);
+
+        TemporaryEntryPoint = target.ReadCodePointer(address + (ulong)type.Fields[nameof(TemporaryEntryPoint)].Offset);
+        VersioningState = target.ReadPointer(address + (ulong)type.Fields[nameof(VersioningState)].Offset);
+    }
+
+    public TargetCodePointer TemporaryEntryPoint { get; set; }
+    public TargetPointer VersioningState { get; set; }
 }

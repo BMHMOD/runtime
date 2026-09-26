@@ -48,7 +48,7 @@ public static class ArtifactWriter
 
     private static string ComputeHash(byte[] data)
     {
-#if NET
+#if NET6_0_OR_GREATER
         var hash = SHA256.HashData(data);
         return Convert.ToBase64String(hash);
 #else

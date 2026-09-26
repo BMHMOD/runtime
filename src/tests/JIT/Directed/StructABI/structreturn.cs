@@ -3,8 +3,6 @@
 
 // Test register struct returns and local vars retyping cases.
 
-namespace JitTest_Directed_StructABI_structreturn;
-
 using System;
 using System.Numerics;
 using System.Diagnostics;

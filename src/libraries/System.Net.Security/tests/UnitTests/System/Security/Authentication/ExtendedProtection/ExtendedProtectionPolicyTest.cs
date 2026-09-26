@@ -57,6 +57,20 @@ namespace System.Net.Security.Tests
         }
 
         [Fact]
+        [PlatformSpecific(TestPlatforms.Windows)]
+        public void ExtendedProtectionPolicy_OSSupportsExtendedProtection_Windows()
+        {
+            Assert.True(ExtendedProtectionPolicy.OSSupportsExtendedProtection);
+        }
+
+        [Fact]
+        [PlatformSpecific(TestPlatforms.AnyUnix)]
+        public void ExtendedProtectionPolicy_OSSupportsExtendedProtection_NonWindows()
+        {
+            Assert.False(ExtendedProtectionPolicy.OSSupportsExtendedProtection);
+        }
+
+        [Fact]
         public void ExtendedProtectionPolicy_Properties()
         {
             var customChannelBindingParam = new MockCustomChannelBinding();

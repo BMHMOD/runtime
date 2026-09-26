@@ -26,7 +26,7 @@ namespace System.IO.Ports.Tests
             }
         }
 
-        [ConditionalFact(typeof(IsOpen_Property), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void IsOpen_Open()
         {
             using (SerialPort com1 = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))
@@ -43,7 +43,7 @@ namespace System.IO.Ports.Tests
             }
         }
 
-        [ConditionalFact(typeof(IsOpen_Property), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void IsOpen_Open_Close()
         {
             using (SerialPort com1 = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))

@@ -7,13 +7,12 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Text;
 using Xunit;
-using TestLibrary;
 
 namespace JIT.jit64.opt.cse.VolatileTest_op_sub;
 
 public class Program
 {
-    [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+    [Fact]
     [OuterLoop]
     [SkipOnCoreClr("", RuntimeTestModes.AnyGCStress)]
     public static int TestEntryPoint()

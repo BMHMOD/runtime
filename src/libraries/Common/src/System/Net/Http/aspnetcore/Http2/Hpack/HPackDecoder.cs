@@ -596,16 +596,10 @@ namespace System.Net.Http.HPack
             {
                 if (_huffman)
                 {
-                    int decodedLength = Huffman.Decode(new ReadOnlySpan<byte>(_stringOctets, 0, _stringLength), ref dst);
-                    if (decodedLength > _maxHeadersLength)
-                    {
-                        throw new HPackDecodingException(SR.Format(SR.net_http_headers_exceeded_length, _maxHeadersLength));
-                    }
-                    return decodedLength;
+                    return Huffman.Decode(new ReadOnlySpan<byte>(_stringOctets, 0, _stringLength), ref dst);
                 }
                 else
                 {
-                    Debug.Assert(_stringLength <= _maxHeadersLength, "String length should have been checked prior to decode.");
                     EnsureStringCapacity(ref dst);
                     Buffer.BlockCopy(_stringOctets, 0, dst, 0, _stringLength);
                     return _stringLength;

@@ -7,8 +7,6 @@ namespace System.IO
 {
     public static partial class File
     {
-        private const string NullDevicePath = "NUL";
-
         private static UnixFileMode GetUnixFileModeCore(string path)
             => throw new PlatformNotSupportedException(SR.PlatformNotSupported_UnixFileMode);
 

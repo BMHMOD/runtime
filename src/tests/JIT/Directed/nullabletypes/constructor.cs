@@ -6,11 +6,6 @@
 // The HasValue property will be set to true, and the Value property will get the value of the constructor
 //</Description>
 
-namespace JitTest_Directed_nullabletypes_constructor;
-
-using JitTest_Directed_nullabletypes_invokecommon;
-using Xunit;
-
 #pragma warning disable 0649
 
 using System;
@@ -50,10 +45,8 @@ class NullableTest1
     }
 }
 
-public class NullableTests
+class NullableTests
 {
-    [OuterLoop]
-    [Fact]
     public static void Run()
     {
         NullableTest1.Run();

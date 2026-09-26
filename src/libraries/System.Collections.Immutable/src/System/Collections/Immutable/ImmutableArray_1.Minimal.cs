@@ -39,7 +39,8 @@ namespace System.Collections.Immutable
         /// An empty (initialized) instance of <see cref="ImmutableArray{T}"/>.
         /// </summary>
 #pragma warning disable CA1825
-        // Avoid the extra generic instantiation for Array.Empty<T>()
+        // Array.Empty<T>() doesn't exist in all configurations
+        // Switching to Array.Empty also has a non-negligible impact on the working set memory
         public static readonly ImmutableArray<T> Empty = new ImmutableArray<T>(new T[0]);
 #pragma warning restore CA1825
 

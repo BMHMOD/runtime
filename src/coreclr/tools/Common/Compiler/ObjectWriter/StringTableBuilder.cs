@@ -6,17 +6,16 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Text;
-using Internal.Text;
+using System.Linq;
 
 namespace ILCompiler.ObjectWriter
 {
     internal class StringTableBuilder
     {
         private readonly MemoryStream _stream = new();
-        private readonly Dictionary<Utf8String, uint> _stringToOffset = new();
-        private List<Utf8String> _reservedStrings;
+        private readonly SortedSet<string> _reservedStrings = new(StringComparer.Ordinal);
+        private Dictionary<string, uint> _stringToOffset = new(StringComparer.Ordinal);
 
         public void Write(Stream stream)
         {
@@ -33,40 +32,32 @@ namespace ILCompiler.ObjectWriter
             }
         }
 
-        public void ReserveString(Utf8String text)
+        public void ReserveString(string text)
         {
-            if (!text.IsNull && _stringToOffset.TryAdd(text, uint.MaxValue))
+            if (text is object && !_stringToOffset.ContainsKey(text))
             {
-                (_reservedStrings ??= new List<Utf8String>()).Add(text);
+                _reservedStrings.Add(text);
             }
         }
 
         private void FlushReservedStrings()
         {
-            if (_reservedStrings is not List<Utf8String> reservedStrings)
-            {
-                return;
-            }
+            string[] reservedStrings = _reservedStrings.ToArray();
 
-            Span<Utf8String> reservedStringsSpan = CollectionsMarshal.AsSpan(reservedStrings);
-
-            // Establish a deterministic order before the in-place suffix sort.
-            reservedStringsSpan.Sort();
-
-            // Sort strings so matching suffixes are adjacent.
-            MultiKeySort(reservedStringsSpan, 0);
+            // Pre-sort the string based on their matching suffix
+            MultiKeySort(reservedStrings, 0);
 
             // Add the strings to string table
-            Utf8String lastText = default;
-            for (int i = 0; i < reservedStringsSpan.Length; i++)
+            string lastText = null;
+            for (int i = 0; i < reservedStrings.Length; i++)
             {
-                var text = reservedStringsSpan[i];
+                var text = reservedStrings[i];
                 uint index;
-                if (!lastText.IsNull && lastText.AsSpan().EndsWith(text.AsSpan()))
+                if (lastText is not null && lastText.EndsWith(text, StringComparison.Ordinal))
                 {
                     // Suffix matches the last symbol
-                    index = (uint)(_stream.Length - text.Length - 1);
-                    _stringToOffset[text] = index;
+                    index = (uint)(_stream.Length - Encoding.UTF8.GetByteCount(text) - 1);
+                    _stringToOffset.Add(text, index);
                 }
                 else
                 {
@@ -75,17 +66,17 @@ namespace ILCompiler.ObjectWriter
                 }
             }
 
-            _reservedStrings = null;
+            _reservedStrings.Clear();
 
-            static byte TailCharacter(Utf8String str, int pos)
+            static char TailCharacter(string str, int pos)
             {
                 int index = str.Length - pos - 1;
                 if ((uint)index < str.Length)
-                    return str.AsSpan()[index];
-                return 0;
+                    return str[index];
+                return '\0';
             }
 
-            static void MultiKeySort(Span<Utf8String> input, int pos)
+            static void MultiKeySort(Span<string> input, int pos)
             {
                 if (!MultiKeySortSmallInput(input, pos))
                 {
@@ -93,14 +84,14 @@ namespace ILCompiler.ObjectWriter
                 }
             }
 
-            static void MultiKeySortLargeInput(Span<Utf8String> input, int pos)
+            static void MultiKeySortLargeInput(Span<string> input, int pos)
             {
             tailcall:
-                byte pivot = TailCharacter(input[0], pos);
+                char pivot = TailCharacter(input[0], pos);
                 int l = 0, h = input.Length;
                 for (int i = 1; i < h;)
                 {
-                    byte c = TailCharacter(input[i], pos);
+                    char c = TailCharacter(input[i], pos);
                     if (c > pivot)
                     {
                         (input[l], input[i]) = (input[i], input[l]);
@@ -132,7 +123,7 @@ namespace ILCompiler.ObjectWriter
                 }
             }
 
-            static bool MultiKeySortSmallInput(Span<Utf8String> input, int pos)
+            static bool MultiKeySortSmallInput(Span<string> input, int pos)
             {
                 if (input.Length <= 1)
                     return true;
@@ -142,14 +133,14 @@ namespace ILCompiler.ObjectWriter
                 {
                     while (true)
                     {
-                        byte c0 = TailCharacter(input[0], pos);
-                        byte c1 = TailCharacter(input[1], pos);
+                        char c0 = TailCharacter(input[0], pos);
+                        char c1 = TailCharacter(input[1], pos);
                         if (c0 < c1)
                         {
                             (input[0], input[1]) = (input[1], input[0]);
                             break;
                         }
-                        else if (c0 > c1 || c0 == 0)
+                        else if (c0 > c1 || c0 == (char)0)
                         {
                             break;
                         }
@@ -162,20 +153,23 @@ namespace ILCompiler.ObjectWriter
             }
         }
 
-        private uint CreateIndex(Utf8String text)
+        private uint CreateIndex(string text)
         {
             uint offset = (uint)_stream.Position;
-
-            _stream.Write(text.AsSpan());
-            _stream.WriteByte(0);
-
+            int reservedBytes = Encoding.UTF8.GetByteCount(text) + 1;
+            byte[] buffer = ArrayPool<byte>.Shared.Rent(reservedBytes);
+            var span = new Span<byte>(buffer, 0, reservedBytes);
+            Encoding.UTF8.GetBytes(text, span);
+            span[reservedBytes - 1] = 0;
+            _stream.Write(span);
+            ArrayPool<byte>.Shared.Return(buffer);
             _stringToOffset[text] = offset;
             return offset;
         }
 
-        public uint GetStringOffset(Utf8String text)
+        public uint GetStringOffset(string text)
         {
-            if (_reservedStrings is not null)
+            if (_reservedStrings.Count > 0)
             {
                 FlushReservedStrings();
             }

@@ -6,7 +6,7 @@ using Xunit;
 /**
  * A simple Com+ application.
  */
-namespace b13170
+namespace DefaultNamespace
 {
     //@BEGINRENAME; Verify this renames
     //@ENDRENAME; Verify this renames
@@ -20,7 +20,6 @@ namespace b13170
          * @param args Array of parameters passed to the application
          * via the command line.
          */
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

@@ -111,7 +111,7 @@ private:
     ULONG  m_codeRvaBase;
     DWORD  m_peFileTimeStamp;
 
-    FILE*   m_file;
+    HANDLE   m_file;
 
     PEWriterSection **getSectStart() {
         return (PEWriterSection**)sectStart;
@@ -203,7 +203,7 @@ public:
                          DWORD               dataRvaBase,
                          DWORD               textRvaBase);
 
-    virtual HRESULT  write      (FILE* file);
+    virtual HRESULT  write      (HANDLE file);
     virtual unsigned writeMem   (void ** pMem);
 };
 

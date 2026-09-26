@@ -20,7 +20,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public override ObjectNodeSection GetSection(NodeFactory factory)
         {
-            return ObjectNodeSection.ReadOnlyDataSection;
+            return ObjectNodeSection.CorMetaSection;
         }
 
         public override bool IsShareable => false;

@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 #pragma warning disable 0414
 
@@ -930,7 +929,6 @@ class Test23
   
 
 public class M {
-  [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
   [Fact]
   public static int TestEntryPoint() {
     Test1.Test();

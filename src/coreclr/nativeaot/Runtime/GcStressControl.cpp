@@ -66,7 +66,7 @@ private:
         volatile InitState is = (InitState) PalInterlockedCompareExchange((volatile int32_t*)(&s_initState), isIniting, isNotInited);
         if (is == isNotInited)
         {
-            s_lock.Init(CrstGcStressControl);
+            s_lock.InitNoThrow(CrstGcStressControl);
 
             if (g_pRhConfig->GetGcStressSeed())
                 s_lGcStressRNGSeed = (uint32_t)g_pRhConfig->GetGcStressSeed();

@@ -13,7 +13,7 @@ public partial class SatelliteAssembliesTest
         if (loadSatelliteAssemblies)
         {
             ResourceLibrary.ResourceAccessor.Read(TestOutput.WriteLine, false);
-            await LoadSatelliteAssemblies(new[] { "es-ES", "fr-FR" });
+            await LoadSatelliteAssemblies(new[] { "es-ES" });
         }
 
         ResourceLibrary.ResourceAccessor.Read(TestOutput.WriteLine, true);

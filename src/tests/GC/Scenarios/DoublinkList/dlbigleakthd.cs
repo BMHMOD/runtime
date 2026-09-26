@@ -13,7 +13,6 @@ namespace DoubLink {
     using System;
     using System.IO;
     using System.Runtime.CompilerServices;
-    using TestLibrary;
 
     public class DLBigLeakThd
     {
@@ -23,12 +22,6 @@ namespace DoubLink {
 
         public static int Main(System.String [] Args)
         {
-            if (!PlatformDetection.IsMultithreadingSupported)
-            {
-                Console.WriteLine("Multithreading is not supported, skipping test.");
-                return 100;
-            }
-
             DLBigLeakThd Mv_Leak = new DLBigLeakThd();
 
             int iRep = 0;

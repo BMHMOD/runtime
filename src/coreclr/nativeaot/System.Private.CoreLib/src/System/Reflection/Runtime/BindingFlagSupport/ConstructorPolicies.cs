@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection.Runtime.TypeInfos;
 
 namespace System.Reflection.Runtime.BindingFlagSupport
@@ -15,6 +16,13 @@ namespace System.Reflection.Runtime.BindingFlagSupport
         public static readonly ConstructorPolicies Instance = new ConstructorPolicies();
 
         public ConstructorPolicies() : base(MemberTypeIndex.Constructor) { }
+
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2070:UnrecognizedReflectionPattern",
+            Justification = "Reflection implementation")]
+        public sealed override IEnumerable<ConstructorInfo> GetDeclaredMembers(Type type)
+        {
+            return type.GetConstructors(DeclaredOnlyLookup);
+        }
 
         public sealed override IEnumerable<ConstructorInfo> CoreGetDeclaredMembers(RuntimeTypeInfo type, NameFilter? optionalNameFilter, RuntimeTypeInfo reflectedType)
         {
@@ -38,6 +46,8 @@ namespace System.Reflection.Runtime.BindingFlagSupport
             isVirtual = false;
             isNewSlot = false;
         }
+
+        public sealed override bool ImplicitlyOverrides(ConstructorInfo? baseMember, ConstructorInfo? derivedMember) => false;
 
         public sealed override bool IsSuppressedByMoreDerivedMember(ConstructorInfo member, ConstructorInfo[] priorMembers, int startIndex, int endIndex)
         {

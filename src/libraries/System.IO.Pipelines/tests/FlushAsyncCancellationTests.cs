@@ -12,7 +12,7 @@ namespace System.IO.Pipelines.Tests
 {
     public class FlushAsyncCancellationTests : PipeTest
     {
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public void FlushAsyncCancellationDeadlock()
         {
             var cts = new CancellationTokenSource();

@@ -8,10 +8,15 @@ using System.Runtime.InteropServices;
 
 namespace System.Security.Cryptography.Asn1
 {
-#if DEBUG
-    file static class ValidateMLDsaPrivateKeyAsn
+    [StructLayout(LayoutKind.Sequential)]
+    internal partial struct MLDsaPrivateKeyAsn
     {
-        static ValidateMLDsaPrivateKeyAsn()
+        internal ReadOnlyMemory<byte>? Seed;
+        internal ReadOnlyMemory<byte>? ExpandedKey;
+        internal System.Security.Cryptography.Asn1.MLDsaPrivateKeyBothAsn? Both;
+
+#if DEBUG
+        static MLDsaPrivateKeyAsn()
         {
             var usedTags = new System.Collections.Generic.Dictionary<Asn1Tag, string>();
             Action<Asn1Tag, string> ensureUniqueTag = (tag, fieldName) =>
@@ -28,89 +33,36 @@ namespace System.Security.Cryptography.Asn1
             ensureUniqueTag(Asn1Tag.PrimitiveOctetString, "ExpandedKey");
             ensureUniqueTag(Asn1Tag.Sequence, "Both");
         }
-
-        [System.Runtime.CompilerServices.MethodImpl(
-            System.Runtime.CompilerServices.MethodImplOptions.NoInlining |
-            System.Runtime.CompilerServices.MethodImplOptions.NoOptimization)]
-        internal static void Validate() { }
-    }
-#endif
-
-    [StructLayout(LayoutKind.Sequential)]
-    internal ref partial struct ValueMLDsaPrivateKeyAsn
-    {
-
-        internal ReadOnlySpan<byte> Seed
-        {
-            get;
-            set
-            {
-                HasSeed = true;
-                field = value;
-            }
-        }
-
-        internal bool HasSeed { get; private set; }
-
-        internal ReadOnlySpan<byte> ExpandedKey
-        {
-            get;
-            set
-            {
-                HasExpandedKey = true;
-                field = value;
-            }
-        }
-
-        internal bool HasExpandedKey { get; private set; }
-
-        internal System.Security.Cryptography.Asn1.ValueMLDsaPrivateKeyBothAsn Both
-        {
-            get;
-            set
-            {
-                HasBoth = true;
-                field = value;
-            }
-        }
-
-        internal bool HasBoth { get; private set; }
-
-#if DEBUG
-        static ValueMLDsaPrivateKeyAsn()
-        {
-            ValidateMLDsaPrivateKeyAsn.Validate();
-        }
 #endif
 
         internal readonly void Encode(AsnWriter writer)
         {
             bool wroteValue = false;
 
-            if (HasSeed)
+            if (Seed.HasValue)
             {
                 if (wroteValue)
                     throw new CryptographicException();
 
-                writer.WriteOctetString(Seed, new Asn1Tag(TagClass.ContextSpecific, 0));
+                writer.WriteOctetString(Seed.Value.Span, new Asn1Tag(TagClass.ContextSpecific, 0));
                 wroteValue = true;
             }
 
-            if (HasExpandedKey)
+            if (ExpandedKey.HasValue)
             {
                 if (wroteValue)
                     throw new CryptographicException();
 
-                writer.WriteOctetString(ExpandedKey);
+                writer.WriteOctetString(ExpandedKey.Value.Span);
                 wroteValue = true;
             }
 
-            if (HasBoth)
+            if (Both.HasValue)
             {
                 if (wroteValue)
                     throw new CryptographicException();
 
-                Both.Encode(writer);
+                Both.Value.Encode(writer);
                 wroteValue = true;
             }
 
@@ -120,14 +72,15 @@ namespace System.Security.Cryptography.Asn1
             }
         }
 
-        internal static void Decode(ReadOnlySpan<byte> encoded, AsnEncodingRules ruleSet, out ValueMLDsaPrivateKeyAsn decoded)
+        internal static MLDsaPrivateKeyAsn Decode(ReadOnlyMemory<byte> encoded, AsnEncodingRules ruleSet)
         {
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(encoded, ruleSet);
+                AsnValueReader reader = new AsnValueReader(encoded.Span, ruleSet);
 
-                DecodeCore(ref reader, out decoded);
+                DecodeCore(ref reader, encoded, out MLDsaPrivateKeyAsn decoded);
                 reader.ThrowIfNotEmpty();
+                return decoded;
             }
             catch (AsnContentException e)
             {
@@ -135,11 +88,11 @@ namespace System.Security.Cryptography.Asn1
             }
         }
 
-        internal static void Decode(scoped ref ValueAsnReader reader, out ValueMLDsaPrivateKeyAsn decoded)
+        internal static void Decode(ref AsnValueReader reader, ReadOnlyMemory<byte> rebind, out MLDsaPrivateKeyAsn decoded)
         {
             try
             {
-                DecodeCore(ref reader, out decoded);
+                DecodeCore(ref reader, rebind, out decoded);
             }
             catch (AsnContentException e)
             {
@@ -147,10 +100,12 @@ namespace System.Security.Cryptography.Asn1
             }
         }
 
-        private static void DecodeCore(scoped ref ValueAsnReader reader, out ValueMLDsaPrivateKeyAsn decoded)
+        private static void DecodeCore(ref AsnValueReader reader, ReadOnlyMemory<byte> rebind, out MLDsaPrivateKeyAsn decoded)
         {
             decoded = default;
             Asn1Tag tag = reader.PeekTag();
+            ReadOnlySpan<byte> rebindSpan = rebind.Span;
+            int offset;
             ReadOnlySpan<byte> tmpSpan;
 
             if (tag.HasSameClassAndValue(new Asn1Tag(TagClass.ContextSpecific, 0)))
@@ -158,36 +113,33 @@ namespace System.Security.Cryptography.Asn1
 
                 if (reader.TryReadPrimitiveOctetString(out tmpSpan, new Asn1Tag(TagClass.ContextSpecific, 0)))
                 {
-                    decoded.Seed = tmpSpan;
+                    decoded.Seed = rebindSpan.Overlaps(tmpSpan, out offset) ? rebind.Slice(offset, tmpSpan.Length) : tmpSpan.ToArray();
                 }
                 else
                 {
                     decoded.Seed = reader.ReadOctetString(new Asn1Tag(TagClass.ContextSpecific, 0));
                 }
 
-                decoded.HasSeed = true;
             }
             else if (tag.HasSameClassAndValue(Asn1Tag.PrimitiveOctetString))
             {
 
                 if (reader.TryReadPrimitiveOctetString(out tmpSpan))
                 {
-                    decoded.ExpandedKey = tmpSpan;
+                    decoded.ExpandedKey = rebindSpan.Overlaps(tmpSpan, out offset) ? rebind.Slice(offset, tmpSpan.Length) : tmpSpan.ToArray();
                 }
                 else
                 {
                     decoded.ExpandedKey = reader.ReadOctetString();
                 }
 
-                decoded.HasExpandedKey = true;
             }
             else if (tag.HasSameClassAndValue(Asn1Tag.Sequence))
             {
-                System.Security.Cryptography.Asn1.ValueMLDsaPrivateKeyBothAsn tmpBoth;
-                System.Security.Cryptography.Asn1.ValueMLDsaPrivateKeyBothAsn.Decode(ref reader, out tmpBoth);
+                System.Security.Cryptography.Asn1.MLDsaPrivateKeyBothAsn tmpBoth;
+                System.Security.Cryptography.Asn1.MLDsaPrivateKeyBothAsn.Decode(ref reader, rebind, out tmpBoth);
                 decoded.Both = tmpBoth;
 
-                decoded.HasBoth = true;
             }
             else
             {

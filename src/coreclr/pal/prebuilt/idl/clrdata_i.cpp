@@ -99,3 +99,4 @@ MIDL_DEFINE_GUID(IID, IID_ICLRDataEnumMemoryRegions,0x471c35b4,0x7c2f,0x4ef0,0xa
 #endif
 
 
+

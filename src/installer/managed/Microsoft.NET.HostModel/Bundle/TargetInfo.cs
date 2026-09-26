@@ -4,6 +4,7 @@
 using Microsoft.NET.HostModel.MachO;
 using Microsoft.NET.HostModel.AppHost;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 
@@ -29,10 +30,10 @@ namespace Microsoft.NET.HostModel.Bundle
         public readonly BundleOptions DefaultOptions;
         public readonly int AssemblyAlignment;
 
-        public TargetInfo(OSPlatform os, Architecture arch, Version targetFrameworkVersion)
+        public TargetInfo(OSPlatform? os, Architecture? arch, Version targetFrameworkVersion)
         {
-            OS = os;
-            Arch = arch;
+            OS = os ?? HostOS;
+            Arch = arch ?? RuntimeInformation.OSArchitecture;
             FrameworkVersion = targetFrameworkVersion ?? Environment.Version;
 
             if (FrameworkVersion.Major >= 6)
@@ -100,6 +101,12 @@ namespace Microsoft.NET.HostModel.Bundle
             return $"OS: {os} Arch: {arch} FrameworkVersion: {FrameworkVersion}";
         }
 
+        private static OSPlatform? _hostOS;
+        private static OSPlatform HostOS => _hostOS ??= RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? OSPlatform.Linux :
+            RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? OSPlatform.OSX :
+            RuntimeInformation.IsOSPlatform(OSPlatform.FreeBSD) ? OSPlatform.FreeBSD :
+            RuntimeInformation.IsOSPlatform(OSPlatform.Illumos) ? OSPlatform.Illumos : OSPlatform.Windows;
+
         public bool IsOSX => OS.Equals(OSPlatform.OSX);
         public bool IsWindows => OS.Equals(OSPlatform.Windows);
 
@@ -122,6 +129,14 @@ namespace Microsoft.NET.HostModel.Bundle
 
     file static class PlatformExtensions
     {
+        extension(OSPlatform)
+        {
+#if NETFRAMEWORK
+            public static OSPlatform FreeBSD => OSPlatform.Create("FREEBSD");
+#endif
+            public static OSPlatform Illumos => OSPlatform.Create("ILLUMOS");
+        }
+
 #if NETFRAMEWORK
         extension(Architecture)
         {

@@ -26,9 +26,9 @@ class CrstStatic
 #endif
 
 public:
-    void Init(CrstType eType, CrstFlags eFlags = CRST_DEFAULT)
+    bool InitNoThrow(CrstType eType, CrstFlags eFlags = CRST_DEFAULT)
     {
-        (void)m_cs.Initialize();
+        return m_cs.Initialize();
     }
 
     void Destroy()

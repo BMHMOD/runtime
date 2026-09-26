@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Reflection.Metadata.Ecma335;
 
 namespace System.Reflection.Metadata
@@ -15,6 +16,9 @@ namespace System.Reflection.Metadata
 
         internal TypeDefinition(MetadataReader reader, uint treatmentAndRowId)
         {
+            Debug.Assert(reader != null);
+            Debug.Assert(treatmentAndRowId != 0);
+
             _reader = reader;
             _treatmentAndRowId = treatmentAndRowId;
         }

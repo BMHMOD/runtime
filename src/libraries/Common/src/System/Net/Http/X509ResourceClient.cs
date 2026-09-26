@@ -67,7 +67,7 @@ namespace System.Net.Http
                 await ((Task)task).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
                 if (task.IsCompletedSuccessfully)
                 {
-                    return ret = task.Result;
+                    return task.Result;
                 }
             }
             catch { }

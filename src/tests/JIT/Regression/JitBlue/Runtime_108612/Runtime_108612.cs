@@ -9,9 +9,6 @@
 //    File: /Users/runner/work/1/s/src/coreclr/jit/morphblock.cpp Line: 665
 
 
-
-namespace Runtime_108612;
-
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -40,19 +37,22 @@ public class Runtime_108612
         }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestEntryPoint()
     {
-        Antigen();
+        if (AdvSimd.IsSupported)
+        {
+            Antigen();
+        }
     }
 
     private static int Antigen()
     {
-    try
-    {
-        new Runtime_108612().Method0();
-    }
-    catch (Exception e) { }
-    return string.Join(Environment.NewLine, toPrint).GetHashCode();
+        try
+        {
+            new Runtime_108612().Method0();
+        }
+        catch (Exception e) { }
+        return string.Join(Environment.NewLine, toPrint).GetHashCode();
     }
 }

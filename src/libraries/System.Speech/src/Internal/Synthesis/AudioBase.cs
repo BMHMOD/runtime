@@ -122,7 +122,20 @@ namespace System.Speech.Internal.Synthesis
                     {
                         byte[] data = new byte[(int)audio._stream.Length];
 
+#if NET
                         audio._stream.ReadExactly(data);
+#else
+                        int totalRead = 0;
+                        while (totalRead < data.Length)
+                        {
+                            int bytesRead = audio._stream.Read(data, totalRead, data.Length - totalRead);
+                            if (bytesRead <= 0)
+                            {
+                                throw new EndOfStreamException();
+                            }
+                            totalRead += bytesRead;
+                        }
+#endif
 
                         Play(data);
                     }
@@ -138,7 +151,7 @@ namespace System.Speech.Internal.Synthesis
 
                     try
                     {
-                        byte[]? wfx = GetWaveFormat(br);
+                        byte[] wfx = GetWaveFormat(br);
 
                         if (wfx == null)
                         {
@@ -192,7 +205,7 @@ namespace System.Speech.Internal.Synthesis
             }
         }
 
-        internal static byte[]? GetWaveFormat(BinaryReader br)
+        internal static byte[] GetWaveFormat(BinaryReader br)
         {
             // Read the riff Header
             RIFFHDR riff = new();
@@ -300,7 +313,7 @@ namespace System.Speech.Internal.Synthesis
             }
         }
 
-        internal virtual byte[]? WaveFormat { get { return null; } }
+        internal virtual byte[] WaveFormat { get { return null; } }
 
         #endregion
 

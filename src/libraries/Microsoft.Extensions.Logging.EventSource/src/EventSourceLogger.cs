@@ -5,7 +5,6 @@ using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Globalization;
 using System.Diagnostics.Tracing;
 using System.IO;
 using System.Text;
@@ -19,32 +18,14 @@ namespace Microsoft.Extensions.Logging.EventSource
     /// A logger that writes messages to EventSource instance.
     /// </summary>
     /// <remarks>
-    /// <para>
     /// On Windows platforms EventSource will deliver messages using Event Tracing for Windows (ETW) events.
     /// On Linux EventSource will use LTTng (http://lttng.org) to deliver messages.
-    /// </para>
-    /// <para>
-    /// Logger instances are not cached by <see cref="EventSourceLoggerProvider"/>. A new instance is created
-    /// for each call to <see cref="EventSourceLoggerProvider.CreateLogger(string)"/>. All created loggers are
-    /// tracked in a linked list to support dynamic configuration changes through EventSource/ETW infrastructure.
-    /// </para>
     /// </remarks>
     internal sealed class EventSourceLogger : ILogger
     {
         private static int _activityIds;
         private readonly LoggingEventSource _eventSource;
         private readonly int _factoryID;
-
-        [ThreadStatic]
-        private static MemoryStream? t_jsonStream;
-        [ThreadStatic]
-        private static Utf8JsonWriter? t_jsonWriter;
-
-        // Upper bound for the per-thread buffers we keep cached between events. A single unusually
-        // large event (e.g. a huge property value) must not permanently inflate steady-state memory
-        // on long-lived thread-pool threads. This mirrors ConsoleLogger, which caps its thread-static
-        // StringBuilder at the same size.
-        private const int MaxCachedBufferSize = 1024;
 
         public EventSourceLogger(string categoryName, int factoryID, LoggingEventSource eventSource, EventSourceLogger? next)
         {
@@ -99,7 +80,9 @@ namespace Microsoft.Extensions.Logging.EventSource
             {
                 activityTraceId = activity.TraceId.ToHexString();
                 activitySpanId = activity.SpanId.ToHexString();
-                activityTraceFlags = ((int)activity.ActivityTraceFlags).ToString(CultureInfo.InvariantCulture);
+                activityTraceFlags = activity.ActivityTraceFlags == ActivityTraceFlags.None
+                    ? "0"
+                    : "1";
             }
             else
             {
@@ -272,13 +255,8 @@ namespace Microsoft.Extensions.Logging.EventSource
 
         private static string ToJson(IReadOnlyList<KeyValuePair<string, string?>> keyValues)
         {
-            // Reuse a per-thread stream and writer to avoid allocating a MemoryStream, a Utf8JsonWriter,
-            // and their backing buffers on every logged event.
-            MemoryStream stream = t_jsonStream ??= new MemoryStream();
-            Utf8JsonWriter writer = t_jsonWriter ??= new Utf8JsonWriter(stream);
-
-            stream.SetLength(0);
-            writer.Reset(stream);
+            using var stream = new MemoryStream();
+            using var writer = new Utf8JsonWriter(stream);
 
             writer.WriteStartObject();
             foreach (KeyValuePair<string, string?> keyValue in keyValues)
@@ -289,23 +267,12 @@ namespace Microsoft.Extensions.Logging.EventSource
 
             writer.Flush();
 
-            string result = stream.TryGetBuffer(out ArraySegment<byte> buffer)
-                ? Encoding.UTF8.GetString(buffer.Array!, buffer.Offset, buffer.Count)
-                : Encoding.UTF8.GetString(stream.ToArray());
-
-            if (stream.Capacity > MaxCachedBufferSize)
+            if (!stream.TryGetBuffer(out ArraySegment<byte> buffer))
             {
-                // This event grew the stream capacity and may also have grown the writer's internal buffer.
-                // Shrink the stream back down (its length must be reset before its capacity can be lowered)
-                // and drop the writer, whose internal buffer has no public API to shrink, so neither is
-                // retained at the larger size on this thread. Both are lazily recreated on the next event.
-                stream.SetLength(0);
-                stream.Capacity = MaxCachedBufferSize;
-                writer.Dispose();
-                t_jsonWriter = null;
+                buffer = new ArraySegment<byte>(stream.ToArray());
             }
 
-            return result;
+            return Encoding.UTF8.GetString(buffer.Array!, buffer.Offset, buffer.Count);
         }
     }
 }

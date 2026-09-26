@@ -9,7 +9,6 @@ using System;
 using System.Threading;
 using System.Reflection;
 using System.Reflection.Emit;
-using TestLibrary;
 using Xunit;
 
 public class My {
@@ -65,7 +64,7 @@ public class My {
         ((Action)method.CreateDelegate(typeof(Action)))();
     }
 
-    [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+    [Fact]
     public static void TestEntryPoint()
     {
         new Thread(Thrower).Start();

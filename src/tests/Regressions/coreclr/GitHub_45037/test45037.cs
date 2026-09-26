@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Xunit;
-using TestLibrary;
 
 public abstract class Base<T>
 {
@@ -48,7 +47,6 @@ class Foo { }
 
 public class Program
 {
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint()
     {

@@ -40,7 +40,7 @@ public class Program
             return 3;
         }
 
-        ProcessTextOutput result = Process.RunAndCaptureText(new ProcessStartInfo
+        proc = Process.Start(new ProcessStartInfo
         {
             FileName = llvmDwarfDumpPath,
             Arguments = $"--verify {Environment.ProcessPath}",
@@ -55,9 +55,9 @@ public class Program
         int count = 0;
         bool foundIlCpp = false;
         bool insideIlCpp = false;
-        foreach (string rawLine in result.StandardOutput.Split('\n'))
+        string line;
+        while ((line = proc.StandardOutput.ReadLine()) != null)
         {
-            string line = rawLine.TrimEnd('\r');
             if (line.StartsWith("Verifying unit:"))
             {
                 if (line.EndsWith("\"il.cpp\""))
@@ -87,9 +87,8 @@ public class Program
             // something is off, lets check the StandardError stream
             int errorCount = 0;
             string[] firstFiveErrors = new string[5];
-            foreach (string rawLine in result.StandardError.Split('\n'))
+            while ((line = proc.StandardError.ReadLine()) != null)
             {
-                string line = rawLine.TrimEnd('\r');
                 if (line.Contains("error:"))
                 {
                     if (errorCount < 5) firstFiveErrors[errorCount] = line;
@@ -104,6 +103,7 @@ public class Program
             }
         }
 
+        proc.WaitForExit();
         Console.WriteLine($"Found {count} warnings and errors");
         if (count is not (>= MinWarnings and <= MaxWarnings))
         {

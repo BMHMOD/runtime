@@ -12,11 +12,6 @@ namespace Microsoft.Extensions.Primitives
     /// <summary>
     /// An <see cref="IChangeToken"/> that represents one or more <see cref="IChangeToken"/> instances.
     /// </summary>
-    /// <remarks>
-    /// Callbacks are only propagated from inner tokens whose <see cref="IChangeToken.ActiveChangeCallbacks"/>
-    /// is <see langword="true"/>. Changes in other inner tokens are detected only when <see cref="HasChanged"/>
-    /// is polled.
-    /// </remarks>
     [DebuggerDisplay("HasChanged = {HasChanged}")]
     public class CompositeChangeToken : IChangeToken
     {
@@ -35,7 +30,10 @@ namespace Microsoft.Extensions.Primitives
         /// <param name="changeTokens">The list of <see cref="IChangeToken"/> to compose.</param>
         public CompositeChangeToken(IReadOnlyList<IChangeToken> changeTokens)
         {
-            ArgumentNullException.ThrowIfNull(changeTokens);
+            if (changeTokens is null)
+            {
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.changeTokens);
+            }
 
             ChangeTokens = changeTokens;
             for (int i = 0; i < ChangeTokens.Count; i++)
@@ -83,14 +81,7 @@ namespace Microsoft.Extensions.Primitives
             }
         }
 
-        /// <summary>
-        /// Gets a value that indicates whether any of the inner <see cref="IChangeToken"/> instances
-        /// will proactively raise callbacks.
-        /// </summary>
-        /// <value>
-        /// <see langword="true"/> if at least one of the <see cref="ChangeTokens"/> has active change
-        /// callbacks; otherwise, <see langword="false"/>.
-        /// </value>
+        /// <inheritdoc />
         public bool ActiveChangeCallbacks { get; }
 
         [MemberNotNull(nameof(_cancellationTokenSource))]

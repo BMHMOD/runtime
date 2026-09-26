@@ -32,7 +32,6 @@ internal static partial class Interop
             return HResult;
         }
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Advapi32, EntryPoint = "EventWriteTransfer")]
         private static unsafe partial int EventWriteTransfer_PInvoke(
             long registrationHandle,

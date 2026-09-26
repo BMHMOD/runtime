@@ -33,7 +33,6 @@ public class VInline
 }
 public class VIMain
 {
-    [SkipOnCoreClr("This test is sensitive to JIT optimizations.", RuntimeTestModes.AnyJitOptimizationStress)]
     [Fact]
     public static int TestEntryPoint()
     {

@@ -107,13 +107,13 @@ namespace System.Security.Cryptography
             }
         }
 
-        public unsafe void Reset()
+        public void Reset()
         {
             // Reset only does something meaningful in XOF mode. In non-XOF mode, Finalize always
             // does a reset.
             if ((_finishFlags & BCRYPT_HASH_DONT_RESET_FLAG) == BCRYPT_HASH_DONT_RESET_FLAG)
             {
-                Span<byte> buffer = [0];
+                Span<byte> buffer = stackalloc byte[1];
                 CheckStatus(Interop.BCrypt.BCryptFinishHash(_hashHandle, buffer, 0, dwFlags: 0));
             }
         }

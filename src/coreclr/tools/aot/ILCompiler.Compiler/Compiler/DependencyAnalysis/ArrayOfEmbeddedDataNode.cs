@@ -10,12 +10,15 @@ namespace ILCompiler.DependencyAnalysis
     /// by placing a starting symbol, followed by contents of <typeparamref name="TEmbedded"/> nodes (optionally
     /// sorted using provided comparer), followed by ending symbol.
     /// </summary>
-    public class ArrayOfEmbeddedDataNode<TEmbedded> : EmbeddedDataContainerNode
+    public class ArrayOfEmbeddedDataNode<TEmbedded> : EmbeddedDataContainerNode, INodeWithSize
         where TEmbedded : EmbeddedObjectNode
     {
+        private int? _size;
         private HashSet<TEmbedded> _nestedNodes = new HashSet<TEmbedded>();
         private List<TEmbedded> _nestedNodesList = new List<TEmbedded>();
         private IComparer<TEmbedded> _sorter;
+
+        int INodeWithSize.Size => _size.Value;
 
         public ArrayOfEmbeddedDataNode(string mangledName, IComparer<TEmbedded> nodeSorter) : base(mangledName)
         {
@@ -81,6 +84,8 @@ namespace ILCompiler.DependencyAnalysis
             builder.AddSymbol(this);
 
             GetElementDataForNodes(ref builder, factory, relocsOnly);
+
+            _size = builder.CountBytes;
 
             ObjectData objData = builder.ToObjectData();
             return objData;

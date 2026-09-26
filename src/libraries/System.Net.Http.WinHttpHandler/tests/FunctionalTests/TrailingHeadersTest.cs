@@ -39,7 +39,7 @@ namespace System.Net.Http.WinHttpHandlerFunctional.Tests
         protected static Frame MakeDataFrame(int streamId, byte[] data, bool endStream = false) =>
             new DataFrame(data, (endStream ? FrameFlags.EndStream : FrameFlags.None), 0, streamId);
 
-        [ConditionalFact(typeof(TrailingHeadersTest), nameof(TestsEnabled))]
+        [ConditionalFact(nameof(TestsEnabled))]
         public async Task Http2GetAsync_NoTrailingHeaders_EmptyCollection()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -69,7 +69,7 @@ namespace System.Net.Http.WinHttpHandlerFunctional.Tests
 
         [InlineData(false)]
         [InlineData(true)]
-        [ConditionalTheory(typeof(TrailingHeadersTest), nameof(TestsEnabled))]
+        [ConditionalTheory(nameof(TestsEnabled))]
         public async Task Http2GetAsync_MissingTrailer_TrailingHeadersAccepted(bool responseHasContentLength)
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -109,7 +109,7 @@ namespace System.Net.Http.WinHttpHandlerFunctional.Tests
 
         [InlineData(false)]
         [InlineData(true)]
-        [ConditionalTheory(typeof(TrailingHeadersTest), nameof(TestsEnabled))]
+        [ConditionalTheory(nameof(TestsEnabled))]
         public async Task Http2GetAsyncResponseHeadersReadOption_TrailingHeaders_Available(bool responseHasContentLength)
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -169,7 +169,7 @@ namespace System.Net.Http.WinHttpHandlerFunctional.Tests
             }
         }
 
-        [ConditionalFact(typeof(TrailingHeadersTest), nameof(TestsEnabled))]
+        [ConditionalFact(nameof(TestsEnabled))]
         public async Task Http2GetAsync_TrailerHeaders_TrailingHeaderNoBody()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -195,7 +195,7 @@ namespace System.Net.Http.WinHttpHandlerFunctional.Tests
             }
         }
 
-        [ConditionalFact(typeof(TrailingHeadersTest), nameof(TestsEnabled))]
+        [ConditionalFact(nameof(TestsEnabled))]
         public async Task Http2GetAsync_TrailingHeaders_NoData_EmptyResponseObserved()
         {
             using (Http2LoopbackServer server = Http2LoopbackServer.CreateServer())
@@ -217,8 +217,7 @@ namespace System.Net.Http.WinHttpHandlerFunctional.Tests
 
                 HttpResponseMessage response = await sendTask;
                 Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-                byte[] responseBody = await response.Content.ReadAsByteArrayAsync();
-                Assert.Equal(Array.Empty<byte>(), responseBody);
+                Assert.Equal<byte>(Array.Empty<byte>(), await response.Content.ReadAsByteArrayAsync());
 
                 var trailingHeaders = GetTrailingHeaders(response);
                 Assert.Contains("amazingtrailer", trailingHeaders.GetValues("MyCoolTrailerHeader"));

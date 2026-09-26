@@ -2,10 +2,9 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using PrimitiveVT;
 using Xunit;
 
-namespace JitTest_Directed_perffix_primitivevt_callconv1
+namespace PrimitiveVT
 {
     public unsafe class CallConv1
     {
@@ -37,7 +36,6 @@ namespace JitTest_Directed_perffix_primitivevt_callconv1
         private int f10(params VT1B[] args) { int sum = 0; for (int i = 0; i < args.Length; sum += args[i], i++) { }; return sum; }
 
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {
@@ -124,3 +122,4 @@ namespace JitTest_Directed_perffix_primitivevt_callconv1
         }
     }
 }
+

@@ -7,7 +7,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 public class MyWaitForPendingFinalizersClass
 {
@@ -42,7 +41,6 @@ public class Test_pumpFromCctor
     // post-finalization work to be done.
     const int maxIterations = 10;
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint()
     {

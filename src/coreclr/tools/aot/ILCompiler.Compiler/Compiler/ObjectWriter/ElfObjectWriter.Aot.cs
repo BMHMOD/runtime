@@ -2,15 +2,14 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
+using System.Diagnostics;
+using System.Buffers.Binary;
 using System.Numerics;
 using System.Reflection;
 using ILCompiler.DependencyAnalysis;
 using ILCompiler.DependencyAnalysisFramework;
-using Internal.Text;
 using Internal.TypeSystem;
 using static ILCompiler.DependencyAnalysis.RelocType;
 using static ILCompiler.ObjectWriter.EabiNative;
@@ -30,7 +29,7 @@ namespace ILCompiler.ObjectWriter
     /// (> 65279). Some of the fields in the ELF file header are moved to the
     /// first (NULL) section header. The symbol table that is normally a single
     /// section in the file is extended with a second .symtab_shndx section
-    /// to accommodate the section indexes that don't fit within the regular
+    /// to accomodate the section indexes that don't fit within the regular
     /// section number field.
     /// </remarks>
     internal sealed partial class ElfObjectWriter : UnixObjectWriter
@@ -51,7 +50,7 @@ namespace ILCompiler.ObjectWriter
         private protected override void EmitUnwindInfo(
             SectionWriter sectionWriter,
             INodeWithCodeInfo nodeWithCodeInfo,
-            Utf8String currentSymbolName)
+            string currentSymbolName)
         {
             if (_machine is not EM_ARM)
             {
@@ -67,8 +66,8 @@ namespace ILCompiler.ObjectWriter
 
                 if (ShouldShareSymbol((ObjectNode)nodeWithCodeInfo))
                 {
-                    exidxSectionWriter = GetOrCreateSection(ArmUnwindIndexSection, currentSymbolName, Utf8String.Concat("_unwind0"u8, currentSymbolName.AsSpan()));
-                    extabSectionWriter = GetOrCreateSection(ArmUnwindTableSection, currentSymbolName, Utf8String.Concat("_extab0"u8, currentSymbolName.AsSpan()));
+                    exidxSectionWriter = GetOrCreateSection(ArmUnwindIndexSection, currentSymbolName, $"_unwind0{currentSymbolName}");
+                    extabSectionWriter = GetOrCreateSection(ArmUnwindTableSection, currentSymbolName, $"_extab0{currentSymbolName}");
                     _sections[exidxSectionWriter.SectionIndex].LinkSection = _sections[sectionWriter.SectionIndex];
                 }
                 else
@@ -91,7 +90,6 @@ namespace ILCompiler.ObjectWriter
 
                 long mainLsdaOffset = 0;
                 Span<byte> unwindWord = stackalloc byte[4];
-                Span<byte> i_str = stackalloc byte[16];
                 for (int i = 0; i < frameInfos.Length; i++)
                 {
                     FrameInfo frameInfo = frameInfos[i];
@@ -99,8 +97,8 @@ namespace ILCompiler.ObjectWriter
                     int end = frameInfo.EndOffset;
                     byte[] blob = frameInfo.BlobData;
 
-                    Utf8String framSymbolName = _utf8StringBuilder.Clear().Append("_fram"u8).Append(FormatUtf8Int(i_str, i)).Append(currentSymbolName).ToUtf8String();
-                    Utf8String extabSymbolName = _utf8StringBuilder.Clear().Append("_extab"u8).Append(FormatUtf8Int(i_str, i)).Append(currentSymbolName).ToUtf8String();
+                    string framSymbolName = $"_fram{i}{currentSymbolName}";
+                    string extabSymbolName = $"_extab{i}{currentSymbolName}";
 
                     sectionWriter.EmitSymbolDefinition(framSymbolName, start);
 
@@ -136,7 +134,7 @@ namespace ILCompiler.ObjectWriter
 
                     // ARM EHABI requires emitting a dummy relocation to the personality routine
                     // to tell the linker to preserve it.
-                    extabSectionWriter.EmitRelocation(0, unwindWord, IMAGE_REL_BASED_ABSOLUTE, new Utf8String(personalitySymbolName), 0);
+                    extabSectionWriter.EmitRelocation(0, unwindWord, IMAGE_REL_BASED_ABSOLUTE, personalitySymbolName, 0);
 
                     // Emit the unwinding code. First word specifies the personality routine,
                     // format and first few bytes of the unwind code. For longer unwind codes

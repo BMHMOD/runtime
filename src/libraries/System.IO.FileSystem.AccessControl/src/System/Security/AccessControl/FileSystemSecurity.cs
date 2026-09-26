@@ -46,7 +46,7 @@ namespace System.Security.AccessControl
                     {
                         // DirectorySecurity
                         if ((name != null) && (name.Length != 0))
-                            exception = new DirectoryNotFoundException(null, name);
+                            exception = new DirectoryNotFoundException(name);
                         else
                             exception = new DirectoryNotFoundException();
                     }

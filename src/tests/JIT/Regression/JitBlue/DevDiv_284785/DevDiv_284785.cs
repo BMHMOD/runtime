@@ -6,9 +6,6 @@
 // long -> ulong cast with an incorrect constant value that fit in a ulong, resulting in no overflow exception being
 // thrown.
 
-
-namespace DevDiv_284785;
-
 using System;
 using Xunit;
 

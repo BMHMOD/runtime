@@ -265,7 +265,8 @@ public:
     }
 
 protected:
-    void InitWorker(INDEBUG_COMMA(CrstType crstType) CrstFlags flags);
+
+    VOID InitWorker(INDEBUG_COMMA(CrstType crstType) CrstFlags flags);
 
 #ifdef _DEBUG
     void DebugInit(CrstType crstType, CrstFlags flags);
@@ -452,7 +453,7 @@ typedef DPTR(Crst) PTR_Crst;
 class CrstStatic : public CrstBase
 {
 public:
-    void Init(CrstType crstType, CrstFlags flags = CRST_DEFAULT)
+    VOID Init(CrstType crstType, CrstFlags flags = CRST_DEFAULT)
     {
         WRAPPER_NO_CONTRACT;
 
@@ -460,6 +461,30 @@ public:
 
         // throw away the debug-only parameter in retail
         InitWorker(INDEBUG_COMMA(crstType) flags);
+    }
+
+    bool InitNoThrow(CrstType crstType, CrstFlags flags = CRST_DEFAULT)
+    {
+        CONTRACTL {
+            NOTHROW;
+        } CONTRACTL_END;
+
+        _ASSERTE((flags & CRST_INITIALIZED) == 0);
+
+        bool fSuccess = false;
+
+        EX_TRY
+        {
+            // throw away the debug-only parameter in retail
+            InitWorker(INDEBUG_COMMA(crstType) flags);
+            fSuccess = true;
+        }
+        EX_CATCH
+        {
+        }
+        EX_END_CATCH
+
+        return fSuccess;
     }
 };
 
@@ -490,4 +515,8 @@ __inline BOOL IsOwnerOfCrst(LPVOID lock)
 #endif
 }
 
+#ifdef TEST_DATA_CONSISTENCY
+// used for test purposes. Determines if a crst is held.
+void DebugTryCrst(CrstBase * pLock);
+#endif
 #endif // __crst_h__

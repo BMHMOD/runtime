@@ -4,7 +4,6 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 using Internal.Runtime.Augments;
@@ -16,9 +15,13 @@ namespace Internal.Runtime.CompilerServices
     // 2) Use the ToIntPtr() method to get the interned instance of this type. This will permanently allocate
     //    a block of memory that can be used to represent a virtual method resolution. This memory is interned
     //    so that repeated allocation of the same resolver will not leak.
-    // 3) Use the ResolveMethod function to do the virtual lookup.
+    // 3) Use the ResolveMethod function to do the virtual lookup. This function takes advantage of
+    //    a lockless cache so the resolution is very fast for repeated lookups.
     public unsafe struct OpenMethodResolver : IEquatable<OpenMethodResolver>
     {
+        // Lazy initialized to point to the type loader method when the first `GVMResolve` resolver is created
+        private static delegate*<object, RuntimeMethodHandle, nint> s_lazyGvmLookupForSlot;
+
         public const short DispatchResolve = 0;
         public const short GVMResolve = 1;
         public const short OpenNonVirtualResolve = 2;
@@ -41,7 +44,6 @@ namespace Internal.Runtime.CompilerServices
             _nonVirtualOpenInvokeCodePointer = IntPtr.Zero;
         }
 
-
         public OpenMethodResolver(RuntimeTypeHandle declaringTypeOfSlot, RuntimeMethodHandle gvmSlot, GCHandle readerGCHandle, int handle)
         {
             _resolveType = GVMResolve;
@@ -50,6 +52,9 @@ namespace Internal.Runtime.CompilerServices
             _handle = handle;
             _readerGCHandle = readerGCHandle;
             _nonVirtualOpenInvokeCodePointer = IntPtr.Zero;
+
+            if (s_lazyGvmLookupForSlot == null)
+                s_lazyGvmLookupForSlot = &TypeLoaderExports.GVMLookupForSlot;
         }
 
         public OpenMethodResolver(RuntimeTypeHandle declaringType, IntPtr codePointer, GCHandle readerGCHandle, int handle, short resolveType)
@@ -140,7 +145,7 @@ namespace Internal.Runtime.CompilerServices
             }
             else if (_resolveType == GVMResolve)
             {
-                return GVMMethodHandle.ResolveGenericVirtualMethodTarget(thisObject);
+                return s_lazyGvmLookupForSlot(thisObject, GVMMethodHandle);
             }
             else
             {

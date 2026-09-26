@@ -95,7 +95,6 @@ namespace ShowLocallocAlignment
             return 101;
         }
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

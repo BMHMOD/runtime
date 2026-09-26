@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b52572
+namespace Test
 {
     using System;
 
@@ -24,7 +24,6 @@ namespace b52572
                 } while (B > A);
             }
         }
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

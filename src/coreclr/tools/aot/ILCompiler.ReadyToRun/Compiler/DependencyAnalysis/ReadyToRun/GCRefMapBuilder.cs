@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Xml.Linq;
 using Internal.TypeSystem;
-using Internal.CallingConvention;
 
 // The GCRef map is used to encode GC type of arguments for callsites. Logically, it is sequence <pos, token> where pos is
 // position of the reference in the stack frame and token is type of GC reference (one of GCREFMAP_XXX values).
@@ -64,23 +63,19 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
             _bits = 0;
             _pos = 0;
             Builder = new ObjectDataBuilder(target, relocsOnly);
-            _transitionBlock = TransitionBlock.FromTarget(target.Architecture,
-                target.OperatingSystem == TargetOS.Windows,
-                target.IsApplePlatform,
-                target.Abi == TargetAbi.NativeAotArmel);
+            _transitionBlock = TransitionBlock.FromTarget(target);
         }
 
-        internal static (ArgIterator<TypeHandle>, TransitionBlock) BuildArgIterator(MethodSignature signature, TypeSystemContext context, bool methodRequiresInstArg = false, bool isUnboxingStub = false, bool methodIsArrayAddressMethod = false, bool methodIsStringConstructor = false, bool methodIsAsyncCall = false)
+        public void GetCallRefMap(MethodDesc method, bool isUnboxingStub)
         {
-            TransitionBlock transitionBlock = TransitionBlock.FromTarget(context.Target.Architecture,
-                context.Target.OperatingSystem == TargetOS.Windows,
-                context.Target.IsApplePlatform,
-                context.Target.Abi == TargetAbi.NativeAotArmel);
+            TransitionBlock transitionBlock = TransitionBlock.FromTarget(method.Context.Target);
+
+            MethodSignature signature = method.Signature;
 
             bool hasThis = (signature.Flags & MethodSignatureFlags.Static) == 0;
 
             // This pointer is omitted for string constructors
-            bool fCtorOfVariableSizedObject = hasThis && methodIsStringConstructor;
+            bool fCtorOfVariableSizedObject = hasThis && method.OwningType.IsString && method.IsConstructor;
             if (fCtorOfVariableSizedObject)
                 hasThis = false;
 
@@ -92,50 +87,30 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 parameterTypes[parameterIndex] = new TypeHandle(signature[parameterIndex]);
             }
             CallingConventions callingConventions = (hasThis ? CallingConventions.ManagedInstance : CallingConventions.ManagedStatic);
-            bool hasParamType = methodRequiresInstArg && !isUnboxingStub;
+            bool hasParamType = method.RequiresInstArg() && !isUnboxingStub;
 
             // On X86 the Array address method doesn't use IL stubs, and instead has a custom calling convention
-            if ((context.Target.Architecture == TargetArchitecture.X86) &&
-                methodIsArrayAddressMethod)
+            if ((method.Context.Target.Architecture == TargetArchitecture.X86) &&
+                method.IsArrayAddressMethod())
             {
                 hasParamType = true;
             }
-
-            bool hasAsyncContinuation = methodIsAsyncCall;
-            // We shouldn't be compiling unboxing stubs for async methods yet.
-            Debug.Assert(hasAsyncContinuation ? !isUnboxingStub : true);
 
             bool extraFunctionPointerArg = false;
             bool[] forcedByRefParams = new bool[parameterTypes.Length];
             bool skipFirstArg = false;
             bool extraObjectFirstArg = false;
-            ArgIteratorData<TypeHandle> argIteratorData = new ArgIteratorData<TypeHandle>(hasThis, isVarArg, parameterTypes, returnType);
+            ArgIteratorData argIteratorData = new ArgIteratorData(hasThis, isVarArg, parameterTypes, returnType);
 
-            ArgIterator<TypeHandle> argit = new ArgIterator<TypeHandle>(
-                transitionBlock,
+            ArgIterator argit = new ArgIterator(
+                method.Context,
                 argIteratorData,
                 callingConventions,
                 hasParamType,
-                hasAsyncContinuation,
                 extraFunctionPointerArg,
                 forcedByRefParams,
                 skipFirstArg,
-                extraObjectFirstArg,
-                isWindows: context.Target.IsWindows,
-                objectTypeHandle: new TypeHandle(context.GetWellKnownType(WellKnownType.Object)),
-                intPtrTypeHandle: new TypeHandle(context.GetWellKnownType(WellKnownType.IntPtr)));
-
-            return (argit, transitionBlock);
-        }
-
-        public void GetCallRefMap(MethodDesc method, bool isUnboxingStub)
-        {
-            (ArgIterator<TypeHandle> argit, TransitionBlock transitionBlock) = BuildArgIterator(method.Signature, method.Context,
-                methodRequiresInstArg: method.RequiresInstArg(),
-                isUnboxingStub: isUnboxingStub,
-                methodIsArrayAddressMethod: method.IsArrayAddressMethod(),
-                methodIsStringConstructor: method.OwningType.IsString && method.IsConstructor,
-                methodIsAsyncCall: method.IsAsyncCall());
+                extraObjectFirstArg);
 
             int nStackBytes = argit.SizeOfFrameArgumentArray();
 
@@ -176,7 +151,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
         /// <summary>
         /// Fill in the GC-relevant stack frame locations.
         /// </summary>
-        private void FakeGcScanRoots(MethodDesc method, ArgIterator<TypeHandle> argit, CORCOMPILE_GCREFMAP_TOKENS[] frame, bool isUnboxingStub)
+        private void FakeGcScanRoots(MethodDesc method, ArgIterator argit, CORCOMPILE_GCREFMAP_TOKENS[] frame, bool isUnboxingStub)
         {
             // Encode generic instantiation arg
             if (argit.HasParamType)
@@ -189,12 +164,6 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                 {
                     frame[argit.GetParamTypeArgOffset()] = CORCOMPILE_GCREFMAP_TOKENS.GCREFMAP_TYPE_PARAM;
                 }
-            }
-
-            // Encode async continuation arg (it's a GC reference)
-            if (argit.HasAsyncContinuation)
-            {
-                frame[argit.GetAsyncContinuationArgOffset()] = CORCOMPILE_GCREFMAP_TOKENS.GCREFMAP_REF;
             }
 
             // If the function has a this pointer, add it to the mask
@@ -298,7 +267,7 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
                 if (argDest.IsStructPassedInRegs())
                 {
-                    argDest.ReportPointersFromStructInRegisters(new TypeHandle(type), delta, frame);
+                    argDest.ReportPointersFromStructInRegisters(type, delta, frame);
                     return;
                 }
             }

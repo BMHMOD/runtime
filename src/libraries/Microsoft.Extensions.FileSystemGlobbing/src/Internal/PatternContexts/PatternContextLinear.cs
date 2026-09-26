@@ -36,7 +36,6 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Internal.PatternContexts
         {
             // copy the current frame
             FrameData frame = Frame;
-            frame.AddedStemItem = false;
 
             if (IsStackEmpty() || Frame.IsNotApplicable)
             {
@@ -56,7 +55,6 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Internal.PatternContexts
                 {
                     frame.InStem = true;
                     frame.StemItems.Add(directory.Name);
-                    frame.AddedStemItem = true;
                 }
 
                 // directory matches segment, advance position in pattern
@@ -66,27 +64,14 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Internal.PatternContexts
             PushDataFrame(frame);
         }
 
-        public override void PopDirectory()
-        {
-            bool addedStem = Frame.AddedStemItem;
-            base.PopDirectory();
-            if (addedStem && Frame.HasStemItems)
-            {
-                Frame.StemItems.RemoveAt(Frame.StemItems.Count - 1);
-            }
-        }
-
         public struct FrameData
         {
             public bool IsNotApplicable;
             public int SegmentIndex;
             public bool InStem;
-            private List<string>? _stemItems;
-            internal bool AddedStemItem;
+            private IList<string>? _stemItems;
 
             public IList<string> StemItems => _stemItems ??= new List<string>();
-
-            internal readonly bool HasStemItems => _stemItems is not null && _stemItems.Count > 0;
 
             public string? Stem => _stemItems == null ? null : string.Join("/", _stemItems);
         }

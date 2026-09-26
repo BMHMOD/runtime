@@ -198,4 +198,8 @@ namespace ETW
     };
 };
 
+#ifndef FEATURE_EVENT_TRACE
+inline void ETW::GCLog::FireGcStart(ETW_GC_INFO * pGcInfo) { }
+#endif
+
 #endif //_VMEVENTTRACE_H_

@@ -55,8 +55,8 @@ namespace System.Security.Cryptography.Pkcs
             }
         }
 
-        private SubjectIdentifier? _lazyRecipientIdentifier;
-        private AlgorithmIdentifier? _lazyKeyEncryptionAlgorithm;
-        private byte[]? _lazyEncryptedKey;
+        private volatile SubjectIdentifier? _lazyRecipientIdentifier;
+        private volatile AlgorithmIdentifier? _lazyKeyEncryptionAlgorithm;
+        private volatile byte[]? _lazyEncryptedKey;
     }
 }

@@ -83,16 +83,13 @@ namespace Microsoft.Interop.Analyzers
             var selectedOptions = options.Remove(CharSetOption);
 
             yield return new ConvertToSourceGeneratedInteropFix(
-                async (solutionEditor, documentId, ct) =>
-                {
-                    var editor = await solutionEditor.GetDocumentEditorAsync(documentId, ct).ConfigureAwait(false);
-                    await ConvertToLibraryImport(
+                (editor, ct) =>
+                    ConvertToLibraryImport(
                         editor,
                         node,
                         warnForAdditionalWork,
                         null,
-                        ct).ConfigureAwait(false);
-                },
+                        ct),
                 selectedOptions);
 
             if (charSet is not null)
@@ -105,50 +102,41 @@ namespace Microsoft.Interop.Analyzers
                 if (charSet is CharSet.None or CharSet.Ansi or CharSet.Auto)
                 {
                     yield return new ConvertToSourceGeneratedInteropFix(
-                        async (solutionEditor, documentId, ct) =>
-                        {
-                            var editor = await solutionEditor.GetDocumentEditorAsync(documentId, ct).ConfigureAwait(false);
-                            await ConvertToLibraryImport(
+                        (editor, ct) =>
+                            ConvertToLibraryImport(
                                 editor,
                                 node,
                                 warnForAdditionalWork,
                                 'A',
-                                ct).ConfigureAwait(false);
-                        },
+                                ct),
                         selectedOptions.Add(SelectedSuffixOption, new Option.String("A")));
                 }
                 if (charSet is CharSet.Unicode or CharSet.Auto)
                 {
                     yield return new ConvertToSourceGeneratedInteropFix(
-                        async (solutionEditor, documentId, ct) =>
-                        {
-                            var editor = await solutionEditor.GetDocumentEditorAsync(documentId, ct).ConfigureAwait(false);
-                            await ConvertToLibraryImport(
+                        (editor, ct) =>
+                            ConvertToLibraryImport(
                                 editor,
                                 node,
                                 warnForAdditionalWork,
                                 'W',
-                                ct).ConfigureAwait(false);
-                        },
+                                ct),
                         selectedOptions.Add(SelectedSuffixOption, new Option.String("W")));
                 }
             }
         }
 
-        protected override Func<SolutionEditor, DocumentId, CancellationToken, Task> CreateFixForSelectedOptions(SyntaxNode node, ImmutableDictionary<string, Option> selectedOptions)
+        protected override Func<DocumentEditor, CancellationToken, Task> CreateFixForSelectedOptions(SyntaxNode node, ImmutableDictionary<string, Option> selectedOptions)
         {
             bool warnForAdditionalWork = selectedOptions.TryGetValue(Option.MayRequireAdditionalWork, out Option mayRequireAdditionalWork) && mayRequireAdditionalWork is Option.Bool(true);
             char? suffix = selectedOptions.TryGetValue(SelectedSuffixOption, out Option selectedSuffixOption) && selectedSuffixOption is Option.String(string selectedSuffix) ? selectedSuffix[0] : null;
-            return async (solutionEditor, documentId, ct) =>
-            {
-                var editor = await solutionEditor.GetDocumentEditorAsync(documentId, ct).ConfigureAwait(false);
-                await ConvertToLibraryImport(
+            return (editor, ct) =>
+                ConvertToLibraryImport(
                     editor,
                     node,
                     warnForAdditionalWork,
                     suffix,
-                    ct).ConfigureAwait(false);
-            };
+                    ct);
         }
 
         private static string AppendSuffix(string entryPoint, char? entryPointSuffix)
@@ -274,15 +262,6 @@ namespace Microsoft.Interop.Analyzers
                 generator.GetModifiers(methodSyntax)
                     .WithIsExtern(false)
                     .WithPartial(true));
-
-            // DeclarationModifiers cannot represent 'safe', so it has to be carried over separately or the
-            // conversion would widen the method's contract to its callers.
-            if (methodSyntax is MethodDeclarationSyntax originalMethod
-                && generatedDeclaration is MethodDeclarationSyntax rewrittenMethod)
-            {
-                generatedDeclaration = rewrittenMethod.WithModifiers(
-                    rewrittenMethod.Modifiers.WithSafeModifierFrom(originalMethod.Modifiers));
-            }
 
             generatedDeclaration = AddExplicitDefaultBoolMarshalling(generator, methodSymbol, generatedDeclaration, "Bool");
 

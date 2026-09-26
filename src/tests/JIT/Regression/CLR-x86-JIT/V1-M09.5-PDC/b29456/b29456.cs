@@ -43,7 +43,6 @@ namespace Tests
             System.Console.WriteLine(".cctor");
         }
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

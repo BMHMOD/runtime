@@ -3,7 +3,6 @@
 
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Testing;
 using Microsoft.Interop;
 using Microsoft.Interop.UnitTests;
@@ -13,7 +12,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Xunit;
 
-using VerifyCS = Microsoft.Interop.UnitTests.Verifiers.CSharpSourceGeneratorVerifier<Microsoft.Interop.LibraryImportGenerator, Microsoft.Interop.Analyzers.LibraryImportDiagnosticsAnalyzer>;
+using VerifyCS = Microsoft.Interop.UnitTests.Verifiers.CSharpSourceGeneratorVerifier<Microsoft.Interop.LibraryImportGenerator>;
 
 namespace LibraryImportGenerator.UnitTests
 {
@@ -128,6 +127,7 @@ namespace LibraryImportGenerator.UnitTests
         {
             string source = $$"""
                 using System.Runtime.InteropServices;
+                {{CodeSnippets.LibraryImportAttributeDeclaration}}
                 partial class C
                 {
                     [LibraryImportAttribute("DoesNotExist")]
@@ -243,7 +243,7 @@ namespace LibraryImportGenerator.UnitTests
 
         private static Task VerifyDownlevelSourceGeneratorAsync(string source, string typeName, string methodName, string? attributeName, bool attributeAdded, TestTargetFramework targetFramework)
         {
-            AttributeAddedTest<DownlevelLibraryImportGenerator, EmptyDiagnosticAnalyzer> test = new(typeName, methodName, attributeName, attributeAdded, targetFramework)
+            AttributeAddedTest<DownlevelLibraryImportGenerator> test = new(typeName, methodName, attributeName, attributeAdded, targetFramework)
             {
                 TestCode = source,
                 TestBehaviors = TestBehaviors.SkipGeneratedSourcesCheck
@@ -253,7 +253,7 @@ namespace LibraryImportGenerator.UnitTests
 
         private static Task VerifySourceGeneratorAsync(string source, string typeName, string methodName, string? attributeName, bool attributeAdded)
         {
-            AttributeAddedTest<Microsoft.Interop.LibraryImportGenerator, Microsoft.Interop.Analyzers.LibraryImportDiagnosticsAnalyzer> test = new(typeName, methodName, attributeName, attributeAdded)
+            AttributeAddedTest<Microsoft.Interop.LibraryImportGenerator> test = new(typeName, methodName, attributeName, attributeAdded)
             {
                 TestCode = source,
                 TestBehaviors = TestBehaviors.SkipGeneratedSourcesCheck
@@ -261,9 +261,8 @@ namespace LibraryImportGenerator.UnitTests
             return test.RunAsync();
         }
 
-        class AttributeAddedTest<TSourceGenerator, TAnalyzer> : Microsoft.Interop.UnitTests.Verifiers.CSharpSourceGeneratorVerifier<TSourceGenerator, TAnalyzer>.Test
+        class AttributeAddedTest<TSourceGenerator> : Microsoft.Interop.UnitTests.Verifiers.CSharpSourceGeneratorVerifier<TSourceGenerator>.Test
             where TSourceGenerator : new()
-            where TAnalyzer : DiagnosticAnalyzer, new()
         {
             private readonly string _typeName;
             private readonly string _methodName;

@@ -5,7 +5,7 @@ using System;
 using System.Runtime.CompilerServices;
 using Xunit;
 
-namespace GitHub_7147
+namespace N
 {
     public class C
     {

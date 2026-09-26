@@ -5,15 +5,15 @@ namespace System.Collections
 {
     internal static class HashtableExtensions
     {
-        public static bool TryGetValue(this Hashtable table, object key, out int value)
+        public static bool TryGetValue<T>(this Hashtable table, object key, out T? value)
         {
-            if (table[key] is { } obj)
+            if (table.ContainsKey(key))
             {
-                value = (int)obj;
+                value = (T)table[key]!;
                 return true;
             }
 
-            value = 0;
+            value = default;
             return false;
         }
     }

@@ -56,7 +56,7 @@ void Phase::Observations::Check(PhaseStatus status)
 //
 void Phase::Run()
 {
-    Observations observations(m_compiler);
+    Observations observations(comp);
     PrePhase();
     PhaseStatus status = DoPhase();
     PostPhase(status);
@@ -68,22 +68,22 @@ void Phase::Run()
 //
 void Phase::PrePhase()
 {
-    m_compiler->BeginPhase(m_phase);
+    comp->BeginPhase(m_phase);
 
 #ifdef DEBUG
     if (VERBOSE)
     {
-        if (m_compiler->compIsForInlining())
+        if (comp->compIsForInlining())
         {
             printf("\n*************** Inline @[%06u] Starting PHASE %s\n",
-                   Compiler::dspTreeID(m_compiler->impInlineInfo->iciCall), m_name);
+                   Compiler::dspTreeID(comp->impInlineInfo->iciCall), m_name);
         }
         else
         {
-            if (m_compiler->opts.optRepeatActive)
+            if (comp->opts.optRepeatActive)
             {
                 printf("\n*************** Starting PHASE %s (OptRepeat iteration %d of %d)\n", m_name,
-                       m_compiler->opts.optRepeatIteration, m_compiler->opts.optRepeatCount);
+                       comp->opts.optRepeatIteration, comp->opts.optRepeatCount);
             }
             else
             {
@@ -94,7 +94,7 @@ void Phase::PrePhase()
 #endif // DEBUG
 
 #if DUMP_FLOWGRAPHS
-    m_compiler->fgDumpFlowGraph(m_phase, Compiler::PhasePosition::PrePhase);
+    comp->fgDumpFlowGraph(m_phase, Compiler::PhasePosition::PrePhase);
 #endif // DUMP_FLOWGRAPHS
 }
 
@@ -106,36 +106,36 @@ void Phase::PrePhase()
 //
 void Phase::PostPhase(PhaseStatus status)
 {
-    m_compiler->EndPhase(m_phase);
+    comp->EndPhase(m_phase);
 
 #ifdef DEBUG
 
 #if DUMP_FLOWGRAPHS
-    m_compiler->fgDumpFlowGraph(m_phase, Compiler::PhasePosition::PostPhase);
+    comp->fgDumpFlowGraph(m_phase, Compiler::PhasePosition::PostPhase);
 #endif // DUMP_FLOWGRAPHS
 
     // Don't dump or check post phase unless the phase made changes.
     //
     const bool madeChanges       = (status != PhaseStatus::MODIFIED_NOTHING);
     const bool doPostPhase       = madeChanges;
-    const bool doPostPhaseChecks = (m_compiler->activePhaseChecks != PhaseChecks::CHECK_NONE);
-    const bool doPostPhaseDumps  = (m_compiler->activePhaseDumps == PhaseDumps::DUMP_ALL);
+    const bool doPostPhaseChecks = (comp->activePhaseChecks != PhaseChecks::CHECK_NONE);
+    const bool doPostPhaseDumps  = (comp->activePhaseDumps == PhaseDumps::DUMP_ALL);
 
     const char* const statusMessage = madeChanges ? "" : " [no changes]";
 
     if (VERBOSE)
     {
-        if (m_compiler->compIsForInlining())
+        if (comp->compIsForInlining())
         {
             printf("\n*************** Inline @[%06u] Finishing PHASE %s%s\n",
-                   Compiler::dspTreeID(m_compiler->impInlineInfo->iciCall), m_name, statusMessage);
+                   Compiler::dspTreeID(comp->impInlineInfo->iciCall), m_name, statusMessage);
         }
         else
         {
-            if (m_compiler->opts.optRepeatActive)
+            if (comp->opts.optRepeatActive)
             {
                 printf("\n*************** Finishing PHASE %s%s (OptRepeat iteration %d of %d)\n", m_name, statusMessage,
-                       m_compiler->opts.optRepeatIteration, m_compiler->opts.optRepeatCount);
+                       comp->opts.optRepeatIteration, comp->opts.optRepeatCount);
             }
             else
             {
@@ -146,60 +146,55 @@ void Phase::PostPhase(PhaseStatus status)
         if (doPostPhase && doPostPhaseDumps)
         {
             printf("Trees after %s\n", m_name);
-            m_compiler->fgDispBasicBlocks(true);
+            comp->fgDispBasicBlocks(true);
         }
     }
 
     if (doPostPhase && doPostPhaseChecks)
     {
-        PhaseChecks const checks = m_compiler->activePhaseChecks;
+        PhaseChecks const checks = comp->activePhaseChecks;
 
         if (hasFlag(checks, PhaseChecks::CHECK_UNIQUE))
         {
-            m_compiler->fgDebugCheckNodesUniqueness();
+            comp->fgDebugCheckNodesUniqueness();
         }
 
         if (hasFlag(checks, PhaseChecks::CHECK_FG))
         {
-            m_compiler->fgDebugCheckBBlist();
+            comp->fgDebugCheckBBlist();
         }
 
         if (hasFlag(checks, PhaseChecks::CHECK_FG_INIT_BLOCK))
         {
-            m_compiler->fgDebugCheckInitBB();
+            comp->fgDebugCheckInitBB();
         }
-
-        assert(!hasFlag(checks, PhaseChecks::CHECK_IR_RELAXED) || hasFlag(checks, PhaseChecks::CHECK_IR));
 
         if (hasFlag(checks, PhaseChecks::CHECK_IR))
         {
-            int const extraFlagsBefore = m_compiler->Metrics.IRExtraFlags;
-            m_compiler->fgDebugCheckLinks();
-            int const extraFlags = m_compiler->Metrics.IRExtraFlags - extraFlagsBefore;
-            JITDUMP("IR flag check found %d extra flags after %s\n", extraFlags, m_name);
+            comp->fgDebugCheckLinks();
         }
 
         if (hasFlag(checks, PhaseChecks::CHECK_EH))
         {
-            m_compiler->fgVerifyHandlerTab();
+            comp->fgVerifyHandlerTab();
         }
 
         if (hasFlag(checks, PhaseChecks::CHECK_LOOPS))
         {
-            m_compiler->fgDebugCheckLoops();
+            comp->fgDebugCheckLoops();
         }
 
         if (hasFlag(checks, PhaseChecks::CHECK_PROFILE) || hasFlag(checks, PhaseChecks::CHECK_LIKELIHOODS))
         {
-            m_compiler->fgDebugCheckProfile(checks);
+            comp->fgDebugCheckProfile(checks);
         }
 
         if (hasFlag(checks, PhaseChecks::CHECK_LINKED_LOCALS))
         {
-            m_compiler->fgDebugCheckLinkedLocals();
+            comp->fgDebugCheckLinkedLocals();
         }
 
-        m_compiler->fgDebugCheckFlowGraphAnnotations();
+        comp->fgDebugCheckFlowGraphAnnotations();
     }
 #endif // DEBUG
 }

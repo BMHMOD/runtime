@@ -52,7 +52,7 @@ public:
     virtual BOOL NeedToWaitForAck(DebuggerIPCEvent * pEvent);
 
     // Get a handle to wait on after sending an IPC event to the LS.  The caller should call NeedToWaitForAck()
-    virtual WaitEvent *GetRightSideEventAckHandle();
+    virtual HANDLE GetRightSideEventAckHandle();
 
     // Clean up the state if the wait for an acknowledgement is unsuccessful.
     virtual void   ClearEventForLeftSide();
@@ -95,16 +95,16 @@ HRESULT NewEventChannelForThisPlatform(CORDB_ADDRESS pLeftSideDCB,
 {
     // @dbgtodo  Mac - Consider moving all of the transport logic to one place.
     // Perhaps add a new function on DbgTransportManager.
-    WaitHandle *processWaitHandle = nullptr;
+    HandleHolder hDummy;
     HRESULT hr = E_FAIL;
 
     RemoteEventChannel *      pEventChannel = NULL;
     DebuggerIPCControlBlock * pDCBBuffer    = NULL;
 
-    DbgTransportTarget *   pProxy     = &g_DbgTransportTarget;
+    DbgTransportTarget *   pProxy     = g_pDbgTransportTarget;
     DbgTransportSession *  pTransport = NULL;
 
-    hr = pProxy->GetTransportForProcess(pProcessDescriptor, &pTransport, &processWaitHandle);
+    hr = pProxy->GetTransportForProcess(pProcessDescriptor, &pTransport, &hDummy);
     if (FAILED(hr))
     {
         goto Label_Exit;
@@ -134,11 +134,6 @@ HRESULT NewEventChannelForThisPlatform(CORDB_ADDRESS pLeftSideDCB,
     *ppEventChannel = pEventChannel;
 
 Label_Exit:
-    if (processWaitHandle != nullptr)
-    {
-        delete processWaitHandle;
-    }
-
     if (FAILED(hr))
     {
         if (pEventChannel != NULL)
@@ -271,7 +266,7 @@ BOOL RemoteEventChannel::NeedToWaitForAck(DebuggerIPCEvent * pEvent)
 // Get a handle to wait on after sending an IPC event to the LS.  The caller should call NeedToWaitForAck()
 //
 // virtual
-WaitEvent *RemoteEventChannel::GetRightSideEventAckHandle()
+HANDLE RemoteEventChannel::GetRightSideEventAckHandle()
 {
     // Delegate to the transport which does the real work.
     return m_pTransport->GetIPCEventReadyEvent();

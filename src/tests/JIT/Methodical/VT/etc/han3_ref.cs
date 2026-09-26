@@ -69,7 +69,9 @@ namespace JitTest_han3_ref_cs
             return C;
         }
 
-        public static int Run()
+        [Fact]
+        [OuterLoop]
+        public static int TestEntryPoint()
         {
             Column c1 = new Column(17, 17);
             Column c2 = new Column(17, 0);
@@ -79,16 +81,6 @@ namespace JitTest_han3_ref_cs
             c2.Validate();
             c3.Validate();
             return ec;
-        }
-    }
-
-    public class Han3RefTest
-    {
-        [Fact]
-        [OuterLoop]
-        public static int TestEntryPoint()
-        {
-            return Column.Run();
         }
     }
 }

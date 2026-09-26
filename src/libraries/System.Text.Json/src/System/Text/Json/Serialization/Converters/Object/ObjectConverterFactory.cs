@@ -61,22 +61,8 @@ namespace System.Text.Json.Serialization.Converters
 
                 foreach (ParameterInfo parameter in parameters)
                 {
-                    // Skip out parameters — they don't receive values from JSON
-                    // and may reference unsupported types (e.g. Task).
-                    if (parameter.IsOut)
-                    {
-                        continue;
-                    }
-
                     // Every argument must be of supported type.
-                    // For byref parameters (in/ref), validate the underlying element type.
-                    Type parameterType = parameter.ParameterType;
-                    if (parameterType.IsByRef)
-                    {
-                        parameterType = parameterType.GetElementType()!;
-                    }
-
-                    JsonTypeInfo.ValidateType(parameterType);
+                    JsonTypeInfo.ValidateType(parameter.ParameterType);
                 }
 
                 if (parameterCount <= JsonConstants.UnboxedParameterCountThreshold)
@@ -89,24 +75,7 @@ namespace System.Text.Json.Serialization.Converters
                     {
                         if (i < parameterCount)
                         {
-                            // out parameters use placeholder type — they aren't deserialized
-                            // and may reference types that can't be used as generic arguments.
-                            if (parameters[i].IsOut)
-                            {
-                                typeArguments[i + 1] = placeHolderType;
-                            }
-                            else
-                            {
-                                // For byref parameters (in/ref), use the underlying element type
-                                // since byref types cannot be used as generic type arguments.
-                                Type parameterType = parameters[i].ParameterType;
-                                if (parameterType.IsByRef)
-                                {
-                                    parameterType = parameterType.GetElementType()!;
-                                }
-
-                                typeArguments[i + 1] = parameterType;
-                            }
+                            typeArguments[i + 1] = parameters[i].ParameterType;
                         }
                         else
                         {

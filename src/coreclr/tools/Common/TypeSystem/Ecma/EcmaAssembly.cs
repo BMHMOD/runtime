@@ -6,8 +6,6 @@ using System.Reflection;
 using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 
-using Internal.Text;
-
 namespace Internal.TypeSystem.Ecma
 {
     public sealed partial class EcmaAssembly : EcmaModule, IAssemblyDesc
@@ -64,7 +62,7 @@ namespace Internal.TypeSystem.Ecma
             return _assemblyName;
         }
 
-        public Utf8Span Name
+        public ReadOnlySpan<byte> Name
         {
             get
             {

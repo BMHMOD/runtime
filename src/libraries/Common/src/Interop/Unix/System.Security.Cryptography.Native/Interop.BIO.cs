@@ -31,6 +31,9 @@ internal static partial class Interop
         }
 
         [LibraryImport(Libraries.CryptoNative, EntryPoint = "CryptoNative_BioRead")]
+        internal static partial int BioRead(SafeBioHandle b, byte[] data, int len);
+
+        [LibraryImport(Libraries.CryptoNative, EntryPoint = "CryptoNative_BioRead")]
         private static partial int BioRead(SafeBioHandle b, Span<byte> data, int len);
         internal static int BioRead(SafeBioHandle b, Span<byte> data) => BioRead(b, data, data.Length);
 
@@ -45,5 +48,8 @@ internal static partial class Interop
 
         [LibraryImport(Libraries.CryptoNative, EntryPoint = "CryptoNative_GetMemoryBioSize")]
         internal static partial int GetMemoryBioSize(SafeBioHandle bio);
+
+        [LibraryImport(Libraries.CryptoNative, EntryPoint = "CryptoNative_BioCtrlPending")]
+        internal static partial int BioCtrlPending(SafeBioHandle bio);
     }
 }

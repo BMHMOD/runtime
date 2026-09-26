@@ -9,8 +9,7 @@
 #ifndef DACCESS_COMPILE
 
 HRESULT AssemblyBinder::BindAssemblyByName(AssemblyNameData* pAssemblyNameData,
-    BINDER_SPACE::Assembly** ppAssembly,
-    SString* pDiagnosticInfo)
+    BINDER_SPACE::Assembly** ppAssembly)
 {
     _ASSERTE(pAssemblyNameData != nullptr && ppAssembly != nullptr);
 
@@ -21,21 +20,23 @@ HRESULT AssemblyBinder::BindAssemblyByName(AssemblyNameData* pAssemblyNameData,
     SAFE_NEW(pAssemblyName, BINDER_SPACE::AssemblyName);
     IF_FAIL_GO(pAssemblyName->Init(*pAssemblyNameData));
 
-    hr = BindUsingAssemblyName(pAssemblyName, ppAssembly, pDiagnosticInfo);
+    hr = BindUsingAssemblyName(pAssemblyName, ppAssembly);
 
 Exit:
     return hr;
 }
 
 
-NativeImage* AssemblyBinder::LoadNativeImage(Module* componentModule, LPCUTF8 nativeImageName, bool isPlatformNative)
+NativeImage* AssemblyBinder::LoadNativeImage(Module* componentModule, LPCUTF8 nativeImageName)
 {
     STANDARD_VM_CONTRACT;
 
     AppDomain::LoadLockHolder lock(AppDomain::GetCurrentDomain());
+    AssemblyBinder* binder = componentModule->GetPEAssembly()->GetAssemblyBinder();
     PTR_LoaderAllocator moduleLoaderAllocator = componentModule->GetLoaderAllocator();
 
-    NativeImage* nativeImage = NativeImage::Open(componentModule->GetPath(), nativeImageName, this, moduleLoaderAllocator, isPlatformNative);
+    bool isNewNativeImage;
+    NativeImage* nativeImage = NativeImage::Open(componentModule, nativeImageName, binder, moduleLoaderAllocator, &isNewNativeImage);
 
     return nativeImage;
 }
@@ -175,19 +176,20 @@ void AssemblyBinder::GetNameForDiagnosticsFromManagedALC(INT_PTR managedALC, /* 
 
     OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOADED);
 
+    OBJECTREF* alc = reinterpret_cast<OBJECTREF*>(managedALC);
+
     GCX_COOP();
-    struct
-    {
-        OBJECTREF obj;
+    struct {
         STRINGREF alcName;
     } gc;
-    gc.obj = ObjectToOBJECTREF(*(Object**)managedALC);
     gc.alcName = NULL;
 
     GCPROTECT_BEGIN(gc);
 
-    UnmanagedCallersOnlyCaller callToString(METHOD__RUNTIME_HELPERS__CALL_TO_STRING);
-    callToString.InvokeThrowing(&gc.obj, &gc.alcName);
+    PREPARE_VIRTUAL_CALLSITE(METHOD__OBJECT__TO_STRING, *alc);
+    DECLARE_ARGHOLDER_ARRAY(args, 1);
+    args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(*alc);
+    CALL_MANAGED_METHOD_RETREF(gc.alcName, STRINGREF, args);
     gc.alcName->GetSString(alcName);
 
     GCPROTECT_END();
@@ -211,9 +213,10 @@ void AssemblyBinder::GetNameForDiagnosticsFromSpec(AssemblySpec* spec, /*out*/ S
 {
     _ASSERTE(spec != nullptr);
 
+    AppDomain* domain = spec->GetAppDomain();
     AssemblyBinder* binder = spec->GetBinder();
     if (binder == nullptr)
-        binder = spec->GetInitialBinder();
+        binder = spec->GetBinderFromParentAssembly(domain);
 
     binder->GetNameForDiagnostics(alcName);
 }

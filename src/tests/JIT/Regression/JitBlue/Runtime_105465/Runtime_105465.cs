@@ -4,9 +4,6 @@
 // Reduced from 95.3 KiB to 0.6 KiB in 00:00:29
 // Debug: Outputs <0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0>
 // Release: Outputs <0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1>
-
-namespace Runtime_105465;
-
 using System;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
@@ -14,13 +11,16 @@ using Xunit;
 
 public class Runtime_105465
 {
-    [ConditionalFact(typeof(Avx2), nameof(Avx2.IsSupported))]
+    [Fact]
     public static void TestEntryPoint()
     {
-        var vr2 = Vector256.Create<ushort>(1);
-        var vr3 = Vector128.Create<ushort>(1);
-        Vector256<ushort> vr4 = Avx2.ShiftLeftLogical(vr2, vr3);
-        Assert.Equal(Vector256<ushort>.Zero, vr4);
+        if (Avx2.IsSupported)
+        {
+            var vr2 = Vector256.Create<ushort>(1);
+            var vr3 = Vector128.Create<ushort>(1);
+            Vector256<ushort> vr4 = Avx2.ShiftLeftLogical(vr2, vr3);
+            Assert.Equal(Vector256<ushort>.Zero, vr4);
+        }
     }
 }
 

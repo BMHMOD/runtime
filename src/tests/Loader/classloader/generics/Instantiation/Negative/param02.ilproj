@@ -1,11 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk.IL">
   <PropertyGroup>
-    <!-- Needed for CrossGenTest -->
+    <!-- Needed for mechanical merging of all remaining tests, this particular project may not actually need process isolation -->
     <RequiresProcessIsolation>true</RequiresProcessIsolation>
     <CLRTestPriority>1</CLRTestPriority>
-
-    <!-- Crossgen is not intended to serve as an IL verifier, and is not designed to provide error semantics on bad input. -->
-    <CrossGenTest>false</CrossGenTest>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="param02.il" />

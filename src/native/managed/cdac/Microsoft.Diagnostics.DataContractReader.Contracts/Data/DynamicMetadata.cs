@@ -1,13 +1,19 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.DynamicMetadata))]
-internal sealed partial class DynamicMetadata : IData<DynamicMetadata>
+internal sealed class DynamicMetadata : IData<DynamicMetadata>
 {
-    [Field] public partial uint Size { get; }
+    static DynamicMetadata IData<DynamicMetadata>.Create(Target target, TargetPointer address) => new DynamicMetadata(target, address);
+    public DynamicMetadata(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.DynamicMetadata);
 
-    [FieldAddress]
-    public partial TargetPointer Data { get; }
+        Size = target.Read<uint>(address + (ulong)type.Fields[nameof(Size)].Offset);
+        Data = address + (ulong)type.Fields[nameof(Data)].Offset;
+    }
+
+    public uint Size { get; init; }
+    public TargetPointer Data { get; init; }
 }

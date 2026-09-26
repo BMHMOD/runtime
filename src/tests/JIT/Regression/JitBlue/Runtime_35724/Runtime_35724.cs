@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-namespace Runtime_35724;
-
 using System;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -25,7 +22,6 @@ public class Runtime_35724
         return a / b;
     }
 	
-    [OuterLoop]
     [Fact]
     public static void TestEntryPoint()
     {

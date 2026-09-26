@@ -8,7 +8,7 @@ using System.Tests;
 using System.Threading;
 using Xunit;
 
-namespace System.Drawing.Primitives.Tests
+namespace System.Drawing.Tests
 {
     public class ColorTranslatorTests
     {

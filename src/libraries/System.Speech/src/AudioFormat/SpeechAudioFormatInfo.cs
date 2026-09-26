@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.ComponentModel;
-using System.Diagnostics.CodeAnalysis;
 using System.Speech.Internal.Synthesis;
 
 namespace System.Speech.AudioFormat
@@ -12,7 +11,7 @@ namespace System.Speech.AudioFormat
     {
         #region Constructors
 
-        private SpeechAudioFormatInfo(EncodingFormat encodingFormat, int samplesPerSecond, short bitsPerSample, short channelCount, byte[]? formatSpecificData)
+        private SpeechAudioFormatInfo(EncodingFormat encodingFormat, int samplesPerSecond, short bitsPerSample, short channelCount, byte[] formatSpecificData)
         {
             if (encodingFormat == 0)
             {
@@ -60,7 +59,7 @@ namespace System.Speech.AudioFormat
             }
         }
         [EditorBrowsable(EditorBrowsableState.Never)]
-        public SpeechAudioFormatInfo(EncodingFormat encodingFormat, int samplesPerSecond, int bitsPerSample, int channelCount, int averageBytesPerSecond, int blockAlign, byte[]? formatSpecificData)
+        public SpeechAudioFormatInfo(EncodingFormat encodingFormat, int samplesPerSecond, int bitsPerSample, int channelCount, int averageBytesPerSecond, int blockAlign, byte[] formatSpecificData)
             : this(encodingFormat, samplesPerSecond, (short)bitsPerSample, (short)channelCount, formatSpecificData)
         {
             // Don't explicitly check these are sensible values - allow flexibility here as some formats may do unexpected things here.
@@ -100,9 +99,10 @@ namespace System.Speech.AudioFormat
 
         #region Public Methods
         public byte[] FormatSpecificData() { return (byte[])_formatSpecificData.Clone(); }
-        public override bool Equals([NotNullWhen(true)] object? obj)
+        public override bool Equals(object obj)
         {
-            if (obj is not SpeechAudioFormatInfo refObj)
+            SpeechAudioFormatInfo refObj = obj as SpeechAudioFormatInfo;
+            if (refObj == null)
             {
                 return false;
             }

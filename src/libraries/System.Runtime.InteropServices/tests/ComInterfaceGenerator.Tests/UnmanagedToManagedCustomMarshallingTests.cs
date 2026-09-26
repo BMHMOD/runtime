@@ -7,6 +7,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
 using System.Threading;
+using Microsoft.Diagnostics.Runtime;
 using SharedTypes;
 using Xunit;
 using static ComInterfaceGenerator.Tests.UnmanagedToManagedCustomMarshallingTests;

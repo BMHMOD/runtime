@@ -177,7 +177,7 @@ private:
 
     FILE* disAsmFile;
 
-    Compiler* m_compiler;
+    Compiler* disComp;
 
     bool disDiffable; // 'true' if the output should be diffable (hide or obscure absolute addresses)
 

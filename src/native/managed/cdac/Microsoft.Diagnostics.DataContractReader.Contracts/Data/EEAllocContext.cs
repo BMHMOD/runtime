@@ -3,8 +3,16 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.EEAllocContext))]
-internal sealed partial class EEAllocContext : IData<EEAllocContext>
+internal sealed class EEAllocContext : IData<EEAllocContext>
 {
-    [Field] public partial GCAllocContext GCAllocationContext { get; }
+    static EEAllocContext IData<EEAllocContext>.Create(Target target, TargetPointer address)
+        => new EEAllocContext(target, address);
+
+    public EEAllocContext(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.EEAllocContext);
+        GCAllocationContext = target.ProcessedData.GetOrAdd<GCAllocContext>(address + (ulong)type.Fields[nameof(GCAllocationContext)].Offset);
+    }
+
+    public GCAllocContext GCAllocationContext { get; init; }
 }

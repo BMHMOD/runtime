@@ -46,31 +46,26 @@ Create an SSL context
 
 Returns NULL on failure
 */
-PALEXPORT SSLStream* AndroidCryptoNative_SSLStreamCreate(
-    intptr_t sslStreamProxyHandle,
-    const char* targetHost,
-    jobjectArray keyManagers);
+PALEXPORT SSLStream* AndroidCryptoNative_SSLStreamCreate(intptr_t sslStreamProxyHandle);
 
 /*
-Create key managers from a PKCS8 private key and certificate chain.
-The returned KeyManager[] should be passed to SSLStreamCreate.
+Create an SSL context with the specified certificates
 
 Returns NULL on failure
 */
-PALEXPORT jobjectArray AndroidCryptoNative_SSLStreamCreateKeyManagers(
-    uint8_t* pkcs8PrivateKey,
-    int32_t pkcs8PrivateKeyLen,
-    PAL_KeyAlgorithm algorithm,
-    jobject* /*X509Certificate[]*/ certs,
-    int32_t certsLen);
+PALEXPORT SSLStream* AndroidCryptoNative_SSLStreamCreateWithCertificates(intptr_t sslStreamProxyHandle,
+                                                                         uint8_t* pkcs8PrivateKey,
+                                                                         int32_t pkcs8PrivateKeyLen,
+                                                                         PAL_KeyAlgorithm algorithm,
+                                                                         jobject* /*X509Certificate[]*/ certs,
+                                                                         int32_t certsLen);
 
 /*
-Create key managers from a KeyStore PrivateKeyEntry.
-The returned KeyManager[] should be passed to SSLStreamCreate.
+Create an SSL context with the specified certificates and private key from KeyChain
 
 Returns NULL on failure
 */
-PALEXPORT jobjectArray AndroidCryptoNative_SSLStreamCreateKeyManagersFromKeyStoreEntry(jobject privateKeyEntry);
+PALEXPORT SSLStream* AndroidCryptoNative_SSLStreamCreateWithKeyStorePrivateKeyEntry(intptr_t sslStreamProxyHandle, jobject privateKeyEntry);
 
 /*
 Initialize an SSL context
@@ -83,7 +78,7 @@ Initialize an SSL context
 Returns 1 on success, 0 otherwise
 */
 PALEXPORT int32_t AndroidCryptoNative_SSLStreamInitialize(
-    SSLStream* sslStream, bool isServer, ManagedContextHandle managedContextHandle, STREAM_READER streamReader, STREAM_WRITER streamWriter, MANAGED_CONTEXT_CLEANUP managedContextCleanup, int32_t appBufferSize, const char* peerHost);
+    SSLStream* sslStream, bool isServer, ManagedContextHandle managedContextHandle, STREAM_READER streamReader, STREAM_WRITER streamWriter, MANAGED_CONTEXT_CLEANUP managedContextCleanup, int32_t appBufferSize, char* peerHost);
 
 /*
 Set target host
@@ -91,7 +86,7 @@ Set target host
 
 Returns 1 on success, 0 otherwise
 */
-PALEXPORT int32_t AndroidCryptoNative_SSLStreamSetTargetHost(SSLStream* sslStream, const char* targetHost);
+PALEXPORT int32_t AndroidCryptoNative_SSLStreamSetTargetHost(SSLStream* sslStream, char* targetHost);
 
 /*
 Check if the local certificate has been sent to the peer during the TLS handshake.

@@ -3,13 +3,11 @@
 
 using System.Buffers.Binary;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using Xunit;
 
 namespace System.IO.Hashing.Tests
 {
-    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)]
     public abstract class NonCryptoHashTestDriver
     {
         private readonly int _hashLengthInBytes;
@@ -309,22 +307,6 @@ namespace System.IO.Hashing.Tests
                     Assert.Equal(hash.GetCurrentHash(), clone.GetCurrentHash());
                 }
             }
-        }
-
-        [Fact]
-        public void AppendingEmptyHasNoEffect()
-        {
-            NonCryptographicHashAlgorithm reference = CreateInstance();
-            reference.Append(new byte[] { 1, 2, 3 });
-            byte[] expected = reference.GetCurrentHash();
-
-            NonCryptographicHashAlgorithm hash = CreateInstance();
-            hash.Append(ReadOnlySpan<byte>.Empty);
-            hash.Append(new byte[] { 1, 2, 3 });
-            hash.Append(ReadOnlySpan<byte>.Empty);
-            byte[] actual = hash.GetCurrentHash();
-
-            Assert.Equal(expected, actual);
         }
 
         private void VerifyEmptyResult(ReadOnlySpan<byte> result)

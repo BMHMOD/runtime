@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b178119;
-
 using System;
 using Xunit;
 
@@ -136,7 +133,6 @@ public class bug178119
         return result;
     }
 
-    [OuterLoop]
     [Fact]
     public static void TestEntryPoint()
     {

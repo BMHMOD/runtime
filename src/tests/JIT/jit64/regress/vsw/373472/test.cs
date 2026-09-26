@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 // This test is used to try out very large decrementing loop strides.  The strides cannot be negated if the integer
 // is too large.  For example, a stride of 0xA0000000 cannot be turned into a signed number.  For the most
@@ -12,7 +11,6 @@ using TestLibrary;
 
 public class StrideTest
 {
-    [ActiveIssue("Allocates large contiguous array that is not consistently available on 32-bit processes", typeof(PlatformDetection), nameof(PlatformDetection.Is32BitProcess))]
     [Fact]
     public static int TestEntryPoint()
     {

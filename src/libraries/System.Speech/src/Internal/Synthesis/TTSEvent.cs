@@ -11,7 +11,7 @@ namespace System.Speech.Internal.Synthesis
     {
         #region Constructors
 
-        internal TTSEvent(TtsEventId id, Prompt prompt, Exception? exception, VoiceInfo? voice)
+        internal TTSEvent(TtsEventId id, Prompt prompt, Exception exception, VoiceInfo voice)
         {
             _evtId = id;
             _prompt = prompt;
@@ -19,7 +19,7 @@ namespace System.Speech.Internal.Synthesis
             _voice = voice;
         }
 
-        internal TTSEvent(TtsEventId id, Prompt prompt, Exception? exception, VoiceInfo? voice, TimeSpan audioPosition, long streamPosition, string? bookmark, uint wParam, IntPtr lParam)
+        internal TTSEvent(TtsEventId id, Prompt prompt, Exception exception, VoiceInfo voice, TimeSpan audioPosition, long streamPosition, string bookmark, uint wParam, IntPtr lParam)
             : this(id, prompt, exception, voice)
         {
             _audioPosition = audioPosition;
@@ -28,11 +28,18 @@ namespace System.Speech.Internal.Synthesis
             _lParam = lParam;
         }
 
+        private TTSEvent()
+        {
+        }
+
         internal static TTSEvent CreatePhonemeEvent(string phoneme, string nextPhoneme,
                                                     TimeSpan duration, SynthesizerEmphasis emphasis,
                                                     Prompt prompt, TimeSpan audioPosition)
         {
-            TTSEvent ttsEvent = new(id: TtsEventId.Phoneme, prompt, exception: null, voice: null, audioPosition, streamPosition: default, bookmark: null, wParam: default, default);
+            TTSEvent ttsEvent = new();
+            ttsEvent._evtId = TtsEventId.Phoneme;
+            ttsEvent._audioPosition = audioPosition;
+            ttsEvent._prompt = prompt;
             ttsEvent._phoneme = phoneme;
             ttsEvent._nextPhoneme = nextPhoneme;
             ttsEvent._phonemeDuration = duration;
@@ -53,7 +60,7 @@ namespace System.Speech.Internal.Synthesis
             }
         }
 
-        internal Exception? Exception
+        internal Exception Exception
         {
             get
             {
@@ -69,7 +76,7 @@ namespace System.Speech.Internal.Synthesis
             }
         }
 
-        internal VoiceInfo? Voice
+        internal VoiceInfo Voice
         {
             get
             {
@@ -85,7 +92,7 @@ namespace System.Speech.Internal.Synthesis
             }
         }
 
-        internal string? Bookmark
+        internal string Bookmark
         {
             get
             {
@@ -117,7 +124,7 @@ namespace System.Speech.Internal.Synthesis
             }
         }
 
-        internal string? Phoneme
+        internal string Phoneme
         {
             get
             {
@@ -125,7 +132,7 @@ namespace System.Speech.Internal.Synthesis
             }
         }
 
-        internal string? NextPhoneme
+        internal string NextPhoneme
         {
             get
             {
@@ -150,10 +157,10 @@ namespace System.Speech.Internal.Synthesis
         #region private Fields
 
         private TtsEventId _evtId;
-        private Exception? _exception;
-        private VoiceInfo? _voice;
+        private Exception _exception;
+        private VoiceInfo _voice;
         private TimeSpan _audioPosition;
-        private string? _bookmark;
+        private string _bookmark;
         private uint _wParam;
         private IntPtr _lParam;
         private Prompt _prompt;
@@ -161,8 +168,8 @@ namespace System.Speech.Internal.Synthesis
         //
         // Data for phoneme event
         //
-        private string? _phoneme;
-        private string? _nextPhoneme;
+        private string _phoneme;
+        private string _nextPhoneme;
         private TimeSpan _phonemeDuration;
         private SynthesizerEmphasis _phonemeEmphasis;
         #endregion

@@ -127,7 +127,7 @@ LOCAL_LABEL(Done_Restore_CONTEXT_FLOATING_POINT):
     vinsertf128 ymm15, ymm15, xmmword ptr [rdi + (CONTEXT_Ymm0H + 15 * 16)], 1
 
     test    BYTE PTR [rdi + CONTEXT_XStateFeaturesMask], XSTATE_MASK_AVX512
-    je      LOCAL_LABEL(Done_Restore_CONTEXT_AVX512)
+    je      LOCAL_LABEL(Done_Restore_CONTEXT_XSTATE)
 
     // MacOS has specialized behavior where it reports AVX512 support but doesnt
     // actually enable AVX512 until the first instruction is executed and does so
@@ -183,9 +183,7 @@ LOCAL_LABEL(Done_Restore_CONTEXT_FLOATING_POINT):
     kmovq k6, qword ptr [rdi + (CONTEXT_KMask0 + 6 * 8)]
     kmovq k7, qword ptr [rdi + (CONTEXT_KMask0 + 7 * 8)]
 
-
-LOCAL_LABEL(Done_Restore_CONTEXT_AVX512):
-    test    DWORD PTR [rdi + CONTEXT_XStateFeaturesMask], XSTATE_MASK_APX
+    test    BYTE PTR [rdi + CONTEXT_XStateFeaturesMask], XSTATE_MASK_APX
     je      LOCAL_LABEL(Done_Restore_CONTEXT_XSTATE)
 
     // TODO-XArch-APX:

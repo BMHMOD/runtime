@@ -9,9 +9,16 @@ using System.Threading;
 
 namespace System.Net
 {
-    [EventSource(Name = "System.Net.NameResolution")]
-    internal sealed partial class NameResolutionTelemetry : EventSource
+    [EventSource(Name = NameResolutionTelemetryName)]
+    internal sealed class NameResolutionTelemetry : EventSource
     {
+        private const string NameResolutionTelemetryName = "System.Net.NameResolution";
+
+        public NameResolutionTelemetry()
+            : base(NameResolutionTelemetryName, EventSourceSettings.EtwManifestEventFormat)
+        {
+        }
+
         public static readonly NameResolutionTelemetry Log = new NameResolutionTelemetry();
 
         private const int ResolutionStartEventId = 1;
@@ -195,7 +202,6 @@ namespace System.Net
                         string[]? answerValues = answer switch
                         {
                             string h => [h],
-                            string[] values => values,
                             IPAddress[] addresses => GetStringValues(addresses),
                             IPHostEntry entry => GetStringValues(entry.AddressList),
                             _ => null

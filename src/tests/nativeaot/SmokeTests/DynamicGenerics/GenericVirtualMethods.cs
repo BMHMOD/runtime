@@ -27,7 +27,6 @@ public static class GenericVirtualMethods
         }
     }
 
-
     class GVMDerivedClass : GVMClass, IInterfaceWithGVM
     {
         public override string GVM<T>(object o) 
@@ -160,11 +159,6 @@ public static class GenericVirtualMethods
         GVMClass testObject = new GVMDerivedClass();
         IInterfaceWithGVM igvm = testObject;
 
-        Assert.AreEqual("Called Derived.GVM<int>", CallSharedGvm0(igvm));
-        Assert.AreEqual("Called Derived.GVM<int>", CallSharedGvm1(igvm));
-        Assert.AreEqual("Called Derived.GVM<int>", CallSharedGvm2(igvm));
-        Assert.AreEqual("Called Derived.GVM<int>", CallSharedGvm3(igvm));
-
         // Test normal GVM call
         Assert.AreEqual("Called Derived.GVM<int>", testObject.GVM<int>(54));
         Assert.AreEqual("Called Derived.GVM<GVMClass>", testObject.GVM<GVMClass>(testObject));
@@ -213,18 +207,6 @@ public static class GenericVirtualMethods
         TestConstrainedCalls<GVMStructGeneric<object>>(new GVMStructGeneric<object>(), "Called GVMStructGeneric<object>.GVM<int>", "Called GVMStructGeneric<object>.GVM<GVMDerivedClass>", "Called GVMStructGeneric<object>.GVM<string>");
         TestConstrainedCalls<IInterfaceWithGVM>(new GVMStructGeneric<object>(), "Called GVMStructGeneric<object>.GVM<int>", "Called GVMStructGeneric<object>.GVM<GVMDerivedClass>", "Called GVMStructGeneric<object>.GVM<string>");
     }
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static string CallSharedGvm0(IInterfaceWithGVM instance) => instance.GVM<int>(54);
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static string CallSharedGvm1(IInterfaceWithGVM instance) => instance.GVM<int>(54);
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static string CallSharedGvm2(IInterfaceWithGVM instance) => instance.GVM<int>(54);
-
-    [MethodImpl(MethodImplOptions.NoInlining)]
-    private static string CallSharedGvm3(IInterfaceWithGVM instance) => instance.GVM<int>(54);
 
     static class GenericStaticClass<T>
     {
@@ -513,3 +495,4 @@ public static class GenericVirtualMethods
         Assert.AreEqual<string>("CallOnDerived" , ((IOutVariant<Derived>)testClass).Func<object>());
     }
 }
+

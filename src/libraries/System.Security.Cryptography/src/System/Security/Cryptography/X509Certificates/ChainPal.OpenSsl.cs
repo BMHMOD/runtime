@@ -8,9 +8,6 @@ namespace System.Security.Cryptography.X509Certificates
 {
     internal sealed partial class ChainPal
     {
-        // An input value of 0 on the timeout is treated as 15 seconds, to match Windows.
-        internal static readonly TimeSpan DefaultRetrievalTimeout = TimeSpan.FromSeconds(15);
-
         private static readonly TimeSpan s_maxUrlRetrievalTimeout = TimeSpan.FromMinutes(1);
 
 #pragma warning disable IDE0060
@@ -90,7 +87,8 @@ namespace System.Security.Cryptography.X509Certificates
         {
             if (timeout == TimeSpan.Zero)
             {
-                timeout = DefaultRetrievalTimeout;
+                // An input value of 0 on the timeout is treated as 15 seconds, to match Windows.
+                timeout = TimeSpan.FromSeconds(15);
             }
             else if (timeout > s_maxUrlRetrievalTimeout || timeout < TimeSpan.Zero)
             {
@@ -100,7 +98,14 @@ namespace System.Security.Cryptography.X509Certificates
                 timeout = s_maxUrlRetrievalTimeout;
             }
 
-            DateTimeOffset verificationInstant = new DateTimeOffset(verificationTime);
+            // Let Unspecified mean Local, so only convert if the source was UTC.
+            //
+            // Converge on Local instead of UTC because OpenSSL is going to assume we gave it
+            // local time.
+            if (verificationTime.Kind == DateTimeKind.Utc)
+            {
+                verificationTime = verificationTime.ToLocalTime();
+            }
 
             // Until we support the Disallowed store, ensure it's empty (which is done by the ctor)
             using (new X509Store(StoreName.Disallowed, StoreLocation.CurrentUser, OpenFlags.ReadOnly))
@@ -113,7 +118,7 @@ namespace System.Security.Cryptography.X509Certificates
                 ((OpenSslX509CertificateReader)cert).SafeHandle,
                 customTrustStore,
                 trustMode,
-                verificationInstant,
+                verificationTime,
                 downloadTimeout);
 
             Interop.Crypto.X509VerifyStatusCode status = chainPal.FindFirstChain(extraStore);

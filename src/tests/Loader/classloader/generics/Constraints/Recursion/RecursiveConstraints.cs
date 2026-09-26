@@ -9,7 +9,6 @@ using System.Collections.Generic;
 using System.Text;
 
 using Xunit;
-using TestLibrary;
 
 // Test 1: Base class with recursive constraint, derived class
 public class Test1
@@ -168,7 +167,6 @@ public class RecursiveConstraints
         }
     }
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint()
     {

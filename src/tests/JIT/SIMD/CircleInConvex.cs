@@ -12,7 +12,7 @@ using Point = System.Numerics.Vector2;
 using Xunit;
 
 
-namespace SIMDTests.CircleInConvexTests
+namespace ClassLibrary
 {
 
     public class test

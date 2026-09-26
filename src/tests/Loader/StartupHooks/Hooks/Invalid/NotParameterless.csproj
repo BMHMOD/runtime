@@ -6,7 +6,4 @@
   <ItemGroup>
     <Compile Include="InvalidHook.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

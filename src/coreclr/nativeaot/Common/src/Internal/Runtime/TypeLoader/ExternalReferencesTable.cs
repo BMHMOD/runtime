@@ -47,11 +47,6 @@ namespace Internal.Runtime.TypeLoader
             return Initialize(module, ReflectionMapBlob.CommonFixupsTable);
         }
 
-        public bool InitializeNativeReferences(TypeManagerHandle module)
-        {
-            return Initialize(module, ReflectionMapBlob.NativeReferences);
-        }
-
         public unsafe IntPtr GetIntPtrFromIndex(uint index)
         {
             return GetAddressFromIndex(index);

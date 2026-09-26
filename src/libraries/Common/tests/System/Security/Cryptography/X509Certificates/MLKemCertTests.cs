@@ -37,7 +37,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             }
         }
 
-        [ConditionalTheory(typeof(MLKemCertTests), nameof(MLKemIsNotSupported))]
+        [ConditionalTheory(nameof(MLKemIsNotSupported))]
         [InlineData(MLKemTestData.IetfMlKem512CertificatePem)]
         [InlineData(MLKemTestData.IetfMlKem768CertificatePem)]
         [InlineData(MLKemTestData.IetfMlKem1024CertificatePem)]

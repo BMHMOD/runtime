@@ -142,10 +142,8 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-// There's no LoadIntoBufferAsync(CancellationToken) overload on Framework.
-// So no way to pass and propagate cancellation when buffering response content.
-#if !NETFRAMEWORK
         [Theory]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/25760")]
         [MemberData(nameof(TwoBoolsAndCancellationMode))]
         public async Task GetAsync_CancelDuringResponseBodyReceived_Buffered_TaskCanceledQuickly(bool chunkedTransfer, bool connectionClose, CancellationMode mode)
         {
@@ -198,7 +196,6 @@ namespace System.Net.Http.Functional.Tests
                 });
             }
         }
-#endif
 
         [Theory]
         [MemberData(nameof(ThreeBools))]
@@ -523,6 +520,8 @@ namespace System.Net.Http.Functional.Tests
         }
 
 #if !NETFRAMEWORK
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/41531")]
+        [OuterLoop("Uses Task.Delay")]
         [Theory]
         [MemberData(nameof(PostAsync_Cancel_CancellationTokenPassedToContent_MemberData))]
         public async Task PostAsync_Cancel_CancellationTokenPassedToContent(HttpContent content, CancellationTokenSource cancellationTokenSource)
@@ -559,7 +558,7 @@ namespace System.Net.Http.Functional.Tests
                         await server.HandleRequestAsync(content: "Hello World");
                     }
                     catch (Exception) { }
-                }).WaitAsync(TestHelper.PassingTestTimeout);
+                });
         }
 #endif
 

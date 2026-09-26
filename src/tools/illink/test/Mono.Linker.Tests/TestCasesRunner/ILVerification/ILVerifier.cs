@@ -11,7 +11,7 @@ using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using ILVerify;
 using Mono.Linker.Tests.Extensions;
-using Xunit;
+using NUnit.Framework;
 
 namespace Mono.Linker.Tests.TestCasesRunner.ILVerification;
 

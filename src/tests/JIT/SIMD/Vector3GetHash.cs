@@ -13,8 +13,6 @@ using System;
 using System.Numerics;
 using Xunit;
 
-namespace SIMDTests.Vector3GetHashTests;
-
 public partial class VectorTest
 {
     private const int Pass = 100;
@@ -63,7 +61,6 @@ public partial class VectorTest
             Assert.NotEqual(v7.GetHashCode(), v9.GetHashCode());
         }
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {
@@ -82,3 +79,4 @@ public partial class VectorTest
         }
     }
 }
+

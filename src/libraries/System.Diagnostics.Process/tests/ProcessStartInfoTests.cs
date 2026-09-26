@@ -210,28 +210,6 @@ namespace System.Diagnostics.Tests
             });
         }
 
-        [Fact]
-        public void EnvironmentVariableContainingNull_ThrowsArgumentException()
-        {
-            const string InvalidKey = "Name\0Suffix";
-            const string InvalidValue = "Value\0Suffix";
-            ProcessStartInfo psi = new ProcessStartInfo();
-            IDictionary environment = (IDictionary)psi.Environment;
-            ICollection<KeyValuePair<string, string>> environmentCollection = psi.Environment;
-
-            AssertExtensions.Throws<ArgumentException>("key", () => psi.Environment[InvalidKey] = "value");
-            AssertExtensions.Throws<ArgumentException>("key", () => environment[InvalidKey] = "value");
-            AssertExtensions.Throws<ArgumentException>("key", () => psi.Environment.Add(InvalidKey, "value"));
-            AssertExtensions.Throws<ArgumentException>("key", () => environmentCollection.Add(new KeyValuePair<string, string>(InvalidKey, "value")));
-            AssertExtensions.Throws<ArgumentException>("key", () => environment.Add(InvalidKey, "value"));
-
-            AssertExtensions.Throws<ArgumentException>("value", () => psi.Environment["key"] = InvalidValue);
-            AssertExtensions.Throws<ArgumentException>("value", () => environment["key"] = InvalidValue);
-            AssertExtensions.Throws<ArgumentException>("value", () => psi.Environment.Add("key", InvalidValue));
-            AssertExtensions.Throws<ArgumentException>("value", () => environmentCollection.Add(new KeyValuePair<string, string>("key", InvalidValue)));
-            AssertExtensions.Throws<ArgumentException>("value", () => environment.Add("key", InvalidValue));
-        }
-
         [ConditionalFact(typeof(RemoteExecutor), nameof(RemoteExecutor.IsSupported))]
         public void TestSetEnvironmentOnChildProcess()
         {
@@ -413,7 +391,8 @@ namespace System.Diagnostics.Tests
             // To mimic this behaviour, we can't use Environment.SetEnvironmentVariable here as it's case-insensitive on Windows.
             // We also can't use p.StartInfo.Environment as it's comparer is set to OrdinalIgnoreCAse.
             // But we can overwrite it using reflection to mimic the CreateProcess behaviour and avoid having this test call CreateProcess directly.
-            Type.GetType("System.Collections.Specialized.DictionaryWrapper, System.Diagnostics.Process")!
+            p.StartInfo.Environment
+                .GetType()
                 .GetField("_contents", Reflection.BindingFlags.NonPublic | Reflection.BindingFlags.Instance)
                 .SetValue(p.StartInfo.Environment, envVars);
 
@@ -469,17 +448,6 @@ namespace System.Diagnostics.Tests
             Assert.Equal("-arg3 -arg4", psi.Arguments);
         }
 
-        [Fact]
-        public void TestArgumentsNullProperty()
-        {
-            string? args = null;
-            ProcessStartInfo psi = new ProcessStartInfo("filename", args);
-            Assert.Equal(string.Empty, psi.Arguments);
-
-            psi.Arguments = null;
-            Assert.Equal(string.Empty, psi.Arguments);
-        }
-
         [ConditionalTheory(typeof(RemoteExecutor), nameof(RemoteExecutor.IsSupported)), InlineData(true), InlineData(false)]
         public void TestCreateNoWindowProperty(bool value)
         {
@@ -521,17 +489,14 @@ namespace System.Diagnostics.Tests
             }, workingDirectory, new RemoteInvokeOptions { StartInfo = psi }).Dispose();
         }
 
-        [ConditionalTheory(typeof(ProcessStartInfoTests), nameof(IsAdmin_IsNotNano_RemoteExecutorIsSupported))] // Nano has no "netapi32.dll", Admin rights are required
+        [ConditionalFact(nameof(IsAdmin_IsNotNano_RemoteExecutorIsSupported))] // Nano has no "netapi32.dll", Admin rights are required
         [PlatformSpecific(TestPlatforms.Windows)]
         [OuterLoop("Requires admin privileges")]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/80019", TestRuntimes.Mono)]
-        [InlineData(true)]
-        [InlineData(false)]
-        public void TestUserCredentialsPropertiesOnWindows(bool killOnParentExit)
+        public void TestUserCredentialsPropertiesOnWindows()
         {
             using Process longRunning = CreateProcessLong();
             longRunning.StartInfo.LoadUserProfile = true;
-            longRunning.StartInfo.KillOnParentExit = killOnParentExit;
 
             using TestProcessState testAccountCleanup = CreateUserAndExecute(longRunning, Setup, Cleanup);
 
@@ -1467,17 +1432,6 @@ namespace System.Diagnostics.Tests
                     Assert.False(process != null, $"Process started despite incompatible options {nameof(info.LoadUserProfile)} and {nameof(info.UseCredentialsForNetworkingOnly)} were enabled");
                 }
             });
-        }
-
-        [ConditionalFact(typeof(RemoteExecutor), nameof(RemoteExecutor.IsSupported))]
-        [SkipOnPlatform(TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst, "Process.Start is not supported on iOS, tvOS, and MacCatalyst.")]
-        public void UserNameCantBeCombinedWithInheritedHandles()
-        {
-            using Process longRunning = CreateProcessLong();
-            longRunning.StartInfo.UserName = nameof(ProcessStartInfo.UserName);
-            longRunning.StartInfo.InheritedHandles = [];
-
-            Assert.Throws<InvalidOperationException>(() => longRunning.Start());
         }
 
         private static TestProcessState CreateUserAndExecute(

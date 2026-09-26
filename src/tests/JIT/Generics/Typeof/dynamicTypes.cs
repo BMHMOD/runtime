@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-namespace JitTest_Generics_Typeof_dynamicTypes;
-
 /* The following are the checks being made, where x is a user defined type as described below. The test does all of this pretty much as a grid cross section, so there are redundant cast cases also covered here.
 
 1.	if(y.GetType() == typeof(x)) do something;
@@ -755,7 +753,6 @@ public class mainMethod
                 //Console.WriteLine("-----------{0}", i++);
         }
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

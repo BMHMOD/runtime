@@ -22,8 +22,9 @@ namespace ILCompiler
         {
             CanonicalEntrypoint,
             ExactCallableAddress,
-            Dispatch,
+            InterfaceDispatch,
             VTableLookup,
+            MethodHandle,
             ConstrainedMethod,
         }
 
@@ -73,7 +74,7 @@ namespace ILCompiler
         {
             get
             {
-                return _targetKind == TargetKind.VTableLookup || (_targetKind == TargetKind.Dispatch && !TargetMethod.HasInstantiation);
+                return _targetKind == TargetKind.VTableLookup || _targetKind == TargetKind.InterfaceDispatch;
             }
         }
 
@@ -88,7 +89,8 @@ namespace ILCompiler
 
                     case TargetKind.CanonicalEntrypoint:
                     case TargetKind.ExactCallableAddress:
-                    case TargetKind.Dispatch:
+                    case TargetKind.InterfaceDispatch:
+                    case TargetKind.MethodHandle:
                         return TargetMethod.IsRuntimeDeterminedExactMethod;
 
                     case TargetKind.ConstrainedMethod:
@@ -114,8 +116,11 @@ namespace ILCompiler
                 case TargetKind.ExactCallableAddress:
                     return factory.GenericLookup.MethodEntry(TargetMethod, TargetMethodIsUnboxingThunk);
 
-                case TargetKind.Dispatch:
-                    return factory.GenericLookup.DispatchCell(TargetMethod);
+                case TargetKind.InterfaceDispatch:
+                    return factory.GenericLookup.VirtualDispatchCell(TargetMethod);
+
+                case TargetKind.MethodHandle:
+                    return factory.GenericLookup.MethodHandle(TargetMethod);
 
                 case TargetKind.ConstrainedMethod:
                     return factory.GenericLookup.ConstrainedMethodUse(_targetMethod, _constrainedType, directCall: !_targetMethod.HasInstantiation);
@@ -141,8 +146,11 @@ namespace ILCompiler
                 case TargetKind.ExactCallableAddress:
                     return factory.ExactCallableAddressTakenAddress(TargetMethod, TargetMethodIsUnboxingThunk);
 
-                case TargetKind.Dispatch:
-                    return factory.DispatchCell(TargetMethod);
+                case TargetKind.InterfaceDispatch:
+                    return factory.InterfaceDispatchCell(TargetMethod);
+
+                case TargetKind.MethodHandle:
+                    return factory.RuntimeMethodHandle(TargetMethod);
 
                 case TargetKind.VTableLookup:
                     Debug.Fail("Need to do runtime lookup");
@@ -248,7 +256,7 @@ namespace ILCompiler
                     if (followVirtualDispatch && targetMethod.IsVirtual)
                     {
                         initializeMethodName = "InitializeClosedInstanceWithGVMResolution"u8;
-                        kind = TargetKind.Dispatch;
+                        kind = TargetKind.MethodHandle;
                     }
                     else
                     {
@@ -270,7 +278,7 @@ namespace ILCompiler
                     {
                         if (targetMethod.OwningType.IsInterface)
                         {
-                            kind = TargetKind.Dispatch;
+                            kind = TargetKind.InterfaceDispatch;
                             initializeMethodName = "InitializeClosedInstanceToInterface"u8;
                         }
                         else

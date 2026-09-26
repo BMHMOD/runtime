@@ -9,7 +9,7 @@ using Xunit.Abstractions;
 namespace System.Xml.XslCompiledTransformApiTests
 {
     //[TestCase(Name = "TemporaryFiles", Desc = "This testcase tests the Temporary Files property on XslCompiledTransform")]
-    [ConditionalClass(typeof(XsltApiTestRequirements), nameof(XsltApiTestRequirements.IsSupported))]
+    [ConditionalClass(typeof(PlatformDetection), nameof(PlatformDetection.IsReflectionEmitSupported))]
     public class TempFiles : XsltApiTestCaseBase2
     {
         private XslCompiledTransform _xsl = null;

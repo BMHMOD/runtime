@@ -218,8 +218,8 @@ namespace System.IO
         {
             FileAccess access = 0;
 
-            if ((rights & FileSystemRights.FullControl) == FileSystemRights.FullControl ||
-                (rights & FileSystemRights.Modify) == FileSystemRights.Modify)
+            if ((rights & FileSystemRights.FullControl) != 0 ||
+                (rights & FileSystemRights.Modify) != 0)
             {
                 return FileAccess.ReadWrite;
             }
@@ -269,7 +269,11 @@ namespace System.IO
 
             SafeFileHandle handle;
 
-            Interop.Kernel32.SECURITY_ATTRIBUTES secAttrs = Interop.Kernel32.SECURITY_ATTRIBUTES.Create((share & FileShare.Inheritable) != 0);
+            var secAttrs = new Interop.Kernel32.SECURITY_ATTRIBUTES
+            {
+                nLength = (uint)sizeof(Interop.Kernel32.SECURITY_ATTRIBUTES),
+                bInheritHandle = ((share & FileShare.Inheritable) != 0) ? Interop.BOOL.TRUE : Interop.BOOL.FALSE,
+            };
 
             if (security != null)
             {

@@ -5,7 +5,4 @@
   <ItemGroup>
     <Compile Include="TypeHierarchyCommonCs.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

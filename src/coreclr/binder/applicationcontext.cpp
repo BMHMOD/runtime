@@ -80,11 +80,16 @@ namespace BINDER_SPACE
 
     HRESULT ApplicationContext::SetupBindingPaths(SString &sTrustedPlatformAssemblies,
                                                   SString &sPlatformResourceRoots,
-                                                  SString &sAppPaths)
+                                                  SString &sAppPaths,
+                                                  BOOL     fAcquireLock)
     {
         HRESULT hr = S_OK;
 
-        _ASSERTE(m_pTrustedPlatformAssemblyMap == nullptr);
+        CRITSEC_Holder contextLock(fAcquireLock ? GetCriticalSectionCookie() : NULL);
+        if (m_pTrustedPlatformAssemblyMap != nullptr)
+        {
+            GO_WITH_HRESULT(S_OK);
+        }
 
         //
         // Parse TrustedPlatformAssemblies
@@ -92,21 +97,34 @@ namespace BINDER_SPACE
         m_pTrustedPlatformAssemblyMap = new SimpleNameToFileNameMap();
 
         sTrustedPlatformAssemblies.Normalize();
+
         for (SString::Iterator i = sTrustedPlatformAssemblies.Begin(); i != sTrustedPlatformAssemblies.End(); )
         {
             SString fileName;
             SString simpleName;
+            bool isNativeImage = false;
             HRESULT pathResult = S_OK;
-            IF_FAIL_GO(pathResult = GetNextTPAPath(sTrustedPlatformAssemblies, i, /*dllOnly*/ false, fileName, simpleName));
+            IF_FAIL_GO(pathResult = GetNextTPAPath(sTrustedPlatformAssemblies, i, /*dllOnly*/ false, fileName, simpleName, isNativeImage));
             if (pathResult == S_FALSE)
             {
                 break;
             }
 
             const SimpleNameToFileNameMapEntry *pExistingEntry = m_pTrustedPlatformAssemblyMap->LookupPtr(simpleName.GetUnicode());
+
             if (pExistingEntry != nullptr)
             {
-                continue;
+                //
+                // We want to store only the first entry matching a simple name we encounter.
+                // The exception is if we first store an IL reference and later in the string
+                // we encounter a native image.  Since we don't touch IL in the presence of
+                // native images, we replace the IL entry with the NI.
+                //
+                if ((pExistingEntry->m_wszILFileName != nullptr && !isNativeImage) ||
+                    (pExistingEntry->m_wszNIFileName != nullptr && isNativeImage))
+                {
+                    continue;
+                }
             }
 
             LPWSTR wszSimpleName = nullptr;
@@ -133,7 +151,16 @@ namespace BINDER_SPACE
 
             SimpleNameToFileNameMapEntry mapEntry;
             mapEntry.m_wszSimpleName = wszSimpleName;
-            mapEntry.m_wszILFileName = wszFileName;
+            if (isNativeImage)
+            {
+                mapEntry.m_wszNIFileName = wszFileName;
+                mapEntry.m_wszILFileName = pExistingEntry == nullptr ? nullptr : pExistingEntry->m_wszILFileName;
+            }
+            else
+            {
+                mapEntry.m_wszILFileName = wszFileName;
+                mapEntry.m_wszNIFileName = pExistingEntry == nullptr ? nullptr : pExistingEntry->m_wszNIFileName;
+            }
 
             m_pTrustedPlatformAssemblyMap->AddOrReplace(mapEntry);
         }

@@ -40,14 +40,16 @@ DictionaryLayout* DictionaryLayout::Allocate(WORD              numSlots,
                                              LoaderAllocator * pAllocator,
                                              AllocMemTracker * pamTracker)
 {
-    CONTRACTL
+    CONTRACT(DictionaryLayout*)
     {
         THROWS;
         GC_NOTRIGGER;
+        INJECT_FAULT(COMPlusThrowOM(););
         PRECONDITION(CheckPointer(pAllocator));
         PRECONDITION(numSlots > 0);
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     S_SIZE_T bytes = S_SIZE_T(sizeof(DictionaryLayout)) + S_SIZE_T(sizeof(DictionaryEntryLayout)) * S_SIZE_T(numSlots-1);
 
@@ -62,7 +64,7 @@ DictionaryLayout* DictionaryLayout::Allocate(WORD              numSlots,
     pD->m_numSlots = numSlots;
     pD->m_numInitialSlots = numSlots;
 
-    return pD;
+    RETURN pD;
 }
 
 #endif //!DACCESS_COMPILE
@@ -267,6 +269,7 @@ DictionaryLayout* DictionaryLayout::ExpandDictionaryLayout(LoaderAllocator*     
     CONTRACTL
     {
         STANDARD_VM_CHECK;
+        INJECT_FAULT(ThrowOutOfMemory(););
         PRECONDITION(GetAppDomain()->GetGenericDictionaryExpansionLock()->OwnedByCurrentThread());
         PRECONDITION(CheckPointer(pResult) && CheckPointer(pSlotOut));
     }
@@ -479,12 +482,13 @@ DictionaryEntryLayout::GetKind()
 #ifndef DACCESS_COMPILE
 Dictionary* Dictionary::GetMethodDictionaryWithSizeCheck(MethodDesc* pMD, ULONG slotIndex)
 {
-    CONTRACTL
+    CONTRACT(Dictionary*)
     {
         THROWS;
         GC_TRIGGERS;
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     DWORD numGenericArgs = pMD->GetNumGenericMethodArgs();
 
@@ -531,17 +535,18 @@ Dictionary* Dictionary::GetMethodDictionaryWithSizeCheck(MethodDesc* pMD, ULONG 
         }
     }
 
-    return pDictionary;
+    RETURN pDictionary;
 }
 
 Dictionary* Dictionary::GetTypeDictionaryWithSizeCheck(MethodTable* pMT, ULONG slotIndex)
 {
-    CONTRACTL
+    CONTRACT(Dictionary*)
     {
        THROWS;
        GC_TRIGGERS;
+       POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     DWORD numGenericArgs = pMT->GetNumGenericArgs();
 
@@ -590,7 +595,7 @@ Dictionary* Dictionary::GetTypeDictionaryWithSizeCheck(MethodTable* pMT, ULONG s
         }
     }
 
-    return pDictionary;
+    RETURN pDictionary;
 }
 
 struct StaticVirtualDispatchHashBlob : public ILStubHashBlobBase
@@ -664,12 +669,12 @@ Dictionary::PopulateEntry(
     MethodDesc *       pMD,
     MethodTable *      pMT,
     LPVOID             signature,
+    BOOL               nonExpansive,
     DictionaryEntry ** ppSlot,
     DWORD              dictionaryIndexAndSlot, /* = -1 */
     Module *           pModule /* = NULL */)
 {
      CONTRACTL {
-        MODE_PREEMPTIVE;
         THROWS;
         GC_TRIGGERS;
     } CONTRACTL_END;
@@ -726,7 +731,7 @@ Dictionary::PopulateEntry(
 
         switch (signatureKind)
         {
-            case READYTORUN_FIXUP_DeclaringTypeHandle:   kind = DeclaringTypeHandleFromMethodSlot; break;
+            case READYTORUN_FIXUP_DeclaringTypeHandle:   kind = DeclaringTypeHandleSlot; break;
             case READYTORUN_FIXUP_TypeHandle:            kind = TypeHandleSlot; break;
             case READYTORUN_FIXUP_FieldHandle:           kind = FieldDescSlot; break;
             case READYTORUN_FIXUP_MethodHandle:          kind = MethodDescSlot; break;
@@ -806,11 +811,16 @@ Dictionary::PopulateEntry(
             declaringType = ptr.GetTypeHandleThrowing(
                 pLookupModule,
                 &typeContext,
-                ClassLoader::LoadTypes,
+                (nonExpansive ? ClassLoader::DontLoadTypes : ClassLoader::LoadTypes),
                 CLASS_LOADED,
                 FALSE,
                 NULL,
                 pZapSigContext);
+            if (declaringType.IsNull())
+            {
+                _ASSERTE(nonExpansive);
+                return NULL;
+            }
             IfFailThrow(ptr.SkipExactlyOne());
 
             FALLTHROUGH;
@@ -821,11 +831,16 @@ Dictionary::PopulateEntry(
             TypeHandle th = ptr.GetTypeHandleThrowing(
                 pLookupModule,
                 &typeContext,
-                ClassLoader::LoadTypes,
+                (nonExpansive ? ClassLoader::DontLoadTypes : ClassLoader::LoadTypes),
                 CLASS_LOADED,
                 FALSE,
                 NULL,
                 pZapSigContext);
+            if (th.IsNull())
+            {
+                _ASSERTE(nonExpansive);
+                return NULL;
+            }
             IfFailThrow(ptr.SkipExactlyOne());
 
             if (!declaringType.IsNull())
@@ -833,12 +848,7 @@ Dictionary::PopulateEntry(
                 th = th.GetMethodTable()->GetMethodTableMatchingParentClass(declaringType.AsMethodTable());
             }
 
-            if (!th.IsTypeDesc())
-            {
-                MethodTable* pMT = th.AsMethodTable();
-                _ASSERTE(pMT != NULL);
-                pMT->EnsureInstanceActive();
-            }
+            th.GetMethodTable()->EnsureInstanceActive();
 
             result = (CORINFO_GENERIC_HANDLE)th.AsPtr();
             break;
@@ -849,11 +859,16 @@ Dictionary::PopulateEntry(
             constraintType = ptr.GetTypeHandleThrowing(
                 pLookupModule,
                 &typeContext,
-                ClassLoader::LoadTypes,
+                (nonExpansive ? ClassLoader::DontLoadTypes : ClassLoader::LoadTypes),
                 CLASS_LOADED,
                 FALSE,
                 NULL,
                 pZapSigContext);
+            if (constraintType.IsNull())
+            {
+                _ASSERTE(nonExpansive);
+                return NULL;
+            }
             IfFailThrow(ptr.SkipExactlyOne());
 
             FALLTHROUGH;
@@ -862,7 +877,6 @@ Dictionary::PopulateEntry(
         case MethodDescSlot:
         case DispatchStubAddrSlot:
         case MethodEntrySlot:
-        case DeclaringTypeHandleFromMethodSlot:
         {
             TypeHandle ownerType;
             MethodTable * pOwnerMT = NULL;
@@ -876,9 +890,6 @@ Dictionary::PopulateEntry(
             uint32_t methodSlot = -1;
             BOOL fRequiresDispatchStub = 0;
             BOOL isAsyncVariant = 0;
-
-            // 'kind' can be reassigned below when the signature carries a constrained token, so capture this up front.
-            BOOL fDeclaringTypeHandleFromMethod = (kind == DeclaringTypeHandleFromMethodSlot);
 
             if (isReadyToRunModule)
             {
@@ -941,16 +952,16 @@ Dictionary::PopulateEntry(
                         _ASSERTE(pZapSigContext->pInfoModule->IsFullModule());
                         pMethod = MemberLoader::GetMethodDescFromMethodDef(static_cast<Module*>(pZapSigContext->pInfoModule), TokenFromRid(rid, mdtMethodDef), FALSE);
                     }
-
                     if (isAsyncVariant)
                     {
-                        pMethod = pMethod->GetAsyncVariant();
+                        pMethod = pMethod->GetAsyncOtherVariant();
                     }
                 }
 
                 if (ownerType.IsNull())
                     ownerType = pMethod->GetMethodTable();
 
+                _ASSERT(!ownerType.IsNull() && !nonExpansive);
                 pOwnerMT = ownerType.GetMethodTable();
 
                 if (kind == DispatchStubAddrSlot && pMethod->IsVtableMethod())
@@ -964,12 +975,21 @@ Dictionary::PopulateEntry(
                 ownerType = ptr.GetTypeHandleThrowing(
                     pLookupModule,
                     &typeContext,
-                    ClassLoader::LoadTypes,
+                    (nonExpansive ? ClassLoader::DontLoadTypes : ClassLoader::LoadTypes),
                     CLASS_LOADED,
                     FALSE,
                     NULL,
                     pZapSigContext);
+                if (ownerType.IsNull())
+                {
+                    _ASSERTE(nonExpansive);
+                    return NULL;
+                }
                 IfFailThrow(ptr.SkipExactlyOne());
+
+                // <NICE> wsperf: Create a path that doesn't load types or create new handles if nonExpansive is set </NICE>
+                if (nonExpansive)
+                    return NULL;
 
                 pOwnerMT = ownerType.GetMethodTable();
                 _ASSERTE(pOwnerMT != NULL);
@@ -1000,11 +1020,16 @@ Dictionary::PopulateEntry(
                     TypeHandle thMethodDefType = ptr.GetTypeHandleThrowing(
                         pLookupModule,
                         &typeContext,
-                        ClassLoader::LoadTypes,
+                        (nonExpansive ? ClassLoader::DontLoadTypes : ClassLoader::LoadTypes),
                         CLASS_LOADED,
                         FALSE,
                         NULL,
                         pZapSigContext);
+                    if (thMethodDefType.IsNull())
+                    {
+                        _ASSERTE(nonExpansive);
+                        return NULL;
+                    }
                     IfFailThrow(ptr.SkipExactlyOne());
                     MethodTable * pMethodDefMT = thMethodDefType.GetMethodTable();
                     _ASSERTE(pMethodDefMT != NULL);
@@ -1019,40 +1044,12 @@ Dictionary::PopulateEntry(
 
                     if (isAsyncVariant)
                     {
-                        pMethod = pMethod->GetAsyncVariant();
+                        pMethod = pMethod->GetAsyncOtherVariant();
                     }
 
                     _ASSERTE(pMethod != NULL);
                     pMethod->CheckRestore();
                 }
-            }
-
-            if (fDeclaringTypeHandleFromMethod)
-            {
-                _ASSERTE(isReadyToRunModule);
-
-                // The signature describes a method; the value of the slot is the type which declares that method.
-                // The method may be declared on a base type of the type referenced by the token, and the MethodDesc
-                // found for it may belong to a canonical instantiation of that base type, so walk the parent chain of
-                // the (exact) type from the token to recover the exact declaring type.
-                MethodTable * pDeclaringMT;
-                if (pMethod->IsArray())
-                {
-                    pDeclaringMT = pOwnerMT;
-                }
-                else
-                {
-                    pDeclaringMT = pMethod->GetExactDeclaringType(pOwnerMT);
-                    if (pDeclaringMT == NULL)
-                        COMPlusThrowHR(COR_E_TYPELOAD);
-                }
-
-                pDeclaringMT->EnsureInstanceActive();
-
-                _ASSERT(!pDeclaringMT->IsSharedByGenericInstantiations());
-
-                result = (CORINFO_GENERIC_HANDLE)TypeHandle(pDeclaringMT).AsPtr();
-                break;
             }
 
             if (fRequiresDispatchStub)
@@ -1254,11 +1251,16 @@ Dictionary::PopulateEntry(
                 ownerType = ptr.GetTypeHandleThrowing(
                     pLookupModule,
                     &typeContext,
-                    ClassLoader::LoadTypes,
+                    (nonExpansive ? ClassLoader::DontLoadTypes : ClassLoader::LoadTypes),
                     CLASS_LOADED,
                     FALSE,
                     NULL,
                     pZapSigContext);
+                if (ownerType.IsNull())
+                {
+                    _ASSERTE(nonExpansive);
+                    return NULL;
+                }
                 IfFailThrow(ptr.SkipExactlyOne());
 
                 // Computed by MethodTable::GetIndexForFieldDesc().

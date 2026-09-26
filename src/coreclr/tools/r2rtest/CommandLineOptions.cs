@@ -34,7 +34,6 @@ namespace R2RTest
                     OutputDirectory,
                     Crossgen2Path,
                     TargetArch,
-                    TargetOs,
                     VerifyTypeAndFieldLayout,
                     NoJit,
                     NoCrossgen2,
@@ -57,6 +56,7 @@ namespace R2RTest
                     Crossgen2Parallelism,
                     Crossgen2JitPath,
                     ReferencePath,
+                    IssuesPath,
                     CompilationTimeoutMinutes,
                     ExecutionTimeoutMinutes,
                     R2RDumpPath,
@@ -73,7 +73,6 @@ namespace R2RTest
                     OutputDirectory,
                     Crossgen2Path,
                     TargetArch,
-                    TargetOs,
                     VerifyTypeAndFieldLayout,
                     NoJit,
                     NoCrossgen2,
@@ -96,6 +95,7 @@ namespace R2RTest
                     Crossgen2Parallelism,
                     Crossgen2JitPath,
                     ReferencePath,
+                    IssuesPath,
                     CompilationTimeoutMinutes,
                     ExecutionTimeoutMinutes,
                     R2RDumpPath,
@@ -109,7 +109,6 @@ namespace R2RTest
                 {
                     Crossgen2Path,
                     TargetArch,
-                    TargetOs,
                     VerifyTypeAndFieldLayout,
                     NoCrossgen2,
                     NoCleanup,
@@ -126,6 +125,7 @@ namespace R2RTest
                     LargeBubble,
                     Composite,
                     ReferencePath,
+                    IssuesPath,
                     CompilationTimeoutMinutes,
                     R2RDumpPath,
                     MeasurePerf,
@@ -259,6 +259,9 @@ namespace R2RTest
         public Option<FileInfo> Crossgen2JitPath { get; } =
             new("--crossgen2-jitpath") { Description = "Jit path to use for crossgen2" };
 
+        public Option<FileInfo[]> IssuesPath { get; } =
+            new("--issues-path", "-ip") { Description = "Path to issues.targets", Arity = ArgumentArity.ZeroOrMore };
+
         public Option<int> CompilationTimeoutMinutes { get; } =
             new("--compilation-timeout-minutes", "-ct") { Description = "Compilation timeout (minutes)" };
 
@@ -282,9 +285,6 @@ namespace R2RTest
 
         public Option<string> TargetArch { get; } =
             new("--target-arch") { Description = "Target architecture for crossgen2" };
-
-        public Option<string> TargetOs { get; } =
-            new("--target-os") { Description = "Target OS for crossgen2" };
 
         //
         // compile-nuget specific options
@@ -312,7 +312,6 @@ namespace R2RTest
             Crossgen2Path = res.GetValue(cmd.Crossgen2Path);
             VerifyTypeAndFieldLayout = res.GetValue(cmd.VerifyTypeAndFieldLayout);
             TargetArch = res.GetValue(cmd.TargetArch);
-            TargetOs = res.GetValue(cmd.TargetOs);
             Exe = res.GetValue(cmd.Exe);
             NoJit = res.GetValue(cmd.NoJit);
             NoCrossgen2 = res.GetValue(cmd.NoCrossgen2);
@@ -338,6 +337,7 @@ namespace R2RTest
             CompilationTimeoutMinutes = res.GetValue(cmd.CompilationTimeoutMinutes);
             ExecutionTimeoutMinutes = res.GetValue(cmd.ExecutionTimeoutMinutes);
             ReferencePath = res.GetValue(cmd.ReferencePath);
+            IssuesPath = res.GetValue(cmd.IssuesPath);
             R2RDumpPath = res.GetValue(cmd.R2RDumpPath);
             AspNetPath = res.GetValue(cmd.AspNetPath);
             MeasurePerf = res.GetValue(cmd.MeasurePerf);
@@ -352,7 +352,6 @@ namespace R2RTest
         public FileInfo Crossgen2Path { get; }
         public bool VerifyTypeAndFieldLayout { get; }
         public string TargetArch { get; }
-        public string TargetOs { get; }
         public bool Exe { get; }
         public bool NoJit { get; set; }
         public bool NoCrossgen2 { get; }
@@ -378,6 +377,7 @@ namespace R2RTest
         public int CompilationTimeoutMinutes { get; }
         public int ExecutionTimeoutMinutes { get; }
         public DirectoryInfo[] ReferencePath { get; }
+        public FileInfo[] IssuesPath { get; }
         public FileInfo R2RDumpPath { get; }
         public DirectoryInfo AspNetPath { get; }
         public bool MeasurePerf { get; }

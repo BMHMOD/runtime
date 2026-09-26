@@ -105,6 +105,8 @@ namespace R2RTest
 
             Stopwatch stopwatch = Stopwatch.StartNew();
 
+            ResolveTestExclusions();
+
             var compilationsToRun = new List<ProcessInfo>();
 
             foreach (BuildFolder folder in FoldersToBuild)
@@ -545,6 +547,19 @@ namespace R2RTest
             _buildMilliseconds = stopwatch.ElapsedMilliseconds;
 
             return success;
+        }
+
+        private void ResolveTestExclusions()
+        {
+            TestExclusionMap exclusions = TestExclusionMap.Create(_options);
+            foreach (BuildFolder folder in _buildFolders)
+            {
+                if (exclusions.TryGetIssue(folder.InputFolder, out string issueID))
+                {
+                    folder.IssueID = issueID;
+                    continue;
+                }
+            }
         }
 
         private void AddBuildFolderExecutions(List<ProcessInfo> executionsToRun, BuildFolder folder, int iterations)

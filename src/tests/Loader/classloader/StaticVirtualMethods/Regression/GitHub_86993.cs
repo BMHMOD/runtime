@@ -4,7 +4,6 @@
 using System;
 using System.Numerics;
 using Xunit;
-using TestLibrary;
 
 // This regression test tracks the issue where explicit static interface
 // method implementation compiles but program crashes with "Fatal error"
@@ -23,7 +22,6 @@ public sealed class Program
     
     public readonly record struct Int32Value(int Value) : IValue<Int32Value, int>;
 
-    [ActiveIssue("needs triage", TestPlatforms.tvOS)]
     [Fact]
     public static int TestEntryPoint()
     {

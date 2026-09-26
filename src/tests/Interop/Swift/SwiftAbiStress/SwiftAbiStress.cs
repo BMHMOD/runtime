@@ -6,9 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Swift;
 using Xunit;
-using TestLibrary;
 
-[PlatformSpecific(TestPlatforms.AnyApple)]
 public class SwiftAbiStress
 {
     private const string SwiftLib = "libSwiftAbiStress.dylib";

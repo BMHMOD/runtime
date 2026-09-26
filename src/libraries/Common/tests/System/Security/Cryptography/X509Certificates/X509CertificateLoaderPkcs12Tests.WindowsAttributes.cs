@@ -2,25 +2,19 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Runtime.CompilerServices;
-using Microsoft.DotNet.XUnitExtensions;
 using Xunit;
 
 namespace System.Security.Cryptography.X509Certificates.Tests
 {
     public abstract partial class X509CertificateLoaderPkcs12Tests
     {
-        [ConditionalTheory]
+        [Theory]
         [InlineData(true, true)]
         [InlineData(true, false)]
         [InlineData(false, true)]
         [InlineData(false, false)]
         public void VerifyPreserveKeyName(bool preserveName, bool machineKey)
         {
-            if (machineKey && !PlatformDetection.IsPrivilegedProcess)
-            {
-                throw new SkipTestException("Test requires administrator privileges.");
-            }
-
             Pkcs12LoaderLimits loaderLimits = new Pkcs12LoaderLimits
             {
                 PreserveKeyName = preserveName,
@@ -57,18 +51,13 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             }
         }
 
-        [ConditionalTheory]
+        [Theory]
         [InlineData(true, true)]
         [InlineData(true, false)]
         [InlineData(false, true)]
         [InlineData(false, false)]
         public void VerifyPreserveAlias(bool preserveAlias, bool machineKey)
         {
-            if (machineKey && !PlatformDetection.IsPrivilegedProcess)
-            {
-                throw new SkipTestException("Test requires administrator privileges.");
-            }
-
             Pkcs12LoaderLimits loaderLimits = new Pkcs12LoaderLimits
             {
                 PreserveCertificateAlias = preserveAlias,
@@ -106,7 +95,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             }
         }
 
-        [ConditionalTheory]
+        [Theory]
         [InlineData(true, true, true)]
         [InlineData(true, true, false)]
         [InlineData(true, false, true)]
@@ -117,11 +106,6 @@ namespace System.Security.Cryptography.X509Certificates.Tests
         [InlineData(false, false, false)]
         public void VerifyPreserveProvider(bool preserveProvider, bool preserveName, bool machineKey)
         {
-            if (machineKey && !PlatformDetection.IsPrivilegedProcess)
-            {
-                throw new SkipTestException("Test requires administrator privileges.");
-            }
-
             // This test forces a key creation with CAPI, and verifies that
             // PreserveStorageProvider keeps the key in CAPI.  Additionally,
             // it shows that PreserveKeyName and PreserveStorageProvider are independent.
@@ -174,16 +158,11 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             }
         }
 
-        [ConditionalTheory]
+        [Theory]
         [InlineData(false)]
         [InlineData(true)]
         public void VerifyNamesWithDuplicateAttributes(bool noLimits)
         {
-            if (!PlatformDetection.IsPrivilegedProcess)
-            {
-                throw new SkipTestException("Test requires administrator privileges.");
-            }
-
             // This test mainly shows that when duplicate attributes are present contents
             // processed by our filter and processed directly by PFXImportCertStore come up
             // with the same answer.
@@ -198,14 +177,11 @@ namespace System.Security.Cryptography.X509Certificates.Tests
                 limits = new Pkcs12LoaderLimits(limits);
             }
 
-            X509Certificate2 cert = TestData.WithDuplicateAttributesPfx(limits, (bytes, limits) =>
-            {
-                return LoadPfxNoFile(
-                    bytes,
-                    TestData.PlaceholderPw,
-                    X509KeyStorageFlags.DefaultKeySet,
-                    loaderLimits: limits);
-            });
+            X509Certificate2 cert = LoadPfxNoFile(
+                TestData.DuplicateAttributesPfx,
+                TestData.PlaceholderPw,
+                X509KeyStorageFlags.DefaultKeySet,
+                loaderLimits: limits);
 
             using (cert)
             {

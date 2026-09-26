@@ -423,7 +423,6 @@ public class MulticastDelegateCombineImpl
     }
     #endregion
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

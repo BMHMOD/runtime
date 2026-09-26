@@ -44,10 +44,6 @@ public:
     void CopyNameFrom(ClassLayout* layout, const char* prefix);
 #endif
 
-    static bool               IsArrayTooLarge(Compiler*            compiler,
-                                              CORINFO_CLASS_HANDLE arrayHandle,
-                                              unsigned             length,
-                                              unsigned             maxByteSize);
     static ClassLayoutBuilder BuildArray(Compiler* compiler, CORINFO_CLASS_HANDLE arrayType, unsigned length);
 };
 
@@ -172,8 +168,6 @@ public:
         return m_size;
     }
 
-    unsigned GetAlignmentRequirement(Compiler* comp) const;
-
     var_types GetType() const
     {
         return m_type;
@@ -200,11 +194,11 @@ public:
                 return TYP_USHORT;
             case 4:
                 return TYP_INT;
-#if defined(TARGET_64BIT) || defined(TARGET_WASM)
+#ifdef TARGET_64BIT
             case 8:
                 return TYP_LONG;
 #endif
-#if defined(FEATURE_SIMD) && !defined(TARGET_WASM)
+#ifdef FEATURE_SIMD
             // TODO: check TYP_SIMD12 profitability,
             // it will need additional support in `BuildStoreLoc`.
             case 16:
@@ -267,8 +261,6 @@ public:
     bool IntersectsGCPtr(unsigned offset, unsigned size) const;
 
     const SegmentList& GetNonPadding(Compiler* comp);
-
-    ClassLayout* SliceLayout(Compiler* compiler, unsigned offset, unsigned size);
 
     static bool AreCompatible(const ClassLayout* layout1, const ClassLayout* layout2);
 

@@ -1,8 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Diagnostics.CodeAnalysis;
-
 namespace System.Speech.Internal.Synthesis
 {
     internal class PcmConverter
@@ -71,7 +69,7 @@ namespace System.Speech.Internal.Synthesis
         /// </summary>
         internal byte[] ConvertSamples(byte[] pvInSamples)
         {
-            short[] pnBuff;
+            short[] pnBuff = null;
 
             //--- Convert samples to VAPI_PCM16
             short[] inSamples = AudioFormatConverter.Convert(pvInSamples, _iInFormatType, AudioCodec.PCM16);
@@ -90,7 +88,7 @@ namespace System.Speech.Internal.Synthesis
             }
 
             //--- case 3
-            else if (_inWavFormat.nChannels == 2 && _outWavFormat.nChannels == 2)
+            if (_inWavFormat.nChannels == 2 && _outWavFormat.nChannels == 2)
             {
                 if (_inWavFormat.nSamplesPerSec != _outWavFormat.nSamplesPerSec)
                 {
@@ -106,14 +104,9 @@ namespace System.Speech.Internal.Synthesis
             }
 
             //--- case 4
-            else if (_inWavFormat.nChannels == 1 && _outWavFormat.nChannels == 1)
+            if (_inWavFormat.nChannels == 1 && _outWavFormat.nChannels == 1)
             {
                 pnBuff = Resample(_inWavFormat, _outWavFormat, inSamples, _leftMemory);
-            }
-            else
-            {
-                System.Diagnostics.Debug.Fail("Invalid wave format");
-                pnBuff = null!;
             }
 
             _eChunkStatus = Block.Middle;
@@ -252,9 +245,6 @@ namespace System.Speech.Internal.Synthesis
             }
         }
 
-        [MemberNotNull(nameof(_filterCoeff))]
-        [MemberNotNull(nameof(_leftMemory))]
-        [MemberNotNull(nameof(_rightMemory))]
         private void CreateResamplingFilter(int inHz, int outHz)
         {
             int iLimitFactor;
@@ -291,8 +281,8 @@ namespace System.Speech.Internal.Synthesis
         /// </summary>
         private float[] WindowedLowPass(float dCutOff, float dGain)
         {
-            float[]? pdCoeffs = null;
-            float[]? pdWindow = null;
+            float[] pdCoeffs = null;
+            float[] pdWindow = null;
             double dArg;
             double dSinc;
 
@@ -467,11 +457,10 @@ namespace System.Speech.Internal.Synthesis
         private int _iDownFactor;
         private int _iFilterLen;
         private int _iBuffLen;
+        private float[] _filterCoeff;
 
-        // Arrays are initialized if resampling is necessary
-        private float[] _filterCoeff = null!;
-        private float[] _leftMemory = null!;
-        private float[] _rightMemory = null!;
+        private float[] _leftMemory;
+        private float[] _rightMemory;
 
         private const float _dHalfFilterLen = 0.0005f;
 

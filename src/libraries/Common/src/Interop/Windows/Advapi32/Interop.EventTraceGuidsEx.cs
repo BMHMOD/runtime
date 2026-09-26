@@ -45,7 +45,6 @@ internal static partial class Interop
             public long MatchAllKeyword;
         }
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Advapi32)]
         internal static unsafe partial int EnumerateTraceGuidsEx(
             TRACE_QUERY_INFO_CLASS TraceQueryInfoClass,

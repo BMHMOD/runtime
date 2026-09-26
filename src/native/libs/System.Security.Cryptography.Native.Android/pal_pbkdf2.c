@@ -15,37 +15,34 @@ int32_t AndroidCryptoNative_Pbkdf2(const char* algorithmName,
 {
     JNIEnv* env = GetJNIEnv();
     jint ret = FAIL;
-    INIT_LOCALS(loc, javaAlgorithmName, passwordBytes, saltByteBuffer, destinationBuffer);
 
-    loc[javaAlgorithmName] = make_java_string(env, algorithmName);
-    loc[passwordBytes] = make_java_byte_array(env, passwordLength);
-    loc[destinationBuffer] = (*env)->NewDirectByteBuffer(env, destination, destinationLength);
-    ON_EXCEPTION_PRINT_AND_GOTO(cleanup);
+    jstring javaAlgorithmName = make_java_string(env, algorithmName);
+    jbyteArray passwordBytes = make_java_byte_array(env, passwordLength);
+    jobject destinationBuffer = (*env)->NewDirectByteBuffer(env, destination, destinationLength);
+    jobject saltByteBuffer = NULL;
 
-    if (loc[javaAlgorithmName] == NULL || loc[passwordBytes] == NULL || loc[destinationBuffer] == NULL)
+    if (javaAlgorithmName == NULL || passwordBytes == NULL || destinationBuffer == NULL)
     {
         goto cleanup;
     }
 
     if (password && passwordLength > 0)
     {
-        (*env)->SetByteArrayRegion(env, loc[passwordBytes], 0, passwordLength, (const jbyte*)password);
-        ON_EXCEPTION_PRINT_AND_GOTO(cleanup);
+        (*env)->SetByteArrayRegion(env, passwordBytes, 0, passwordLength, (const jbyte*)password);
     }
 
     if (salt && saltLength > 0)
     {
-        loc[saltByteBuffer] = (*env)->NewDirectByteBuffer(env, salt, saltLength);
-        ON_EXCEPTION_PRINT_AND_GOTO(cleanup);
+        saltByteBuffer = (*env)->NewDirectByteBuffer(env, salt, saltLength);
 
-        if (loc[saltByteBuffer] == NULL)
+        if (saltByteBuffer == NULL)
         {
             goto cleanup;
         }
     }
 
     ret = (*env)->CallStaticIntMethod(env, g_PalPbkdf2, g_PalPbkdf2Pbkdf2OneShot,
-        loc[javaAlgorithmName], loc[passwordBytes], loc[saltByteBuffer], iterations, loc[destinationBuffer]);
+        javaAlgorithmName, passwordBytes, saltByteBuffer, iterations, destinationBuffer);
 
     if (CheckJNIExceptions(env))
     {
@@ -53,7 +50,10 @@ int32_t AndroidCryptoNative_Pbkdf2(const char* algorithmName,
     }
 
 cleanup:
-    RELEASE_LOCALS(loc, env);
+    (*env)->DeleteLocalRef(env, javaAlgorithmName);
+    (*env)->DeleteLocalRef(env, passwordBytes);
+    (*env)->DeleteLocalRef(env, saltByteBuffer);
+    (*env)->DeleteLocalRef(env, destinationBuffer);
 
     return ret;
 }

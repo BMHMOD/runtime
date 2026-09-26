@@ -36,6 +36,7 @@ struct ContinuationLayoutKeyHashTableHelper
     static void            DeleteEntry(EEHashEntry_t *pEntry, AllocationHeap heap);
     static BOOL            CompareKeys(EEHashEntry_t *pEntry, ContinuationLayoutKey key);
     static DWORD           Hash(ContinuationLayoutKey key);
+    static void            ReplaceKey(EEHashEntry_t *pEntry, ContinuationLayoutKey newKey);
 };
 
 typedef EEHashTable<ContinuationLayoutKey, ContinuationLayoutKeyHashTableHelper, FALSE> ContinuationLayoutHashTable;
@@ -46,12 +47,14 @@ class AsyncContinuationsManager
     CrstExplicitInit m_layoutsLock;
     ContinuationLayoutHashTable m_layouts;
 
+    MethodTable* CreateNewContinuationMethodTable(unsigned dataSize, const bool* objRefs, MethodDesc* asyncMethod, AllocMemTracker* pamTracker);
+
     static MethodTable* CreateNewContinuationMethodTable(unsigned dataSize, const bool* objRefs, EEClass* eeClass, LoaderAllocator* allocator, Module* loaderModule, AllocMemTracker* pamTracker);
     static PTR_EEClass GetOrCreateSingletonSubContinuationEEClass();
     static PTR_EEClass CreateSingletonSubContinuationEEClass();
 public:
     AsyncContinuationsManager(LoaderAllocator* allocator);
-    MethodTable* LookupOrCreateContinuationMethodTable(unsigned dataSize, const bool* objRefs, Module* loaderModule);
+    MethodTable* LookupOrCreateContinuationMethodTable(unsigned dataSize, const bool* objRefs, MethodDesc* asyncMethod);
     void NotifyUnloadingClasses();
 
     template<typename AppendString, typename AppendNum>

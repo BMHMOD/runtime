@@ -8,7 +8,6 @@
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 public class CorrectException : Exception
 {
@@ -19,7 +18,6 @@ public class CCC
     [MethodImpl(MethodImplOptions.NoInlining)]
     static int Call() => throw new CorrectException();
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static int TestEntryPoint()
     {

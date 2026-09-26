@@ -6,9 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Swift;
 using Xunit;
-using TestLibrary;
 
-[PlatformSpecific(TestPlatforms.AnyApple)]
 public class SwiftInlineArray
 {
     private const string SwiftLib = "libSwiftInlineArray.dylib";

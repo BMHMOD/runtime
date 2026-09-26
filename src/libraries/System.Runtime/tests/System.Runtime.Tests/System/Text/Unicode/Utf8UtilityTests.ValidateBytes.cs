@@ -385,17 +385,13 @@ namespace System.Text.Unicode.Tests
                 actualSurrogatePairCount = totalUtf16CodeUnitCount - actualRuneCount;
             }
 
-            int actualIndexOfInvalidSubsequence = Utf8.IndexOfInvalidSubsequence(boundedMemory.Span);
-            bool actualIsValid = Utf8.IsValid(boundedMemory.Span);
-
             // Assert
 
             Assert.Equal(expectedRetVal, actualRetVal);
             Assert.Equal(expectedRuneCount, actualRuneCount);
             Assert.Equal(expectedSurrogatePairCount, actualSurrogatePairCount);
 
-            Assert.Equal(expectedRetVal, actualIndexOfInvalidSubsequence);
-            Assert.Equal(expectedRetVal < 0, actualIsValid);
+            Assert.True(Utf8.IsValid(boundedMemory.Span) == (expectedRetVal < 0));
         }
 
         private static Lazy<GetPointerToFirstInvalidByteDel> CreateGetPointerToFirstInvalidByteFn()

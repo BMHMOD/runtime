@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics.Tracing;
 using System.Linq;
 using System.Reflection;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.DotNet.RemoteExecutor;
@@ -75,21 +74,9 @@ namespace System.Buffers.ArrayPool.Tests
 
         private static bool IsStressModeEnabledAndRemoteExecutorSupported => TestEnvironment.IsStressModeEnabled && RemoteExecutor.IsSupported;
 
-        private MethodInfo? PressureMethod =>
-            Type.GetType("System.Buffers.Utilities, System.Private.CoreLib", throwOnError: true)
-                .GetMethod("GetMemoryPressure", BindingFlags.Static | BindingFlags.NonPublic, Type.EmptyTypes);
-
-        // ThreadLocalIsCollectedUnderHighPressure only runs under DOTNET_TEST_STRESS=1, so without
-        // this, the private API it reflects on could change without anyone noticing.
-        [Fact]
-        public void MemoryPressureHelperIsAvailable()
-        {
-            Assert.NotNull(PressureMethod);
-        }
-
         // This test can cause problems for other tests run in parallel (from other assemblies) as
         // it pushes the physical memory usage above 80% temporarily.
-        [ConditionalFact(typeof(CollectionTests), nameof(IsStressModeEnabledAndRemoteExecutorSupported))]
+        [ConditionalFact(nameof(IsStressModeEnabledAndRemoteExecutorSupported))]
         public unsafe void ThreadLocalIsCollectedUnderHighPressure()
         {
             RemoteInvokeWithTrimming(() =>
@@ -105,10 +92,7 @@ namespace System.Buffers.ArrayPool.Tests
 
                 const int AllocSize = 1024 * 1024 * 64;
                 int PageSize = Environment.SystemPageSize;
-
-                MethodInfo pressureMethod = PressureMethod;
-                object highPressure = Enum.Parse(pressureMethod.ReturnType, "High");
-
+                var pressureMethod = ArrayPool<byte>.Shared.GetType().GetMethod("GetMemoryPressure", BindingFlags.Static | BindingFlags.NonPublic);
                 do
                 {
                     Span<byte> native = new Span<byte>(Marshal.AllocHGlobal(AllocSize).ToPointer(), AllocSize);
@@ -120,7 +104,7 @@ namespace System.Buffers.ArrayPool.Tests
                     }
 
                     GC.Collect(2);
-                } while (!highPressure.Equals(pressureMethod.Invoke(null, null)));
+                } while ((int)pressureMethod.Invoke(null, null) != 2);
 
                 GC.WaitForPendingFinalizers();
 
@@ -166,14 +150,13 @@ namespace System.Buffers.ArrayPool.Tests
 
         private static bool IsPreciseGcSupportedAndRemoteExecutorSupported => PlatformDetection.IsPreciseGcSupported && RemoteExecutor.IsSupported;
 
-        [ConditionalFact(typeof(CollectionTests), nameof(IsPreciseGcSupportedAndRemoteExecutorSupported))]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/44037")]
+        [ConditionalFact(nameof(IsPreciseGcSupportedAndRemoteExecutorSupported))]
         public void PollingEventFires()
         {
             RemoteInvokeWithTrimming(() =>
             {
-                // The listener callback fires on the finalizer thread (Trim runs from a
-                // Gen2GcCallback), so access the flag with Volatile to observe it reliably.
-                StrongBox<bool> pollEventFired = new(false);
+                bool pollEventFired = false;
                 float[] buffer = ArrayPool<float>.Shared.Rent(10);
 
                 // Polling doesn't start until the thread locals are created for a pool.
@@ -188,31 +171,26 @@ namespace System.Buffers.ArrayPool.Tests
                 e =>
                 {
                     if (e.EventId == EventIds.BufferTrimPoll)
-                        Volatile.Write(ref pollEventFired.Value, true);
+                        pollEventFired = true;
                 });
 
-                Assert.False(Volatile.Read(ref pollEventFired.Value), "collection isn't hooked up until the first item is returned");
+                Assert.False(pollEventFired, "collection isn't hooked up until the first item is returned");
                 ArrayPool<float>.Shared.Return(buffer);
 
-                // The poll event is emitted from a Gen2GcCallback finalizer, so a single gen2
-                // collection isn't guaranteed to run it. Retry until it fires or we give up.
                 RunWithListener(() =>
                 {
-                    for (int i = 0; i < 10 && !Volatile.Read(ref pollEventFired.Value); i++)
-                    {
-                        GC.Collect(2);
-                        GC.WaitForPendingFinalizers();
-                    }
+                    GC.Collect(2);
+                    GC.WaitForPendingFinalizers();
                 },
                 EventLevel.Informational,
                 e =>
                 {
                     if (e.EventId == EventIds.BufferTrimPoll)
-                        Volatile.Write(ref pollEventFired.Value, true);
+                        pollEventFired = true;
                 });
 
                 // Polling events should only fire when trimming is enabled
-                Assert.True(Volatile.Read(ref pollEventFired.Value));
+                Assert.True(pollEventFired);
             });
         }
     }

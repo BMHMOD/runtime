@@ -128,7 +128,12 @@ private:
 class DispParamArrayMarshaler : public DispParamMarshaler
 {
 public:
-    DispParamArrayMarshaler(VARTYPE ElementVT, MethodTable *pElementMT);
+    DispParamArrayMarshaler(VARTYPE ElementVT, MethodTable *pElementMT) :
+    m_ElementVT(ElementVT),
+    m_pElementMT(pElementMT)
+    {
+        WRAPPER_NO_CONTRACT;
+    }
 
     virtual ~DispParamArrayMarshaler()
     {
@@ -142,8 +147,6 @@ public:
 private:
     VARTYPE                 m_ElementVT;
     MethodTable*            m_pElementMT;
-    PCODE                   m_pConvertContentsToManagedCode;
-    PCODE                   m_pConvertContentsToUnmanagedCode;
 };
 
 

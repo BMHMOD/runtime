@@ -1,6 +1,8 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Diagnostics;
+
 namespace System.Reflection.Metadata
 {
     /// <summary>
@@ -18,6 +20,8 @@ namespace System.Reflection.Metadata
 
         internal MethodDebugInformation(MetadataReader reader, MethodDebugInformationHandle handle)
         {
+            Debug.Assert(reader != null);
+
             _reader = reader;
             _rowId = handle.RowId;
         }

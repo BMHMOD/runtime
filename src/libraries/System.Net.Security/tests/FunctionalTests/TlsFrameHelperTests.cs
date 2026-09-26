@@ -39,16 +39,11 @@ namespace System.Net.Security.Tests
                 Assert.Null(ret);
         }
 
-        private const TlsFrameHelper.ProcessingOptions AllExtensions =
-            TlsFrameHelper.ProcessingOptions.ServerName |
-            TlsFrameHelper.ProcessingOptions.ApplicationProtocol |
-            TlsFrameHelper.ProcessingOptions.Versions;
-
         [Fact]
         public void TlsFrameHelper_ValidData_Ok()
         {
             TlsFrameHelper.TlsFrameInfo info = default;
-            Assert.True(TlsFrameHelper.TryGetFrameInfo(s_validClientHello, ref info, AllExtensions));
+            Assert.True(TlsFrameHelper.TryGetFrameInfo(s_validClientHello, ref info));
 
             Assert.Equal(SslProtocols.Tls12, info.Header.Version);
             Assert.Equal(208, info.Header.Length);
@@ -60,7 +55,7 @@ namespace System.Net.Security.Tests
         public void TlsFrameHelper_Tls12ClientHello_Ok()
         {
             TlsFrameHelper.TlsFrameInfo info = default;
-            Assert.True(TlsFrameHelper.TryGetFrameInfo(s_Tls12ClientHello, ref info, AllExtensions));
+            Assert.True(TlsFrameHelper.TryGetFrameInfo(s_Tls12ClientHello, ref info));
 
 #pragma warning disable SYSLIB0039
             Assert.Equal(SslProtocols.Tls, info.Header.Version);
@@ -73,7 +68,7 @@ namespace System.Net.Security.Tests
         public void TlsFrameHelper_Tls13ClientHello_Ok()
         {
             TlsFrameHelper.TlsFrameInfo info = default;
-            Assert.True(TlsFrameHelper.TryGetFrameInfo(s_Tls13ClientHello, ref info, AllExtensions));
+            Assert.True(TlsFrameHelper.TryGetFrameInfo(s_Tls13ClientHello, ref info));
 
 #pragma warning disable SYSLIB0039
             Assert.Equal(SslProtocols.Tls, info.Header.Version);
@@ -86,7 +81,7 @@ namespace System.Net.Security.Tests
         public void TlsFrameHelper_Tls12ServerHello_Ok()
         {
             TlsFrameHelper.TlsFrameInfo info = default;
-            Assert.True(TlsFrameHelper.TryGetFrameInfo(s_Tls12ServerHello, ref info, AllExtensions));
+            Assert.True(TlsFrameHelper.TryGetFrameInfo(s_Tls12ServerHello, ref info));
 
             Assert.Equal(SslProtocols.Tls12, info.Header.Version);
             Assert.Equal(SslProtocols.Tls12, info.SupportedVersions);
@@ -100,7 +95,7 @@ namespace System.Net.Security.Tests
             Assert.True(TlsFrameHelper.TryGetFrameHeader(s_UnifiedHello,  ref info.Header));
             Assert.Equal(75, info.Header.Length);
 
-            Assert.True(TlsFrameHelper.TryGetFrameInfo(s_UnifiedHello, ref info, AllExtensions));
+            Assert.True(TlsFrameHelper.TryGetFrameInfo(s_UnifiedHello, ref info));
 #pragma warning disable CS0618      // Ssl2 and Ssl3 are obsolete
 #pragma warning disable SYSLIB0039  // Tls is obsolete
             Assert.Equal(SslProtocols.Ssl2, info.Header.Version);
@@ -116,7 +111,7 @@ namespace System.Net.Security.Tests
         public void TlsFrameHelper_TlsClientHelloNoExtensions_Ok()
         {
             TlsFrameHelper.TlsFrameInfo info = default;
-            Assert.True(TlsFrameHelper.TryGetFrameInfo(s_TlsClientHelloNoExtensions, ref info, AllExtensions));
+            Assert.True(TlsFrameHelper.TryGetFrameInfo(s_TlsClientHelloNoExtensions, ref info));
             Assert.Equal(SslProtocols.Tls12, info.Header.Version);
             Assert.Equal(SslProtocols.Tls12, info.SupportedVersions);
             Assert.Equal(TlsContentType.Handshake, info.Header.Type);

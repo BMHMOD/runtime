@@ -251,7 +251,9 @@ HRESULT coreclr::CreateTpaList(_Inout_ std::string &tpaList, _In_opt_z_ const WC
     // Represents priority order
     static const WCHAR * const tpaExtensions[] =
     {
+        W(".ni.dll"),
         W(".dll"),
+        W(".ni.exe"),
         W(".exe"),
     };
 

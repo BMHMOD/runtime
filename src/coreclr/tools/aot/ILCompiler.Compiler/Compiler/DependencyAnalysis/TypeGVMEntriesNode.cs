@@ -46,7 +46,6 @@ namespace ILCompiler.DependencyAnalysis
         public TypeGVMEntriesNode(TypeDesc associatedType)
         {
             Debug.Assert(associatedType.IsTypeDefinition);
-            Debug.Assert(!associatedType.IsInterface);
             _associatedType = associatedType;
         }
 
@@ -84,11 +83,6 @@ namespace ILCompiler.DependencyAnalysis
                 if (!decl.HasInstantiation)
                     continue;
 
-                // We don't need to emit async variants since this is just a copy
-                // of the metadata
-                if (decl.IsAsyncVariant())
-                    continue;
-
                 MethodDesc impl = _associatedType.FindVirtualFunctionTargetMethodOnObjectType(decl);
 
                 if (impl.OwningType == _associatedType)
@@ -103,11 +97,6 @@ namespace ILCompiler.DependencyAnalysis
                 foreach (var method in iface.GetVirtualMethods())
                 {
                     if (!method.HasInstantiation)
-                        continue;
-
-                    // We don't need to emit async variants since this is just a copy
-                    // of the metadata
-                    if (method.IsAsyncVariant())
                         continue;
 
                     DefaultInterfaceMethodResolution resolution = DefaultInterfaceMethodResolution.None;

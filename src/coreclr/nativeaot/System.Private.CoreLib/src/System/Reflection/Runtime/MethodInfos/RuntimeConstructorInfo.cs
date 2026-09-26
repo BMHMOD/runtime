@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
-using System.Reflection.Runtime.General;
 using System.Reflection.Runtime.ParameterInfos;
 
 using Internal.Reflection.Core.Execution;
@@ -33,20 +32,10 @@ namespace System.Reflection.Runtime.MethodInfos
 
         public abstract override Type DeclaringType { get; }
 
-        public sealed override object[] GetCustomAttributes(bool inherit) => RuntimeCustomAttribute.GetCustomAttributes(this, typeof(object), inherit);
-
-        public sealed override object[] GetCustomAttributes(Type attributeType, bool inherit)
+        public sealed override Type[] GetGenericArguments()
         {
-            ArgumentNullException.ThrowIfNull(attributeType);
-            return RuntimeCustomAttribute.GetCustomAttributes(this, attributeType, inherit);
-        }
-
-        public sealed override IList<CustomAttributeData> GetCustomAttributesData() => CustomAttributes.ToReadOnlyCollection();
-
-        public sealed override bool IsDefined(Type attributeType, bool inherit)
-        {
-            ArgumentNullException.ThrowIfNull(attributeType);
-            return RuntimeCustomAttribute.IsDefined(this, attributeType, inherit);
+            // Constructors cannot be generic. Desktop compat dictates that We throw NotSupported rather than returning a 0-length array.
+            throw new NotSupportedException();
         }
 
         [RequiresUnreferencedCode("Trimming may change method bodies. For example it can change some instructions, remove branches or local variables.")]

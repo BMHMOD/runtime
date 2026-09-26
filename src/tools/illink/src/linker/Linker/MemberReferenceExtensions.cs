@@ -30,13 +30,7 @@ namespace Mono.Linker
 
         public static string GetNamespaceDisplayName(this MemberReference member)
         {
-            if (member == null)
-                return string.Empty;
-
             var type = member is TypeReference typeReference ? typeReference : member.DeclaringType;
-            if (type == null)
-                return string.Empty;
-
             while (type.DeclaringType != null)
                 type = type.DeclaringType;
 

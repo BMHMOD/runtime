@@ -8,7 +8,6 @@ using Xunit;
 
 public class Test_Collect
 {
-    [SkipOnCoreClr("This test requires exactly one GC at a specific point and does not run correctly under GC stress.", RuntimeTestModes.AnyGCStress)]
     [Fact]
     public static int TestEntryPoint()
     {

@@ -47,7 +47,6 @@ namespace System.Buffers
         /// <summary>Gets an ID for the pool to use with events.</summary>
         private int Id => GetHashCode();
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
         public override T[] Rent(int minimumLength)
         {
             ArrayPoolEventSource log = ArrayPoolEventSource.Log;
@@ -101,20 +100,14 @@ namespace System.Buffers
                 // as it's a valid length array, and we want the pool to be usable in general instead of using
                 // `new`, even for computed lengths. But, there's no need to log the empty array.  Our pool is
                 // effectively infinite for empty arrays and we'll never allocate for rents and never store for returns.
-                return [];
+                return Array.Empty<T>();
             }
             else
             {
                 ArgumentOutOfRangeException.ThrowIfNegative(minimumLength);
             }
 
-            // For large arrays, we prefer to avoid the zero-initialization costs. However, as the resulting
-            // arrays could end up containing arbitrary bit patterns, we only allow this for types for which
-            // every possible bit pattern is valid.
-            buffer = typeof(T).IsPrimitive && typeof(T) != typeof(bool) ?
-                GC.AllocateUninitializedArray<T>(minimumLength) :
-                new T[minimumLength];
-
+            buffer = GC.AllocateUninitializedArray<T>(minimumLength);
             if (log.IsEnabled())
             {
                 int bufferId = buffer.GetHashCode();
@@ -126,7 +119,6 @@ namespace System.Buffers
             return buffer;
         }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
         public override void Return(T[] array, bool clearArray = false)
         {
             if (array is null)

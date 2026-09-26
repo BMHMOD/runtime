@@ -17,7 +17,7 @@ namespace NetClient
 
         public ArrayTests()
         {
-            this.server = new Server.Contract.Servers.ArrayTesting();
+            this.server = (Server.Contract.Servers.ArrayTesting)new Server.Contract.Servers.ArrayTestingClass();
 
             double acc = 0.0;
             int[] rawData = BaseData.ToArray();
@@ -31,7 +31,6 @@ namespace NetClient
 
         public void Run()
         {
-            Console.WriteLine(nameof(ArrayTests));
             this.Marshal_ByteArray();
             this.Marshal_ShortArray();
             this.Marshal_UShortArray();

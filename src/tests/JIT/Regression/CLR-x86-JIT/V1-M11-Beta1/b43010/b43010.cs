@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b43010
+namespace Test
 {
     using System;
 
@@ -11,7 +11,6 @@ namespace b43010
     {
         static void Static1(ulong param2, object param3) { }
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

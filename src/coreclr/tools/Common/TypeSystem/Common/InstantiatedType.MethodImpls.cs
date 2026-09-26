@@ -3,8 +3,6 @@
 
 using System;
 
-using Internal.Text;
-
 namespace Internal.TypeSystem
 {
     // Implementation of MethodImpl api surface implemented without metadata access.
@@ -49,7 +47,7 @@ namespace Internal.TypeSystem
             return InstantiateMethodImpls(uninstMethodImpls);
         }
 
-        public override MethodImplRecord[] FindMethodsImplWithMatchingDeclName(Utf8Span name)
+        public override MethodImplRecord[] FindMethodsImplWithMatchingDeclName(ReadOnlySpan<byte> name)
         {
             MethodImplRecord[] uninstMethodImpls = _typeDef.FindMethodsImplWithMatchingDeclName(name);
             return InstantiateMethodImpls(uninstMethodImpls);

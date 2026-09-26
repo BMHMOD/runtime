@@ -2,8 +2,6 @@
   <PropertyGroup>
     <!-- Needed for CLRTestEnvironmentVariable -->
     <RequiresProcessIsolation>true</RequiresProcessIsolation>
-    <!-- No crossgen folder under Core_Root -->
-     <NativeAotIncompatible>true</NativeAotIncompatible>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <Optimize>true</Optimize>
   </PropertyGroup>
@@ -11,8 +9,5 @@
     <Compile Include="BasicTest.cs" />
 
     <CLRTestEnvironmentVariable Include="DOTNET_TC_QuickJitForLoops" Value="0" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
   </ItemGroup>
 </Project>

@@ -5,18 +5,7 @@
 #define LOADERHEAP_SHARED
 
 void ReleaseReservedMemory(BYTE* value);
-
-struct ReservedMemoryTraits final
-{
-    using Type = BYTE*;
-    static constexpr Type Default() { return NULL; }
-    static void Free(Type value)
-    {
-        STATIC_CONTRACT_WRAPPER;
-        ReleaseReservedMemory(value);
-    }
-};
-using ReservedMemoryHolder = LifetimeHolder<ReservedMemoryTraits>;
+using ReservedMemoryHolder = SpecializedWrapper<BYTE, ReleaseReservedMemory>;
 
 #ifdef RANDOMIZE_ALLOC
 #include <time.h>

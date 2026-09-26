@@ -110,52 +110,38 @@ int GetVersionResilientTypeHashCode(TypeHandle type)
 {
     STANDARD_VM_CONTRACT;
 
+    if (type.IsArray())
+    {
+        return ComputeArrayTypeHashCode(GetVersionResilientTypeHashCode(type.GetArrayElementTypeHandle()), type.GetRank());
+    }
+    else
     if (!type.IsTypeDesc())
     {
         MethodTable *pMT = type.AsMethodTable();
 
-        _ASSERTE(pMT->IsArray() || !IsNilToken(pMT->GetCl()));
+        _ASSERTE(!pMT->IsArray());
+        _ASSERTE(!IsNilToken(pMT->GetCl()));
 
-        int cachedHashCode = VolatileLoadWithoutBarrier(&pMT->GetAuxiliaryData()->m_cachedVersionResilientHashCode);
-        if (cachedHashCode != 0)
+        LPCUTF8 szNamespace;
+        LPCUTF8 szName;
+        IfFailThrow(pMT->GetMDImport()->GetNameOfTypeDef(pMT->GetCl(), &szName, &szNamespace));
+        int hashcode = ComputeNameHashCode(szNamespace, szName);
+
+        MethodTable *pMTEnclosing = pMT->LoadEnclosingMethodTable(CLASS_LOAD_APPROXPARENTS);
+        if (pMTEnclosing != NULL)
         {
-            return cachedHashCode;
+            hashcode = ComputeNestedTypeHashCode(GetVersionResilientTypeHashCode(TypeHandle(pMTEnclosing)), hashcode);
         }
 
-        int hashcode;
-        if (pMT->IsArray())
+        if (!pMT->IsGenericTypeDefinition() && pMT->HasInstantiation())
         {
-            hashcode = ComputeArrayTypeHashCode(GetVersionResilientTypeHashCode(type.GetArrayElementTypeHandle()), type.GetRank());
+            return ComputeGenericInstanceHashCode(hashcode,
+                pMT->GetInstantiation().GetNumArgs(), pMT->GetInstantiation(), GetVersionResilientTypeHashCode);
         }
         else
         {
-            LPCUTF8 szNamespace;
-            LPCUTF8 szName;
-            IfFailThrow(pMT->GetMDImport()->GetNameOfTypeDef(pMT->GetCl(), &szName, &szNamespace));
-            hashcode = ComputeNameHashCode(szNamespace, szName);
-
-            MethodTable *pMTEnclosing = pMT->LoadEnclosingMethodTable(CLASS_LOAD_APPROXPARENTS);
-            if (pMTEnclosing != NULL)
-            {
-                hashcode = ComputeNestedTypeHashCode(GetVersionResilientTypeHashCode(TypeHandle(pMTEnclosing)), hashcode);
-            }
-
-            if (!pMT->IsGenericTypeDefinition() && pMT->HasInstantiation())
-            {
-                hashcode = ComputeGenericInstanceHashCode(hashcode,
-                    pMT->GetInstantiation().GetNumArgs(), pMT->GetInstantiation(), GetVersionResilientTypeHashCode);
-            }
+            return hashcode;
         }
-
-        // 0 is used as the sentinel "not yet cached" value, so only cache if non-zero.
-        // Types with a hash code of exactly 0 are extremely rare in practice; they will simply
-        // have their hash code recomputed on every call, which is still correct behavior.
-        if (hashcode != 0)
-        {
-            VolatileStore(&pMT->GetAuxiliaryDataForWrite()->m_cachedVersionResilientHashCode, hashcode);
-        }
-
-        return hashcode;
     }
     else
     if (type.IsPointer())
@@ -249,7 +235,7 @@ public:
 };
 
 // Use the SigParser type to handle bounds checks safely
-bool AddVersionResilientHashCodeForInstruction(ILInstructionParser *parser, xxHashVersionResilient *hash)
+bool AddVersionResilientHashCodeForInstruction(ILInstructionParser *parser, xxHash *hash)
 {
     uint16_t opcodeValue;
     BYTE firstByte;
@@ -378,16 +364,17 @@ bool AddVersionResilientHashCodeForInstruction(ILInstructionParser *parser, xxHa
     return true;
 }
 
-bool GetVersionResilientILCodeHashCode(MethodDesc *pMD, const COR_ILMETHOD_DECODER* header, int* hashCode, unsigned* ilSize)
+bool GetVersionResilientILCodeHashCode(MethodDesc *pMD, int* hashCode, unsigned* ilSize)
 {
     uint32_t maxStack;
     uint32_t EHCount;
+    COR_ILMETHOD* pILHeader;
     const BYTE* pILCode;
     uint32_t cbILCode;
     bool initLocals;
     SigParser localSig;
 
-    xxHashVersionResilient hashILData;
+    xxHash hashILData;
 
     if (pMD->IsDynamicMethod())
     {
@@ -402,19 +389,21 @@ bool GetVersionResilientILCodeHashCode(MethodDesc *pMD, const COR_ILMETHOD_DECOD
 
         initLocals = (options & CORINFO_OPT_INIT_LOCALS) == CORINFO_OPT_INIT_LOCALS;
     }
-    else if (pMD->MayHaveILHeader() && header != NULL)
+    else if (pMD->MayHaveILHeader() && (pILHeader = pMD->GetILHeader()) != NULL)
     {
-        pILCode = header->Code;
-        cbILCode = header->GetCodeSize();
-        maxStack = header->GetMaxStack();
-        EHCount = header->EHCount();
-        initLocals = (header->GetFlags() & CorILMethod_InitLocals) == CorILMethod_InitLocals;
-        localSig = SigParser(header->LocalVarSig, header->cbLocalVarSig);
+        COR_ILMETHOD_DECODER header(pILHeader, pMD->GetMDImport(), NULL);
+
+        pILCode = header.Code;
+        cbILCode = header.GetCodeSize();
+        maxStack = header.GetMaxStack();
+        EHCount = header.EHCount();
+        initLocals = (header.GetFlags() & CorILMethod_InitLocals) == CorILMethod_InitLocals;
+        localSig = SigParser(header.LocalVarSig, header.cbLocalVarSig);
 
         for (uint32_t ehClause = 0; ehClause < EHCount; ehClause++)
         {
             IMAGE_COR_ILMETHOD_SECT_EH_CLAUSE_FAT ehClauseBuf;
-            auto ehInfo = header->EH->EHClause(ehClause, &ehClauseBuf);
+            auto ehInfo = header.EH->EHClause(ehClause, &ehClauseBuf);
 
             hashILData.Add(ehInfo->Flags);
             hashILData.Add(ehInfo->TryOffset);

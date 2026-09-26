@@ -3,9 +3,6 @@
 
 .assembly extern System.Console { auto }
 .assembly extern xunit.core {}
-.assembly extern Microsoft.DotNet.XUnitExtensions { .publickeytoken = (31 BF 38 56 AD 36 4E 35 ) }
-.assembly extern TestLibrary { .ver 0:0:0:0 }
-.assembly extern System.Runtime { .publickeytoken = (B0 3F 5F 7F 11 D5 0A 3A ) }
 .assembly extern System.Threading.Thread { auto }
 // Metadata version: v2.0.50103
 .assembly extern mscorlib { auto }
@@ -312,10 +309,9 @@
 
   .method public hidebysig static int32  Main() cil managed
   {
-    .custom instance void [Microsoft.DotNet.XUnitExtensions]Xunit.ConditionalFactAttribute::.ctor(class [System.Runtime]System.Type, string[]) = {
-        type([TestLibrary]TestLibrary.PlatformDetection)
-        string[1] ('IsMultithreadingSupported')
-    }
+    .custom instance void [xunit.core]Xunit.FactAttribute::.ctor() = (
+        01 00 00 00
+    )
     .entrypoint
     // Code size       244 (0xf4)
     .maxstack  3

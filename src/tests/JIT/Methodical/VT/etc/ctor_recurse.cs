@@ -22,7 +22,9 @@ namespace Test
 
         private void DoMethod() { }
 
-        public static void Run()
+        [Fact]
+        [OuterLoop]
+        public static void TestEntryPoint()
         {
             s_stat =
                 new T(new S(new T(new S(new T(new S(new T(new S(new T(new S(
@@ -39,16 +41,6 @@ namespace Test
                 ))))))))))
                 ))))))))))
                 ;
-        }
-    }
-
-    public class CtorRecurseTest
-    {
-        [Fact]
-        [OuterLoop]
-        public static void TestEntryPoint()
-        {
-            T.Run();
         }
     }
 }

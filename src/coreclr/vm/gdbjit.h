@@ -352,7 +352,7 @@ class NotifyGdb
 public:
     class FileTableBuilder;
     static void Initialize();
-    static void MethodPrepared(MethodDesc* methodDescPtr, PCODE pCode, const COR_ILMETHOD_DECODER* ilHeader);
+    static void MethodPrepared(MethodDesc* methodDescPtr);
     template <typename PARENT_TRAITS>
     class DeleteValuesOnDestructSHashTraits : public PARENT_TRAITS
     {
@@ -425,7 +425,7 @@ private:
         }
     };
 
-    static void OnMethodPrepared(MethodDesc* methodDescPtr, PCODE pCode, const COR_ILMETHOD_DECODER* ilHeader);
+    static void OnMethodPrepared(MethodDesc* methodDescPtr);
 
 #ifdef FEATURE_GDBJIT_FRAME
     static bool EmitFrameInfo(Elf_Builder &, PCODE pCode, TADDR codeSzie);
@@ -433,8 +433,7 @@ private:
 #ifdef FEATURE_GDBJIT_SYMTAB
     static bool EmitSymtab(Elf_Builder &, MethodDesc* methodDescPtr, PCODE pCode, TADDR codeSize);
 #endif // FEATURE_GDBJIT_SYMTAB
-    static bool EmitDebugInfo(Elf_Builder &, MethodDesc* methodDescPtr, PCODE pCode, TADDR codeSize,
-                              const COR_ILMETHOD_DECODER* ilHeader);
+    static bool EmitDebugInfo(Elf_Builder &, MethodDesc* methodDescPtr, PCODE pCode, TADDR codeSize);
 
     static bool BuildSymbolTableSection(MemBuf& buf, PCODE addr, TADDR codeSize, int methodCount,
                                         NewArrayHolder<Elf_Symbol> &symbolNames, int symbolCount,
@@ -462,11 +461,9 @@ private:
 class FunctionMember: public TypeMember
 {
 public:
-    FunctionMember(MethodDesc *md, PCODE nativeCode, const COR_ILMETHOD_DECODER *ilHeader, int num_locals, int num_args)
+    FunctionMember(MethodDesc *md, int num_locals, int num_args)
         : TypeMember(),
           md(md),
-          m_nativeCode(nativeCode),
-          m_ilHeader(ilHeader),
           m_file(1),
           m_line(1),
           m_sub_low_pc(0),
@@ -509,8 +506,6 @@ public:
     }
 
     MethodDesc *md;
-    PCODE m_nativeCode;
-    const COR_ILMETHOD_DECODER *m_ilHeader;
     uint8_t m_file, m_line;
     uintptr_t m_sub_low_pc, m_sub_high_pc;
     uint8_t m_sub_loc[2];

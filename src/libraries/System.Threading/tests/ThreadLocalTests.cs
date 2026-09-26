@@ -59,7 +59,7 @@ namespace System.Threading.Tests
             Assert.True(tlocal.IsValueCreated);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public static void RunThreadLocalTest4_Value()
         {
             ThreadLocal<string> tlocal = null;
@@ -108,7 +108,7 @@ namespace System.Threading.Tests
             });
         }
 
-        [ConditionalFact(typeof(ThreadLocalTests), nameof(IsThreadingAndPreciseGcSupported))]
+        [ConditionalFact(nameof(IsThreadingAndPreciseGcSupported))]
         public static void RunThreadLocalTest5_Dispose()
         {
             // test recycling the combination index;
@@ -223,7 +223,7 @@ namespace System.Threading.Tests
             threadLocalWeakReferenceTest.Run();
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/43981", TestRuntimes.Mono)]
         public static void RunThreadLocalTest8_Values()
         {
@@ -315,7 +315,6 @@ namespace System.Threading.Tests
             Assert.Throws<ObjectDisposedException>(() => values = tl.Values);
         }
 
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/114096", typeof(PlatformDetection), nameof(PlatformDetection.IsBrowser), nameof(PlatformDetection.IsCoreCLR))]
         [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsPreciseGcSupported))]
         public static void RunThreadLocalTest8_Values_NegativeCases()
         {
@@ -368,7 +367,7 @@ namespace System.Threading.Tests
             }
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [OuterLoop]
         public static void ValuesGetterDoesNotThrowUnexpectedExceptionWhenDisposed()
         {
@@ -438,7 +437,7 @@ namespace System.Threading.Tests
 
         private enum UniqueEnumUsedOnlyWithNonInterferenceTest { True, False }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public static void TestUnrelatedThreadLocalDoesNotInterfereWithTrackAllValues()
         {
             ThreadLocal<UniqueEnumUsedOnlyWithNonInterferenceTest> localThatDoesNotTrackValues = new ThreadLocal<UniqueEnumUsedOnlyWithNonInterferenceTest>(false);
@@ -481,6 +480,6 @@ namespace System.Threading.Tests
         }
 
         public static bool IsThreadingAndPreciseGcSupported =>
-            PlatformDetection.IsMultithreadingSupported && PlatformDetection.IsPreciseGcSupported;
+            PlatformDetection.IsThreadingSupported && PlatformDetection.IsPreciseGcSupported;
     }
 }

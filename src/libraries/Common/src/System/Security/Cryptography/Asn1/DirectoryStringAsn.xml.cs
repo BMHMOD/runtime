@@ -8,10 +8,17 @@ using System.Runtime.InteropServices;
 
 namespace System.Security.Cryptography.Asn1
 {
-#if DEBUG
-    file static class ValidateDirectoryStringAsn
+    [StructLayout(LayoutKind.Sequential)]
+    internal partial struct DirectoryStringAsn
     {
-        static ValidateDirectoryStringAsn()
+        internal string? TeletexString;
+        internal string? PrintableString;
+        internal ReadOnlyMemory<byte>? UniversalString;
+        internal string? Utf8String;
+        internal string? BmpString;
+
+#if DEBUG
+        static DirectoryStringAsn()
         {
             var usedTags = new System.Collections.Generic.Dictionary<Asn1Tag, string>();
             Action<Asn1Tag, string> ensureUniqueTag = (tag, fieldName) =>
@@ -29,28 +36,6 @@ namespace System.Security.Cryptography.Asn1
             ensureUniqueTag(new Asn1Tag((UniversalTagNumber)28), "UniversalString");
             ensureUniqueTag(new Asn1Tag(UniversalTagNumber.UTF8String), "Utf8String");
             ensureUniqueTag(new Asn1Tag(UniversalTagNumber.BMPString), "BmpString");
-        }
-
-        [System.Runtime.CompilerServices.MethodImpl(
-            System.Runtime.CompilerServices.MethodImplOptions.NoInlining |
-            System.Runtime.CompilerServices.MethodImplOptions.NoOptimization)]
-        internal static void Validate() { }
-    }
-#endif
-
-    [StructLayout(LayoutKind.Sequential)]
-    internal partial struct DirectoryStringAsn
-    {
-        internal string? TeletexString;
-        internal string? PrintableString;
-        internal ReadOnlyMemory<byte>? UniversalString;
-        internal string? Utf8String;
-        internal string? BmpString;
-
-#if DEBUG
-        static DirectoryStringAsn()
-        {
-            ValidateDirectoryStringAsn.Validate();
         }
 #endif
 
@@ -129,7 +114,7 @@ namespace System.Security.Cryptography.Asn1
         {
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(encoded.Span, ruleSet);
+                AsnValueReader reader = new AsnValueReader(encoded.Span, ruleSet);
 
                 DecodeCore(ref reader, encoded, out DirectoryStringAsn decoded);
                 reader.ThrowIfNotEmpty();
@@ -141,7 +126,7 @@ namespace System.Security.Cryptography.Asn1
             }
         }
 
-        internal static void Decode(ref ValueAsnReader reader, ReadOnlyMemory<byte> rebind, out DirectoryStringAsn decoded)
+        internal static void Decode(ref AsnValueReader reader, ReadOnlyMemory<byte> rebind, out DirectoryStringAsn decoded)
         {
             try
             {
@@ -153,7 +138,7 @@ namespace System.Security.Cryptography.Asn1
             }
         }
 
-        private static void DecodeCore(ref ValueAsnReader reader, ReadOnlyMemory<byte> rebind, out DirectoryStringAsn decoded)
+        private static void DecodeCore(ref AsnValueReader reader, ReadOnlyMemory<byte> rebind, out DirectoryStringAsn decoded)
         {
             decoded = default;
             Asn1Tag tag = reader.PeekTag();

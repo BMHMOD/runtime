@@ -5,7 +5,4 @@
   <ItemGroup>
     <Compile Include="$(MSBuildThisFileName).il" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

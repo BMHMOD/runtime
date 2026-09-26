@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 
-
-namespace DevDiv_142976;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
@@ -43,7 +40,6 @@ public class DevDiv_142976
         }
     }
 
-    [OuterLoop]
     [Fact]
     public static void TestEntryPoint()
     {

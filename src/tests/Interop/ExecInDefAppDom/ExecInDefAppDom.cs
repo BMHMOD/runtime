@@ -3,7 +3,6 @@
 using System;
 using System.Runtime.InteropServices;
 using Xunit;
-using TestLibrary;
 
 public class FakeInjectedCode
 {
@@ -58,7 +57,6 @@ public class Program
         return passed ? 0 : 1;
     }
 
-    [ActiveIssue("CLR Runtime Host API not supported on Mono", TestRuntimes.Mono)]
     [Fact]
     [SkipOnMono("The legacy CoreCLR activation API is not supported on Mono.")]
     public static int TestEntryPoint()

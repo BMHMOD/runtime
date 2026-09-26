@@ -3,7 +3,6 @@
 
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 // This test comes from https://github.com/dotnet/runtime/issues/107754
 
@@ -35,7 +34,6 @@ namespace VariantVirtualStaticDefaultDispatch
             U.M();
         }
 
-        [ActiveIssue("needs triage", TestPlatforms.tvOS)]
         [Fact]
         public static void RunTest()
         {

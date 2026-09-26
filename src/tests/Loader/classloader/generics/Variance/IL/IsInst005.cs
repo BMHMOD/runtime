@@ -2,9 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using Xunit;
-using TestLibrary;
 
 public class Base {}
 public class Sub : Base {}
@@ -35,7 +33,7 @@ public class TestClass
 		}
 	}
 
-	public static bool UIsInstT<T, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] U>(bool expected)
+	public static bool UIsInstT<T,U>(bool expected)
 	{
 		try
 		{
@@ -142,7 +140,6 @@ public class TestClass
 		}	
 	}
 	
- [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
 	[Fact]
 	public static int TestEntryPoint()
 	{			

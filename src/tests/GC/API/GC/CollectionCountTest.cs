@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 /* CollectionCountTest
-using TestLibrary;
  *
  * Tests GC.CollectionCount by passing it invalid values (<0) and
  * values that are too large (>GC.MaxGeneration).
@@ -22,7 +21,7 @@ public class CollectionCountTest
     private Int32[] _negValues = { -1, -10, -10000, Int32.MinValue };
     private Int32[] _largeValues = { GC.MaxGeneration + 1, Int32.MaxValue / 2, Int32.MaxValue - 1, Int32.MaxValue };
 
-    public CollectionCountTest()
+    private CollectionCountTest()
     {
     }
 
@@ -131,7 +130,6 @@ public class CollectionCountTest
     }
 
 
-    [ActiveIssue("needs triage", TestRuntimes.Mono)]
     [Fact]
     public static int TestEntryPoint()
     {

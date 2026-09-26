@@ -202,7 +202,7 @@ void SetupGcCoverage(NativeCodeVersion nativeCodeVersion, BYTE* methodStartPtr)
 FORCEINLINE void UpdateGCStressInstructionWithoutGC ()
 {
     ThreadSuspend::SuspendEE(ThreadSuspend::SUSPEND_OTHER);
-    ThreadSuspend::RestartEE(true /* SuspendSucceeded */);
+    ThreadSuspend::RestartEE(TRUE, TRUE);
 }
 
 #if defined(TARGET_X86)
@@ -877,7 +877,7 @@ void DoGcStress (PCONTEXT regs, NativeCodeVersion nativeCodeVersion)
     }
 
     _ASSERTE(sizeof(OBJECTREF) == sizeof(DWORD_PTR));
-    GCFrame gcFrame(pThread, (OBJECTREF*)protRegs, 2, GC_CALL_INTERIOR);
+    GCFrame gcFrame(pThread, (OBJECTREF*)protRegs, 2, TRUE);
 
     MethodDesc *pMD = nativeCodeVersion.GetMethodDesc();
     LOG((LF_GCROOTS, LL_EVERYTHING, "GCCOVER: Doing GC at method %s::%s offset 0x%x\n",
@@ -887,6 +887,9 @@ void DoGcStress (PCONTEXT regs, NativeCodeVersion nativeCodeVersion)
     // Do the actual stress work
     //
 
+    // BUG(github #10318) - when not using allocation contexts, the alloc lock
+    // must be acquired here. Until fixed, this assert prevents random heap corruption.
+    assert(GCHeapUtilities::UseThreadAllocationContexts());
     GCHeapUtilities::GetGCHeap()->StressHeap(&t_runtime_thread_locals.alloc_context.m_GCAllocContext);
 
     // StressHeap can exit early w/o forcing a SuspendEE to trigger the instruction update
@@ -1192,6 +1195,9 @@ void DoGcStress (PCONTEXT regs, NativeCodeVersion nativeCodeVersion)
     // Do the actual stress work
     //
 
+    // BUG(github #10318) - when not using allocation contexts, the alloc lock
+    // must be acquired here. Until fixed, this assert prevents random heap corruption.
+    assert(GCHeapUtilities::UseThreadAllocationContexts());
     GCHeapUtilities::GetGCHeap()->StressHeap(&t_runtime_thread_locals.alloc_context.m_GCAllocContext);
 
     // StressHeap can exit early w/o forcing a SuspendEE to trigger the instruction update

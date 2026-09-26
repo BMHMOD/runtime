@@ -5,7 +5,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using Mono.Cecil;
 using Mono.Linker.Tests.Cases.Expectations.Assertions;
 using Mono.Linker.Tests.Cases.Expectations.Metadata;
@@ -152,13 +151,16 @@ namespace Mono.Linker.Tests.TestCasesRunner
             throw new InvalidOperationException($"Could not determine ref pack path. Computed path {candidatePath} doesn't exist.");
         }
 
-        public virtual IEnumerable<NPath> GetCommonSourceFiles()
+        public IEnumerable<NPath> GetCommonSourceFiles()
         {
-            yield return PathUtilities.GetMonoLinkerTestsExpectationsDirectory().ToNPath()
+            yield return _testCase.RootCasesDirectory.Parent
+                .Combine("Mono.Linker.Tests.Cases.Expectations")
                 .Combine("Support")
                 .Combine("DynamicallyAccessedMembersAttribute.cs");
 
-            var sharedDir = PathUtilities.GetILLinkSharedDirectory().ToNPath();
+            var sharedDir = _testCase.RootCasesDirectory.Parent.Parent
+                .Combine("src")
+                .Combine("ILLink.Shared");
             yield return sharedDir.Combine("RequiresDynamicCodeAttribute.cs");
             yield return sharedDir.Combine("RequiresUnreferencedCodeAttribute.cs");
         }

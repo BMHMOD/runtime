@@ -9,7 +9,7 @@ using Internal.ReadyToRunConstants;
 
 namespace ILCompiler.DependencyAnalysis.ReadyToRun
 {
-    public class DelayLoadMethodImport : DelayLoadHelperImport, IMethodCodeNodeWithTypeSignature
+    public class DelayLoadMethodImport : DelayLoadHelperImport, IMethodNode
     {
         private readonly MethodWithGCInfo _localMethod;
 

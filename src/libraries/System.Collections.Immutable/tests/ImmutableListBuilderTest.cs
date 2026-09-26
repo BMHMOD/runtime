@@ -333,8 +333,7 @@ namespace System.Collections.Immutable.Tests
                 (b, v) => b.IndexOf(v),
                 (b, v, i) => b.IndexOf(v, i),
                 (b, v, i, c) => b.IndexOf(v, i, c),
-                (b, v, i, c, eq) => b.IndexOf(v, i, c, eq),
-                "index");
+                (b, v, i, c, eq) => b.IndexOf(v, i, c, eq));
         }
 
         [Fact]

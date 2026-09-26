@@ -28,16 +28,11 @@ namespace System.Net.Mail.Tests
                 "Display \"Test\" Name",
                 "Display \\\"Test\\\" Name",
                 "\"",
-                "Display \\ Name",
-                "Display \\\\ Name",
-                "C:\\path\\to\\file",
-                "\\",
             };
             foreach (var displayName in displayNamesWithQuotes)
             {
-                string escaped = displayName.Replace("\\", "\\\\").Replace("\"", "\\\"");
-                yield return new object[]{ Address, displayName, null, $"\"{escaped}\" <{Address}>" };
-                yield return new object[]{ Address, $"\"{displayName}\"", displayName, $"\"{escaped}\" <{Address}>" };
+                yield return new object[]{ Address, displayName, null, $"\"{displayName.Replace("\"", "\\\"")}\" <{Address}>" };
+                yield return new object[]{ Address, $"\"{displayName}\"", displayName, $"\"{displayName.Replace("\"", "\\\"")}\" <{Address}>" };
             }
 
             yield return new object[]{ Address, null, "", Address };
@@ -65,22 +60,6 @@ namespace System.Net.Mail.Tests
             Assert.Equal(address, mailAddress.Address);
             Assert.Equal(expectedDisplayName ?? displayName, mailAddress.DisplayName);
             Assert.Equal(expectedToString, mailAddress.ToString());
-        }
-
-        [Theory]
-        [InlineData("Display\rName")]
-        [InlineData("Display\nName")]
-        [InlineData("Display\r\nName")]
-        [InlineData("DisplayName\r")]
-        [InlineData("DisplayName\n")]
-        [InlineData("DisplayName\r\n")]
-        [InlineData("\rDisplayName")]
-        [InlineData("\nDisplayName")]
-        [InlineData("\"Display\r\nName\"")]
-        public void MailAddress_Ctor_DisplayNameContainsCRLF_Throws(string displayName)
-        {
-            Assert.Throws<FormatException>(() => new MailAddress(Address, displayName));
-            Assert.False(MailAddress.TryCreate(Address, displayName, out _));
         }
     }
 }

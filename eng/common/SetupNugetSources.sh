@@ -24,9 +24,7 @@
 # This logic is also abstracted into enable-internal-sources.yml.
 
 ConfigFile=$1
-# Prefer the environment variable so credentials do not appear in process arguments.
-# Retain the positional argument as a compatibility fallback for existing callers.
-CredToken=${Token:-$2}
+CredToken=$2
 NL='\n'
 TB='    '
 
@@ -41,11 +39,6 @@ while [[ -h "$source" ]]; do
   [[ $source != /* ]] && source="$scriptroot/$source"
 done
 scriptroot="$( cd -P "$( dirname "$source" )" && pwd )"
-
-# This script only consumes helper functions from tools.sh to configure NuGet feeds.
-# Skip importing configure-toolset.sh so that repo-specific toolset setup (e.g. acquiring
-# a bootstrap SDK) is not triggered as a side effect of feed configuration.
-disable_configure_toolset_import=1
 
 . "$scriptroot/tools.sh"
 
@@ -169,7 +162,7 @@ if [ "$?" == "0" ]; then
     EnableMaestroInternalPackageSources
 fi
 
-DotNetVersions=('5' '6' '7' '8' '9' '10' '11')
+DotNetVersions=('5' '6' '7' '8' '9' '10')
 
 for DotNetVersion in ${DotNetVersions[@]} ; do
     FeedPrefix="dotnet${DotNetVersion}";

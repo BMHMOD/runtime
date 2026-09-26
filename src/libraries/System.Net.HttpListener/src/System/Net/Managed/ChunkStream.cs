@@ -77,6 +77,7 @@ namespace System.Net
         private State _state;
         private readonly StringBuilder _saved;
         private bool _sawCR;
+        private bool _gotit;
         private int _trailerState;
         private readonly List<Chunk> _chunks;
 
@@ -149,6 +150,7 @@ namespace System.Net
 
                 _saved.Length = 0;
                 _sawCR = false;
+                _gotit = false;
             }
 
             if (_state == State.Body && offset < size)
@@ -175,6 +177,7 @@ namespace System.Net
 
                 _saved.Length = 0;
                 _sawCR = false;
+                _gotit = false;
             }
 
             if (offset < size)
@@ -252,7 +255,11 @@ namespace System.Net
                 if (_sawCR && c == '\n')
                     break;
 
-                _saved.Append(c);
+                if (c == ' ')
+                    _gotit = true;
+
+                if (!_gotit)
+                    _saved.Append(c);
 
                 if (_saved.Length > 20)
                     ThrowProtocolViolation("chunk size too long.");
@@ -267,7 +274,7 @@ namespace System.Net
                 {
                     if (_saved.Length > 0)
                     {
-                        _chunkSize = ParseChunkSize(RemoveChunkExtension(_saved.ToString()));
+                        _chunkSize = int.Parse(RemoveChunkExtension(_saved.ToString()), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
                     }
                 }
                 catch (Exception)
@@ -281,7 +288,7 @@ namespace System.Net
             _chunkRead = 0;
             try
             {
-                _chunkSize = ParseChunkSize(RemoveChunkExtension(_saved.ToString()));
+                _chunkSize = int.Parse(RemoveChunkExtension(_saved.ToString()), NumberStyles.HexNumber, CultureInfo.InvariantCulture);
             }
             catch (Exception)
             {
@@ -301,15 +308,6 @@ namespace System.Net
         {
             int idx = input.IndexOf(';');
             return idx >= 0 ? input.Slice(0, idx) : input;
-        }
-
-        private static int ParseChunkSize(ReadOnlySpan<char> input)
-        {
-            uint chunkSize = uint.Parse(input, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture);
-            if (chunkSize > int.MaxValue)
-                throw new OverflowException();
-
-            return (int)chunkSize;
         }
 
         private State ReadCRLF(byte[] buffer, ref int offset, int size)

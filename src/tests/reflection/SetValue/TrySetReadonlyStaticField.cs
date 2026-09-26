@@ -4,7 +4,6 @@
 using System;
 using System.Reflection;
 using Xunit;
-using TestLibrary;
 
 public class X
 {
@@ -96,8 +95,6 @@ public class X
         return (shouldThrow == threw) && !unexpected;
     }
 
-    [ActiveIssue("https://github.com/dotnet/runtimelab/issues/200", typeof(Utilities), nameof(Utilities.IsNativeAot))]
-    [ActiveIssue("needs triage", TestRuntimes.Mono)]
     [Fact]
     public static int TestEntryPoint()
     {

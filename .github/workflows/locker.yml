@@ -1,4 +1,4 @@
-name: Locker - Lock stale issues and PRs, unlock reopened ones
+name: Locker - Lock stale issues and PRs
 on:
   schedule:
     - cron: '37 8 * * *' # Once per day, early morning PT
@@ -13,24 +13,17 @@ on:
         required: true
         default: "30"
 
-  issues:
-    types: [reopened]
-
-  pull_request_target:
-    types: [reopened]
-
 permissions:
   issues: write
   pull-requests: write
 
 jobs:
-  lock:
+  main:
     runs-on: ubuntu-latest
-    # Only run the locking job for scheduled runs and manual dispatch, not for reopened events
-    if: ${{ github.repository_owner == 'dotnet' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') }}
+    if: ${{ github.repository_owner == 'dotnet' }}
     steps:
       - name: Checkout Actions
-        uses: actions/checkout@v7
+        uses: actions/checkout@v5
         with:
           repository: "microsoft/vscode-github-triage-actions"
           path: ./actions
@@ -42,20 +35,3 @@ jobs:
         with:
           daysSinceClose:  ${{ fromJson(inputs.daysSinceClose  || 30) }}
           daysSinceUpdate: ${{ fromJson(inputs.daysSinceUpdate || 30) }}
-
-  unlock:
-    runs-on: ubuntu-latest
-    # Only run the unlocking job when issues or PRs are reopened
-    if: ${{ github.repository_owner == 'dotnet' && (github.event_name == 'issues' || github.event_name == 'pull_request_target') && github.event.action == 'reopened' }}
-    steps:
-      - name: Unlock if issue/PR is locked
-        uses: actions/github-script@v9
-        if: ${{ github.event.issue.locked == true }}
-        with:
-          script: |
-            console.log(`Unlocking locked issue/PR #${context.issue.number}.`);
-            await github.rest.issues.unlock({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-            });

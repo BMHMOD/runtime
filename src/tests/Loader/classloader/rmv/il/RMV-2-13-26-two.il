@@ -17,7 +17,6 @@
 	}
 }
 
-.class public auto ansi Program {
 .method public static int32 main(){
 	.custom instance void [xunit.core]Xunit.FactAttribute::.ctor() = (
 	    01 00 00 00
@@ -29,5 +28,4 @@
 	call	void [System.Console]System.Console::WriteLine(class [mscorlib]System.String)
 	ldc.i4	100
 	ret
-}
 }

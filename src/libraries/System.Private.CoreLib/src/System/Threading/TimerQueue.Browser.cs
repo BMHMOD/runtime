@@ -19,6 +19,7 @@ namespace System.Threading
     //
     internal partial class TimerQueue
     {
+        private static long TickCount64 => Environment.TickCount64;
         private static List<TimerQueue>? s_scheduledTimers;
         private static List<TimerQueue>? s_scheduledTimersToFire;
         private static long s_shortestDueTimeMs = long.MaxValue;
@@ -39,7 +40,9 @@ namespace System.Threading
         private static unsafe partial void SystemJS_ScheduleTimer(int shortestDueTimeMs);
 #endif
 
-        [UnmanagedCallersOnly(EntryPoint = "SystemJS_ExecuteTimerCallback")]
+#pragma warning disable CS3016 // Arrays as attribute arguments is not CLS-compliant
+        [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
+#pragma warning restore CS3016
         // this callback will arrive on the main thread, called from mono_wasm_execute_timer
         private static void TimerHandler()
         {
@@ -48,7 +51,7 @@ namespace System.Threading
                 // always only have one scheduled at a time
                 s_shortestDueTimeMs = long.MaxValue;
 
-                long currentTimeMs = Environment.TickCount64;
+                long currentTimeMs = TickCount64;
                 ReplaceNextTimer(PumpTimerQueue(currentTimeMs), currentTimeMs);
             }
             catch (Exception e)
@@ -61,7 +64,7 @@ namespace System.Threading
         private bool SetTimer(uint actualDuration)
         {
             Debug.Assert((int)actualDuration >= 0);
-            long currentTimeMs = Environment.TickCount64;
+            long currentTimeMs = TickCount64;
             if (!_isScheduled)
             {
                 s_scheduledTimers ??= new List<TimerQueue>(Instances.Length);
@@ -78,7 +81,6 @@ namespace System.Threading
         }
 
         // shortest time of all TimerQueues
-        [DynamicDependency("TimerHandler")] // https://github.com/dotnet/runtime/issues/101434
         private static unsafe void ReplaceNextTimer(long shortestDueTimeMs, long currentTimeMs)
         {
             if (shortestDueTimeMs == long.MaxValue)
@@ -93,7 +95,7 @@ namespace System.Threading
                 int shortestWait = Math.Max((int)(shortestDueTimeMs - currentTimeMs), 0);
                 // this would cancel the previous schedule and create shorter one, it is expensive callback
 #if MONO
-                MainThreadScheduleTimer((void*)(delegate* unmanaged<void>)&TimerHandler, shortestWait);
+                MainThreadScheduleTimer((void*)(delegate* unmanaged[Cdecl]<void>)&TimerHandler, shortestWait);
 #else
                 SystemJS_ScheduleTimer(shortestWait);
 #endif

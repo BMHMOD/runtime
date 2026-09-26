@@ -32,7 +32,8 @@ schedules:
 pr:
   branches:
     include:
-    - '*'
+    - main
+    - release/*.*
   paths:
     include:
     - '*'
@@ -62,7 +63,7 @@ extends:
     - stage: Build
       jobs:
       #
-      # Build and Test ILLink with Debug tools in Release config vertical for Windows and Linux
+      # Build and Test ILLink in Release config vertical for Windows, Linux and OSX
       #
       - template: /eng/pipelines/common/platform-matrix.yml
         parameters:
@@ -70,36 +71,25 @@ extends:
           buildConfig: release
           platforms:
           - windows_x64
+          - osx_x64
           - linux_x64
           jobParameters:
             testGroup: innerloop
             enablePublishTestResults: true
-            testResultsFormat: 'xunit'
             timeoutInMinutes: 120
-            nameSuffix: ILLink_Tests
+            nameSuffix: ILLink_Runtime_Testing
             condition:
               or(
                 eq(stageDependencies.EvaluatePaths.evaluate_paths.outputs['SetPathVars_tools_illink.containsChange'], true),
                 eq(variables['isRollingBuild'], true))
             # Build libs.sfx subset first so that Roslyn analyzer tests can use live ref pack
-            buildArgs: -s libs.sfx -c $(_BuildConfig) /p:ToolsConfiguration=Debug
+            buildArgs: -s libs.sfx -c $(_BuildConfig)
             postBuildSteps:
-            - script: $(Build.SourcesDirectory)$(dir)build$(scriptExt) -ci -arch $(archType) $(_osParameter) -s tools.illinktests -test -c $(_BuildConfig) $(crossArg) $(_officialBuildParameter) /p:ToolsConfiguration=Debug
+            - script: $(Build.SourcesDirectory)$(dir)build$(scriptExt) -ci -arch $(archType) $(_osParameter) -s tools.illinktests -test -c $(_BuildConfig) $(crossArg) $(_officialBuildParameter)
               displayName: Run ILLink Tests
-            # The illink tools and tests build as Debug (ToolsConfiguration=Debug), so arcade writes
-            # their xUnit results to artifacts/TestResults/Debug. The publish step searches
-            # artifacts/TestResults/$(_BuildConfig) (Release), so copy the results across to get them
-            # published. Runs even on test failure so failures still surface in the Tests tab.
-            - task: CopyFiles@2
-              displayName: Copy ILLink test results for publishing
-              condition: succeededOrFailed()
-              inputs:
-                sourceFolder: $(Build.SourcesDirectory)/artifacts/TestResults/Debug
-                contents: '**/*.xml'
-                targetFolder: $(Build.SourcesDirectory)/artifacts/TestResults/$(_BuildConfig)
 
       #
-      # Build Release config vertical for Windows and Linux
+      # Build Release config vertical for Windows, Linux, and OSX
       #
       - template: /eng/pipelines/common/platform-matrix.yml
         parameters:
@@ -107,6 +97,7 @@ extends:
           buildConfig: release
           platforms:
           - windows_x64
+          - osx_x64
           - linux_x64
           jobParameters:
             testGroup: innerloop
@@ -116,15 +107,9 @@ extends:
               or(
                 eq(stageDependencies.EvaluatePaths.evaluate_paths.outputs['SetPathVars_non_mono_and_wasm.containsChange'], true),
                 eq(variables['isRollingBuild'], true))
-            # This replaces the previous `clr` subset (which expands to `clr.native` and builds every native component)
-            # with a narrower CoreCLR subset list that the trimming/NativeAOT tests need.
-            # Most notably it drops `alljits` (cross-target alt-JITs) and `spmi` (SuperPMI and shims),
-            # none of which these tests use.
-            buildArgs: -s clr.runtime+clr.nativeaotruntime+clr.corelib+clr.tools+clr.nativecorelib+clr.nativeaotlibs+libs+tools.illink+host.native -c $(_BuildConfig) /p:ToolsConfiguration=Debug
+            buildArgs: -s clr+libs+tools.illink+host.native -c $(_BuildConfig)
             postBuildSteps:
               - template: /eng/pipelines/libraries/execute-trimming-tests-steps.yml
-                parameters:
-                  extraTestArgs: '/p:ToolsConfiguration=Debug'
 
       #
       # Build Release config vertical for Browser-wasm
@@ -139,7 +124,7 @@ extends:
             testGroup: innerloop
             timeoutInMinutes: 120
             nameSuffix: Runtime_Release
-            buildArgs: -s mono+libs+tools.illink -c $(_BuildConfig) -p:WasmBuildNative=false -p:AotHostArchitecture=x64 -p:AotHostOS=$(_hostedOS) /p:ToolsConfiguration=Debug
+            buildArgs: -s mono+libs+tools.illink -c $(_BuildConfig) -p:WasmBuildNative=false -p:AotHostArchitecture=x64 -p:AotHostOS=$(_hostedOS)
             condition:
               or(
                 eq(variables['isRollingBuild'], true),
@@ -150,5 +135,5 @@ extends:
             postBuildSteps:
               - template: /eng/pipelines/libraries/execute-trimming-tests-steps.yml
                 parameters:
-                    extraTestArgs: '/p:WasmBuildNative=false /p:RuntimeFlavor=Mono /p:ToolsConfiguration=Debug'
+                    extraTestArgs: '/p:WasmBuildNative=false'
                     runAotTests: false

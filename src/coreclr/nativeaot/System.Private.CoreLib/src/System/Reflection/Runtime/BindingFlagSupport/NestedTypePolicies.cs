@@ -3,6 +3,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection.Runtime.TypeInfos;
 
 namespace System.Reflection.Runtime.BindingFlagSupport
@@ -26,6 +27,13 @@ namespace System.Reflection.Runtime.BindingFlagSupport
 
         public NestedTypePolicies() : base(MemberTypeIndex.NestedType) { }
 
+        [UnconditionalSuppressMessage("ReflectionAnalysis", "IL2070:UnrecognizedReflectionPattern",
+            Justification = "Reflection implementation")]
+        public sealed override IEnumerable<Type> GetDeclaredMembers(Type type)
+        {
+            return type.GetNestedTypes(DeclaredOnlyLookup);
+        }
+
         public sealed override IEnumerable<Type> CoreGetDeclaredMembers(RuntimeTypeInfo type, NameFilter? optionalNameFilter, RuntimeTypeInfo reflectedType)
         {
             Debug.Assert(reflectedType.Equals(type));  // NestedType queries are always performed as if BindingFlags.DeclaredOnly are set so the reflectedType should always be the declaring type.
@@ -44,6 +52,8 @@ namespace System.Reflection.Runtime.BindingFlagSupport
             // We just need to distinguish between "public" and "everything else."
             visibility = member.IsNestedPublic ? MethodAttributes.Public : MethodAttributes.Private;
         }
+
+        public sealed override bool ImplicitlyOverrides(Type baseMember, Type derivedMember) => false;
 
         public sealed override bool IsSuppressedByMoreDerivedMember(Type member, Type[] priorMembers, int startIndex, int endIndex)
         {

@@ -17,6 +17,8 @@ namespace ILLink.RoslynAnalyzer.Tests
 {
     public class RequiresUnreferencedCodeAnalyzerTests
     {
+        static readonly DiagnosticDescriptor dynamicInvocationDiagnosticDescriptor = DiagnosticDescriptors.GetDiagnosticDescriptor(DiagnosticId.RequiresUnreferencedCode, new DiagnosticString("DynamicTypeInvocation"));
+
         static Task VerifyRequiresUnreferencedCodeAnalyzer(string source, params DiagnosticResult[] expected) =>
             VerifyRequiresUnreferencedCodeAnalyzer(source, null, expected);
 

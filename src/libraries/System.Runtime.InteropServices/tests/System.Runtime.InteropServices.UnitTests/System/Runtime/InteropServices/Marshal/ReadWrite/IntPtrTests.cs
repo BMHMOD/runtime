@@ -135,13 +135,11 @@ namespace System.Runtime.InteropServices.Tests
         }
 
         [Fact]
+        [SkipOnMono("Marshal.ReadByte will not be implemented in Mono, see https://github.com/mono/mono/issues/15085.")]
         public void ReadIntPtr_ZeroPointer_ThrowsException()
         {
-            AssertExtensions.Throws<AccessViolationException>(() => Marshal.ReadIntPtr(IntPtr.Zero));
-            if (PlatformDetection.SupportsDirtyAccessViolations)
-            {
-                AssertExtensions.Throws<AccessViolationException>(() => Marshal.ReadIntPtr(IntPtr.Zero, 2));
-            }
+            AssertExtensions.ThrowsAny<AccessViolationException, NullReferenceException>(() => Marshal.ReadIntPtr(IntPtr.Zero));
+            AssertExtensions.ThrowsAny<AccessViolationException, NullReferenceException>(() => Marshal.ReadIntPtr(IntPtr.Zero, 2));
         }
 
         [Fact]
@@ -165,13 +163,11 @@ namespace System.Runtime.InteropServices.Tests
         }
 
         [Fact]
+        [SkipOnMono("Marshal.ReadByte will not be implemented in Mono, see https://github.com/mono/mono/issues/15085.")]
         public void WriteIntPtr_ZeroPointer_ThrowsException()
         {
-            AssertExtensions.Throws<AccessViolationException>(() => Marshal.WriteIntPtr(IntPtr.Zero, (IntPtr)0));
-            if (PlatformDetection.SupportsDirtyAccessViolations)
-            {
-                AssertExtensions.Throws<AccessViolationException>(() => Marshal.WriteIntPtr(IntPtr.Zero, 2, (IntPtr)0));
-            }
+            AssertExtensions.ThrowsAny<AccessViolationException, NullReferenceException>(() => Marshal.WriteIntPtr(IntPtr.Zero, (IntPtr)0));
+            AssertExtensions.ThrowsAny<AccessViolationException, NullReferenceException>(() => Marshal.WriteIntPtr(IntPtr.Zero, 2, (IntPtr)0));
         }
 
         [Fact]

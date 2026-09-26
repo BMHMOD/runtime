@@ -41,7 +41,7 @@ namespace System.Formats.Asn1
 
         // T-REC-X.680-201508 sec 46
         // T-REC-X.690-201508 sec 11.7
-        private unsafe void WriteGeneralizedTimeCore(
+        private void WriteGeneralizedTimeCore(
             Asn1Tag tag,
             DateTimeOffset value,
             bool omitFractionalSeconds)

@@ -68,7 +68,6 @@ namespace System.Formats.Cbor
                 throw new ArgumentOutOfRangeException(nameof(definiteLength));
             }
 
-            EnsureMaxDepthNotExceeded();
             WriteUnsignedInteger(CborMajorType.Map, (ulong)definiteLength);
             PushDataItem(CborMajorType.Map, definiteLength: 2 * definiteLength);
             _currentKeyOffset = _offset;
@@ -81,7 +80,6 @@ namespace System.Formats.Cbor
                 throw new InvalidOperationException(SR.Format(SR.Cbor_ConformanceMode_IndefiniteLengthItemsNotSupported, ConformanceMode));
             }
 
-            EnsureMaxDepthNotExceeded();
             EnsureWriteCapacity(1);
             WriteInitialByte(new CborInitialByte(CborMajorType.Map, CborAdditionalInfo.IndefiniteLength));
             PushDataItem(CborMajorType.Map, definiteLength: null);

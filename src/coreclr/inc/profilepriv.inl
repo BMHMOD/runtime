@@ -133,29 +133,27 @@ inline void ProfControlBlock::Init()
     globalEventMask.SetEventMask(COR_PRF_MONITOR_NONE);
     globalEventMask.SetEventMaskHigh(COR_PRF_HIGH_MONITOR_NONE);
 
-    fGCInProgress = false;
-    fBaseSystemClassesLoaded = false;
+    fGCInProgress = FALSE;
+    fBaseSystemClassesLoaded = FALSE;
 #ifdef PROF_TEST_ONLY_FORCE_ELT
-    fTestOnlyForceEnterLeave = false;
+    fTestOnlyForceEnterLeave = FALSE;
 #endif
 
 #ifdef PROF_TEST_ONLY_FORCE_OBJECT_ALLOCATED
-    fTestOnlyForceObjectAllocated = false;
+    fTestOnlyForceObjectAllocated = FALSE;
 #endif
 
 #ifdef _DEBUG
-    fTestOnlyEnableICorProfilerInfo = false;
+    fTestOnlyEnableICorProfilerInfo = FALSE;
 #endif // _DEBUG
 
-    fConcurrentGCDisabledForAttach = false;
+    fConcurrentGCDisabledForAttach = FALSE;
 
     mainProfilerInfo.ResetPerSessionStatus();
 
-    fProfilerRequestedRuntimeSuspend = false;
+    fProfControlBlockInitialized = TRUE;
 
-    fRejitOnAttachEnabled = CLRConfig::GetConfigValue(CLRConfig::EXTERNAL_ProfAPI_RejitOnAttach) != 0;
-
-    fProfControlBlockInitialized = true;
+    fProfilerRequestedRuntimeSuspend = FALSE;
 }
 
 
@@ -2108,13 +2106,6 @@ FORCEINLINE BOOL CORProfilerTrackEventPipe()
     STATIC_CONTRACT_LIMITED_METHOD;
 
     return (&g_profControlBlock)->globalEventMask.IsEventMaskHighSet(COR_PRF_HIGH_MONITOR_EVENT_PIPE);
-}
-
-FORCEINLINE BOOL CORProfilerSkipAllocatedByClassStatistic()
-{
-    STATIC_CONTRACT_LIMITED_METHOD;
-
-    return (&g_profControlBlock)->globalEventMask.IsEventMaskHighSet(COR_PRF_HIGH_MONITOR_GC_SKIP_ALLOCATED_BY_CLASS_STATISTIC);
 }
 
 #if defined(PROFILING_SUPPORTED)

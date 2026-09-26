@@ -31,9 +31,7 @@ namespace Profiler.Tests
                               Dictionary<string, string> envVars = null,
                               string reverseServerName = null,
                               bool loadAsNotification = false,
-                              int notificationCopies = 1,
-                              bool appendNotificationSeparator = true,
-                              string envVarProfilerPrefix = "DOTNET")
+                              int notificationCopies = 1)
         {
             string arguments;
             string program;
@@ -49,40 +47,29 @@ namespace Profiler.Tests
             string profilerPath = GetProfilerPath();
             if (!profileeOptions.HasFlag(ProfileeOptions.NoStartupAttach))
             {
-                envVars.Add(envVarProfilerPrefix + "_ENABLE_PROFILING", "1");
+                envVars.Add("CORECLR_ENABLE_PROFILING", "1");
 
                 if (loadAsNotification)
                 {
                     StringBuilder builder = new StringBuilder();
                     for (int i = 0; i < notificationCopies; ++i)
                     {
-                        if (i > 0)
-                        {
-                            builder.Append(";");
-                        }
-
                         builder.Append(profilerPath);
                         builder.Append("=");
                         builder.Append("{");
                         builder.Append(profilerClsid.ToString());
                         builder.Append("}");
-                    }
-
-                    // A trailing separator is optional. Omitting it exercises the common
-                    // real-world form where the final (or only) entry has no trailing ';'.
-                    if (appendNotificationSeparator)
-                    {
                         builder.Append(";");
                     }
 
-                    envVars.Add(envVarProfilerPrefix + "_ENABLE_NOTIFICATION_PROFILERS", "1");
-                    envVars.Add(envVarProfilerPrefix + "_NOTIFICATION_PROFILERS", builder.ToString());
+                    envVars.Add("CORECLR_ENABLE_NOTIFICATION_PROFILERS", "1");
+                    envVars.Add("CORECLR_NOTIFICATION_PROFILERS", builder.ToString());
 
                 }
                 else
                 {
-                    envVars.Add(envVarProfilerPrefix + "_PROFILER", "{" + profilerClsid + "}");
-                    envVars.Add(envVarProfilerPrefix + "_PROFILER_PATH", profilerPath);
+                    envVars.Add("CORECLR_PROFILER", "{" + profilerClsid + "}");
+                    envVars.Add("CORECLR_PROFILER_PATH", profilerPath);
                 }
             }
 
@@ -112,25 +99,27 @@ namespace Profiler.Tests
                 FailFastWithMessage("Profiler library not found at expected path: " + profilerPath);
             }
 
-            ProcessStartInfo startInfo = new ProcessStartInfo();
-            startInfo.FileName = program;
-            startInfo.Arguments = arguments;
-            startInfo.UseShellExecute = false;
-            startInfo.RedirectStandardOutput = true;
-            startInfo.RedirectStandardError = true;
+            Process process = new Process();
+            process.StartInfo.FileName = program;
+            process.StartInfo.Arguments = arguments;
+            process.StartInfo.UseShellExecute = false;
+            process.StartInfo.RedirectStandardOutput = true;
 
-            Console.WriteLine($"Profilee command: \"{startInfo.FileName}\" {startInfo.Arguments}");
-            Console.WriteLine("Profilee environment variables:");
-            foreach (KeyValuePair<string, string> envVar in envVars)
+            foreach (string key in Environment.GetEnvironmentVariables().Keys)
             {
-                Console.WriteLine($"  {envVar.Key}={envVar.Value}");
-                startInfo.EnvironmentVariables[envVar.Key] = envVar.Value;
+                process.StartInfo.EnvironmentVariables[key] = Environment.GetEnvironmentVariable(key);
             }
 
-            ProcessTextOutput result = Process.RunAndCaptureText(startInfo);
-            ProfileeOutputVerifier verifier = new ProfileeOutputVerifier(new StringReader(result.StandardOutput));
+            foreach (string key in envVars.Keys)
+            {
+                process.StartInfo.EnvironmentVariables[key] = envVars[key];
+            }
+
+            process.Start();
+            ProfileeOutputVerifier verifier = new ProfileeOutputVerifier(process.StandardOutput);
 
             verifier.VerifyOutput();
+            process.WaitForExit();
 
             // There are two conditions for profiler tests to pass, the output of the profiled program
             // must contain the phrase "PROFILER TEST PASSES" and the return code must be 100. This is
@@ -141,12 +130,12 @@ namespace Profiler.Tests
             {
                 FailFastWithMessage($"Profiler tests are expected to contain the text '{verifier.SuccessPhrase}' in the console output " +
                     $"of the profilee app to indicate a passing test. Usually it is printed from the Shutdown() method of the profiler implementation. This " +
-                    $"text was not found in the output above. Profilee returned exit code {result.ExitStatus.ExitCode}.");
+                    $"text was not found in the output above. Profilee returned exit code {process.ExitCode}.");
             }
 
-            if (result.ExitStatus.ExitCode != 100)
+            if (process.ExitCode != 100)
             {
-                FailFastWithMessage($"Profilee returned exit code {result.ExitStatus.ExitCode} instead of expected exit code 100.");
+                FailFastWithMessage($"Profilee returned exit code {process.ExitCode} instead of expected exit code 100.");
             }
 
             return 100;
@@ -161,13 +150,13 @@ namespace Profiler.Tests
             {
                 profilerName = $"{ProfilerName}.dll";
             }
-            else if (TestLibrary.Utilities.IsMacOSX)
+            else if ((TestLibrary.Utilities.IsLinux) || (TestLibrary.Utilities.IsFreeBSD))
             {
-                profilerName = $"lib{ProfilerName}.dylib";
+                profilerName = $"lib{ProfilerName}.so";
             }
             else
             {
-                profilerName = $"lib{ProfilerName}.so";
+                profilerName = $"lib{ProfilerName}.dylib";
             }
 
             string profilerPath = Path.Combine(Environment.CurrentDirectory, profilerName);
@@ -204,9 +193,9 @@ namespace Profiler.Tests
             private volatile bool _hasPassingOutput;
 
             public string SuccessPhrase = "PROFILER TEST PASSES";
-            private TextReader standardOutput;
+            private StreamReader standardOutput;
 
-            public ProfileeOutputVerifier(TextReader standardOutput)
+            public ProfileeOutputVerifier(StreamReader standardOutput)
             {
                 this.standardOutput = standardOutput;
             }

@@ -86,12 +86,10 @@
 ;; everything between the base of the ReturnBlock and the top of the StackPassedArgs.
 ;;
 
-    EXTERN __guard_check_icall_fptr
-
     TEXTAREA
 
     MACRO
-        UNIVERSAL_TRANSITION $FunctionName, $ValidateTarget
+        UNIVERSAL_TRANSITION $FunctionName
 
     NESTED_ENTRY Rhp$FunctionName
 
@@ -124,15 +122,6 @@
 
     ALTERNATE_ENTRY ReturnFrom$FunctionName
 
-    IF "$ValidateTarget" != ""
-        ;; Validate the target address using Control Flow Guard before tail-calling it.
-        ;; The validator takes the target in x15 and preserves x0-x8, x15, and all float registers.
-        mov         x15, x0
-        adrp        x16, __guard_check_icall_fptr
-        ldr         x16, [x16, __guard_check_icall_fptr]
-        blr         x16
-    ENDIF
-
         ;; Move the result (the target address) to x12 so it doesn't get overridden when we restore the
         ;; argument registers.
         mov         x12, x0
@@ -160,7 +149,10 @@
 
     MEND
 
-    UNIVERSAL_TRANSITION UniversalTransitionTailCall
-    UNIVERSAL_TRANSITION UniversalTransitionGuardedTailCall, ValidateTarget
+    ; To enable proper step-in behavior in the debugger, we need to have two instances
+    ; of the thunk. For the first one, the debugger steps into the call in the function,
+    ; for the other, it steps over it.
+    UNIVERSAL_TRANSITION UniversalTransition
+    UNIVERSAL_TRANSITION UniversalTransition_DebugStepTailCall
 
     END

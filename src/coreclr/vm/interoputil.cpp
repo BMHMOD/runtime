@@ -259,8 +259,6 @@ ErrExit:
     return iLCIDParam;
 }
 
-#ifdef FEATURE_COMINTEROP
-
 //---------------------------------------------------------------------------
 // Transforms an LCID into a CultureInfo.
 void GetCultureInfoForLCID(LCID lcid, OBJECTREF *pCultureObj)
@@ -270,54 +268,31 @@ void GetCultureInfoForLCID(LCID lcid, OBJECTREF *pCultureObj)
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(CheckPointer(pCultureObj));
     }
     CONTRACTL_END;
 
-    UnmanagedCallersOnlyCaller cultureInfoCtor(METHOD__CULTUREINFOMARSHALER__CREATE_CULTURE_INFO);
-    cultureInfoCtor.InvokeThrowing((int)lcid, pCultureObj);
-}
-
-//---------------------------------------------------------------------------
-// Gets the current culture or UI culture for the current thread.
-OBJECTREF GetCurrentCulture(BOOL bUICulture)
-{
-    CONTRACTL
+    OBJECTREF CultureObj = NULL;
+    GCPROTECT_BEGIN(CultureObj)
     {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
+        // Allocate a CultureInfo with the specified LCID.
+        CultureObj = AllocateObject(CoreLibBinder::GetClass(CLASS__CULTURE_INFO));
+
+        MethodDescCallSite cultureInfoCtor(METHOD__CULTURE_INFO__INT_CTOR, &CultureObj);
+
+        // Call the CultureInfo(int culture) constructor.
+        ARG_SLOT pNewArgs[] = {
+            ObjToArgSlot(CultureObj),
+            (ARG_SLOT)lcid
+        };
+        cultureInfoCtor.Call(pNewArgs);
+
+        // Set the returned culture object.
+        *pCultureObj = CultureObj;
     }
-    CONTRACTL_END;
-
-    OBJECTREF pCurrentCulture = NULL;
-    GCPROTECT_BEGIN(pCurrentCulture);
-
-    UnmanagedCallersOnlyCaller propGet(METHOD__CULTUREINFOMARSHALER__GET_CURRENT_CULTURE);
-    propGet.InvokeThrowing(CLR_BOOL_ARG(bUICulture), &pCurrentCulture);
-
     GCPROTECT_END();
-
-    return pCurrentCulture;
 }
-
-//---------------------------------------------------------------------------
-// Sets the current culture or UI culture for the current thread.
-void SetCurrentCulture(OBJECTREF* CultureObj, BOOL bUICulture)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_TRIGGERS;
-        MODE_COOPERATIVE;
-    }
-    CONTRACTL_END;
-
-    UnmanagedCallersOnlyCaller propSet(METHOD__CULTUREINFOMARSHALER__SET_CURRENT_CULTURE);
-    propSet.InvokeThrowing(CLR_BOOL_ARG(bUICulture), CultureObj);
-}
-
-#endif // FEATURE_COMINTEROP
 
 
 //---------------------------------------------------------------------------
@@ -432,6 +407,7 @@ BOOL IsManagedObject(IUnknown *pIUnknown)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(CheckPointer(pIUnknown));
     }
     CONTRACTL_END;
@@ -729,7 +705,7 @@ ErrExit:
 //--------------------------------------------------------------------------------
 // Release helper, must be called in preemptive mode.  Only use this variant if
 // you already know you're in preemptive mode for other reasons.
-ULONG SafeReleasePreemp(IUnknown * pUnk)
+ULONG SafeReleasePreemp(IUnknown * pUnk, RCW * pRCW)
 {
     CONTRACTL {
         NOTHROW;
@@ -742,14 +718,14 @@ ULONG SafeReleasePreemp(IUnknown * pUnk)
         return 0;
 
     // Message pump could happen, so arbitrary managed code could run.
-    CONTRACT_VIOLATION(ThrowsViolation);
+    CONTRACT_VIOLATION(ThrowsViolation | FaultViolation);
 
     return pUnk->Release();
 }
 
 //--------------------------------------------------------------------------------
 // Release helper, enables and disables GC during call-outs
-ULONG SafeRelease(IUnknown* pUnk)
+ULONG SafeRelease(IUnknown* pUnk, RCW* pRCW)
 {
     CONTRACTL {
         NOTHROW;
@@ -766,7 +742,7 @@ ULONG SafeRelease(IUnknown* pUnk)
     GCX_PREEMP_NO_DTOR_HAVE_THREAD(pThread);
 
     // Message pump could happen, so arbitrary managed code could run.
-    CONTRACT_VIOLATION(ThrowsViolation);
+    CONTRACT_VIOLATION(ThrowsViolation | FaultViolation);
 
     res = pUnk->Release();
 
@@ -1331,14 +1307,15 @@ void ReleaseRCWsInCachesNoThrow(LPVOID pCtxCookie)
 // has been aggregated
 ComCallWrapper* GetCCWFromIUnknown(IUnknown* pUnk, BOOL bEnableCustomization)
 {
-    CONTRACTL
+    CONTRACT (ComCallWrapper*)
     {
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(CheckPointer(pUnk));
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     ComCallWrapper* pWrap = MapIUnknownToWrapper(pUnk);
     if (pWrap != NULL)
@@ -1350,7 +1327,7 @@ ComCallWrapper* GetCCWFromIUnknown(IUnknown* pUnk, BOOL bEnableCustomization)
         }
     }
 
-    return pWrap;
+    RETURN pWrap;
 }
 
 HRESULT LoadRegTypeLib(_In_ REFGUID guid,
@@ -1677,14 +1654,18 @@ BOOL IsIClassX(MethodTable *pMT, REFIID riid, ComMethodTable **ppComMT)
     // the IID's of the IClassX's against the specified IID.
     while (pMT != NULL)
     {
-        ComMethodTable *pComMT =
-            ComCallWrapperTemplate::SetupComMethodTableForClass(pMT, FALSE);
-        _ASSERTE(pComMT);
-
-        if (IsEqualIID(riid, pComMT->GetIID()))
+        ComCallWrapperTemplate *pTemplate = ComCallWrapperTemplate::GetTemplate(pMT);
+        if (pTemplate->SupportsIClassX())
         {
-            *ppComMT = pComMT;
-            return TRUE;
+            ComMethodTable *pComMT =
+                ComCallWrapperTemplate::SetupComMethodTableForClass(pMT, FALSE);
+            _ASSERTE(pComMT);
+
+            if (IsEqualIID(riid, pComMT->GetIID()))
+            {
+                *ppComMT = pComMT;
+                return TRUE;
+            }
         }
 
         pMT = pMT->GetComPlusParentMethodTable();
@@ -1693,6 +1674,23 @@ BOOL IsIClassX(MethodTable *pMT, REFIID riid, ComMethodTable **ppComMT)
     return FALSE;
 }
 
+
+
+//---------------------------------------------------------------------------
+// Returns TRUE if we support IClassX (the auto-generated class interface)
+// for the given class.
+BOOL ClassSupportsIClassX(MethodTable *pMT)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    return TRUE;
+}
 
 
 
@@ -1730,6 +1728,7 @@ DefaultInterfaceType GetDefaultInterfaceForClassInternal(TypeHandle hndClass, Ty
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(!hndClass.IsNull());
         PRECONDITION(CheckPointer(pHndDefClass));
         PRECONDITION(!hndClass.GetMethodTable()->IsInterface());
@@ -2009,6 +2008,7 @@ void GetComSourceInterfacesForClass(MethodTable *pMT, CQuickArray<MethodTable *>
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(CheckPointer(pMT));
     }
     CONTRACTL_END;
@@ -2146,8 +2146,14 @@ void ConvertOleColorToSystemColor(OLE_COLOR SrcOleColor, OBJECTREF *pDestSysColo
     }
     CONTRACTL_END;
 
-    UnmanagedCallersOnlyCaller oleColorToSystemColor(METHOD__COLORMARSHALER__CONVERT_TO_MANAGED_UCO);
-    oleColorToSystemColor.InvokeThrowing((int)SrcOleColor, pDestSysColor);
+    MethodDescCallSite oleColorToSystemColor(METHOD__COLORMARSHALER__CONVERT_TO_MANAGED);
+
+    ARG_SLOT Args[] =
+    {
+        PtrToArgSlot(&SrcOleColor)
+    };
+
+    *pDestSysColor = oleColorToSystemColor.Call_RetOBJECTREF(Args);
 }
 
 //--------------------------------------------------------------------------------
@@ -2163,10 +2169,22 @@ OLE_COLOR ConvertSystemColorToOleColor(OBJECTREF *pSrcObj)
     CONTRACTL_END;
 
     OLE_COLOR result;
+    OBJECTREF sysColor = NULL;
 
-    UnmanagedCallersOnlyCaller sysColorToOleColor(METHOD__COLORMARSHALER__CONVERT_TO_NATIVE_UCO);
-    sysColorToOleColor.InvokeThrowing(pSrcObj, &result);
+    GCPROTECT_BEGIN(sysColor);
 
+    sysColor = *pSrcObj;
+
+    MethodDescCallSite sysColorToOleColor(METHOD__COLORMARSHALER__CONVERT_TO_NATIVE);
+
+    ARG_SLOT Args[] =
+    {
+        ObjToArgSlot(sysColor)
+    };
+
+    result = (OLE_COLOR)sysColorToOleColor.Call_RetI4(Args);
+
+    GCPROTECT_END();
     return result;
 }
 
@@ -2180,6 +2198,7 @@ ULONG GetStringizedClassItfDef(TypeHandle InterfaceType, CQuickArray<BYTE> &rDef
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(!InterfaceType.IsNull());
     }
     CONTRACTL_END;
@@ -2239,9 +2258,9 @@ ULONG GetStringizedClassItfDef(TypeHandle InterfaceType, CQuickArray<BYTE> &rDef
                 {
                     pDeclaringMT = pProps->pMeth->GetMethodTable();
                     tkMb = pProps->pMeth->GetMemberDef();
-
-                    // ComMTMemberInfoMap should not contain any async methods.
-                    _ASSERTE(!pProps->pMeth->IsAsyncMethod());
+                    // TODO: (async) revisit and examine if this needs to be supported somehow
+                    if (pProps->pMeth->IsAsyncMethod())
+                        ThrowHR(COR_E_NOTSUPPORTED);
 
                     cbCur = GetStringizedMethodDef(pDeclaringMT, tkMb, rDef, cbCur);
                 }
@@ -2272,6 +2291,7 @@ void GenerateClassItfGuid(TypeHandle InterfaceType, GUID *pGuid)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(!InterfaceType.IsNull());
         PRECONDITION(CheckPointer(pGuid));
     }
@@ -2452,7 +2472,7 @@ BOOL IsMethodVisibleFromCom(MethodDesc *pMD)
     mdProperty  pd;
     LPCUTF8     pPropName;
     ULONG       uSemantic;
-    // Async methods are not visible from COM.
+    // TODO: (async) revisit and examine if this needs to be supported somehow
     if (pMD->IsAsyncMethod())
         return false;
 
@@ -2665,30 +2685,6 @@ DISPID ExtractStandardDispId(_In_z_ LPWSTR strStdDispIdMemberName)
 
     // Extract the number from the standard DISPID member name.
     return _wtoi(strDispId);
-}
-
-// Filter for calls out from the 'vm' to native code, if there's a possibility of SEH exceptions
-// in the native code.
-struct CallOutFilterParam { BOOL OneShot; };
-LONG CallOutFilter(PEXCEPTION_POINTERS pExceptionInfo, PVOID pv)
-{
-    CallOutFilterParam *pParam = static_cast<CallOutFilterParam *>(pv);
-
-    _ASSERTE(pParam && (pParam->OneShot == TRUE || pParam->OneShot == FALSE));
-
-    if (pParam->OneShot == TRUE)
-    {
-        pParam->OneShot = FALSE;
-
-        // Replace whatever SEH exception is in flight, with an SEHException derived from
-        // CLRException.  But if the exception already looks like one of ours, let it
-        // go past since LastThrownObject should already represent it.
-        if ((!IsComPlusException(pExceptionInfo->ExceptionRecord)) &&
-            (pExceptionInfo->ExceptionRecord->ExceptionCode != EXCEPTION_MSVC))
-            PAL_CPP_THROW(SEHException *, new SEHException(pExceptionInfo->ExceptionRecord,
-                                                           pExceptionInfo->ContextRecord));
-    }
-    return EXCEPTION_CONTINUE_SEARCH;
 }
 
 static HRESULT InvokeExHelper(
@@ -2929,34 +2925,44 @@ static void DoIUInvokeDispMethod(IDispatchEx* pDispEx, IDispatch* pDisp, DISPID 
     GCPROTECT_END();
 }
 
-struct DispParamHolderTraits final
+
+FORCEINLINE void DispParamHolderRelease(VARIANT* value)
 {
-    using Type = VARIANT*;
-    static constexpr Type Default() { return NULL; }
-    static void Free(Type value)
+    CONTRACTL
     {
-        CONTRACTL
-        {
-            THROWS;
-            GC_TRIGGERS;
-            MODE_ANY;
-        }
-        CONTRACTL_END;
+        THROWS;
+        GC_TRIGGERS;
+        MODE_ANY;
+    }
+    CONTRACTL_END;
 
-        if (value)
-        {
-            if (V_VT(value) & VT_BYREF)
-            {
-                VariantHolder TmpVar;
-                OleVariant::ExtractContentsFromByrefVariant(value, &TmpVar);
-            }
+    if (value)
+    {
+       if (V_VT(value) & VT_BYREF)
+       {
+           VariantHolder TmpVar;
+           OleVariant::ExtractContentsFromByrefVariant(value, &TmpVar);
+       }
 
-            SafeVariantClear(value);
-        }
+       SafeVariantClear(value);
+    }
+}
+
+class DispParamHolder : public Wrapper<VARIANT*, DispParamHolderDoNothing, DispParamHolderRelease, 0>
+{
+public:
+    DispParamHolder(VARIANT* p = NULL)
+        : Wrapper<VARIANT*, DispParamHolderDoNothing, DispParamHolderRelease, 0>(p)
+    {
+        WRAPPER_NO_CONTRACT;
+    }
+
+    FORCEINLINE void operator=(VARIANT* p)
+    {
+        WRAPPER_NO_CONTRACT;
+        Wrapper<VARIANT*, DispParamHolderDoNothing, DispParamHolderRelease, 0>::operator=(p);
     }
 };
-
-using DispParamHolder = LifetimeHolder<DispParamHolderTraits>;
 
 //--------------------------------------------------------------------------------
 // This methods converts an IEnumVARIANT to a managed IEnumerator.
@@ -2970,11 +2976,12 @@ static OBJECTREF ConvertEnumVariantToMngEnum(IEnumVARIANT* pNativeEnum)
     }
     CONTRACTL_END;
 
-    OBJECTREF retObjRef = NULL;
-    GCPROTECT_BEGIN(retObjRef);
-    UnmanagedCallersOnlyCaller internalMarshalNativeToManaged(METHOD__ENUMERATORTOENUMVARIANTMARSHALER__INTERNALMARSHALNATIVETOMANAGED);
-    internalMarshalNativeToManaged.InvokeThrowing((INT_PTR)pNativeEnum, &retObjRef);
-    GCPROTECT_END();
+    OBJECTREF retObjRef;
+
+    PREPARE_NONVIRTUAL_CALLSITE(METHOD__ENUMERATORTOENUMVARIANTMARSHALER__INTERNALMARSHALNATIVETOMANAGED);
+    DECLARE_ARGHOLDER_ARRAY(args, 1);
+    args[ARGNUM_0]  = PTR_TO_ARGHOLDER(pNativeEnum);
+    CALL_MANAGED_METHOD_RETREF(retObjRef, OBJECTREF, args);
 
     return retObjRef;
 }
@@ -3017,10 +3024,10 @@ void IUInvokeDispMethod(
     DISPID              MemberID            = 0;
     ByrefArgumentInfo*  aByrefArgInfos      = NULL;
     BOOL                bSomeArgsAreByref   = FALSE;
-    ReleaseHolderAnyMode<IUnknown> pUnk;
-    ReleaseHolderAnyMode<IDispatch> pDisp;
-    ReleaseHolderAnyMode<IDispatchEx> pDispEx;
-    VariantPtrHolder    pVarResult;
+    SafeComHolder<IUnknown> pUnk            = NULL;
+    SafeComHolder<IDispatch> pDisp          = NULL;
+    SafeComHolder<IDispatchEx> pDispEx      = NULL;
+    VariantPtrHolder    pVarResult          = NULL;
     NewArrayHolder<DispParamHolder> params  = NULL;
 
     //
@@ -3083,49 +3090,19 @@ void IUInvokeDispMethod(
         }
     }
 
+
     //
     // Retrieve the IDispatch interface that will be invoked on.
     //
 
     if (pInvokedMT->IsInterface())
     {
-        // COMPAT: We must invoke any methods on this specific IDispatch implementation,
-        // as the canonical implementation (returned by QueryInterface) may not
-        // expose all members.
-        // This can occur when pTarget is a CCW for a .NET object and that object's class
-        // has a custom default interface (specified by the System.Runtime.InteropServices.ComDefaultInterfaceAttribute attribute).
-        // In that case, the default IDispatch pointer will only resolve members defined on that interface,
-        // not all members defined on the class.
-        //
-        // We will still do the QI here because we want to protect the user from the following scenario:
-        // - The user has a COM object that implements one IUnknown interface, which we'll call ICallback.
-        // - The user defines a managed interface (represented by pInvokedMT)to represent ICallback
-        //   - The user incorrectly marks ICallback as "implements IDispatch and not dual".
-        // - The user tries to call a method on ICallback.
-        //
-        // In this case, pInvokedMT will represent the managed ICallback definition.
-        // The underlying COM object will not implement IDispatch.
-        //
-        // We cannot verify that the vtable of the COM object returned by pInvokedMT will have the IDispatch methods,
-        // but we must use that IDispatch implementation (see above).
-        // To catch the simple case above (where there is no IDispatch implementation at all),
-        // we do a QI for IDispatch and throw away the result just to make sure we don't try to invoke on an object that doesn't implement IDispatch.
-        //
-        // If the underlying COM object implements IDispatch but the COM interface represented by pInvokedMT is not dispatch or dual,
-        // we will not correctly detect that the user did something wrong and will crash.
-        // This is a known issue with no solution.
-        // Our check here is best effort to catch the simple case where a user may make a mistake.
-        ReleaseHolderAnyMode<IUnknown> pInvokedMTUnknown{ ComObject::GetComIPFromRCWThrowing(pTarget, pInvokedMT) };
-
-        // QI for IDispatch to catch the simple error case (COM object has no IDispatch but pInvokedMT is specified as a dispatch or dual interface)
-        ReleaseHolderAnyMode<IUnknown> pCanonicalDisp;
-        hr = SafeQueryInterface(pInvokedMTUnknown, IID_IDispatch, &pCanonicalDisp);
+        // The invoked type is a dispatch or dual interface so we will make the
+        // invocation on it.
+        pUnk = ComObject::GetComIPFromRCWThrowing(pTarget, pInvokedMT);
+        hr = SafeQueryInterface(pUnk, IID_IDispatch, (IUnknown**)&pDisp);
         if (FAILED(hr))
             COMPlusThrow(kTargetException, W("TargetInvocation_TargetDoesNotImplementIDispatch"));
-
-        _ASSERTE(IsDispatchBasedItf(pInvokedMT->GetComInterfaceType()));
-        // Extract the IDispatch pointer that is associated with pInvokedMT specifically.
-        pDisp = (IDispatch*)pInvokedMTUnknown.Detach();
     }
     else
     {
@@ -3285,7 +3262,7 @@ void IUInvokeDispMethod(
 
                         // We managed to retrieve an IDispatchEx IP so we will use it to
                         // retrieve the DISPID.
-                        BSTRHolder bstrTmpName{ SysAllocString(aNamesToConvert[0]) };
+                        BSTRHolder bstrTmpName = SysAllocString(aNamesToConvert[0]);
                         if (!bstrTmpName)
                             COMPlusThrowOM();
 
@@ -3516,6 +3493,7 @@ static void GetComClassHelper(
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
+        INJECT_FAULT(ThrowOutOfMemory());
         PRECONDITION(CheckPointer(pRef));
         PRECONDITION(CheckPointer(pClassFactHash));
         PRECONDITION(CheckPointer(pClassFactInfo));
@@ -3575,6 +3553,7 @@ void GetComClassFromCLSID(REFCLSID clsid, _In_opt_z_ PCWSTR wszServer, OBJECTREF
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(pRef != NULL);
     }
     CONTRACTL_END;
@@ -3613,15 +3592,17 @@ void GetComClassFromCLSID(REFCLSID clsid, _In_opt_z_ PCWSTR wszServer, OBJECTREF
 // if not set one up
 ClassFactoryBase *GetComClassFactory(MethodTable* pClassMT)
 {
-    CONTRACTL
+    CONTRACT (ClassFactoryBase*)
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(ThrowOutOfMemory());
         PRECONDITION(CheckPointer(pClassMT));
         PRECONDITION(pClassMT->IsComObjectType());
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // Work our way up the hierarchy until we find the first COM import type.
     while (!pClassMT->IsComImport())
@@ -3657,7 +3638,7 @@ ClassFactoryBase *GetComClassFactory(MethodTable* pClassMT)
         pClsFac = pNewFactory.Extract();
     }
 
-    return pClsFac;
+    RETURN pClsFac;
 }
 #endif // FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
 
@@ -3677,6 +3658,7 @@ void InitializeComInterop()
     }
     CONTRACTL_END;
 
+    ComCall::Init();
     CtxEntryCache::Init();
     ComCallWrapperTemplate::Init();
 #ifdef _DEBUG
@@ -3892,7 +3874,7 @@ VOID LogInteropQI(IUnknown* pItf, REFIID iid, HRESULT hrArg, _In_z_ LPCSTR szMsg
 
     LPVOID              pCurrCtx    = NULL;
     HRESULT             hr          = S_OK;
-    ReleaseHolderAnyMode<IUnknown> pUnk;
+    SafeComHolder<IUnknown> pUnk        = NULL;
     CHAR                szIID[MINIPAL_GUID_BUFFER_LEN];
 
     hr = SafeQueryInterface(pItf, IID_IUnknown, &pUnk);
@@ -3939,7 +3921,7 @@ VOID LogInteropAddRef(IUnknown* pItf, ULONG cbRef, _In_z_ LPCSTR szMsg)
 
     LPVOID              pCurrCtx    = NULL;
     HRESULT             hr          = S_OK;
-    ReleaseHolderAnyMode<IUnknown> pUnk;
+    SafeComHolder<IUnknown> pUnk        = NULL;
 
     hr = SafeQueryInterface(pItf, IID_IUnknown, &pUnk);
 

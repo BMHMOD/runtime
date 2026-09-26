@@ -4,7 +4,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Speech.Internal;
 
 namespace System.Speech.Recognition
@@ -17,7 +16,7 @@ namespace System.Speech.Recognition
         #region Constructors
 
 #pragma warning disable 6504, 56507
-        public SemanticValue(string keyName, object? value, float confidence)
+        public SemanticValue(string keyName, object value, float confidence)
         {
             ArgumentNullException.ThrowIfNull(keyName);
 
@@ -27,7 +26,7 @@ namespace System.Speech.Recognition
             _value = value;
         }
 #pragma warning restore 6504, 56507
-        public SemanticValue(object? value)
+        public SemanticValue(object value)
             : this(string.Empty, value, -1f)
         {
         }
@@ -35,9 +34,9 @@ namespace System.Speech.Recognition
         #endregion
 
         #region Public Methods
-        public override bool Equals([NotNullWhen(true)] object? obj)
+        public override bool Equals(object obj)
         {
-            SemanticValue? refObj = obj as SemanticValue;
+            SemanticValue refObj = obj as SemanticValue;
             if (refObj == null || refObj.Count != Count || refObj.Value == null && Value != null || (refObj.Value != null && !refObj.Value.Equals(Value)))
             {
                 return false;
@@ -63,7 +62,7 @@ namespace System.Speech.Recognition
 
         // The value returned from the script / tags etc.
         // This can be cast to a more useful type {currently it will be string or int until we have .NET grammars}.
-        public object? Value
+        public object Value
         {
             get
             {
@@ -161,7 +160,7 @@ namespace System.Speech.Recognition
             return ((IEnumerable<KeyValuePair<string, SemanticValue>>)this).GetEnumerator();
         }
 
-        bool IDictionary<string, SemanticValue>.TryGetValue(string key, [NotNullWhen(true)] out SemanticValue? value)
+        bool IDictionary<string, SemanticValue>.TryGetValue(string key, out SemanticValue value)
         {
             return _dictionary.TryGetValue(key, out value);
         }
@@ -192,7 +191,7 @@ namespace System.Speech.Recognition
         // Used by the debugger display attribute
         private string _keyName;
         private float _confidence;
-        private object? _value;
+        private object _value;
 
         #endregion
 
@@ -209,7 +208,7 @@ namespace System.Speech.Recognition
                 _confidence = value.Confidence;
             }
 
-            public object? Value
+            public object Value
             {
                 get
                 {
@@ -256,7 +255,7 @@ namespace System.Speech.Recognition
             }
 
             private object _name;
-            private object? _value;
+            private object _value;
             private float _confidence;
             private Dictionary<string, SemanticValue> _dictionary;
         }

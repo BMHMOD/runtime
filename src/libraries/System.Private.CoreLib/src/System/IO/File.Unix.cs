@@ -7,8 +7,6 @@ namespace System.IO
 {
     public static partial class File
     {
-        private const string NullDevicePath = "/dev/null";
-
         private static UnixFileMode GetUnixFileModeCore(string path)
             => FileSystem.GetUnixFileMode(Path.GetFullPath(path));
 

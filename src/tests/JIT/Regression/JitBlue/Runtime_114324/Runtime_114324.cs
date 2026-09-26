@@ -7,9 +7,6 @@
 // Reduced from 20.1 KiB to 0.7 KiB in 00:01:13
 // Debug: Runs successfully
 // Release: Throws 'System.NullReferenceException'
-
-namespace Runtime_114324;
-
 using System;
 using System.Numerics;
 using System.Runtime.Intrinsics;
@@ -20,19 +17,22 @@ public class Runtime_114324
 {
     public static ulong[] s_3;
 
-    [ConditionalFact(typeof(Avx512F.VL), nameof(Avx512F.VL.IsSupported))]
+    [Fact]
     public static void TestEntryPoint()
     {
-        var vr1 = Vector128.Create<int>(1);
-        Vector128<int> vr2 = Avx512F.VL.TernaryLogic(
-                vr1,
-                Sse2.ShiftLeftLogical128BitLane(
-                    Vector128.Create<int>((int)Sse42.Crc32(M2(), 0)),
-                    0),
-                Avx512F.VL.ConvertToVector128Int32(Vector256.Create<ulong>(s_3[0])),
-                221);
-        System.Console.WriteLine(vr2);
-        Assert.Equal(Vector128.Create(-1,-1,-1,-1), vr2);
+        if (Avx512F.VL.IsSupported)
+        {
+            var vr1 = Vector128.Create<int>(1);
+            Vector128<int> vr2 = Avx512F.VL.TernaryLogic(
+                    vr1,
+                    Sse2.ShiftLeftLogical128BitLane(
+                        Vector128.Create<int>((int)Sse42.Crc32(M2(), 0)),
+                        0),
+                    Avx512F.VL.ConvertToVector128Int32(Vector256.Create<ulong>(s_3[0])),
+                    221);
+            System.Console.WriteLine(vr2);
+            Assert.Equal(Vector128.Create(-1,-1,-1,-1), vr2);
+        }
     }
 
     public static uint M2()

@@ -22,6 +22,32 @@ using CreateObjectFlags = InteropLib::Com::CreateObjectFlags;
 
 namespace
 {
+    int CallICustomQueryInterface(
+        _In_ OBJECTREF* implPROTECTED,
+        _In_ REFGUID iid,
+        _Outptr_result_maybenull_ void** ppObject)
+    {
+        CONTRACTL
+        {
+            THROWS;
+            MODE_COOPERATIVE;
+            PRECONDITION(implPROTECTED != NULL);
+            PRECONDITION(ppObject != NULL);
+        }
+        CONTRACTL_END;
+
+        int result;
+
+        PREPARE_NONVIRTUAL_CALLSITE(METHOD__COMWRAPPERS__CALL_ICUSTOMQUERYINTERFACE);
+        DECLARE_ARGHOLDER_ARRAY(args, 3);
+        args[ARGNUM_0]  = OBJECTREF_TO_ARGHOLDER(*implPROTECTED);
+        args[ARGNUM_1]  = PTR_TO_ARGHOLDER(&iid);
+        args[ARGNUM_2]  = PTR_TO_ARGHOLDER(ppObject);
+        CALL_MANAGED_METHOD(result, int, args);
+
+        return result;
+    }
+
     BOOL g_isGlobalPeggingOn = TRUE;
 }
 
@@ -69,12 +95,14 @@ bool GlobalComWrappersForMarshalling::TryGetOrCreateComInterfaceForObject(
     }
     CONTRACTL_END;
 
-    void* wrapper = nullptr;
+    void* wrapper;
 
     GCPROTECT_BEGIN(instance);
 
-    UnmanagedCallersOnlyCaller getOrCreateComInterface(METHOD__COMWRAPPERS__GET_OR_CREATE_COM_INTERFACE_FOR_OBJECT_WITH_GLOBAL_MARSHALLING_INSTANCE);
-    getOrCreateComInterface.InvokeThrowing(&instance, &wrapper);
+    PREPARE_NONVIRTUAL_CALLSITE(METHOD__COMWRAPPERS__GET_OR_CREATE_COM_INTERFACE_FOR_OBJECT_WITH_GLOBAL_MARSHALLING_INSTANCE);
+    DECLARE_ARGHOLDER_ARRAY(args, 1);
+    args[ARGNUM_0] = OBJECTREF_TO_ARGHOLDER(instance);
+    CALL_MANAGED_METHOD(wrapper, void*, args);
 
     GCPROTECT_END();
 
@@ -103,8 +131,11 @@ bool GlobalComWrappersForMarshalling::TryGetOrCreateObjectForComInstance(
     OBJECTREF obj = NULL;
     GCPROTECT_BEGIN(obj);
 
-    UnmanagedCallersOnlyCaller getOrCreateObjectForComInstance(METHOD__COMWRAPPERS__GET_OR_CREATE_OBJECT_FOR_COM_INSTANCE_WITH_GLOBAL_MARSHALLING_INSTANCE);
-    getOrCreateObjectForComInstance.InvokeThrowing(externalComObject, flags, &obj);
+    PREPARE_NONVIRTUAL_CALLSITE(METHOD__COMWRAPPERS__GET_OR_CREATE_OBJECT_FOR_COM_INSTANCE_WITH_GLOBAL_MARSHALLING_INSTANCE);
+    DECLARE_ARGHOLDER_ARRAY(args, 2);
+    args[ARGNUM_0] = PTR_TO_ARGHOLDER(externalComObject);
+    args[ARGNUM_1] = DWORD_TO_ARGHOLDER(flags);
+    CALL_MANAGED_METHOD_RETREF(obj, OBJECTREF, args);
 
     GCPROTECT_END();
 
@@ -325,39 +356,35 @@ namespace InteropLibImports
         }
 
         // Switch to Cooperative mode since object references
-        // are being manipulated.
+        // are being manipulated and the catchFrame needs that so that it can push
+        // itself to the explicit frame stack.
         GCX_COOP();
+        // Indicate to the debugger and exception handling that managed exceptions are being caught
+        // here.
+        DebuggerU2MCatchHandlerFrame catchFrame(true /* catchesAllExceptions */);
 
         HRESULT hr;
         auto result = TryInvokeICustomQueryInterfaceResult::FailedToInvoke;
-
-        // While ComWrappers.CallICustomQueryInterface itself will not throw,
-        // it's possible that the runtime may throw an exception (such as allocation failure/OOM)
-        // when jitting the method. As we may be called from unmanaged code,
-        // we need to catch such an exception.
         EX_TRY_THREAD(CURRENT_THREAD)
         {
             struct
             {
                 OBJECTREF objRef;
-                EXCEPTIONREF exceptionRef;
             } gc;
             gc.objRef = NULL;
-            gc.exceptionRef = NULL;
-
             GCPROTECT_BEGIN(gc);
 
             // Get the target of the external object's reference.
             ::OBJECTHANDLE objectHandle = static_cast<::OBJECTHANDLE>(handle);
             gc.objRef = ObjectFromHandle(objectHandle);
 
-            UnmanagedCallersOnlyCaller callICustomQueryInterface(METHOD__COMWRAPPERS__CALL_ICUSTOMQUERYINTERFACE);
-            result = (TryInvokeICustomQueryInterfaceResult)callICustomQueryInterface.InvokeDirect_Ret<INT32>(&gc.objRef, &iid, obj, &gc.exceptionRef);
-            hr = gc.exceptionRef == NULL ? S_OK : gc.exceptionRef->GetHResult();
+            result = (TryInvokeICustomQueryInterfaceResult)CallICustomQueryInterface(&gc.objRef, iid, obj);
 
             GCPROTECT_END();
         }
         EX_CATCH_HRESULT(hr);
+
+        catchFrame.Pop();
 
         // Assert valid value.
         _ASSERTE(TryInvokeICustomQueryInterfaceResult::Min <= result

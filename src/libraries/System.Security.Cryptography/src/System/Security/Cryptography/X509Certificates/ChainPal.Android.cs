@@ -141,7 +141,8 @@ namespace System.Security.Cryptography.X509Certificates
 
                     _chainContext = Interop.AndroidCrypto.X509ChainCreateContext(
                         ((AndroidCertificatePal)cert).SafeHandle,
-                        extraCerts);
+                        extraCerts,
+                        extraCerts.Length);
 
                     if (useCustomRootTrust)
                     {
@@ -284,7 +285,16 @@ namespace System.Security.Cryptography.X509Certificates
                     AddStatusFromIndexToEndCertificate(statuses.Length - 1, ref revocationUnknownStatus, statuses, overallStatus);
                 }
 
-                CheckPolicies(certs, applicationPolicy, certificatePolicy, statuses, overallStatus);
+                if (!IsPolicyMatch(certs, applicationPolicy, certificatePolicy))
+                {
+                    // Assign NotValidForUsage to everything
+                    X509ChainStatus policyFailStatus = new X509ChainStatus
+                    {
+                        Status = X509ChainStatusFlags.NotValidForUsage,
+                        StatusInformation = SR.Chain_NoPolicyMatch,
+                    };
+                    AddStatusFromIndexToEndCertificate(statuses.Length - 1, ref policyFailStatus, statuses, overallStatus);
+                }
 
                 X509ChainElement[] elements = new X509ChainElement[certs.Length];
                 for (int i = 0; i < certs.Length; i++)
@@ -356,101 +366,30 @@ namespace System.Security.Cryptography.X509Certificates
                 };
             }
 
-            private static void CheckPolicies(
+            private static bool IsPolicyMatch(
                 X509Certificate2[] certs,
                 OidCollection? applicationPolicy,
-                OidCollection? certificatePolicy,
-                List<X509ChainStatus>[] statuses,
-                List<X509ChainStatus> overallStatus)
+                OidCollection? certificatePolicy)
             {
                 bool hasApplicationPolicy = applicationPolicy != null && applicationPolicy.Count > 0;
                 bool hasCertificatePolicy = certificatePolicy != null && certificatePolicy.Count > 0;
-                CertificatePolicyChain.ErrorVector encodingErrors = default;
-                CertificatePolicyChain.ErrorVector usageErrors = default;
 
-                if (hasApplicationPolicy || hasCertificatePolicy)
+                if (!hasApplicationPolicy && !hasCertificatePolicy)
+                    return true;
+
+                List<X509Certificate2> certsToRead = new List<X509Certificate2>(certs);
+                CertificatePolicyChain policyChain = new CertificatePolicyChain(certsToRead);
+                if (hasCertificatePolicy && !policyChain.MatchesCertificatePolicies(certificatePolicy!))
                 {
-                    bool isPartialChain = false;
-                    Debug.Assert(statuses.Length == certs.Length);
-
-                    List<X509ChainStatus>? lastStatus = statuses[^1];
-
-                    if (lastStatus is not null)
-                    {
-                        foreach (X509ChainStatus status in lastStatus)
-                        {
-                            if (status.Status == X509ChainStatusFlags.PartialChain)
-                            {
-                                isPartialChain = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    CertificatePolicyChain policyChain = CertificatePolicyChain.Build(
-                        certs,
-                        certs.Length,
-                        isPartialChain,
-                        ref encodingErrors);
-
-                    if (certificatePolicy is not null)
-                    {
-                        policyChain.MatchCertificatePolicies(certificatePolicy, ref usageErrors);
-                    }
-
-                    if (applicationPolicy is not null)
-                    {
-                        policyChain.MatchApplicationPolicies(applicationPolicy, ref usageErrors);
-                    }
-                }
-                else
-                {
-                    encodingErrors = CertificatePolicyChain.CheckEncodingOnly(certs, certs.Length);
+                    return false;
                 }
 
-                if (encodingErrors.Any || usageErrors.Any)
+                if (hasApplicationPolicy && !policyChain.MatchesApplicationPolicies(applicationPolicy!))
                 {
-                    X509ChainStatus notValidForUsage = new X509ChainStatus
-                    {
-                        Status = X509ChainStatusFlags.NotValidForUsage,
-                        StatusInformation = SR.Chain_NoPolicyMatch,
-                    };
-
-                    X509ChainStatus invalidPolicyConstraints = new X509ChainStatus
-                    {
-                        Status = X509ChainStatusFlags.InvalidPolicyConstraints,
-                        // "NoPolicyMatch" says that the policy is "invalid", which works for this one, too.
-                        StatusInformation = SR.Chain_NoPolicyMatch,
-                    };
-
-                    X509ChainStatus invalidExtension = new X509ChainStatus
-                    {
-                        Status = X509ChainStatusFlags.InvalidExtension,
-                        StatusInformation = SR.Cryptography_Der_Invalid_Encoding,
-                    };
-
-                    for (int i = 0; i < certs.Length; i++)
-                    {
-                        if (encodingErrors[i])
-                        {
-                            statuses[i] ??= new List<X509ChainStatus>();
-
-                            AddUniqueStatus(statuses[i], ref invalidPolicyConstraints);
-                            AddUniqueStatus(overallStatus, ref invalidPolicyConstraints);
-
-                            AddUniqueStatus(statuses[i], ref invalidExtension);
-                            AddUniqueStatus(overallStatus, ref invalidExtension);
-                        }
-
-                        if (usageErrors[i])
-                        {
-                            statuses[i] ??= new List<X509ChainStatus>();
-
-                            AddUniqueStatus(statuses[i], ref notValidForUsage);
-                            AddUniqueStatus(overallStatus, ref notValidForUsage);
-                        }
-                    }
+                    return false;
                 }
+
+                return true;
             }
         }
     }

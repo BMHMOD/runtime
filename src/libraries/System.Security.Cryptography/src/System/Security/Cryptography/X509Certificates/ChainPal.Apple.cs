@@ -255,7 +255,16 @@ namespace System.Security.Cryptography.X509Certificates
             (X509Certificate2, int)[] elements = ParseResults(_chainHandle!, _revocationMode);
             Debug.Assert(elements.Length > 0);
 
-            CheckPolicies(elements, applicationPolicy, certificatePolicy);
+            if (!IsPolicyMatch(elements, applicationPolicy, certificatePolicy))
+            {
+                for (int i = 0; i < elements.Length; i++)
+                {
+                    (X509Certificate2, int) currentValue = elements[i];
+
+                    elements[i] = (currentValue.Item1, currentValue.Item2 | (int)X509ChainStatusFlags.NotValidForUsage);
+                }
+            }
+
             FixupRevocationStatus(elements, revocationFlag);
             BuildAndSetProperties(elements);
         }
@@ -296,68 +305,40 @@ namespace System.Security.Cryptography.X509Certificates
             return elements;
         }
 
-        private static void CheckPolicies(
+        private static bool IsPolicyMatch(
             (X509Certificate2, int)[] elements,
             OidCollection? applicationPolicy,
             OidCollection? certificatePolicy)
         {
-            CertificatePolicyChain.ErrorVector encodingErrors = default;
-            CertificatePolicyChain.ErrorVector usageErrors = default;
-
             if (applicationPolicy?.Count > 0 || certificatePolicy?.Count > 0)
             {
-                CertificatePolicyChain policyChain = CertificatePolicyChain.Build(
-                    ElementsToCerts(elements),
-                    elements.Length,
-                    isPartialChain: (elements[^1].Item2 & (int)X509ChainStatusFlags.PartialChain) != 0,
-                    ref encodingErrors);
+                List<X509Certificate2> certsToRead = new List<X509Certificate2>();
 
-                if (certificatePolicy is not null)
-                {
-                    policyChain.MatchCertificatePolicies(certificatePolicy, ref usageErrors);
-                }
-
-                if (applicationPolicy is not null)
-                {
-                    policyChain.MatchApplicationPolicies(applicationPolicy, ref usageErrors);
-                }
-            }
-            else
-            {
-                encodingErrors = CertificatePolicyChain.CheckEncodingOnly(
-                    ElementsToCerts(elements),
-                    elements.Length);
-            }
-
-            if (encodingErrors.Any || usageErrors.Any)
-            {
                 for (int i = 0; i < elements.Length; i++)
                 {
-                    ref (X509Certificate2, int) currentValue = ref elements[i];
-
-                    if (encodingErrors[i])
-                    {
-                        const X509ChainStatusFlags EncodingErrorFlags =
-                            X509ChainStatusFlags.InvalidPolicyConstraints |
-                            X509ChainStatusFlags.InvalidExtension;
-
-                        currentValue.Item2 |= (int)EncodingErrorFlags;
-                    }
-
-                    if (usageErrors[i])
-                    {
-                        currentValue.Item2 |= (int)X509ChainStatusFlags.NotValidForUsage;
-                    }
+                    certsToRead.Add(elements[i].Item1);
                 }
-            }
 
-            static IEnumerable<X509Certificate2> ElementsToCerts((X509Certificate2, int)[] elements)
-            {
-                foreach ((X509Certificate2 cert, _) in elements)
+                CertificatePolicyChain policyChain = new CertificatePolicyChain(certsToRead);
+
+                if (certificatePolicy?.Count > 0)
                 {
-                    yield return cert;
+                    if (!policyChain.MatchesCertificatePolicies(certificatePolicy))
+                    {
+                        return false;
+                    }
+                }
+
+                if (applicationPolicy?.Count > 0)
+                {
+                    if (!policyChain.MatchesApplicationPolicies(applicationPolicy))
+                    {
+                        return false;
+                    }
                 }
             }
+
+            return true;
         }
 
         private void BuildAndSetProperties((X509Certificate2, int)[] elementTuples)

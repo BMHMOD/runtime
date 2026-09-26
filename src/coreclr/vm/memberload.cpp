@@ -727,6 +727,7 @@ MemberLoader::GetMethodDescFromMemberDefOrRefOrSpec(
     {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
         PRECONDITION(CheckPointer(pModule));
     }
     CONTRACTL_END;
@@ -780,6 +781,7 @@ MemberLoader::GetMethodDescFromMemberDefOrRefOrSpec(
         allowInstParam,
         /* forceRemotableMethod */ FALSE,
         /* allowCreate */ TRUE,
+        AsyncVariantLookup::MatchingAsyncVariant,
         /* level */ owningTypeLoadLevel);
 } // MemberLoader::GetMethodDescFromMemberDefOrRefOrSpec
 
@@ -902,6 +904,7 @@ MemberLoader::GetMethodDescFromMethodDef(
     {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
         PRECONDITION(CheckPointer(pModule));
         PRECONDITION(TypeFromToken(MethodDef) == mdtMethodDef);
     }
@@ -941,6 +944,7 @@ FieldDesc* MemberLoader::GetFieldDescFromMemberDefOrRef(
     {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END;
 
@@ -977,7 +981,7 @@ BOOL MemberLoader::FM_PossibleToSkipMethod(FM_Flags flags)
 {
     LIMITED_METHOD_CONTRACT;
 
-    return (flags & FM_SpecialVirtualMask) || (flags & FM_SpecialAccessMask);
+    return ((flags & FM_SpecialVirtualMask) || (flags & FM_SpecialAccessMask));
 }
 
 //*******************************************************************************
@@ -1037,6 +1041,7 @@ static BOOL CompareMethodSigWithCorrectSubstitution(
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END
 
@@ -1076,11 +1081,12 @@ MemberLoader::FindMethod(
     FM_Flags flags,                       // = FM_Default
     const Substitution *pDefSubst)        // = NULL
 {
-    CONTRACTL {
+    CONTRACT (MethodDesc *) {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
         MODE_ANY;
-    } CONTRACTL_END;
+    } CONTRACT_END;
 
     LOG((LF_LOADER, LL_INFO10000, "ML::FM pMT:%p for %s sig:%p sigLen:%u\n",
         pMT, pszName, pSignature, cSignature));
@@ -1097,9 +1103,6 @@ MemberLoader::FindMethod(
     // For value classes, if it's a value class method, we want to return the duplicated MethodDesc, not the one in the vtable
     // section.  We'll find the one in the duplicate section before the one in the vtable section, so we're ok.
 
-    // Since we search backwards, we may find an async variant before the other variant. We simply skip over.
-    // This API is not supposed to return async variants. (add flags to FM_Flags, if such behavior is desired)
-
     // Search non-vtable portion of this class first
 
     MethodTable::MethodIterator it(pMT);
@@ -1113,11 +1116,6 @@ MemberLoader::FindMethod(
     for (; it.IsValid(); it.Prev())
     {
         MethodDesc *pCurDeclMD = it.GetDeclMethodDesc();
-
-        if (pCurDeclMD->IsAsyncVariantMethod())
-        {
-            continue;
-        }
 
         LOG((LF_LOADER, LL_INFO100000, "ML::FM Considering %s::%s, pMD:%p\n",
             pCurDeclMD->m_pszDebugClassName, pCurDeclMD->m_pszDebugMethodName, pCurDeclMD));
@@ -1136,7 +1134,7 @@ MemberLoader::FindMethod(
         {
             if (CompareMethodSigWithCorrectSubstitution(pSignature, cSignature, pModule, pCurDeclMD, pDefSubst, pMT))
             {
-                return pCurDeclMD;
+                RETURN pCurDeclMD;
             }
         }
     }
@@ -1144,7 +1142,7 @@ MemberLoader::FindMethod(
     // No inheritance on value types or interfaces
     if (pMT->IsValueType() || pMT->IsInterface())
     {
-        return NULL;
+        RETURN NULL;
     }
 
     // Recurse up the hierarchy if the method was not found.
@@ -1183,11 +1181,6 @@ MemberLoader::FindMethod(
         {
             MethodDesc* pCurDeclMD = itMethods.GetMethodDesc();
 
-            if (pCurDeclMD->IsAsyncVariantMethod())
-            {
-                continue;
-            }
-
 #ifdef _DEBUG
             MethodTable *pCurDeclMT = pCurDeclMD->GetMethodTable();
             CONSISTENCY_CHECK(!pMT->IsInterface() || pCurDeclMT == pMT->GetCanonicalMethodTable());
@@ -1205,14 +1198,14 @@ MemberLoader::FindMethod(
             {
                 if (CompareMethodSigWithCorrectSubstitution(pSignature, cSignature, pModule, pCurDeclMD, pDefSubst, pMT))
                 {
-                    return pCurDeclMD;
+                    RETURN pCurDeclMD;
                 }
             }
         }
     }
 #endif // FEATURE_METADATA_UPDATER
 
-    return md;
+    RETURN md;
 }
 
 //*******************************************************************************
@@ -1246,6 +1239,7 @@ MemberLoader::FindMethod(MethodTable * pMT, LPCUTF8 pwzName, LPHARDCODEDMETASIG 
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
         MODE_ANY;
     } CONTRACTL_END;
 
@@ -1261,6 +1255,7 @@ MemberLoader::FindMethod(MethodTable * pMT, mdMethodDef mb)
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
         MODE_ANY;
     } CONTRACTL_END;
 
@@ -1287,6 +1282,7 @@ MemberLoader::FindMethodByName(MethodTable * pMT, LPCUTF8 pszName, FM_Flags flag
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
         PRECONDITION(!pMT->IsArray());
         MODE_ANY;
     } CONTRACTL_END;
@@ -1307,45 +1303,41 @@ MemberLoader::FindMethodByName(MethodTable * pMT, LPCUTF8 pszName, FM_Flags flag
         {
             MethodDesc *pCurMD = it.GetDeclMethodDesc();
 
-            // Since we search backwards, we may find an async variant before the other variant. We simply skip over.
-            // This API is not supposed to return async variants. (add flags to FM_Flags, if such behavior is desired)
-            if (pCurMD->IsAsyncVariantMethod())
+            if (pCurMD != NULL)
             {
-                continue;
-            }
-
-            // If we're working from the end of the vtable, we'll cover all the non-virtuals
-            // first, and so if we're supposed to ignore virtuals (see setting of the flag
-            // below) then we can just break out of the loop and go to the parent.
-            if ((flags & FM_ExcludeVirtual) && pCurMD->IsVirtual())
-            {
-                break;
-            }
-
-            if (FM_PossibleToSkipMethod(flags) && FM_ShouldSkipMethod(pCurMD->GetAttrs(), flags))
-            {
-                continue;
-            }
-
-            if (StrCompFunc(pszName, pCurMD->GetNameOnNonArrayClass()) == 0)
-            {
-                if (pRetMD != NULL)
+                // If we're working from the end of the vtable, we'll cover all the non-virtuals
+                // first, and so if we're supposed to ignore virtuals (see setting of the flag
+                // below) then we can just break out of the loop and go to the parent.
+                if ((flags & FM_ExcludeVirtual) && pCurMD->IsVirtual())
                 {
-                    _ASSERTE(flags & FM_Unique);
-
-                    // Found another method of this name but FM_Unique was given.
-                    return NULL;
+                    break;
                 }
 
-                pRetMD = it.GetMethodDesc();
-                pRetMD->CheckRestore();
+                if (FM_PossibleToSkipMethod(flags) && FM_ShouldSkipMethod(pCurMD->GetAttrs(), flags))
+                {
+                    continue;
+                }
 
-                // Let's always finish iterating through this MT for FM_Unique to reveal overloads, i.e.
-                // methods with the same name. Returning the first/last method of the given name
-                // may in some cases work but it depends on the vtable order which is something we
-                // do not want. It can be easily broken by a seemingly unrelated change.
-                if (!(flags & FM_Unique))
-                    return pRetMD;
+                if (StrCompFunc(pszName, pCurMD->GetNameOnNonArrayClass()) == 0)
+                {
+                    if (pRetMD != NULL)
+                    {
+                        _ASSERTE(flags & FM_Unique);
+
+                        // Found another method of this name but FM_Unique was given.
+                        return NULL;
+                    }
+
+                    pRetMD = it.GetMethodDesc();
+                    pRetMD->CheckRestore();
+
+                    // Let's always finish iterating through this MT for FM_Unique to reveal overloads, i.e.
+                    // methods with the same name. Returning the first/last method of the given name
+                    // may in some cases work but it depends on the vtable order which is something we
+                    // do not want. It can be easily broken by a seemingly unrelated change.
+                    if (!(flags & FM_Unique))
+                        return pRetMD;
+                }
             }
         }
 
@@ -1372,6 +1364,7 @@ MemberLoader::FindPropertyMethod(MethodTable * pMT, LPCUTF8 pszName, EnumPropert
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
         MODE_ANY;
         PRECONDITION(Method < 2);
     } CONTRACTL_END;
@@ -1399,6 +1392,7 @@ MemberLoader::FindEventMethod(MethodTable * pMT, LPCUTF8 pszName, EnumEventMetho
     CONTRACTL {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
         MODE_ANY;
         PRECONDITION(Method < 3);
     } CONTRACTL_END;
@@ -1428,6 +1422,7 @@ MemberLoader::FindConstructor(MethodTable * pMT, LPHARDCODEDMETASIG pwzSignature
     {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
         MODE_ANY;
     }
     CONTRACTL_END
@@ -1445,6 +1440,7 @@ MemberLoader::FindConstructor(MethodTable * pMT, PCCOR_SIGNATURE pSignature,DWOR
     {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
         MODE_ANY;
     }
     CONTRACTL_END
@@ -1502,6 +1498,7 @@ MemberLoader::FindField(MethodTable* pMT, LPCUTF8 pszName, PCCOR_SIGNATURE pSign
     {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM(););
         MODE_ANY;
     }
     CONTRACTL_END

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Speech.Internal.SrgsParser;
 using System.Speech.Recognition;
 
@@ -33,18 +32,17 @@ namespace System.Speech.Internal.GrammarBuilding
         #endregion
 
         #region Public Methods
-        public override bool Equals([NotNullWhen(true)] object? obj)
+        public override bool Equals(object obj)
         {
-            if (obj is not TagElement refObj)
+            TagElement refObj = obj as TagElement;
+            if (refObj == null)
             {
                 return false;
             }
-
             if (!base.Equals(obj))
             {
                 return false;
             }
-
             return _value.Equals(refObj._value);
         }
 
@@ -67,7 +65,8 @@ namespace System.Speech.Internal.GrammarBuilding
         internal override IElement CreateElement(IElementFactory elementFactory, IElement parent, IRule rule, IdentifierCollection ruleIds)
         {
             // Create the children elements
-            if (parent is IItem item)
+            IItem item = parent as IItem;
+            if (item != null)
             {
                 CreateChildrenElements(elementFactory, item, rule, ruleIds);
             }

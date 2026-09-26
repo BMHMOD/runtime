@@ -16,15 +16,8 @@ namespace Microsoft.Extensions.Options
     /// Implementation of <see cref="IValidateOptions{TOptions}"/> that uses DataAnnotation's <see cref="Validator"/> for validation.
     /// </summary>
     /// <typeparam name="TOptions">The instance being validated.</typeparam>
-#if NET11_0_OR_GREATER
-    public partial class DataAnnotationValidateOptions<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] TOptions>
-        : IValidateOptions<TOptions>, IAsyncValidateOptions<TOptions>
-        where TOptions : class
-#else
-    public partial class DataAnnotationValidateOptions<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] TOptions>
-        : IValidateOptions<TOptions>
-        where TOptions : class
-#endif
+    public class DataAnnotationValidateOptions<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicProperties | DynamicallyAccessedMemberTypes.NonPublicProperties)] TOptions>
+        : IValidateOptions<TOptions> where TOptions : class
     {
         /// <summary>
         /// Initializes a new instance of <see cref="DataAnnotationValidateOptions{TOptions}"/> .
@@ -131,14 +124,9 @@ namespace Microsoft.Extensions.Options
                     results ??= new List<ValidationResult>();
 
                     int index = 0;
-                    foreach (object? item in enumerable)
+                    foreach (object item in enumerable)
                     {
-                        if (item is not null)
-                        {
-                            res = TryValidateOptions(item, $"{qualifiedName}.{propertyInfo.Name}[{index}]", results, ref errors, ref visited) && res;
-                        }
-
-                        index++;
+                        res = TryValidateOptions(item, $"{qualifiedName}.{propertyInfo.Name}[{index++}]", results, ref errors, ref visited) && res;
                     }
                 }
             }

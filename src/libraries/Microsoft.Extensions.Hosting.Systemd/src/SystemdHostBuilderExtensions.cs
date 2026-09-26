@@ -16,21 +16,16 @@ namespace Microsoft.Extensions.Hosting
         /// <summary>
         /// Configures the <see cref="IHost"/> lifetime to <see cref="SystemdLifetime"/>,
         /// provides notification messages for application started and stopping,
-        /// and configures console logging to the systemd format when running as a systemd service.
+        /// and configures console logging to the systemd format.
         /// </summary>
         /// <remarks>
         ///   <para>
         ///     This is context aware and will only activate if it detects the process is running
-        ///     as a systemd Service or if <c>NOTIFY_SOCKET</c> is set.
-        ///   </para>
-        ///   <para>
-        ///     The console log formatter is enabled when the process is detected as a systemd service.
-        ///     The <see cref="SystemdLifetime"/> and <see cref="SystemdNotifier"/> are registered when
-        ///     <c>NOTIFY_SOCKET</c> is set or the process is detected as a systemd service.
+        ///     as a systemd Service.
         ///   </para>
         ///   <para>
         ///     The systemd service file must be configured with <c>Type=notify</c> to enable
-        ///     notifications. See <see href="https://www.freedesktop.org/software/systemd/man/systemd.service.html"/>.
+        ///     notifications. See https://www.freedesktop.org/software/systemd/man/systemd.service.html.
         ///   </para>
         /// </remarks>
         /// <param name="hostBuilder">The <see cref="IHostBuilder"/> to configure.</param>
@@ -39,15 +34,7 @@ namespace Microsoft.Extensions.Hosting
         {
             ArgumentNullException.ThrowIfNull(hostBuilder);
 
-            if (SystemdHelpers.IsSystemdLogger())
-            {
-                hostBuilder.ConfigureServices((hostContext, services) =>
-                {
-                    AddSystemdLogger(services);
-                });
-            }
-
-            if (SystemdHelpers.IsSystemdLifetime())
+            if (SystemdHelpers.IsSystemdService())
             {
                 hostBuilder.ConfigureServices((hostContext, services) =>
                 {
@@ -60,17 +47,12 @@ namespace Microsoft.Extensions.Hosting
         /// <summary>
         /// Configures the lifetime of the <see cref="IHost"/> built from <paramref name="services"/> to
         /// <see cref="SystemdLifetime"/>, provides notification messages for application started
-        /// and stopping, and configures console logging to the systemd format when running as a systemd service.
+        /// and stopping, and configures console logging to the systemd format.
         /// </summary>
         /// <remarks>
         ///   <para>
         ///     This is context aware and will only activate if it detects the process is running
-        ///     as a systemd Service or if <c>NOTIFY_SOCKET</c> is set.
-        ///   </para>
-        ///   <para>
-        ///     The console log formatter is enabled when the process is detected as a systemd service.
-        ///     The <see cref="SystemdLifetime"/> and <see cref="SystemdNotifier"/> are registered when
-        ///     <c>NOTIFY_SOCKET</c> is set or the process is detected as a systemd service.
+        ///     as a systemd Service.
         ///   </para>
         ///   <para>
         ///     The systemd service file must be configured with <c>Type=notify</c> to enable
@@ -87,45 +69,23 @@ namespace Microsoft.Extensions.Hosting
         {
             ArgumentNullException.ThrowIfNull(services);
 
-            if (SystemdHelpers.IsSystemdLogger())
-            {
-                AddSystemdLogger(services);
-            }
-
-            if (SystemdHelpers.IsSystemdLifetime())
+            if (SystemdHelpers.IsSystemdService())
             {
                 AddSystemdLifetime(services);
             }
-
             return services;
         }
 
-        private static void AddSystemdLogger(IServiceCollection services)
+        private static void AddSystemdLifetime(IServiceCollection services)
         {
             services.Configure<ConsoleLoggerOptions>(options =>
             {
                 options.FormatterName = ConsoleFormatterNames.Systemd;
             });
-        }
 
-        private static void AddSystemdLifetime(IServiceCollection services)
-        {
-            // SystemdNotifier and SystemdLifetime are Unix-only; IsSystemdLifetime() ensures
-            // we only reach this code when running on Unix and when the environment indicates
-            // systemd-style integration (for example, when NOTIFY_SOCKET is set or the process
-            // is detected as a systemd service).
+            // IsSystemdService() will never return true for android/browser/iOS/tvOS
 #pragma warning disable CA1416 // Validate platform compatibility
-            services.AddSingleton<ISystemdNotifier>(_ =>
-            {
-                // Construct the notifier first so it reads (and normalizes) NOTIFY_SOCKET, then
-                // clear the env var so child processes don't inherit it and accidentally notify
-                // the parent's service manager. Done inside the DI factory so SystemdNotifier
-                // construction stays lazy and the env var is only mutated when hosting is
-                // actually wired up.
-                var notifier = new SystemdNotifier();
-                Environment.SetEnvironmentVariable(SystemdConstants.NotifySocket, null);
-                return notifier;
-            });
+            services.AddSingleton<ISystemdNotifier, SystemdNotifier>();
             services.AddSingleton<IHostLifetime, SystemdLifetime>();
 #pragma warning restore CA1416 // Validate platform compatibility
 

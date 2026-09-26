@@ -60,6 +60,7 @@
 #include <mono/metadata/mono-config.h>
 #include <mono/metadata/jit-info.h>
 #include <mono/utils/mono-tls-inline.h>
+#include <mono/utils/lifo-semaphore.h>
 #include <mono/utils/w32subset.h>
 
 #ifdef HAVE_SYS_WAIT_H
@@ -204,7 +205,7 @@ static MonoThreadAttachCB mono_thread_attach_cb = NULL;
 static MonoThreadCleanupFunc mono_thread_cleanup_fn = NULL;
 
 /* The default stack size for each thread */
-static guint32 default_stacksize = ~0;
+static guint32 default_stacksize = 0;
 
 static void mono_free_static_data (gpointer* static_data);
 static void mono_init_static_data_info (StaticDataInfo *static_data);
@@ -995,12 +996,12 @@ mono_thread_detach_internal (MonoInternalThread *thread)
 	g_assert (threads);
 
 	if (!mono_g_hash_table_lookup_extended (threads, GUINT_TO_POINTER (thread->tid), NULL, (gpointer*) &value)) {
-		g_error ("%s: thread %p (tid: %" G_GSIZE_FORMAT ") should not have been removed yet from threads", __func__, thread, (gsize)thread->tid);
+		g_error ("%s: thread %p (tid: %p) should not have been removed yet from threads", __func__, thread, thread->tid);
 	} else if (thread != value) {
 		/* We have to check whether the thread object for the tid is still the same in the table because the
 		 * thread might have been destroyed and the tid reused in the meantime, in which case the tid would be in
 		 * the table, but with another thread object. */
-		g_error ("%s: thread %p (tid: %" G_GSIZE_FORMAT ") do not match with value %p (tid: %" G_GSIZE_FORMAT ")", __func__, thread, (gsize)thread->tid, value, (gsize)value->tid);
+		g_error ("%s: thread %p (tid: %p) do not match with value %p (tid: %p)", __func__, thread, thread->tid, value, value->tid);
 	}
 
 	removed = mono_g_hash_table_remove (threads, GUINT_TO_POINTER (thread->tid));
@@ -1371,7 +1372,7 @@ create_thread (MonoThread *thread, MonoInternalThread *internal, MonoThreadStart
 	mono_coop_sem_init (&start_info->registered, 0);
 
 	if (flags != MONO_THREAD_CREATE_FLAGS_SMALL_STACK)
-		stack_set_size = stack_size ? stack_size : mono_threads_get_default_stacksize();
+		stack_set_size = stack_size ? stack_size : default_stacksize;
 	else
 		stack_set_size = 0;
 
@@ -1445,21 +1446,6 @@ mono_threads_set_default_stacksize (guint32 stacksize)
 guint32
 mono_threads_get_default_stacksize (void)
 {
-	if (default_stacksize == ~0)
-	{
-		unsigned long stacksize = 0;
-
-		const char *value = g_getenv ("DOTNET_Thread_DefaultStackSize");
-		if (value) {
-			errno = 0;
-			stacksize = strtoul (value, NULL, 16);
-			if (errno != 0 || stacksize >= UINT_MAX)
-				stacksize = 0;
-		}
-
-		default_stacksize = (guint32)stacksize;
-	}
-
 	return default_stacksize;
 }
 
@@ -2773,7 +2759,7 @@ wait_for_tids (struct wait_data *wait, guint32 timeout, gboolean check_state_cha
 
 		mono_threads_lock ();
 		if (mono_g_hash_table_lookup (threads, GUINT_TO_POINTER (internal->tid)) == internal)
-			g_error ("%s: failed to call mono_thread_detach_internal on thread %" G_GSIZE_FORMAT ", InternalThread: %p", __func__, (gsize)internal->tid, internal);
+			g_error ("%s: failed to call mono_thread_detach_internal on thread %p, InternalThread: %p", __func__, internal->tid, internal);
 		mono_threads_unlock ();
 	}
 }
@@ -3058,7 +3044,7 @@ dump_thread (MonoInternalThread *thread, ThreadDumpUserData *ud, FILE* output_fi
 		MonoStackFrameInfo *frame = &ud->frames [i];
 		MonoMethod *method = NULL;
 
-		if (frame->type == FRAME_TYPE_MANAGED && frame->ji && !frame->ji->async)
+		if (frame->type == FRAME_TYPE_MANAGED)
 			method = mono_jit_info_get_method (frame->ji);
 
 		if (method) {
@@ -4896,4 +4882,31 @@ guint64
 ves_icall_System_Threading_Thread_GetCurrentOSThreadId (MonoError *error)
 {
 	return mono_native_thread_os_id_get ();
+}
+
+gpointer
+ves_icall_System_Threading_LowLevelLifoSemaphore_InitInternal (void)
+{
+	return (gpointer)mono_lifo_semaphore_init ();
+}
+
+void
+ves_icall_System_Threading_LowLevelLifoSemaphore_DeleteInternal (gpointer sem_ptr)
+{
+	LifoSemaphore *sem = (LifoSemaphore *)sem_ptr;
+	mono_lifo_semaphore_delete (sem);
+}
+
+gint32
+ves_icall_System_Threading_LowLevelLifoSemaphore_TimedWaitInternal (gpointer sem_ptr, gint32 timeout_ms)
+{
+	LifoSemaphore *sem = (LifoSemaphore *)sem_ptr;
+	return mono_lifo_semaphore_timed_wait (sem, timeout_ms);
+}
+
+void
+ves_icall_System_Threading_LowLevelLifoSemaphore_ReleaseInternal (gpointer sem_ptr, gint32 count)
+{
+	LifoSemaphore *sem = (LifoSemaphore *)sem_ptr;
+	mono_lifo_semaphore_release (sem, count);
 }

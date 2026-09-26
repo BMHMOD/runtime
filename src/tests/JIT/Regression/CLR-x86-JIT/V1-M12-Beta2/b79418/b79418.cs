@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b79418;
-
 using System;
 using System.Text;
 using System.Runtime.InteropServices;
@@ -17,7 +14,6 @@ public class PInvokeTest
     static String foo = "foo";
     static String bar = "bar";
 
-    [OuterLoop]
     [Fact]
     public static void TestEntryPoint()
     {

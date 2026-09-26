@@ -38,7 +38,7 @@ namespace System.Reflection
             int sigArgCount = sig.Arguments.Length;
             ParameterInfo[] args =
                 fetchReturnParameter ? null! :
-                sigArgCount == 0 ? [] :
+                sigArgCount == 0 ? Array.Empty<ParameterInfo>() :
                 new ParameterInfo[sigArgCount];
 
             int tkMethodDef = RuntimeMethodHandle.GetMethodDef(methodHandle);
@@ -451,7 +451,7 @@ namespace System.Reflection
         public override object[] GetCustomAttributes(bool inherit)
         {
             if (MdToken.IsNullToken(m_tkParamDef))
-                return [];
+                return Array.Empty<object>();
 
             return CustomAttribute.GetCustomAttributes(this, (typeof(object) as RuntimeType)!);
         }
@@ -484,9 +484,6 @@ namespace System.Reflection
 
         public override IList<CustomAttributeData> GetCustomAttributesData()
         {
-            if (MdToken.IsNullToken(m_tkParamDef))
-                return Array.Empty<CustomAttributeData>();
-
             return RuntimeCustomAttributeData.GetCustomAttributesInternal(this);
         }
         #endregion

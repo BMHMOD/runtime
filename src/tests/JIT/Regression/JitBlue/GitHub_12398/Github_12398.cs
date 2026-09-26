@@ -3,9 +3,6 @@
 //
 // GitHub12398: Lowering is inconsistent in checking safety of RegOptional.
 
-
-namespace Github_12398;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;

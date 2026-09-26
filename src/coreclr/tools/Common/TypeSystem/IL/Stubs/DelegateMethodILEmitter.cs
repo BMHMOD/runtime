@@ -17,7 +17,7 @@ namespace Internal.IL.Stubs
             Debug.Assert(method.OwningType.IsTypeDefinition);
             Debug.Assert(method.IsRuntimeImplemented);
 
-            if (method.Name == "BeginInvoke"u8 || method.Name == "EndInvoke"u8)
+            if (method.Name.SequenceEqual("BeginInvoke"u8) || method.Name.SequenceEqual("EndInvoke"u8))
             {
                 // BeginInvoke and EndInvoke are not supported on .NET Core
                 ILEmitter emit = new ILEmitter();
@@ -27,7 +27,7 @@ namespace Internal.IL.Stubs
                 return emit.Link(method);
             }
 
-            if (method.Name == ".ctor"u8)
+            if (method.Name.SequenceEqual(".ctor"u8))
             {
                 // We only support delegate creation if the IL follows the delegate creation verifiability requirements
                 // described in ECMA-335 III.4.21 (newobj - create a new object). The codegen is expected to
@@ -42,33 +42,32 @@ namespace Internal.IL.Stubs
                 return emit.Link(method);
             }
 
-            if (method.Name == "Invoke"u8)
+            if (method.Name.SequenceEqual("Invoke"u8))
             {
                 TypeSystemContext context = method.Context;
 
                 ILEmitter emit = new ILEmitter();
                 TypeDesc delegateType = context.GetWellKnownType(WellKnownType.MulticastDelegate).BaseType;
-                FieldDesc targetField = delegateType.GetKnownField("_target"u8);
-                FieldDesc methodPtrField = delegateType.GetKnownField("_methodPtr"u8);
+                FieldDesc firstParameterField = delegateType.GetKnownField("_firstParameter"u8);
+                FieldDesc functionPointerField = delegateType.GetKnownField("_functionPointer"u8);
                 ILCodeStream codeStream = emit.NewCodeStream();
 
-                // Store the method pointer into local variable to avoid unnecessary register usage by JIT
-                ILLocalVariable methodPtr = emit.NewLocal(context.GetWellKnownType(WellKnownType.IntPtr));
-
-                MethodSignature signature = method.Signature;
+                // Store the function pointer into local variable to avoid unnecessary register usage by JIT
+                ILLocalVariable functionPointer = emit.NewLocal(context.GetWellKnownType(WellKnownType.IntPtr));
 
                 codeStream.EmitLdArg(0);
-                codeStream.Emit(ILOpcode.ldfld, emit.NewToken(methodPtrField.InstantiateAsOpen()));
-                codeStream.EmitStLoc(methodPtr);
+                codeStream.Emit(ILOpcode.ldfld, emit.NewToken(functionPointerField.InstantiateAsOpen()));
+                codeStream.EmitStLoc(functionPointer);
 
                 codeStream.EmitLdArg(0);
-                codeStream.Emit(ILOpcode.ldfld, emit.NewToken(targetField.InstantiateAsOpen()));
-                for (int i = 0; i < signature.Length; i++)
+                codeStream.Emit(ILOpcode.ldfld, emit.NewToken(firstParameterField.InstantiateAsOpen()));
+                for (int i = 0; i < method.Signature.Length; i++)
                 {
                     codeStream.EmitLdArg(i + 1);
                 }
-                codeStream.EmitLdLoc(methodPtr);
+                codeStream.EmitLdLoc(functionPointer);
 
+                MethodSignature signature = method.Signature;
                 if (method.OwningType.HasInstantiation)
                 {
                     // If the owning type is generic, the signature will contain T's and U's.

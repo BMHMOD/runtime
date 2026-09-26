@@ -3,13 +3,12 @@
 //
 
 using Xunit;
-namespace b26560
+namespace DefaultNamespace
 {
     using System;
 
     public class BB
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

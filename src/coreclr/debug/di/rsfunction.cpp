@@ -571,7 +571,7 @@ HRESULT CordbFunction::GetActiveReJitRequestILCode(ICorDebugILCode **ppReJitedIL
         *ppReJitedILCode = NULL;
 
         VMPTR_ILCodeVersionNode vmILCodeVersionNode = VMPTR_ILCodeVersionNode::NullPtr();
-        IfFailThrow(GetProcess()->GetDAC()->GetActiveRejitILCodeVersionNode(GetModule()->m_vmModule, m_MDToken, &vmILCodeVersionNode));
+        GetProcess()->GetDAC()->GetActiveRejitILCodeVersionNode(GetModule()->m_vmModule, m_MDToken, &vmILCodeVersionNode);
         if (!vmILCodeVersionNode.IsNull())
         {
             RSSmartPtr<CordbReJitILCode> pILCode;
@@ -777,59 +777,47 @@ HRESULT CordbFunction::GetILCodeAndSigToken()
             // constructor to zero its data and localVarSigToken is explicitly inited.
             TargetBuffer codeInfo;
             mdSignature  localVarSigToken = mdSignatureNil;
-            SIZE_T       currentEnCVersion = m_dwEnCVersionNumber;
+            SIZE_T       currentEnCVersion;
 
             {
                 RSLockHolder lockHolder(GetProcess()->GetProcessLock());
 
-#ifdef FEATURE_CODE_VERSIONING
-                // A non-default EnC version has its IL on an explicit IL code version node.
-                if (m_dwEnCVersionNumber != CorDB_DEFAULT_ENC_FUNCTION_VERSION)
-                {
-                    ALLOW_DATATARGET_MISSING_OR_INCONSISTENT_MEMORY(
-                        IfFailThrow(pProcess->GetDAC()->GetEnCILCodeAndSig(GetModule()->m_vmModule,
-                                                                          m_MDToken,
-                                                                          m_dwEnCVersionNumber,
-                                                                          &codeInfo,
-                                                                          &localVarSigToken));
-                    );
-                }
-#endif // FEATURE_CODE_VERSIONING
+                // In the dump case we may not have the backing memory for this. In such a case
+                // we construct an empty ILCode object and leave the signatureToken as mdSignatureNil.
+                // It may also be the case that the memory we read from the dump be inconsistent (huge method size)
+                // and we also fallback on creating an empty ILCode object.
+                // See issue DD 273199 for cases where IL and NGEN metadata mismatch (different RVAs).
+                ALLOW_DATATARGET_MISSING_OR_INCONSISTENT_MEMORY(
+                    pProcess->GetDAC()->GetILCodeAndSig(m_pModule->GetRuntimeDomainAssembly(),
+                                                            m_MDToken,
+                                                            &codeInfo,
+                                                            &localVarSigToken);
+                );
 
-                if (codeInfo.pAddress == 0)
-                {
-                    // In the dump case we may not have the backing memory for this. In such a case
-                    // we construct an empty ILCode object and leave the signatureToken as mdSignatureNil.
-                    // It may also be the case that the memory we read from the dump be inconsistent (huge method size)
-                    // and we also fallback on creating an empty ILCode object.
-                    // See issue DD 273199 for cases where IL and NGEN metadata mismatch (different RVAs).
-                    ALLOW_DATATARGET_MISSING_OR_INCONSISTENT_MEMORY(
-                        IfFailThrow(pProcess->GetDAC()->GetILCodeAndSig(m_pModule->GetRuntimeAssembly(),
-                                                                m_MDToken,
-                                                                &codeInfo,
-                                                                &localVarSigToken));
-                    );
-                }
+                currentEnCVersion = m_pModule->LookupFunctionLatestVersion(m_MDToken)->m_dwEnCVersionNumber;
             }
 
-            LOG((LF_CORDB,LL_INFO10000,"R:CF::GICAST: looking for IL code, version 0x%zx\n", currentEnCVersion));
-
-            LOG((LF_CORDB,LL_INFO10000,"R:CF::GICAST: not found, creating...\n"));
-            if(codeInfo.pAddress == 0)
-            {
-                LOG((LF_CORDB,LL_INFO10000,"R:CF::GICAST: memory was missing - empty ILCode being created\n"));
-            }
-
-            // If everything succeeded, we set the IL code object (it's an outparam here).
-            _ASSERTE(m_pILCode == NULL);
-            m_pILCode.Assign(new(nothrow)CordbILCode(this,
-                                                    codeInfo,
-                                                    currentEnCVersion,
-                                                    localVarSigToken));
+            LOG((LF_CORDB,LL_INFO10000,"R:CF::GICAST: looking for IL code, version 0x%x\n", currentEnCVersion));
 
             if (m_pILCode == NULL)
             {
-                ThrowHR(E_OUTOFMEMORY);
+                LOG((LF_CORDB,LL_INFO10000,"R:CF::GICAST: not found, creating...\n"));
+                if(codeInfo.pAddress == 0)
+                {
+                    LOG((LF_CORDB,LL_INFO10000,"R:CF::GICAST: memory was missing - empty ILCode being created\n"));
+                }
+
+                // If everything succeeded, we set the IL code object (it's an outparam here).
+                _ASSERTE(m_pILCode == NULL);
+                m_pILCode.Assign(new(nothrow)CordbILCode(this,
+                                                        codeInfo,
+                                                        currentEnCVersion,
+                                                        localVarSigToken));
+
+                if (m_pILCode == NULL)
+                {
+                    ThrowHR(E_OUTOFMEMORY);
+                }
             }
         }
     }
@@ -877,7 +865,7 @@ HRESULT CordbFunction::InitParentClassOfFunction()
         }
 
         mdTypeDef classMetadataToken;
-        VMPTR_Assembly vmAssembly = m_pModule->GetRuntimeAssembly();
+        VMPTR_DomainAssembly vmDomainAssembly = m_pModule->GetRuntimeDomainAssembly();
 
         classMetadataToken = InitParentClassOfFunctionHelper(m_MDToken);
 
@@ -890,7 +878,7 @@ HRESULT CordbFunction::InitParentClassOfFunction()
             CordbAssembly *pAssembly = m_pModule->GetCordbAssembly();
             _ASSERTE(pAssembly != NULL);
 
-            CordbModule* pClassModule = pAssembly->GetAppDomain()->LookupOrCreateModule(vmAssembly);
+            CordbModule* pClassModule = pAssembly->GetAppDomain()->LookupOrCreateModule(vmDomainAssembly);
             _ASSERTE(pClassModule != NULL);
 
             CordbClass *pClass;
@@ -945,7 +933,7 @@ HRESULT CordbFunction::InitNativeCodeInfo()
             // All we actually need is the start address and method desc which are cheap to get relative
             // to some of the other members. So far this doesn't appear to be a perf hotspot, but if it
             // shows up in some scenario it wouldn't be too hard to improve it
-            IfFailThrow(pProcess->GetDAC()->GetNativeCodeInfo(m_pModule->GetRuntimeAssembly(), m_MDToken, &codeInfo));
+            pProcess->GetDAC()->GetNativeCodeInfo(m_pModule->GetRuntimeDomainAssembly(), m_MDToken, &codeInfo);
         }
 
         // populate the m_nativeCode pointer with the code info we found
@@ -999,7 +987,7 @@ HRESULT CordbFunction::SetJMCStatus(BOOL fIsUserCode)
 
     DebuggerIPCEvent event;
     pProcess->InitIPCEvent(&event, DB_IPCE_SET_METHOD_JMC_STATUS, true, m_pModule->GetAppDomain()->GetADToken());
-    event.SetJMCFunctionStatus.vmAssembly = m_pModule->GetRuntimeAssembly();
+    event.SetJMCFunctionStatus.vmDomainAssembly = m_pModule->GetRuntimeDomainAssembly();
     event.SetJMCFunctionStatus.funcMetadataToken   = m_MDToken;
     event.SetJMCFunctionStatus.dwStatus            = fIsUserCode;
 
@@ -1051,7 +1039,7 @@ HRESULT CordbFunction::GetJMCStatus(BOOL * pfIsUserCode)
     // Ask the left-side if a method is user code or not.
     DebuggerIPCEvent event;
     pProcess->InitIPCEvent(&event, DB_IPCE_GET_METHOD_JMC_STATUS, true, m_pModule->GetAppDomain()->GetADToken());
-    event.SetJMCFunctionStatus.vmAssembly = m_pModule->GetRuntimeAssembly();
+    event.SetJMCFunctionStatus.vmDomainAssembly = m_pModule->GetRuntimeDomainAssembly();
     event.SetJMCFunctionStatus.funcMetadataToken   = m_MDToken;
 
 

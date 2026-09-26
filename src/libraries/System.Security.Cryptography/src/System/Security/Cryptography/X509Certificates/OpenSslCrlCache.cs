@@ -2,13 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Formats.Asn1;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography.Asn1;
 using System.Security.Cryptography.X509Certificates.Asn1;
-using System.Threading;
 using Microsoft.Win32.SafeHandles;
 
 namespace System.Security.Cryptography.X509Certificates
@@ -24,8 +22,6 @@ namespace System.Security.Cryptography.X509Certificates
             PersistedFiles.GetUserFeatureDirectory(
                 X509Persistence.CryptographyFeatureName,
                 X509Persistence.OcspSubFeatureName);
-
-        private static readonly MruCrlCache s_crlCache = new();
 
         private const ulong X509_R_CERT_ALREADY_IN_HASH_TABLE = 0x0B07D065;
 
@@ -78,95 +74,6 @@ namespace System.Security.Cryptography.X509Certificates
 
         private static bool AddCachedCrl(string crlFileName, SafeX509StoreHandle store, DateTime verificationTime)
         {
-            // OpenSSL is going to convert our input time to universal, so we should be in Local or
-            // Unspecified (local-assumed).
-            Debug.Assert(
-                verificationTime.Kind != DateTimeKind.Utc,
-                "UTC verificationTime should have been normalized to Local");
-
-            if (s_crlCache.TryGetValueAndUpRef(crlFileName, out CachedCrlEntry? cacheEntry))
-            {
-                try
-                {
-                    Debug.Assert(cacheEntry is not null);
-
-                    if (verificationTime < cacheEntry.Expiration)
-                    {
-                        if (OpenSslX509ChainEventSource.Log.IsEnabled())
-                        {
-                            OpenSslX509ChainEventSource.Log.CrlCacheInMemoryHit(cacheEntry.Expiration);
-                        }
-
-                        AttachCrl(store, cacheEntry.CrlHandle);
-                        return true;
-                    }
-
-                    if (OpenSslX509ChainEventSource.Log.IsEnabled())
-                    {
-                        OpenSslX509ChainEventSource.Log.CrlCacheInMemoryExpired(verificationTime, cacheEntry.Expiration);
-                    }
-                }
-                finally
-                {
-                    cacheEntry.CrlHandle.DangerousRelease();
-                }
-            }
-            else if (OpenSslX509ChainEventSource.Log.IsEnabled())
-            {
-                OpenSslX509ChainEventSource.Log.CrlCacheInMemoryMiss();
-            }
-
-            // Check the disk cache.
-            // For uncached this is the first load, for collected it's a reload,
-            // for expired it's checking to see if another process has updated the disk cache.
-            CachedCrlEntry? diskCacheEntry = CheckDiskCache(crlFileName, verificationTime);
-
-            if (diskCacheEntry is null)
-            {
-                return false;
-            }
-
-            UpdateCacheAndAttachCrl(crlFileName, store, diskCacheEntry);
-            return true;
-        }
-
-        private static void UpdateCacheAndAttachCrl(string crlFileName, SafeX509StoreHandle store, CachedCrlEntry newEntry)
-        {
-            Debug.Assert(!newEntry.CrlHandle.IsInvalid);
-            CachedCrlEntry toAttach = s_crlCache.AddOrUpdateAndUpRef(crlFileName, newEntry);
-
-            try
-            {
-                AttachCrl(store, toAttach.CrlHandle);
-            }
-            finally
-            {
-                toAttach.CrlHandle.DangerousRelease();
-            }
-        }
-
-        private static void AttachCrl(SafeX509StoreHandle store, SafeX509CrlHandle crl)
-        {
-            Debug.Assert(!crl.IsInvalid);
-
-            // X509_STORE_add_crl will increase the refcount on the CRL object,
-            // so we don't need to worry about our copy getting cleaned up as a weak reference.
-            if (!Interop.Crypto.X509StoreAddCrl(store, crl))
-            {
-                // Ignore error "cert already in store", throw on anything else. In any case the error queue will be cleared.
-                if (X509_R_CERT_ALREADY_IN_HASH_TABLE == Interop.Crypto.ErrPeekLastError())
-                {
-                    Interop.Crypto.ErrClearError();
-                }
-                else
-                {
-                    throw Interop.Crypto.CreateOpenSslCryptographicException();
-                }
-            }
-        }
-
-        private static CachedCrlEntry? CheckDiskCache(string crlFileName, DateTime verificationTime)
-        {
             string crlFile = GetCachedCrlPath(crlFileName);
 
             if (OpenSslX509ChainEventSource.Log.IsEnabled())
@@ -176,7 +83,7 @@ namespace System.Security.Cryptography.X509Certificates
 
             try
             {
-                return CheckDiskCacheCore(crlFile, verificationTime);
+                return AddCachedCrlCore(crlFile, store, verificationTime);
             }
             finally
             {
@@ -187,7 +94,7 @@ namespace System.Security.Cryptography.X509Certificates
             }
         }
 
-        private static CachedCrlEntry? CheckDiskCacheCore(string crlFile, DateTime verificationTime)
+        private static bool AddCachedCrlCore(string crlFile, SafeX509StoreHandle store, DateTime verificationTime)
         {
             using (SafeBioHandle bio = Interop.Crypto.BioNewFile(crlFile, "rb"))
             {
@@ -199,11 +106,12 @@ namespace System.Security.Cryptography.X509Certificates
                     }
 
                     Interop.Crypto.ErrClearError();
-                    return null;
+                    return false;
                 }
 
-                SafeX509CrlHandle crl = Interop.Crypto.PemReadBioX509Crl(bio);
-
+                // X509_STORE_add_crl will increase the refcount on the CRL object, so we should still
+                // dispose our copy.
+                using (SafeX509CrlHandle crl = Interop.Crypto.PemReadBioX509Crl(bio))
                 {
                     if (crl.IsInvalid)
                     {
@@ -212,9 +120,8 @@ namespace System.Security.Cryptography.X509Certificates
                             OpenSslX509ChainEventSource.Log.CrlCacheDecodeError();
                         }
 
-                        crl.Dispose();
                         Interop.Crypto.ErrClearError();
-                        return null;
+                        return false;
                     }
 
                     // If crl.LastUpdate is in the past, downloading a new version isn't really going
@@ -237,21 +144,26 @@ namespace System.Security.Cryptography.X509Certificates
 
                         try
                         {
-                            nextUpdate = ExpirationTimeFromCacheFileTime(File.GetLastWriteTime(crlFile));
+                            nextUpdate = File.GetLastWriteTime(crlFile).AddDays(3);
                         }
                         catch
                         {
                             // We couldn't determine when the CRL was last written to,
                             // so consider it expired.
                             Debug.Fail("Failed to get the last write time of the CRL file");
-                            crl.Dispose();
-                            return null;
+                            return false;
                         }
                     }
                     else
                     {
                         nextUpdate = OpenSslX509CertificateReader.ExtractValidityDateTime(nextUpdatePtr);
                     }
+
+                    // OpenSSL is going to convert our input time to universal, so we should be in Local or
+                    // Unspecified (local-assumed).
+                    Debug.Assert(
+                        verificationTime.Kind != DateTimeKind.Utc,
+                        "UTC verificationTime should have been normalized to Local");
 
                     // In the event that we're to-the-second accurate on the match, OpenSSL will consider this
                     // to be already expired.
@@ -262,8 +174,20 @@ namespace System.Security.Cryptography.X509Certificates
                             OpenSslX509ChainEventSource.Log.CrlCacheExpired(verificationTime, nextUpdate);
                         }
 
-                        crl.Dispose();
-                        return null;
+                        return false;
+                    }
+
+                    if (!Interop.Crypto.X509StoreAddCrl(store, crl))
+                    {
+                        // Ignore error "cert already in store", throw on anything else. In any case the error queue will be cleared.
+                        if (X509_R_CERT_ALREADY_IN_HASH_TABLE == Interop.Crypto.ErrPeekLastError())
+                        {
+                            Interop.Crypto.ErrClearError();
+                        }
+                        else
+                        {
+                            throw Interop.Crypto.CreateOpenSslCryptographicException();
+                        }
                     }
 
                     if (OpenSslX509ChainEventSource.Log.IsEnabled())
@@ -271,7 +195,7 @@ namespace System.Security.Cryptography.X509Certificates
                         OpenSslX509ChainEventSource.Log.CrlCacheAcceptedFile(nextUpdate);
                     }
 
-                    return new CachedCrlEntry(crl, nextUpdate);
+                    return true;
                 }
             }
         }
@@ -282,82 +206,57 @@ namespace System.Security.Cryptography.X509Certificates
             SafeX509StoreHandle store,
             TimeSpan downloadTimeout)
         {
-            CachedCrlEntry? newEntry = DownloadAndCacheCrl(url, crlFileName, downloadTimeout);
-
-            if (newEntry is not null)
+            // X509_STORE_add_crl will increase the refcount on the CRL object, so we should still
+            // dispose our copy.
+            using (SafeX509CrlHandle? crl = OpenSslCertificateAssetDownloader.DownloadCrl(url, downloadTimeout))
             {
-                UpdateCacheAndAttachCrl(crlFileName, store, newEntry);
-                OpenSslCertificateAssetDownloader.ReportCrlCached(url);
-            }
-        }
-
-        private static CachedCrlEntry? DownloadAndCacheCrl(
-            string url,
-            string crlFileName,
-            TimeSpan downloadTimeout)
-        {
-            SafeX509CrlHandle? crl = OpenSslCertificateAssetDownloader.DownloadCrl(url, downloadTimeout);
-
-            // null is a valid return (e.g. no remainingDownloadTime)
-            if (crl == null || crl.IsInvalid)
-            {
-                crl?.Dispose();
-                return null;
-            }
-
-            IntPtr nextUpdatePtr = Interop.Crypto.GetX509CrlNextUpdate(crl);
-            DateTime expiryTime;
-
-            // If there is no crl.NextUpdate, this indicates that the CA is not providing
-            // any more updates to the CRL, or they made a mistake not providing a NextUpdate.
-            // We'll cache it for a few days to cover the case it was a mistake.
-            if (nextUpdatePtr == IntPtr.Zero)
-            {
-                expiryTime = ExpirationTimeFromCacheFileTime(DateTime.Now);
-            }
-            else
-            {
-                expiryTime = OpenSslX509CertificateReader.ExtractValidityDateTime(nextUpdatePtr);
-            }
-
-            // Saving the CRL to the disk is just a performance optimization for later requests to not
-            // need to use the network again, so failure to save shouldn't throw an exception or mark
-            // the chain as invalid.
-            try
-            {
-                string crlFile = GetCachedCrlPath(crlFileName, mkDir: true);
-
-                using (SafeBioHandle bio = Interop.Crypto.BioNewFile(crlFile, "wb"))
+                // null is a valid return (e.g. no remainingDownloadTime)
+                if (crl != null && !crl.IsInvalid)
                 {
-                    if (bio.IsInvalid || Interop.Crypto.PemWriteBioX509Crl(bio, crl) == 0)
+                    if (!Interop.Crypto.X509StoreAddCrl(store, crl))
                     {
-                        // No bio, or write failed
-
-                        if (OpenSslX509ChainEventSource.Log.IsEnabled())
+                        // Ignore error "cert already in store", throw on anything else. In any case the error queue will be cleared.
+                        if (X509_R_CERT_ALREADY_IN_HASH_TABLE == Interop.Crypto.ErrPeekLastError())
                         {
-                            OpenSslX509ChainEventSource.Log.CrlCacheWriteFailed(crlFile);
+                            Interop.Crypto.ErrClearError();
                         }
+                        else
+                        {
+                            throw Interop.Crypto.CreateOpenSslCryptographicException();
+                        }
+                    }
 
-                        Interop.Crypto.ErrClearError();
+                    // Saving the CRL to the disk is just a performance optimization for later requests to not
+                    // need to use the network again, so failure to save shouldn't throw an exception or mark
+                    // the chain as invalid.
+                    try
+                    {
+                        string crlFile = GetCachedCrlPath(crlFileName, mkDir: true);
+
+                        using (SafeBioHandle bio = Interop.Crypto.BioNewFile(crlFile, "wb"))
+                        {
+                            if (bio.IsInvalid || Interop.Crypto.PemWriteBioX509Crl(bio, crl) == 0)
+                            {
+                                // No bio, or write failed
+
+                                if (OpenSslX509ChainEventSource.Log.IsEnabled())
+                                {
+                                    OpenSslX509ChainEventSource.Log.CrlCacheWriteFailed(crlFile);
+                                }
+
+                                Interop.Crypto.ErrClearError();
+                            }
+                        }
+                    }
+                    catch (UnauthorizedAccessException) { }
+                    catch (IOException) { }
+
+                    if (OpenSslX509ChainEventSource.Log.IsEnabled())
+                    {
+                        OpenSslX509ChainEventSource.Log.CrlCacheWriteSucceeded();
                     }
                 }
             }
-            catch (UnauthorizedAccessException) { }
-            catch (IOException) { }
-
-            if (OpenSslX509ChainEventSource.Log.IsEnabled())
-            {
-                OpenSslX509ChainEventSource.Log.CrlCacheWriteSucceeded();
-            }
-
-            return new CachedCrlEntry(crl, expiryTime);
-        }
-
-        private static DateTime ExpirationTimeFromCacheFileTime(DateTime cacheFileTime)
-        {
-            // CA/Browser Forum says that CRLs should be updated every 4 to 7 days,
-            // so recheck any cached CRL, that doesn't have a NextUpdate, every 3 days.
-            return cacheFileTime.AddDays(3);
         }
 
         internal static string GetCachedOcspResponseDirectory()
@@ -365,7 +264,7 @@ namespace System.Security.Cryptography.X509Certificates
             return s_ocspDir;
         }
 
-        private static unsafe string GetCrlFileName(SafeX509Handle cert, string crlUrl)
+        private static string GetCrlFileName(SafeX509Handle cert, string crlUrl)
         {
             // X509_issuer_name_hash returns "unsigned long", which is marshalled as ulong.
             // But it only sets 32 bits worth of data, so force it down to uint just... in case.
@@ -388,7 +287,7 @@ namespace System.Security.Cryptography.X509Certificates
                 throw new CryptographicException();
             }
 
-            uint urlHash = BitConverter.ToUInt32(hash);
+            uint urlHash = MemoryMarshal.Read<uint>(hash);
 
             // OpenSSL's hashed filename algorithm is the 8-character hex version of the 32-bit value
             // of X509_issuer_name_hash (or X509_subject_name_hash, depending on the context).
@@ -425,8 +324,8 @@ namespace System.Security.Cryptography.X509Certificates
 
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(crlDistributionPoints, AsnEncodingRules.DER);
-                ValueAsnReader sequenceReader = reader.ReadSequence();
+                AsnValueReader reader = new AsnValueReader(crlDistributionPoints, AsnEncodingRules.DER);
+                AsnValueReader sequenceReader = reader.ReadSequence();
                 reader.ThrowIfNotEmpty();
 
                 while (sequenceReader.HasData)
@@ -479,115 +378,6 @@ namespace System.Security.Cryptography.X509Certificates
             }
 
             return null;
-        }
-
-        // The MRU CRL cache always does a DangerousAddReference before returning the value,
-        // so that neither cooperative GC pruning nor a cache-value refresh trigger ReleaseHandle
-        // on a CRL entry in use.
-        private sealed class MruCrlCache : X509MruCache<CachedCrlEntry>
-        {
-            // Each CRL is only a SafeHandle to the GC, but represents a non-trivial amount of
-            // native memory, so keep the cache small.
-            internal MruCrlCache() : base(30)
-            {
-            }
-
-            internal CachedCrlEntry AddOrUpdateAndUpRef(string key, CachedCrlEntry value)
-            {
-                CachedCrlEntry ret;
-                Node? evicted;
-                CachedCrlEntry? replaced;
-                int hashCode = GetHashCode(key);
-
-                lock (_lock)
-                {
-                    ret = AddOrUpdate(hashCode, key, value, out evicted, out replaced);
-
-                    bool ignore = false;
-                    ret.CrlHandle.DangerousAddRef(ref ignore);
-                }
-
-                // Technically speaking, at most one of these three paths can be hit.
-                // 1) The key was not in the cache, and there's space
-                //   ret==value, evicted==null, replaced==null
-                // 2) The key was not in the cache, and adding the new value caused an eviction
-                //   ret==newValue, evicted==oldValue, replaced==null
-                // 3) The key was in the cache, and the new value replaced the old value
-                //   ret==newValue, evicted==null, replaced==oldValue
-                // 4) The key was in the cache, and the new value did not replace the old value
-                //   ret!=newValue, evicted==null, replaced==null
-                //
-                // But rather than encode that with else if, just let all three paths test.
-
-                if (!ReferenceEquals(ret, value))
-                {
-                    // The value we tried inserting into the cache was not used,
-                    // so we can release the SafeHandle.
-                    value.CrlHandle.Dispose();
-                }
-
-                replaced?.CrlHandle.Dispose();
-
-                if (evicted is not null)
-                {
-                    evicted.Value.CrlHandle.Dispose();
-
-                    if (OpenSslX509ChainEventSource.Log.IsEnabled())
-                    {
-                        OpenSslX509ChainEventSource.Log.CrlCacheInMemoryFull(evicted.Key);
-                    }
-                }
-
-                return ret;
-            }
-
-            internal bool TryGetValueAndUpRef(string key, [NotNullWhen(true)] out CachedCrlEntry? value)
-            {
-                int hashCode = GetHashCode(key);
-
-                lock (_lock)
-                {
-                    if (TryGetNode(hashCode, key, out Node? node))
-                    {
-                        bool ignore = false;
-                        node.Value.CrlHandle.DangerousAddRef(ref ignore);
-                        value = node.Value;
-                        return true;
-                    }
-                }
-
-                value = null;
-                return false;
-            }
-
-            private protected override bool OnConflictTakeNew(Node current, CachedCrlEntry newValue) => newValue.Expiration > current.Value.Expiration;
-
-            private protected override void Pruned(Node? prunedNode, int countStart, int countEnd)
-            {
-                // `prunedNode` and beyond are now unlinked from the list, so we can dispose its values without holding the lock.
-                while (prunedNode is not null)
-                {
-                    prunedNode.Value.CrlHandle.Dispose();
-                    prunedNode = prunedNode.Next;
-                }
-
-                if (OpenSslX509ChainEventSource.Log.IsEnabled())
-                {
-                    OpenSslX509ChainEventSource.Log.CrlCacheInMemoryPruned(countStart - countEnd, countEnd);
-                }
-            }
-        }
-
-        private sealed class CachedCrlEntry
-        {
-            internal SafeX509CrlHandle CrlHandle { get; }
-            internal DateTime Expiration { get; }
-
-            internal CachedCrlEntry(SafeX509CrlHandle crlHandle, DateTime expiration)
-            {
-                CrlHandle = crlHandle;
-                Expiration = expiration;
-            }
         }
     }
 }

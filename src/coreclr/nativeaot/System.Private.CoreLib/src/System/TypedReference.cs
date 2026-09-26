@@ -43,9 +43,14 @@ namespace System
             return value._typeHandle;
         }
 
+        internal static RuntimeTypeHandle RawTargetTypeToken(TypedReference value)
+        {
+            return value._typeHandle;
+        }
+
         public static unsafe object ToObject(TypedReference value)
         {
-            RuntimeTypeHandle handle = value._typeHandle;
+            RuntimeTypeHandle handle = RawTargetTypeToken(value);
 
             if (handle.IsNull)
                 ThrowHelper.ThrowArgumentException_ArgumentNull_TypedRefType();
@@ -73,19 +78,6 @@ namespace System
             {
                 return ref _value;
             }
-        }
-
-        // Implementation of CORINFO_HELP_GETREFANY
-        internal static ref byte GetRefAny(RuntimeTypeHandle type, TypedReference value)
-        {
-            if (!value._typeHandle.Equals(type))
-            {
-                ThrowInvalidCastException();
-            }
-
-            return ref value.Value;
-
-            static void ThrowInvalidCastException() => throw new InvalidCastException();
         }
     }
 }

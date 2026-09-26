@@ -21,21 +21,7 @@ namespace System.Diagnostics
             return Interop.libproc.proc_pidpath(processId);
         }
 
-        internal static string? GetProcessName(int processId, string _ /* machineName */, bool __ /* isRemoteMachine */, ref ProcessInfo? processInfo)
-        {
-            if (processInfo is not null)
-            {
-                return processInfo.ProcessName;
-            }
-            // Return empty string rather than null when the process name can't be determined
-            // to preserve existing macOS behavior where the name defaults to "".
-            return GetProcessName(processId) ?? "";
-        }
-
-        internal static string? GetProcessName(int pid)
-            => GetProcessName(pid, out _);
-
-        private static string? GetProcessName(int pid, out Interop.libproc.proc_taskallinfo? taskInfo, bool getInfo = false)
+        internal static ProcessInfo? CreateProcessInfo(int pid, string? processNameFilter = null)
         {
             // Negative PIDs aren't valid
             ArgumentOutOfRangeException.ThrowIfNegative(pid);
@@ -54,32 +40,22 @@ namespace System.Diagnostics
                 // Ignored
             }
 
-            if (string.IsNullOrEmpty(processName) || getInfo)
-            {
-                // Try to get the task info. This can fail if the user permissions don't permit
-                // this user context to query the specified process
-                taskInfo = Interop.libproc.GetProcessInfoById(pid);
+            // Try to get the task info. This can fail if the user permissions don't permit
+            // this user context to query the specified process
+            Interop.libproc.proc_taskallinfo? info = Interop.libproc.GetProcessInfoById(pid);
 
-                if (taskInfo.HasValue && string.IsNullOrEmpty(processName))
-                {
-                    Interop.libproc.proc_taskallinfo temp = taskInfo.Value;
-                    unsafe { processName = Utf8StringMarshaller.ConvertToManaged(temp.pbsd.pbi_comm); }
-                }
-            }
-            else
+            // If we could not get the process name from its path, attempt to use the old 15-char
+            // limited process name
+            if (string.IsNullOrEmpty(processName) && info != null)
             {
-                taskInfo = default;
+                Interop.libproc.proc_taskallinfo temp = info.Value;
+                unsafe { processName = Utf8StringMarshaller.ConvertToManaged(temp.pbsd.pbi_comm); }
             }
 
-            return processName;
-        }
+            // Fallback to empty string if the process name could not be retrieved in any way
+            processName ??= "";
 
-        internal static unsafe ProcessInfo? CreateProcessInfo(int pid, string? processNameFilter = null)
-        {
-            Interop.libproc.proc_taskallinfo? info;
-            string processName = GetProcessName(pid, out info, getInfo: true) ?? "";
-
-            if (processNameFilter != null && !processNameFilter.Equals(processName, StringComparison.OrdinalIgnoreCase))
+            if (!string.IsNullOrEmpty(processNameFilter) && !string.Equals(processName, processNameFilter, StringComparison.OrdinalIgnoreCase))
             {
                 return null;
             }
@@ -104,16 +80,6 @@ namespace System.Diagnostics
             if (sessionId != -1)
             {
                 procInfo.SessionId = sessionId;
-            }
-
-            // Get the process's physical memory footprint - an accounting-based measurement (the same value
-            // shown in Activity Monitor's Memory column), not a strict count of unique/private pages. This can
-            // fail for several reasons - e.g. lacking permission to query a process owned by another user, or
-            // the process having exited since it was enumerated - in which case PrivateBytes is left at its
-            // default of 0, matching prior (unset) behavior for this field on macOS.
-            if (Interop.libproc.TryGetProcessPhysicalFootprint(pid, out ulong physicalFootprint))
-            {
-                procInfo.PrivateBytes = physicalFootprint > long.MaxValue ? long.MaxValue : (long)physicalFootprint;
             }
 
             // Create a threadinfo for each thread in the process

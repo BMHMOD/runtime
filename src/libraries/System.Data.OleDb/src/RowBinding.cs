@@ -5,7 +5,6 @@ using System.Data.Common;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.Marshalling;
 
 namespace System.Data.OleDb
 {
@@ -408,10 +407,13 @@ namespace System.Data.OleDb
                         ValidateCheck(valueOffset, 2 * IntPtr.Size);
                         FreeCoTaskMem(buffer, valueOffset);
                         break;
-                    case NativeDBType.VARIANT:
                     case NativeDBType.PROPVARIANT:
-                        ValidateCheck(valueOffset, 2 * sizeof(ComVariant));
+                        ValidateCheck(valueOffset, 2 * sizeof(PROPVARIANT));
                         FreePropVariant(buffer, valueOffset);
+                        break;
+                    case NativeDBType.VARIANT:
+                        ValidateCheck(valueOffset, 2 * ODB.SizeOf_Variant);
+                        FreeVariant(buffer, valueOffset);
                         break;
                     case NativeDBType.BSTR:
                         ValidateCheck(valueOffset, 2 * IntPtr.Size);
@@ -531,16 +533,48 @@ namespace System.Data.OleDb
             }
         }
 
+        private static void FreeVariant(IntPtr buffer, int valueOffset)
+        {
+            // two contiguous VARIANT structures that need to be freed
+            // the second should only be freed if different from the first
+
+            Debug.Assert(0 == (ODB.SizeOf_Variant % 8), "unexpected VARIANT size mutiplier");
+            Debug.Assert(0 == valueOffset % 8, "unexpected unaligned ptr offset");
+
+            IntPtr currentHandle = ADP.IntPtrOffset(buffer, valueOffset);
+            IntPtr originalHandle = ADP.IntPtrOffset(buffer, valueOffset + ODB.SizeOf_Variant);
+            bool different = NativeOledbWrapper.MemoryCompare(currentHandle, originalHandle, ODB.SizeOf_Variant);
+
+            RuntimeHelpers.PrepareConstrainedRegions();
+            try
+            { }
+            finally
+            {
+                // always clear the first structure
+                Interop.OleAut32.VariantClear(currentHandle);
+                if (different)
+                {
+                    // second structure different from the first
+                    Interop.OleAut32.VariantClear(originalHandle);
+                }
+                else
+                {
+                    // second structure same as the first, just clear the field
+                    SafeNativeMethods.ZeroMemory(originalHandle, ODB.SizeOf_Variant);
+                }
+            }
+        }
+
         private static unsafe void FreePropVariant(IntPtr buffer, int valueOffset)
         {
             // two contiguous PROPVARIANT structures that need to be freed
             // the second should only be freed if different from the first
-            Debug.Assert(0 == (sizeof(ComVariant) % 8), "unexpected PROPVARIANT size mutiplier");
+            Debug.Assert(0 == (sizeof(PROPVARIANT) % 8), "unexpected PROPVARIANT size mutiplier");
             Debug.Assert(0 == valueOffset % 8, "unexpected unaligned ptr offset");
 
             IntPtr currentHandle = ADP.IntPtrOffset(buffer, valueOffset);
-            IntPtr originalHandle = ADP.IntPtrOffset(buffer, valueOffset + sizeof(ComVariant));
-            bool different = NativeOledbWrapper.MemoryCompare(currentHandle, originalHandle, sizeof(ComVariant));
+            IntPtr originalHandle = ADP.IntPtrOffset(buffer, valueOffset + sizeof(PROPVARIANT));
+            bool different = NativeOledbWrapper.MemoryCompare(currentHandle, originalHandle, sizeof(PROPVARIANT));
 
             RuntimeHelpers.PrepareConstrainedRegions();
             try
@@ -557,7 +591,7 @@ namespace System.Data.OleDb
                 else
                 {
                     // second structure same as the first, just clear the field
-                    SafeNativeMethods.ZeroMemory(originalHandle, sizeof(ComVariant));
+                    SafeNativeMethods.ZeroMemory(originalHandle, sizeof(PROPVARIANT));
                 }
             }
         }

@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-namespace Runtime_61486;
-
 using System;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -15,7 +12,7 @@ public class Runtime_61486
     public static int TestEntryPoint()
     {
         var my = new My(new My(null));
-        var m = typeof(My).GetMethod("M");
+        var m = my.GetType().GetMethod("M");
         try
         {
             m.Invoke(my, null);

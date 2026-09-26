@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b38403
+namespace Test
 {
     using System;
 
@@ -26,7 +26,6 @@ namespace b38403
             while (AA.m_bStatic1) ;
         }
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

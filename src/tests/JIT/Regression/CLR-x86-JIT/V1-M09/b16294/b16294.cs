@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b16294
+namespace DefaultNamespace
 {
     //@BEGINRENAME; Verify this renames
     //@ENDRENAME; Verify this renames

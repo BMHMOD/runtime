@@ -6,9 +6,6 @@
 // Seed: 12756399625466979010
 // Reduced from 798.7 KiB to 1.5 KiB in 03:42:20
 // Crashes the runtime
-
-namespace Runtime_57061;
-
 using System.Runtime.CompilerServices;
 using Xunit;
 

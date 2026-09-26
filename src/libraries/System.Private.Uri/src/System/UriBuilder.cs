@@ -158,40 +158,16 @@ namespace System
             }
         }
 
-        /// <summary>
-        /// Problematic characters that could result in the Host component escaping into other components like the Path.
-        /// </summary>
-        private static readonly SearchValues<char> s_hostReservedChars = SearchValues.Create(@":/\?#@[]");
-        private static readonly SearchValues<char> s_hostReservedCharsExceptColon = SearchValues.Create(@"/\?#@[]");
-
         [AllowNull]
         public string Host
         {
             get => _host;
             set
             {
-                if (!string.IsNullOrEmpty(value) && value.AsSpan().ContainsAny(s_hostReservedChars))
+                if (!string.IsNullOrEmpty(value) && value.Contains(':') && value[0] != '[')
                 {
-                    if (value.Contains(':'))
-                    {
-                        if (!value.StartsWith('[') || !value.EndsWith(']'))
-                        {
-                            // probable ipv6 address - Note: this is only supported for cases where the authority is inet-based.
-                            value = $"[{value}]";
-                        }
-
-                        if (value.AsSpan(1, value.Length - 2).ContainsAny(s_hostReservedCharsExceptColon))
-                        {
-                            // Reject inputs like "[::]/path" or "::]/path".
-                            throw new ArgumentException(SR.net_uri_BadHostName, nameof(value));
-                        }
-                    }
-                    else
-                    {
-                        // Reject inputs like "contoso.com/path" or "user@contoso.com".
-                        // Nonsensical inputs will only be allowed by a custom parser with GenericUriParserOptions.GenericAuthority set.
-                        throw new ArgumentException(SR.net_uri_BadHostName, nameof(value));
-                    }
+                    //probable ipv6 address - Note: this is only supported for cases where the authority is inet-based.
+                    value = "[" + value + "]";
                 }
 
                 _host = value ?? string.Empty;
@@ -389,7 +365,7 @@ namespace System
                 }
             }
 
-            string path = Path;
+            var path = Path;
             if (path.Length != 0)
             {
                 if (!path.StartsWith('/') && host.Length != 0)

@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b320147;
-
 using System;
 using System.Collections;
 using System.Runtime.InteropServices;
@@ -34,7 +31,6 @@ public struct AA
 [StructLayout(LayoutKind.Sequential)]
 public class App
 {
-    [OuterLoop]
     [Fact]
     public static void TestEntryPoint()
     {

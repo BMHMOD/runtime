@@ -1,11 +1,19 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.GenericsDictInfo))]
-internal sealed partial class GenericsDictInfo : IData<GenericsDictInfo>
+internal sealed class GenericsDictInfo : IData<GenericsDictInfo>
 {
-    [Field] public partial ushort NumDicts { get; }
-    [Field] public partial ushort NumTypeArgs { get; }
+    static GenericsDictInfo IData<GenericsDictInfo>.Create(Target target, TargetPointer address) => new GenericsDictInfo(target, address);
+    public GenericsDictInfo(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.GenericsDictInfo);
+
+        NumDicts = target.Read<ushort>(address + (ulong)type.Fields[nameof(NumDicts)].Offset);
+        NumTypeArgs = target.Read<ushort>(address + (ulong)type.Fields[nameof(NumTypeArgs)].Offset);
+    }
+
+    public ushort NumDicts { get; init; }
+    public ushort NumTypeArgs { get; init; }
 }

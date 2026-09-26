@@ -13,7 +13,7 @@ namespace System.Collections.Concurrent.Tests
 {
     public class ConcurrentDictionaryTests
     {
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public static void TestBasicScenarios()
         {
             ConcurrentDictionary<int, int> cd = new ConcurrentDictionary<int, int>();
@@ -123,7 +123,7 @@ namespace System.Collections.Concurrent.Tests
             Assert.Throws<ArgumentException>(action);
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(1, 1, 1, 10000)]
         [InlineData(5, 1, 1, 10000)]
         [InlineData(1, 1, 2, 5000)]
@@ -188,7 +188,7 @@ namespace System.Collections.Concurrent.Tests
             Assert.Equal(expectedCount, dictConcurrent.ToArray().Length);
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(1, 1, 10000)]
         [InlineData(5, 1, 10000)]
         [InlineData(1, 2, 5000)]
@@ -252,7 +252,7 @@ namespace System.Collections.Concurrent.Tests
             }
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(1, 1, 10000)]
         [InlineData(5, 1, 10000)]
         [InlineData(1, 2, 5000)]
@@ -296,7 +296,7 @@ namespace System.Collections.Concurrent.Tests
             }
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(1, 1, 10000)]
         [InlineData(5, 1, 1000)]
         [InlineData(1, 5, 2001)]
@@ -364,7 +364,7 @@ namespace System.Collections.Concurrent.Tests
             Assert.Equal(expectKeys.Count, dict.ToArray().Length);
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(5000)]
@@ -482,7 +482,7 @@ namespace System.Collections.Concurrent.Tests
             Assert.True(dict.TryRemove(KeyValuePair.Create("KEY", "value")));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public static void TestGetOrAdd()
         {
             TestGetOrAddOrUpdate(1, 1, 1, 10000, true);
@@ -495,7 +495,7 @@ namespace System.Collections.Concurrent.Tests
             TestGetOrAddOrUpdate(5, 5, 5, 25000, true);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public static void TestAddOrUpdate()
         {
             TestGetOrAddOrUpdate(1, 1, 1, 10000, false);
@@ -532,19 +532,10 @@ namespace System.Collections.Concurrent.Tests
                                             dict.GetOrAdd(j, -j);
                                             break;
                                         case 1:
-                                            dict.GetOrAdd(j, x =>
-                                            {
-                                                Assert.Equal(j, x);
-                                                return -x;
-                                            });
+                                            dict.GetOrAdd(j, x => -x);
                                             break;
                                         case 2:
-                                            dict.GetOrAdd(j, (x, m) =>
-                                            {
-                                                Assert.Equal(j, x);
-                                                Assert.Equal(-1, m);
-                                                return x * m;
-                                            }, -1);
+                                            dict.GetOrAdd(j, (x,m) => x * m, -1);
                                             break;
                                     }
                                 }
@@ -553,38 +544,13 @@ namespace System.Collections.Concurrent.Tests
                                     switch (j % 3)
                                     {
                                         case 0:
-                                            dict.AddOrUpdate(j, -j, (k, v) =>
-                                            {
-                                                Assert.Equal(j, k);
-                                                Assert.Equal(-j, v);
-                                                return v;
-                                            });
+                                            dict.AddOrUpdate(j, -j, (k, v) => -j);
                                             break;
                                         case 1:
-                                            dict.AddOrUpdate(j, k =>
-                                            {
-                                                Assert.Equal(j, k);
-                                                return -k;
-                                            }, (k, v) =>
-                                            {
-                                                Assert.Equal(j, k);
-                                                Assert.Equal(-j, v);
-                                                return -k;
-                                            });
+                                            dict.AddOrUpdate(j, (k) => -k, (k, v) => -k);
                                             break;
                                         case 2:
-                                            dict.AddOrUpdate(j, (k, m) =>
-                                            {
-                                                Assert.Equal(j, k);
-                                                Assert.Equal(-1, m);
-                                                return k * m;
-                                            }, (k, v, m) =>
-                                            {
-                                                Assert.Equal(j, k);
-                                                Assert.Equal(-j, v);
-                                                Assert.Equal(-1, m);
-                                                return k * m;
-                                            }, -1);
+                                            dict.AddOrUpdate(j, (k,m) => k*m, (k, v, m) => k * m, -1);
                                             break;
                                     }
                                 }
@@ -1007,7 +973,7 @@ namespace System.Collections.Concurrent.Tests
             Assert.Equal(capacity, GetCapacity(dictionary));
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public static void TestTryUpdate()
         {
             var dictionary = new ConcurrentDictionary<string, int>();
@@ -1089,7 +1055,7 @@ namespace System.Collections.Concurrent.Tests
         }
 
         [OuterLoop("Runs for several seconds")]
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public void ConcurrentWriteRead_NoTornValues()
         {
             var cd = new ConcurrentDictionary<int, KeyValuePair<long, long>>();

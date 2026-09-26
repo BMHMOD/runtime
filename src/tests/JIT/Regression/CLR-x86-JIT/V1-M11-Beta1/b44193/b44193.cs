@@ -3,13 +3,12 @@
 //
 
 using Xunit;
-namespace b44193
+namespace Test
 {
     using System;
 
     public class App
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

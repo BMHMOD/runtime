@@ -7,8 +7,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
-using Internal.Text;
 using Internal.TypeSystem;
 
 namespace Microsoft.Diagnostics.Tools.Pgo.TypeRefTypeSystem
@@ -142,9 +140,9 @@ namespace Microsoft.Diagnostics.Tools.Pgo.TypeRefTypeSystem
 
         public override PInvokeStringFormat PInvokeStringFormat => throw new NotImplementedException();
 
-        public override Utf8Span Name => _name;
+        public override ReadOnlySpan<byte> Name => _name;
 
-        public override Utf8Span Namespace => _namespace;
+        public override ReadOnlySpan<byte> Namespace => _namespace;
 
         public override bool IsExplicitLayout => throw new NotImplementedException();
 
@@ -186,23 +184,23 @@ namespace Microsoft.Diagnostics.Tools.Pgo.TypeRefTypeSystem
 
         protected override int ClassCode => throw new NotImplementedException();
 
-        public override MethodImplRecord[] FindMethodsImplWithMatchingDeclName(Utf8Span name) => throw new NotImplementedException();
+        public override MethodImplRecord[] FindMethodsImplWithMatchingDeclName(ReadOnlySpan<byte> name) => throw new NotImplementedException();
         public override ClassLayoutMetadata GetClassLayout() => throw new NotImplementedException();
         public override int GetHashCode()
         {
             var hash = new HashCode();
-            hash.AddBytes(Namespace.AsSpan());
-            hash.AddBytes(Name.AsSpan());
+            hash.AddBytes(Namespace);
+            hash.AddBytes(Name);
             hash.Add(Module);
             return hash.ToHashCode();
         }
 
-        public override MetadataType GetNestedType(Utf8Span name)
+        public override MetadataType GetNestedType(string name)
         {
             TypeRefTypeSystemType type = null;
             if (_nestedType != null)
             {
-                _nestedType.TryGetValue(Encoding.UTF8.GetString(name.AsSpan()), out type);
+                _nestedType.TryGetValue(name, out type);
             }
             return type;
         }

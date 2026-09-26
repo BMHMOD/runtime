@@ -23,10 +23,10 @@ extern "C" {
             fprintf (stderr,                                    \
                      "ASSERT FAILED\n"                          \
                      "\tExpression: %s\n"                       \
-                     "\tLocation:   %s:%d\n"                    \
+                     "\tLocation:   line %d in %s\n"            \
                      "\tFunction:   %s\n"                       \
                      "\tProcess:    %d\n",                      \
-                     #e, __FILE__, __LINE__, __FUNCTION__,      \
+                     #e, __LINE__, __FILE__, __FUNCTION__,      \
                      GetCurrentProcessId());                    \
             DebugBreak();                                       \
         }                                                       \

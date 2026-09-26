@@ -6,7 +6,7 @@ import { utf16ToString } from "../strings";
 
 export {
     mono_wasm_main_thread_ptr,
-    update_thread_info, isMonoThreadMessage, monoThreadInfo,
+    mono_wasm_pthread_ptr, update_thread_info, isMonoThreadMessage, monoThreadInfo,
 } from "./shared";
 export { SystemInteropJS_InstallWebWorkerInteropImpl, SystemInteropJS_UninstallWebWorkerInterop } from "./worker-interop";
 export {

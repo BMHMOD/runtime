@@ -1078,8 +1078,7 @@ namespace System.IO
                 {
                     // We do not expect buffer sizes big enough for an overflow, but if it happens, lets fail early:
                     totalUserBytes = _writePos + buffer.Length;
-                    // Allow current totalUserBytes up to int.MaxValue by using uint arithmetic operation for totalUserBytes + buffer.Length
-                    useBuffer = ((uint)totalUserBytes + buffer.Length < (_bufferSize + _bufferSize));
+                    useBuffer = (totalUserBytes + buffer.Length < (_bufferSize + _bufferSize));
                 }
 
                 if (useBuffer)

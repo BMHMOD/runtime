@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b56159
+namespace Test
 {
     using System;
 
@@ -28,7 +28,6 @@ namespace b56159
             }
             return;
         }
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

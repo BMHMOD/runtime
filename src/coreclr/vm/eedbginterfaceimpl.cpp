@@ -1,8 +1,11 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+
 /*
+ *
  * EE to Debugger Interface Implementation
+ *
  */
 
 #include "common.h"
@@ -42,12 +45,13 @@ Thread* EEDbgInterfaceImpl::GetThread(void)
 // Since this may be called from a Debugger Interop Hijack, the EEThread may be bogus.
 // Thus we can't use contracts. If we do fix that, then the contract below would be nice...
 #if 0
-    CONTRACTL
+    CONTRACT(Thread *)
     {
         NOTHROW;
         GC_NOTRIGGER;
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 #endif
 
     return ::GetThreadNULLOk();
@@ -75,15 +79,16 @@ StackWalkAction EEDbgInterfaceImpl::StackWalkFramesEx(Thread* pThread,
 
 Frame *EEDbgInterfaceImpl::GetFrame(CrawlFrame *pCF)
 {
-    CONTRACTL
+    CONTRACT(Frame *)
     {
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pCF));
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
-    return pCF->GetFrame();
+    RETURN pCF->GetFrame();
 }
 
 bool EEDbgInterfaceImpl::InitRegDisplay(Thread* pThread,
@@ -189,15 +194,15 @@ OBJECTHANDLE EEDbgInterfaceImpl::GetHandleFromObject(void *obj,
     {
         oh = pAppDomain->CreateStrongHandle(ObjectToOBJECTREF((Object *)obj));
 
-        LOG((LF_CORDB, LL_INFO1000, "EEI::GHFO: Given objectref %p,"
-            "created strong handle %p!\n", obj, oh));
+        LOG((LF_CORDB, LL_INFO1000, "EEI::GHFO: Given objectref 0x%x,"
+            "created strong handle 0x%x!\n", obj, oh));
     }
     else
     {
         oh = pAppDomain->CreateLongWeakHandle( ObjectToOBJECTREF((Object *)obj));
 
-        LOG((LF_CORDB, LL_INFO1000, "EEI::GHFO: Given objectref %p,"
-            "created long weak handle %p!\n", obj, oh));
+        LOG((LF_CORDB, LL_INFO1000, "EEI::GHFO: Given objectref 0x%x,"
+            "created long weak handle 0x%x!\n", obj, oh));
     }
 
     return oh;
@@ -213,7 +218,7 @@ void EEDbgInterfaceImpl::DbgDestroyHandle(OBJECTHANDLE oh,
     }
     CONTRACTL_END;
 
-    LOG((LF_CORDB, LL_INFO1000, "EEI::GHFO: Destroyed given handle %p,"
+    LOG((LF_CORDB, LL_INFO1000, "EEI::GHFO: Destroyed given handle 0x%x,"
         "fStrong: 0x%x!\n", oh, fStrongNewRef));
 
     if (fStrongNewRef)
@@ -237,7 +242,7 @@ OBJECTHANDLE EEDbgInterfaceImpl::GetThreadException(Thread *pThread)
     }
     CONTRACTL_END;
 
-    OBJECTHANDLE oh = pThread->GetThrowableAsPseudoHandle();
+    OBJECTHANDLE oh = pThread->GetThrowableAsHandle();
 
     if (oh != NULL)
     {
@@ -259,7 +264,21 @@ bool EEDbgInterfaceImpl::IsThreadExceptionNull(Thread *pThread)
     }
     CONTRACTL_END;
 
-    return pThread->IsThrowableNull();
+    //
+    // We're assuming that the handle on the
+    // thread is a strong handle and we're goona check it for
+    // NULL. We're also assuming something about the
+    // implementation of the handle here, too.
+    //
+    OBJECTHANDLE h = pThread->GetThrowableAsHandle();
+    if (h == NULL)
+    {
+        return true;
+    }
+
+    void *pThrowable = *((void**)h);
+
+    return (pThrowable == NULL);
 }
 
 void EEDbgInterfaceImpl::ClearThreadException(Thread *pThread)
@@ -282,7 +301,7 @@ bool EEDbgInterfaceImpl::StartSuspendForDebug(AppDomain *pAppDomain,
     }
     CONTRACTL_END;
 
-    LOG((LF_CORDB,LL_INFO1000, "EEDbgII:SSFD: start suspend on AD:%p\n",
+    LOG((LF_CORDB,LL_INFO1000, "EEDbgII:SSFD: start suspend on AD:0x%x\n",
         pAppDomain));
 
     bool result = Thread::SysStartSuspendForDebug(pAppDomain);
@@ -357,15 +376,16 @@ void EEDbgInterfaceImpl::SetThreadFilterContext(Thread *thread,
 
 CONTEXT *EEDbgInterfaceImpl::GetThreadFilterContext(Thread *thread)
 {
-    CONTRACTL
+    CONTRACT(CONTEXT *)
     {
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(thread));
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
-    return thread->GetFilterContext();
+    RETURN thread->GetFilterContext();
 }
 
 #ifdef FEATURE_INTEROP_DEBUGGING
@@ -388,12 +408,6 @@ BOOL EEDbgInterfaceImpl::IsManagedNativeCode(const BYTE *address)
     return ExecutionManager::IsManagedCode((PCODE)address);
 }
 
-BOOL EEDbgInterfaceImpl::IsIPInModule(PTR_VOID pModuleBaseAddress, PCODE ip)
-{
-    WRAPPER_NO_CONTRACT;
-    return ::IsIPInModule(pModuleBaseAddress, ip);
-}
-
 PCODE EEDbgInterfaceImpl::GetNativeCodeStartAddress(PCODE address)
 {
     WRAPPER_NO_CONTRACT;
@@ -404,15 +418,16 @@ PCODE EEDbgInterfaceImpl::GetNativeCodeStartAddress(PCODE address)
 
 MethodDesc *EEDbgInterfaceImpl::GetNativeCodeMethodDesc(const PCODE address)
 {
-    CONTRACTL
+    CONTRACT(MethodDesc *)
     {
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(address != NULL);
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
-    return ExecutionManager::GetCodeMethodDesc(address);
+    RETURN ExecutionManager::GetCodeMethodDesc(address);
 }
 
 #ifndef USE_GC_INFO_DECODER
@@ -541,6 +556,7 @@ void EEDbgInterfaceImpl::GetMethodRegionInfo(const PCODE    pStart,
     *coldSize = methodRegionInfo.coldSize;
 }
 
+#if defined(FEATURE_EH_FUNCLETS)
 DWORD EEDbgInterfaceImpl::GetFuncletStartOffsets(const BYTE *pStart, DWORD* pStartOffsets, DWORD dwLength)
 {
     CONTRACTL
@@ -576,6 +592,7 @@ StackFrame EEDbgInterfaceImpl::FindParentStackFrame(CrawlFrame* pCF)
 
 #endif // !DACCESS_COMPILE
 }
+#endif // FEATURE_EH_FUNCLETS
 
 #ifndef DACCESS_COMPILE
 size_t EEDbgInterfaceImpl::GetFunctionSize(MethodDesc *pFD)
@@ -588,7 +605,7 @@ size_t EEDbgInterfaceImpl::GetFunctionSize(MethodDesc *pFD)
     }
     CONTRACTL_END;
 
-    PCODE methodStart = pFD->GetCodeForInterpreterOrJitted();
+    PCODE methodStart = pFD->GetNativeCode();
 
     if (methodStart == (PCODE)NULL)
         return 0;
@@ -609,7 +626,7 @@ PCODE EEDbgInterfaceImpl::GetFunctionAddress(MethodDesc *pFD)
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
-    return pFD->GetCodeForInterpreterOrJitted();
+    return pFD->GetNativeCode();
 }
 
 #ifndef DACCESS_COMPILE
@@ -667,29 +684,50 @@ DWORD EEDbgInterfaceImpl::MethodDescIsStatic(MethodDesc *pFD)
 
 Module *EEDbgInterfaceImpl::MethodDescGetModule(MethodDesc *pFD)
 {
-    CONTRACTL
+    CONTRACT(Module *)
     {
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pFD));
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
-    return pFD->GetModule();
+    RETURN pFD->GetModule();
 }
 
 #ifndef DACCESS_COMPILE
 
+COR_ILMETHOD* EEDbgInterfaceImpl::MethodDescGetILHeader(MethodDesc *pFD)
+{
+    CONTRACT(COR_ILMETHOD *)
+    {
+        THROWS;
+        GC_NOTRIGGER;
+        PRECONDITION(CheckPointer(pFD));
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
+    }
+    CONTRACT_END;
+
+    if (pFD->IsIL())
+    {
+        RETURN pFD->GetILHeader();
+    }
+
+    RETURN NULL;
+}
+
 MethodDesc *EEDbgInterfaceImpl::FindLoadedMethodRefOrDef(Module* pModule,
                                                           mdToken memberRef)
 {
-    CONTRACTL
+    CONTRACT(MethodDesc *)
     {
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pModule));
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // Must have a MemberRef or a MethodDef
     mdToken tkType = TypeFromToken(memberRef);
@@ -697,10 +735,10 @@ MethodDesc *EEDbgInterfaceImpl::FindLoadedMethodRefOrDef(Module* pModule,
 
     if (tkType == mdtMemberRef)
     {
-        return pModule->LookupMemberRefAsMethod(memberRef);
+        RETURN pModule->LookupMemberRefAsMethod(memberRef);
     }
 
-    return pModule->LookupMethodDef(memberRef);
+    RETURN pModule->LookupMethodDef(memberRef);
 }
 
 MethodDesc *EEDbgInterfaceImpl::LoadMethodDef(Module* pModule,
@@ -709,13 +747,14 @@ MethodDesc *EEDbgInterfaceImpl::LoadMethodDef(Module* pModule,
                                               TypeHandle *pGenericArgs,
                                               TypeHandle *pOwnerType)
 {
-    CONTRACTL
+    CONTRACT(MethodDesc *)
     {
         THROWS;
         GC_TRIGGERS;
         PRECONDITION(CheckPointer(pModule));
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     _ASSERTE(TypeFromToken(methodDef) == mdtMethodDef);
 
@@ -783,7 +822,7 @@ MethodDesc *EEDbgInterfaceImpl::LoadMethodDef(Module* pModule,
             *pOwnerType = TypeHandle(pRes->GetMethodTable());
         }
     }
-    return pRes;
+    RETURN (pRes);
 
 }
 
@@ -791,15 +830,15 @@ MethodDesc *EEDbgInterfaceImpl::LoadMethodDef(Module* pModule,
 TypeHandle EEDbgInterfaceImpl::FindLoadedClass(Module *pModule,
                                              mdTypeDef classToken)
 {
-    CONTRACTL
+    CONTRACT(TypeHandle)
     {
         NOTHROW;
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(pModule));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
-    return ClassLoader::LookupTypeDefOrRefInModule(pModule, classToken);
+    RETURN ClassLoader::LookupTypeDefOrRefInModule(pModule, classToken);
 
 }
 
@@ -810,6 +849,11 @@ TypeHandle EEDbgInterfaceImpl::FindLoadedInstantiation(Module *pModule,
 {
     // Lookup operations run the class loader in non-load mode.
     ENABLE_FORBID_GC_LOADER_USE_IN_THIS_SCOPE();
+
+
+    // scan violation:  asserts that this can be suppressed since there is currently
+    // work on dac-izing all this code and as a result the issue will become moot.
+    CONTRACT_VIOLATION(FaultViolation);
 
     return ClassLoader::LoadGenericInstantiationThrowing(pModule, typeDef, Instantiation(inst, ntypars),
                                                         ClassLoader::DontLoadTypes);
@@ -876,15 +920,15 @@ TypeHandle EEDbgInterfaceImpl::FindLoadedElementType(CorElementType et)
 TypeHandle EEDbgInterfaceImpl::LoadClass(Module *pModule,
                                        mdTypeDef classToken)
 {
-    CONTRACTL
+    CONTRACT(TypeHandle)
     {
         THROWS;
         GC_TRIGGERS;
         PRECONDITION(CheckPointer(pModule));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
-    return ClassLoader::LoadTypeDefOrRefThrowing(pModule, classToken,
+    RETURN ClassLoader::LoadTypeDefOrRefThrowing(pModule, classToken,
                                                           ClassLoader::ThrowIfNotFound,
                                                           ClassLoader::PermitUninstDefOrRef);
 
@@ -895,32 +939,32 @@ TypeHandle EEDbgInterfaceImpl::LoadInstantiation(Module *pModule,
                                                  DWORD ntypars,
                                                  TypeHandle *inst)
 {
-    CONTRACTL
+    CONTRACT(TypeHandle)
     {
         THROWS;
         GC_TRIGGERS;
         PRECONDITION(CheckPointer(pModule));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
-    return ClassLoader::LoadGenericInstantiationThrowing(pModule, typeDef, Instantiation(inst, ntypars));
+    RETURN ClassLoader::LoadGenericInstantiationThrowing(pModule, typeDef, Instantiation(inst, ntypars));
 }
 
 TypeHandle EEDbgInterfaceImpl::LoadArrayType(CorElementType et,
                                              TypeHandle elemtype,
                                              unsigned rank)
 {
-    CONTRACTL
+    CONTRACT(TypeHandle)
     {
         THROWS;
         GC_TRIGGERS;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (elemtype.IsNull())
-        return TypeHandle();
+        RETURN TypeHandle();
     else
-        return ClassLoader::LoadArrayTypeThrowing(elemtype, et, rank);
+        RETURN ClassLoader::LoadArrayTypeThrowing(elemtype, et, rank);
 }
 
 TypeHandle EEDbgInterfaceImpl::LoadPointerOrByrefType(CorElementType et,
@@ -1166,6 +1210,7 @@ bool EEDbgInterfaceImpl::TraceFrame(Thread *thread,
     if (fResult)
     {
         SUPPRESS_ALLOCATION_ASSERTS_IN_THIS_SCOPE;
+        FAULT_NOT_FATAL();
         SString buffer;
         StubManager::DbgWriteLog("  td=%s\n", trace->DbgToString(buffer));
     }
@@ -1211,6 +1256,7 @@ bool EEDbgInterfaceImpl::TraceManager(Thread *thread,
     if (fResult)
     {
         // Should never be on helper thread
+        FAULT_NOT_FATAL();
         SString buffer;
         StubManager::DbgWriteLog("  td=%s\n", trace->DbgToString(buffer));
     }
@@ -1290,6 +1336,17 @@ void EEDbgInterfaceImpl::GetRuntimeOffsets(SIZE_T *pTLSIndex,
     *pEEIsManagedExceptionStateMask = Thread::TSNC_DebuggerIsManagedException;
 }
 
+void EEDbgInterfaceImpl::DebuggerModifyingLogSwitch (int iNewLevel,
+                                                     const WCHAR *pLogSwitchName)
+{
+    CONTRACTL
+    {
+        THROWS;
+        GC_NOTRIGGER;
+    }
+    CONTRACTL_END;
+}
+
 
 HRESULT EEDbgInterfaceImpl::SetIPFromSrcToDst(Thread *pThread,
                                               SLOT addrStart,
@@ -1333,15 +1390,15 @@ void EEDbgInterfaceImpl::SetDebugState(Thread *pThread,
 
     _ASSERTE(state == THREAD_SUSPEND || state == THREAD_RUN);
 
-    LOG((LF_CORDB,LL_INFO10000,"EEDbg:Setting thread %p (ID:0x%x) to 0x%x\n", pThread, pThread->GetThreadId(), state));
+    LOG((LF_CORDB,LL_INFO10000,"EEDbg:Setting thread 0x%x (ID:0x%x) to 0x%x\n", pThread, pThread->GetThreadId(), state));
 
     if (state == THREAD_SUSPEND)
     {
-        pThread->SetDebuggerControlledThreadState(Thread::DCTS_UserSuspend);
+        pThread->SetThreadStateNC(Thread::TSNC_DebuggerUserSuspend);
     }
     else
     {
-        pThread->ResetDebuggerControlledThreadState(Thread::DCTS_UserSuspend);
+        pThread->ResetThreadStateNC(Thread::TSNC_DebuggerUserSuspend);
     }
 }
 
@@ -1380,7 +1437,7 @@ CorDebugUserState EEDbgInterfaceImpl::GetPartialUserState(Thread *pThread)
     }
     CONTRACTL_END;
 
-    Thread::ThreadState ts = pThread->GetState();
+    Thread::ThreadState ts = pThread->GetSnapshotState();
     unsigned ret = 0;
 
     if (ts & Thread::TS_Background)
@@ -1394,17 +1451,17 @@ CorDebugUserState EEDbgInterfaceImpl::GetPartialUserState(Thread *pThread)
     }
 
     // Don't report a StopRequested if the thread has actually stopped.
-    if (ts & Thread::TS_Stopped)
+    if (ts & Thread::TS_Dead)
     {
         ret |= (unsigned)USER_STOPPED;
     }
 
-    if (ts & Thread::TS_WaitSleepJoin)
+    if (ts & Thread::TS_Interruptible)
     {
         ret |= (unsigned)USER_WAIT_SLEEP_JOIN;
     }
 
-    LOG((LF_CORDB,LL_INFO1000, "EEDbgII::GUS: thread %p (id:0x%x)"
+    LOG((LF_CORDB,LL_INFO1000, "EEDbgII::GUS: thread 0x%x (id:0x%x)"
         " userThreadState is 0x%x\n", pThread, pThread->GetThreadId(), ret));
 
     return (CorDebugUserState)ret;
@@ -1426,7 +1483,7 @@ unsigned EEDbgInterfaceImpl::GetSizeForCorElementType(CorElementType etyp)
 {
     WRAPPER_NO_CONTRACT;
 
-    return ::GetSizeForCorElementType(etyp);
+    return (::GetSizeForCorElementType(etyp));
 }
 
 
@@ -1442,7 +1499,7 @@ BOOL EEDbgInterfaceImpl::ObjIsInstanceOf(Object *pElement, TypeHandle toTypeHnd)
 {
     WRAPPER_NO_CONTRACT;
 
-    return ::ObjIsInstanceOf(pElement, toTypeHnd);
+    return (::ObjIsInstanceOf(pElement, toTypeHnd));
 }
 #endif
 

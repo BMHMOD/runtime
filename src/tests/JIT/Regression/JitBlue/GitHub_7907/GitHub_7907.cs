@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-namespace GitHub_7907;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
@@ -46,7 +43,6 @@ public class Bug7907
         return count;
     }
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

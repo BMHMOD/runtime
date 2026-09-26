@@ -13,11 +13,10 @@ using System;
 using System.Runtime.CompilerServices;
 using Xunit;
 
-namespace JitTest_Directed_CheckedCtor_Generic_Test_CSharp_Base_6
+namespace Test
 {
     public static class App
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {
@@ -48,3 +47,4 @@ namespace JitTest_Directed_CheckedCtor_Generic_Test_CSharp_Base_6
         public override string ToString() { return "Valuetype instance"; }
     }
 }
+

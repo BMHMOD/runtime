@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Numerics;
 using Xunit;
 
-namespace SIMDTests.BoxUnboxTests
+namespace VectorMathTests
 {
     public class Program
     {

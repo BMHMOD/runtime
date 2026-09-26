@@ -5,13 +5,12 @@
 using System;
 using Xunit;
 
-namespace b10790
+namespace test
 {
 
     public class Locals10K
     {
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

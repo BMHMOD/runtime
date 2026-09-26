@@ -26,6 +26,7 @@ VOID FieldDesc::SetStaticOBJECTREF(OBJECTREF objRef)
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
+        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END
 
@@ -114,6 +115,7 @@ TypeHandle FieldDesc::LookupFieldTypeHandle(ClassLoadLevel level, BOOL dropGener
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        FORBID_FAULT;
     }
     CONTRACTL_END
 
@@ -220,6 +222,7 @@ PTR_VOID FieldDesc::GetStaticAddressHandle(PTR_VOID base)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        FORBID_FAULT;
         PRECONDITION(IsStatic());
     }
     CONTRACTL_END
@@ -251,7 +254,7 @@ PTR_VOID FieldDesc::GetStaticAddressHandle(PTR_VOID base)
             GCX_COOP();
             // This routine doesn't have a failure semantic - but Resolve*Field(...) does.
             // Something needs to be rethought here and I think it's E&C.
-            CONTRACT_VIOLATION(ThrowsViolation|GCViolation);   //B#25680 (Fix Enc violations)
+            CONTRACT_VIOLATION(ThrowsViolation|FaultViolation|GCViolation);   //B#25680 (Fix Enc violations)
             retVal = (void*)(pEnCModule->ResolveOrAllocateField(NULL, pFD));
         }
 #endif // !DACCESS_COMPILE
@@ -305,6 +308,7 @@ void    FieldDesc::GetInstanceField(OBJECTREF o, VOID * pOutVal)
         if (FORBIDGC_LOADER_USE_ENABLED() ) NOTHROW; else THROWS;
         if (FORBIDGC_LOADER_USE_ENABLED() ) GC_NOTRIGGER; else GC_TRIGGERS;
         MODE_ANY;
+        if (FORBIDGC_LOADER_USE_ENABLED() ) FORBID_FAULT; else INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END
 
@@ -351,6 +355,7 @@ void    FieldDesc::SetInstanceField(OBJECTREF o, const VOID * pInVal)
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END
 
@@ -678,6 +683,7 @@ UINT FieldDesc::GetSize(MethodTable *pMTOfValueTypeField)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        FORBID_FAULT;
     }
     CONTRACTL_END
 
@@ -703,6 +709,7 @@ UINT FieldDesc::GetSize()
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        FORBID_FAULT;
     }
     CONTRACTL_END
 
@@ -745,19 +752,20 @@ Instantiation FieldDesc::GetExactClassInstantiation(TypeHandle possibleObjType)
 
 TypeHandle FieldDesc::GetExactFieldType(TypeHandle owner)
 {
-    CONTRACTL
+    CONTRACT(TypeHandle)
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(CheckPointer(owner, NULL_OK));
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     if (GetApproxEnclosingMethodTable() == owner.AsMethodTable())
     {
         //Yes, this is exactly the type I was looking for.
-        return GetFieldTypeHandleThrowing();
+        RETURN(GetFieldTypeHandleThrowing());
     }
     else
     {
@@ -778,7 +786,7 @@ TypeHandle FieldDesc::GetExactFieldType(TypeHandle owner)
         SigTypeContext sigTypeContext(GetExactClassInstantiation(owner), Instantiation());
 
         // Load the exact type
-        return sig.GetTypeHandleThrowing(GetModule(), &sigTypeContext);
+        RETURN (sig.GetTypeHandleThrowing(GetModule(), &sigTypeContext));
     }
 }
 
@@ -789,6 +797,7 @@ REFLECTFIELDREF FieldDesc::AllocateStubFieldInfo()
     {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM());
         MODE_COOPERATIVE;
     }
     CONTRACTL_END;

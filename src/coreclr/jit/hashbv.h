@@ -85,7 +85,34 @@ inline int log2(int number)
 // return greatest power of 2 that is less than or equal
 inline int nearest_pow2(unsigned number)
 {
-    return 1 << BitOperations::Log2(number);
+    int result = 0;
+
+    if (number > 0xffff)
+    {
+        number >>= 16;
+        result += 16;
+    }
+    if (number > 0xff)
+    {
+        number >>= 8;
+        result += 8;
+    }
+    if (number > 0xf)
+    {
+        number >>= 4;
+        result += 4;
+    }
+    if (number > 0x3)
+    {
+        number >>= 2;
+        result += 2;
+    }
+    if (number > 0x1)
+    {
+        number >>= 1;
+        result += 1;
+    }
+    return 1 << result;
 }
 
 class hashBvNode
@@ -147,7 +174,7 @@ public:
 
     union
     {
-        Compiler* m_compiler;
+        Compiler* compiler;
         // for freelist
         hashBv* next;
     };

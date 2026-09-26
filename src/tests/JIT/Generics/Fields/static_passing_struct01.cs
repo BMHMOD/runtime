@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-namespace JitTest_Generics_Fields_static_passing_struct01;
-
 using System;
 using Xunit;
 
@@ -77,7 +75,6 @@ public class Test_static_passing_struct01
 
     }
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

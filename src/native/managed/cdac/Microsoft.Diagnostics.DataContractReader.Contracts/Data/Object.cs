@@ -3,12 +3,15 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.Object))]
-internal sealed partial class Object : IData<Object>
+internal sealed class Object : IData<Object>
 {
-    [Field("m_pMethTab", Pointer = true)]
-    public partial MethodTable MethodTable { get; }
+    static Object IData<Object>.Create(Target target, TargetPointer address) => new Object(target, address);
+    public Object(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.Object);
 
-    [InstanceDataStart]
-    public partial TargetPointer Data { get; }
+        MethodTable = target.ProcessedData.GetOrAdd<Data.MethodTable>(target.ReadPointer(address + (ulong)type.Fields["m_pMethTab"].Offset));
+    }
+
+    public MethodTable MethodTable { get; init; }
 }

@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 
@@ -286,14 +285,6 @@ namespace System.Security.Cryptography
         [UnsupportedOSPlatform("tvos")]
         [UnsupportedOSPlatform("windows")]
         public static SafeEvpPKeyHandle OpenKeyFromProvider(string providerName, string keyUri) =>
-            throw new PlatformNotSupportedException(SR.PlatformNotSupported_CryptographyOpenSSL);
-
-        [UnsupportedOSPlatform("android")]
-        [UnsupportedOSPlatform("browser")]
-        [UnsupportedOSPlatform("ios")]
-        [UnsupportedOSPlatform("tvos")]
-        [UnsupportedOSPlatform("windows")]
-        public static SafeEvpPKeyHandle OpenKeyFromProvider(IEnumerable<string> providerNames, string keyUri, string? propertyQuery = null) =>
             throw new PlatformNotSupportedException(SR.PlatformNotSupported_CryptographyOpenSSL);
 
         public SafeEvpPKeyHandle DuplicateHandle() => null!;

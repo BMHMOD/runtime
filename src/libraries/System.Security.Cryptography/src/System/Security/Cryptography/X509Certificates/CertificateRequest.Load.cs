@@ -138,10 +138,10 @@ namespace System.Security.Cryptography.X509Certificates
 
             try
             {
-                ValueAsnReader outer = new ValueAsnReader(pkcs10, AsnEncodingRules.DER);
+                AsnValueReader outer = new AsnValueReader(pkcs10, AsnEncodingRules.DER);
                 int encodedLength = outer.PeekEncodedValue().Length;
 
-                ValueAsnReader pkcs10Asn = outer.ReadSequence();
+                AsnValueReader pkcs10Asn = outer.ReadSequence();
                 CertificateRequest req;
 
                 if (!permitTrailingData)
@@ -149,141 +149,135 @@ namespace System.Security.Cryptography.X509Certificates
                     outer.ThrowIfNotEmpty();
                 }
 
-                ReadOnlySpan<byte> encodedRequestInfo = pkcs10Asn.PeekEncodedValue();
-                ValueCertificationRequestInfoAsn requestInfo;
-                ValueAlgorithmIdentifierAsn algorithmIdentifier;
-                ReadOnlySpan<byte> signature;
-                int signatureUnusedBitCount;
-
-                ValueCertificationRequestInfoAsn.Decode(ref pkcs10Asn, out requestInfo);
-                ValueAlgorithmIdentifierAsn.Decode(ref pkcs10Asn, out algorithmIdentifier);
-
-                if (!pkcs10Asn.TryReadPrimitiveBitString(out signatureUnusedBitCount, out signature))
+                fixed (byte* p10ptr = pkcs10)
                 {
-                    throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding);
-                }
-
-                pkcs10Asn.ThrowIfNotEmpty();
-
-                if (requestInfo.Version < 0)
-                {
-                    throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding);
-                }
-
-                // They haven't bumped from v0 to v1 as of 2022.
-                const int MaxSupportedVersion = 0;
-
-                if (requestInfo.Version != MaxSupportedVersion)
-                {
-                    throw new CryptographicException(
-                        SR.Format(
-                            SR.Cryptography_CertReq_Load_VersionTooNew,
-                            requestInfo.Version,
-                            MaxSupportedVersion));
-                }
-
-                PublicKey publicKey = PublicKey.DecodeSubjectPublicKeyInfo(ref requestInfo.SubjectPublicKeyInfo);
-
-                if (!skipSignatureValidation)
-                {
-                    // None of the supported signature algorithms support signatures that are not full bytes.
-                    // So, shortcut the verification on the bit length
-                    if (signatureUnusedBitCount != 0 ||
-                        !VerifyX509Signature(encodedRequestInfo, signature, publicKey, ref algorithmIdentifier))
+                    using (PointerMemoryManager<byte> manager = new PointerMemoryManager<byte>(p10ptr, encodedLength))
                     {
-                        throw new CryptographicException(SR.Cryptography_CertReq_SignatureVerificationFailed);
-                    }
-                }
+                        ReadOnlyMemory<byte> rebind = manager.Memory;
+                        ReadOnlySpan<byte> encodedRequestInfo = pkcs10Asn.PeekEncodedValue();
+                        CertificationRequestInfoAsn requestInfo;
+                        AlgorithmIdentifierAsn algorithmIdentifier;
+                        ReadOnlySpan<byte> signature;
+                        int signatureUnusedBitCount;
 
-                X500DistinguishedName subject = new X500DistinguishedName(requestInfo.Subject);
+                        CertificationRequestInfoAsn.Decode(ref pkcs10Asn, rebind, out requestInfo);
+                        AlgorithmIdentifierAsn.Decode(ref pkcs10Asn, rebind, out algorithmIdentifier);
 
-                req = new CertificateRequest(
-                    subject,
-                    publicKey,
-                    signerHashAlgorithm,
-                    signerSignaturePadding);
+                        if (!pkcs10Asn.TryReadPrimitiveBitString(out signatureUnusedBitCount, out signature))
+                        {
+                            throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding);
+                        }
 
-                bool foundCertExt = false;
+                        pkcs10Asn.ThrowIfNotEmpty();
 
-                foreach (ValueAttributeAsn attr in requestInfo.GetAttributes(AsnEncodingRules.DER))
-                {
-                    if (attr.AttrType == Oids.Pkcs9ExtensionRequest)
-                    {
-                        if (foundCertExt)
+                        if (requestInfo.Version < 0)
+                        {
+                            throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding);
+                        }
+
+                        // They haven't bumped from v0 to v1 as of 2022.
+                        const int MaxSupportedVersion = 0;
+
+                        if (requestInfo.Version != MaxSupportedVersion)
                         {
                             throw new CryptographicException(
-                                SR.Cryptography_CertReq_Load_DuplicateExtensionRequests);
+                                SR.Format(
+                                    SR.Cryptography_CertReq_Load_VersionTooNew,
+                                    requestInfo.Version,
+                                    MaxSupportedVersion));
                         }
 
-                        foundCertExt = true;
+                        PublicKey publicKey = PublicKey.DecodeSubjectPublicKeyInfo(ref requestInfo.SubjectPublicKeyInfo);
 
-                        scoped ReadOnlySpan<byte> firstAttrValue = default;
-                        bool foundAttrValue = false;
-
-                        foreach (ReadOnlySpan<byte> values in attr.GetAttrValues(AsnEncodingRules.DER))
+                        if (!skipSignatureValidation)
                         {
-                            if (foundAttrValue)
+                            // None of the supported signature algorithms support signatures that are not full bytes.
+                            // So, shortcut the verification on the bit length
+                            if (signatureUnusedBitCount != 0 ||
+                                !VerifyX509Signature(encodedRequestInfo, signature, publicKey, algorithmIdentifier))
                             {
-                                throw new CryptographicException(
-                                    SR.Cryptography_CertReq_Load_DuplicateExtensionRequests);
+                                throw new CryptographicException(SR.Cryptography_CertReq_SignatureVerificationFailed);
                             }
-
-                            firstAttrValue = values;
-                            foundAttrValue = true;
                         }
 
-                        if (!foundAttrValue)
+                        X500DistinguishedName subject = new X500DistinguishedName(requestInfo.Subject.Span);
+
+                        req = new CertificateRequest(
+                            subject,
+                            publicKey,
+                            signerHashAlgorithm,
+                            signerSignaturePadding);
+
+                        if (requestInfo.Attributes is not null)
                         {
-                            throw new CryptographicException(SR.Cryptography_CertReq_Load_DuplicateExtensionRequests);
-                        }
+                            bool foundCertExt = false;
 
-                        ValueAsnReader extsReader = new ValueAsnReader(
-                            firstAttrValue,
-                            AsnEncodingRules.DER);
-
-                        ValueAsnReader exts = extsReader.ReadSequence();
-                        extsReader.ThrowIfNotEmpty();
-
-                        // Minimum length is 1, so do..while
-                        do
-                        {
-                            ValueX509ExtensionAsn.Decode(ref exts, out ValueX509ExtensionAsn extAsn);
-
-                            if (unsafeLoadCertificateExtensions)
+                            foreach (AttributeAsn attr in requestInfo.Attributes)
                             {
-                                X509Extension ext = new X509Extension(
-                                    extAsn.ExtnId,
-                                    extAsn.ExtnValue,
-                                    extAsn.Critical);
-
-                                X509Extension? rich =
-                                    X509Certificate2.CreateCustomExtensionIfAny(extAsn.ExtnId);
-
-                                if (rich is not null)
+                                if (attr.AttrType == Oids.Pkcs9ExtensionRequest)
                                 {
-                                    rich.CopyFrom(ext);
-                                    req.CertificateExtensions.Add(rich);
+                                    if (foundCertExt)
+                                    {
+                                        throw new CryptographicException(
+                                            SR.Cryptography_CertReq_Load_DuplicateExtensionRequests);
+                                    }
+
+                                    foundCertExt = true;
+
+                                    if (attr.AttrValues.Length != 1)
+                                    {
+                                        throw new CryptographicException(
+                                            SR.Cryptography_CertReq_Load_DuplicateExtensionRequests);
+                                    }
+
+                                    AsnValueReader extsReader = new AsnValueReader(
+                                        attr.AttrValues[0].Span,
+                                        AsnEncodingRules.DER);
+
+                                    AsnValueReader exts = extsReader.ReadSequence();
+                                    extsReader.ThrowIfNotEmpty();
+
+                                    // Minimum length is 1, so do..while
+                                    do
+                                    {
+                                        X509ExtensionAsn.Decode(ref exts, rebind, out X509ExtensionAsn extAsn);
+
+                                        if (unsafeLoadCertificateExtensions)
+                                        {
+                                            X509Extension ext = new X509Extension(
+                                                extAsn.ExtnId,
+                                                extAsn.ExtnValue.Span,
+                                                extAsn.Critical);
+
+                                            X509Extension? rich =
+                                                X509Certificate2.CreateCustomExtensionIfAny(extAsn.ExtnId);
+
+                                            if (rich is not null)
+                                            {
+                                                rich.CopyFrom(ext);
+                                                req.CertificateExtensions.Add(rich);
+                                            }
+                                            else
+                                            {
+                                                req.CertificateExtensions.Add(ext);
+                                            }
+                                        }
+                                    } while (exts.HasData);
                                 }
                                 else
                                 {
-                                    req.CertificateExtensions.Add(ext);
+                                    if (attr.AttrValues.Length == 0)
+                                    {
+                                        throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding);
+                                    }
+
+                                    foreach (ReadOnlyMemory<byte> val in attr.AttrValues)
+                                    {
+                                        req.OtherRequestAttributes.Add(
+                                            new AsnEncodedData(attr.AttrType, val.Span));
+                                    }
                                 }
                             }
-                        } while (exts.HasData);
-                    }
-                    else
-                    {
-                        bool anyAttrValues = false;
-
-                        foreach (ReadOnlySpan<byte> val in attr.GetAttrValues(AsnEncodingRules.DER))
-                        {
-                            req.OtherRequestAttributes.Add(new AsnEncodedData(attr.AttrType, val));
-                            anyAttrValues = true;
-                        }
-
-                        if (!anyAttrValues)
-                        {
-                            throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding);
                         }
                     }
                 }
@@ -301,7 +295,7 @@ namespace System.Security.Cryptography.X509Certificates
             ReadOnlySpan<byte> toBeSigned,
             ReadOnlySpan<byte> signature,
             PublicKey publicKey,
-            ref readonly ValueAlgorithmIdentifierAsn algorithmIdentifier)
+            AlgorithmIdentifierAsn algorithmIdentifier)
         {
             RSA? rsa = publicKey.GetRSAPublicKey();
             ECDsa? ecdsa = publicKey.GetECDsaPublicKey();
@@ -314,15 +308,14 @@ namespace System.Security.Cryptography.X509Certificates
 
                 if (algorithmIdentifier.Algorithm == Oids.RsaPss)
                 {
-                    if (rsa is null || !algorithmIdentifier.HasParameters)
+                    if (rsa is null || !algorithmIdentifier.Parameters.HasValue)
                     {
                         return false;
                     }
 
-                    ValuePssParamsAsn.Decode(
-                        algorithmIdentifier.Parameters,
-                        AsnEncodingRules.DER,
-                        out ValuePssParamsAsn pssParams);
+                    PssParamsAsn pssParams = PssParamsAsn.Decode(
+                        algorithmIdentifier.Parameters.GetValueOrDefault(),
+                        AsnEncodingRules.DER);
 
                     RSASignaturePadding padding = pssParams.GetSignaturePadding();
                     hashAlg = HashAlgorithmName.FromOid(pssParams.HashAlgorithm.Algorithm);

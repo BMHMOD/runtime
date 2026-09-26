@@ -16,7 +16,6 @@ namespace D
             return (char)(x >> 8);
         }
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

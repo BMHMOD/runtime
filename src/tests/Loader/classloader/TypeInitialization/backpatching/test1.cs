@@ -5,7 +5,6 @@ using System;
 using System.Threading;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 // This test case reproduces a race condition involving type initialization (aka, .cctor, aka static constructor).
 //
@@ -55,8 +54,7 @@ public class CMain{
         X_getX = MyClass.getX(); 
         Console.WriteLine("X_getX: {0}: thread {1}",X_getX,Thread.CurrentThread.Name); 
     } 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
-    [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+    [Fact]
     public static int TestEntryPoint(){
         Thread t1 = new Thread(RunSomeMethod);
         t1.Name = "T1";

@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
@@ -18,7 +18,11 @@ internal static class SslKeyLogger
 
         try
         {
-            bool isEnabled = LocalAppContextSwitches.EnableSslKeyLogging;
+#if DEBUG
+            bool isEnabled = true;
+#else
+            bool isEnabled = AppContext.TryGetSwitch("System.Net.EnableSslKeyLogging", out bool enabled) && enabled;
+#endif
 
             if (isEnabled && s_keyLogFile != null)
             {
@@ -56,7 +60,7 @@ internal static class SslKeyLogger
         }
     }
 
-    public static unsafe void WriteSecrets(
+    public static void WriteSecrets(
         ReadOnlySpan<byte> clientRandom,
         ReadOnlySpan<byte> clientHandshakeTrafficSecret,
         ReadOnlySpan<byte> serverHandshakeTrafficSecret,
@@ -95,7 +99,7 @@ internal static class SslKeyLogger
         }
     }
 
-    private static unsafe void WriteSecretCore(ReadOnlySpan<byte> labelUtf8, ReadOnlySpan<byte> clientRandomUtf8, ReadOnlySpan<byte> secret)
+    private static void WriteSecretCore(ReadOnlySpan<byte> labelUtf8, ReadOnlySpan<byte> clientRandomUtf8, ReadOnlySpan<byte> secret)
     {
         if (secret.Length == 0)
         {

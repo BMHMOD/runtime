@@ -222,7 +222,7 @@ static int CaseHashHelperA(const CHAR *buffer, COUNT_T count)
 //-----------------------------------------------------------------------------
 void SString::Set(const WCHAR *string)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         INSTANCE_CHECK;
         PRECONDITION(CheckPointer(string, NULL_OK));
@@ -230,7 +230,7 @@ void SString::Set(const WCHAR *string)
         GC_NOTRIGGER;
         SUPPORTS_DAC_HOST_ONLY;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (string == NULL || *string == 0)
         Clear();
@@ -239,6 +239,8 @@ void SString::Set(const WCHAR *string)
         Resize((COUNT_T) u16_strlen(string), REPRESENTATION_UNICODE);
         wcscpy_s(GetRawUnicode(), GetBufferSizeInCharIncludeNullChar(), string);
     }
+
+    RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -265,6 +267,8 @@ void SString::Set(const WCHAR *string, COUNT_T count)
         wcsncpy_s(GetRawUnicode(), GetBufferSizeInCharIncludeNullChar(), string, count);
         GetRawUnicode()[count] = 0;
     }
+
+    SS_RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -278,6 +282,7 @@ void SString::SetPreallocated(const WCHAR *string, COUNT_T count)
         INSTANCE_CHECK;
         PRECONDITION(CheckPointer(string, NULL_OK));
         PRECONDITION(CheckCount(count));
+        SS_POSTCONDITION(IsEmpty());
         GC_NOTRIGGER;
         NOTHROW;
         SUPPORTS_DAC_HOST_ONLY;
@@ -288,6 +293,8 @@ void SString::SetPreallocated(const WCHAR *string, COUNT_T count)
     SetImmutable((BYTE*) string, count*2);
     ClearAllocated();
     SetRepresentation(REPRESENTATION_UNICODE);
+
+    SS_RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -312,6 +319,8 @@ void SString::SetASCII(const ASCII *string)
         Resize((COUNT_T) strlen(string), REPRESENTATION_ASCII);
         strcpy_s(GetRawUTF8(), GetBufferSizeInCharIncludeNullChar(), string);
     }
+
+    SS_RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -339,6 +348,8 @@ void SString::SetASCII(const ASCII *string, COUNT_T count)
         strncpy_s(GetRawASCII(), GetBufferSizeInCharIncludeNullChar(), string, count);
         GetRawASCII()[count] = 0;
     }
+
+    SS_RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -364,6 +375,8 @@ void SString::SetUTF8(const UTF8 *string)
         Resize((COUNT_T) strlen(string), REPRESENTATION_UTF8);
         strcpy_s(GetRawUTF8(), GetBufferSizeInCharIncludeNullChar(), string);
     }
+
+    SS_RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -391,6 +404,8 @@ void SString::SetUTF8(const UTF8 *string, COUNT_T count)
         strncpy_s(GetRawUTF8(), GetBufferSizeInCharIncludeNullChar(), string, count);
         GetRawUTF8()[count] = 0;
     }
+
+    SS_RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -412,6 +427,8 @@ void SString::SetAndConvertToUTF8(const WCHAR *string)
     SString utf16Str(Literal, string);
 
     utf16Str.ConvertToUTF8(*this);
+
+    SS_RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -436,6 +453,8 @@ void SString::Set(WCHAR character)
         GetRawUnicode()[0] = character;
         GetRawUnicode()[1] = 0;
     }
+
+    SS_RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -459,6 +478,8 @@ void SString::SetUTF8(CHAR character)
         GetRawUTF8()[0] = character;
         GetRawUTF8()[1] = 0;
     }
+
+    SS_RETURN;
 }
 
 
@@ -480,6 +501,8 @@ void SString::SetLiteral(const ASCII *literal)
 
     SString s(Literal, literal);
     Set(s);
+
+    SS_RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -499,6 +522,8 @@ void SString::SetLiteral(const WCHAR *literal)
 
     SString s(Literal, literal);
     Set(s);
+
+    SS_RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -516,7 +541,7 @@ ULONG SString::Hash() const
 
     ConvertToUnicode();
 
-    return HashString(GetRawUnicode());
+    SS_RETURN HashString(GetRawUnicode());
 }
 
 //-----------------------------------------------------------------------------
@@ -551,7 +576,7 @@ ULONG SString::HashCaseInsensitive() const
         UNREACHABLE();
     }
 
-    return result;
+    SS_RETURN result;
 }
 
 //-----------------------------------------------------------------------------
@@ -563,6 +588,7 @@ void SString::Truncate(const Iterator &i)
     {
         INSTANCE_CHECK;
         PRECONDITION(CheckIteratorRange(i));
+        SS_POSTCONDITION(GetRawCount() == i - Begin());
         THROWS;
         GC_NOTRIGGER;
         SUPPORTS_DAC_HOST_ONLY;
@@ -576,6 +602,8 @@ void SString::Truncate(const Iterator &i)
     Resize(size, GetRepresentation(), PRESERVE);
 
     i.Resync(this, (BYTE *) (GetRawUnicode() + size));
+
+    SS_RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -584,21 +612,21 @@ void SString::Truncate(const Iterator &i)
 //-----------------------------------------------------------------------------
 void SString::ConvertASCIIToUnicode(SString &dest) const
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         PRECONDITION(IsRepresentation(REPRESENTATION_ASCII));
+        POSTCONDITION(dest.IsRepresentation(REPRESENTATION_UNICODE));
         THROWS;
         GC_NOTRIGGER;
         SUPPORTS_DAC_HOST_ONLY;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // Handle the empty case.
     if (IsEmpty())
     {
         dest.Clear();
-        _ASSERTE(dest.IsRepresentation(REPRESENTATION_UNICODE));
-        return;
+        RETURN;
     }
 
     CONSISTENCY_CHECK(CheckPointer(GetRawASCII()));
@@ -627,7 +655,7 @@ void SString::ConvertASCIIToUnicode(SString &dest) const
         inBuf--;
     }
 
-    _ASSERTE(dest.IsRepresentation(REPRESENTATION_UNICODE));
+    RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -635,13 +663,14 @@ void SString::ConvertASCIIToUnicode(SString &dest) const
 //-----------------------------------------------------------------------------
 void SString::ConvertToUnicode() const
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
+        POSTCONDITION(IsRepresentation(REPRESENTATION_UNICODE));
         if (IsRepresentation(REPRESENTATION_UNICODE)) NOTHROW; else THROWS;
         GC_NOTRIGGER;
         SUPPORTS_DAC_HOST_ONLY;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (!IsRepresentation(REPRESENTATION_UNICODE))
     {
@@ -658,7 +687,7 @@ void SString::ConvertToUnicode() const
         }
     }
 
-    _ASSERTE(IsRepresentation(REPRESENTATION_UNICODE));
+    RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -667,14 +696,15 @@ void SString::ConvertToUnicode() const
 //-----------------------------------------------------------------------------
 void SString::ConvertToUnicode(const CIterator &i) const
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         PRECONDITION(i.Check());
+        POSTCONDITION(IsRepresentation(REPRESENTATION_UNICODE));
         if (IsRepresentation(REPRESENTATION_UNICODE)) NOTHROW; else THROWS;
         GC_NOTRIGGER;
         SUPPORTS_DAC_HOST_ONLY;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (!IsRepresentation(REPRESENTATION_UNICODE))
     {
@@ -706,7 +736,7 @@ void SString::ConvertToUnicode(const CIterator &i) const
         }
     }
 
-    _ASSERTE(IsRepresentation(REPRESENTATION_UNICODE));
+    RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -714,13 +744,14 @@ void SString::ConvertToUnicode(const CIterator &i) const
 //-----------------------------------------------------------------------------
 void SString::ConvertToUTF8() const
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
+        POSTCONDITION(IsRepresentation(REPRESENTATION_UTF8));
         if (IsRepresentation(REPRESENTATION_UTF8)) NOTHROW; else THROWS;
         GC_NOTRIGGER;
         SUPPORTS_DAC_HOST_ONLY;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (!IsRepresentation(REPRESENTATION_UTF8))
     {
@@ -738,7 +769,7 @@ void SString::ConvertToUTF8() const
         }
     }
 
-    _ASSERTE(IsRepresentation(REPRESENTATION_UTF8));
+    RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -746,14 +777,15 @@ void SString::ConvertToUTF8() const
 //-----------------------------------------------------------------------------
 void SString::ConvertToUnicode(SString &s) const
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         PRECONDITION(s.Check());
+        POSTCONDITION(s.IsRepresentation(REPRESENTATION_UNICODE));
         THROWS;
         GC_NOTRIGGER;
         SUPPORTS_DAC_HOST_ONLY;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     int page = 0;
 
@@ -761,13 +793,11 @@ void SString::ConvertToUnicode(SString &s) const
     {
     case REPRESENTATION_EMPTY:
         s.Clear();
-        _ASSERTE(s.IsRepresentation(REPRESENTATION_UNICODE));
-        return;
+        RETURN;
 
     case REPRESENTATION_UNICODE:
         s.Set(*this);
-        _ASSERTE(s.IsRepresentation(REPRESENTATION_UNICODE));
-        return;
+        RETURN;
 
     case REPRESENTATION_UTF8:
         page = CP_UTF8;
@@ -775,8 +805,7 @@ void SString::ConvertToUnicode(SString &s) const
 
     case REPRESENTATION_ASCII:
         ConvertASCIIToUnicode(s);
-        _ASSERTE(s.IsRepresentation(REPRESENTATION_UNICODE));
-        return;
+        RETURN;
 
     default:
         UNREACHABLE();
@@ -792,7 +821,7 @@ void SString::ConvertToUnicode(SString &s) const
     if (length == 0)
         ThrowLastError();
 
-    _ASSERTE(s.IsRepresentation(REPRESENTATION_UNICODE));
+    RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -800,26 +829,25 @@ void SString::ConvertToUnicode(SString &s) const
 //-----------------------------------------------------------------------------
 COUNT_T SString::ConvertToUTF8(SString &s) const
 {
-    CONTRACTL
+    CONTRACT(COUNT_T)
     {
         PRECONDITION(s.Check());
+        POSTCONDITION(s.IsRepresentation(REPRESENTATION_UTF8));
         THROWS;
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     switch (GetRepresentation())
     {
     case REPRESENTATION_EMPTY:
         s.Clear();
-        _ASSERTE(s.IsRepresentation(REPRESENTATION_UTF8));
-        return 1;
+        RETURN 1;
 
     case REPRESENTATION_ASCII:
     case REPRESENTATION_UTF8:
         s.Set(*this);
-        _ASSERTE(s.IsRepresentation(REPRESENTATION_UTF8));
-        return s.GetRawCount()+1;
+        RETURN s.GetRawCount()+1;
 
     case REPRESENTATION_UNICODE:
         break;
@@ -848,8 +876,7 @@ COUNT_T SString::ConvertToUTF8(SString &s) const
 
     IfFailThrow(hr);
 
-    _ASSERTE(s.IsRepresentation(REPRESENTATION_UTF8));
-    return length + 1;
+    RETURN length + 1;
 }
 
 //-----------------------------------------------------------------------------
@@ -857,14 +884,15 @@ COUNT_T SString::ConvertToUTF8(SString &s) const
 //-----------------------------------------------------------------------------
 void SString::Replace(const Iterator &i, WCHAR c)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         INSTANCE_CHECK;
         PRECONDITION(CheckIteratorRange(i, 1));
+        POSTCONDITION(Match(i, c));
         THROWS;
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (IsRepresentation(REPRESENTATION_ASCII) && ((c&~0x7f) == 0))
     {
@@ -877,7 +905,7 @@ void SString::Replace(const Iterator &i, WCHAR c)
         *(USHORT*)i.m_ptr = c;
     }
 
-    _ASSERTE(Match(i, c));
+    RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -885,16 +913,17 @@ void SString::Replace(const Iterator &i, WCHAR c)
 //-----------------------------------------------------------------------------
 void SString::Replace(const Iterator &i, COUNT_T length, const SString &s)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         INSTANCE_CHECK;
         PRECONDITION(CheckIteratorRange(i, length));
         PRECONDITION(s.Check());
+        POSTCONDITION(Match(i, s));
         THROWS;
         GC_NOTRIGGER;
         SUPPORTS_DAC_HOST_ONLY;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     Representation representation = GetRepresentation();
     if (representation == REPRESENTATION_EMPTY)
@@ -916,7 +945,7 @@ void SString::Replace(const Iterator &i, COUNT_T length, const SString &s)
         SBuffer::Copy(i, source.m_buffer, insertSize);
     }
 
-    _ASSERTE(Match(i, s));
+    RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -924,15 +953,16 @@ void SString::Replace(const Iterator &i, COUNT_T length, const SString &s)
 //-----------------------------------------------------------------------------
 BOOL SString::Find(CIterator &i, const SString &s) const
 {
-    CONTRACTL
+    CONTRACT(BOOL)
     {
         INSTANCE_CHECK;
         PRECONDITION(CheckIteratorRange(i));
         PRECONDITION(s.Check());
+        POSTCONDITION(RETVAL == Match(i, s));
         THROWS_UNLESS_BOTH_NORMALIZED(s);
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // Get a compatible string from s
     StackSString temp;
@@ -950,8 +980,7 @@ BOOL SString::Find(CIterator &i, const SString &s) const
                 if (u16_strncmp(start, source.GetRawUnicode(), count) == 0)
                 {
                     i.Resync(this, (BYTE*) start);
-                    _ASSERTE(Match(i, s));
-                    return TRUE;
+                    RETURN TRUE;
                 }
                 start++;
             }
@@ -968,8 +997,7 @@ BOOL SString::Find(CIterator &i, const SString &s) const
                 if (strncmp(start, source.GetRawASCII(), count) == 0)
                 {
                     i.Resync(this, (BYTE*) start);
-                    _ASSERTE(Match(i, s));
-                    return TRUE;
+                    RETURN TRUE;
                 }
                 start++;
             }
@@ -979,10 +1007,7 @@ BOOL SString::Find(CIterator &i, const SString &s) const
     case REPRESENTATION_EMPTY:
         {
             if (source.GetRawCount() == 0)
-                {
-                _ASSERTE(Match(i, s));
-                    return TRUE;
-                }
+                RETURN TRUE;
         }
         break;
 
@@ -991,8 +1016,7 @@ BOOL SString::Find(CIterator &i, const SString &s) const
         UNREACHABLE();
     }
 
-    _ASSERTE(!Match(i, s));
-    return FALSE;
+    RETURN FALSE;
 }
 
 //-----------------------------------------------------------------------------
@@ -1000,14 +1024,15 @@ BOOL SString::Find(CIterator &i, const SString &s) const
 //-----------------------------------------------------------------------------
 BOOL SString::Find(CIterator &i, WCHAR c) const
 {
-    CONTRACTL
+    CONTRACT(BOOL)
     {
         INSTANCE_CHECK;
         PRECONDITION(CheckIteratorRange(i));
+        POSTCONDITION(RETVAL == Match(i, c));
         THROWS_UNLESS_NORMALIZED;
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // Get a compatible string
     if (c & ~0x7f)
@@ -1024,8 +1049,7 @@ BOOL SString::Find(CIterator &i, WCHAR c) const
                 if (*start == c)
                 {
                     i.Resync(this, (BYTE*) start);
-                    _ASSERTE(Match(i, c));
-                    return TRUE;
+                    RETURN TRUE;
                 }
                 start++;
             }
@@ -1041,8 +1065,7 @@ BOOL SString::Find(CIterator &i, WCHAR c) const
                 if (*start == c)
                 {
                     i.Resync(this, (BYTE*) start);
-                    _ASSERTE(Match(i, c));
-                    return TRUE;
+                    RETURN TRUE;
                 }
                 start++;
             }
@@ -1057,8 +1080,7 @@ BOOL SString::Find(CIterator &i, WCHAR c) const
         UNREACHABLE();
     }
 
-    _ASSERTE(!Match(i, c));
-    return FALSE;
+    RETURN FALSE;
 }
 
 //-----------------------------------------------------------------------------
@@ -1067,15 +1089,16 @@ BOOL SString::Find(CIterator &i, WCHAR c) const
 //-----------------------------------------------------------------------------
 BOOL SString::FindBack(CIterator &i, const SString &s) const
 {
-    CONTRACTL
+    CONTRACT(BOOL)
     {
         INSTANCE_CHECK;
         PRECONDITION(CheckIteratorRange(i));
         PRECONDITION(s.Check());
+        POSTCONDITION(RETVAL == Match(i, s));
         THROWS_UNLESS_BOTH_NORMALIZED(s);
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // Get a compatible string from s
     StackSString temp;
@@ -1096,8 +1119,7 @@ BOOL SString::FindBack(CIterator &i, const SString &s) const
                 if (u16_strncmp(start, source.GetRawUnicode(), count) == 0)
                 {
                     i.Resync(this, (BYTE*) start);
-                    _ASSERTE(Match(i, s));
-                    return TRUE;
+                    RETURN TRUE;
                 }
                 start--;
             }
@@ -1117,8 +1139,7 @@ BOOL SString::FindBack(CIterator &i, const SString &s) const
                 if (strncmp(start, source.GetRawASCII(), count) == 0)
                 {
                     i.Resync(this, (BYTE*) start);
-                    _ASSERTE(Match(i, s));
-                    return TRUE;
+                    RETURN TRUE;
                 }
                 start--;
             }
@@ -1128,10 +1149,7 @@ BOOL SString::FindBack(CIterator &i, const SString &s) const
     case REPRESENTATION_EMPTY:
         {
             if (source.GetRawCount() == 0)
-                {
-                _ASSERTE(Match(i, s));
-                    return TRUE;
-                }
+                RETURN TRUE;
         }
         break;
 
@@ -1140,8 +1158,7 @@ BOOL SString::FindBack(CIterator &i, const SString &s) const
         UNREACHABLE();
     }
 
-    _ASSERTE(!Match(i, s));
-    return FALSE;
+    RETURN FALSE;
 }
 
 //-----------------------------------------------------------------------------
@@ -1150,14 +1167,15 @@ BOOL SString::FindBack(CIterator &i, const SString &s) const
 //-----------------------------------------------------------------------------
 BOOL SString::FindBack(CIterator &i, WCHAR c) const
 {
-    CONTRACTL
+    CONTRACT(BOOL)
     {
         INSTANCE_CHECK;
         PRECONDITION(CheckIteratorRange(i));
+        POSTCONDITION(RETVAL == Match(i, c));
         THROWS_UNLESS_NORMALIZED;
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // Get a compatible string from s
     if (c & ~0x7f)
@@ -1177,8 +1195,7 @@ BOOL SString::FindBack(CIterator &i, WCHAR c) const
                 if (*start == c)
                 {
                     i.Resync(this, (BYTE*) start);
-                    _ASSERTE(Match(i, c));
-                    return TRUE;
+                    RETURN TRUE;
                 }
                 start--;
             }
@@ -1197,8 +1214,7 @@ BOOL SString::FindBack(CIterator &i, WCHAR c) const
                 if (*start == c)
                 {
                     i.Resync(this, (BYTE*) start);
-                    _ASSERTE(Match(i, c));
-                    return TRUE;
+                    RETURN TRUE;
                 }
                 start--;
             }
@@ -1213,8 +1229,7 @@ BOOL SString::FindBack(CIterator &i, WCHAR c) const
         UNREACHABLE();
     }
 
-    _ASSERTE(!Match(i, c));
-    return FALSE;
+    RETURN FALSE;
 }
 
 //-----------------------------------------------------------------------------
@@ -1276,14 +1291,14 @@ BOOL SString::EndsWithCaseInsensitive(const SString &s) const
 //-----------------------------------------------------------------------------
 int SString::Compare(const SString &s) const
 {
-    CONTRACTL
+    CONTRACT(int)
     {
         INSTANCE_CHECK;
         PRECONDITION(s.Check());
         THROWS_UNLESS_BOTH_NORMALIZED(s);
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     StackSString temp;
     const SString &source = GetCompatibleString(s, temp);
@@ -1328,9 +1343,9 @@ int SString::Compare(const SString &s) const
     }
 
     if (result == 0)
-        return equals;
+        RETURN equals;
     else
-        return result;
+        RETURN result;
 }
 
 //-----------------------------------------------------------------------------
@@ -1340,14 +1355,14 @@ int SString::Compare(const SString &s) const
 
 int SString::CompareCaseInsensitive(const SString &s) const
 {
-    CONTRACTL
+    CONTRACT(int)
     {
         INSTANCE_CHECK;
         PRECONDITION(s.Check());
         THROWS_UNLESS_BOTH_NORMALIZED(s);
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     StackSString temp;
     const SString &source = GetCompatibleString(s, temp);
@@ -1392,9 +1407,9 @@ int SString::CompareCaseInsensitive(const SString &s) const
     }
 
     if (result == 0)
-        return equals;
+        RETURN equals;
     else
-        return result;
+        RETURN result;
 }
 
 //-----------------------------------------------------------------------------
@@ -1404,14 +1419,15 @@ int SString::CompareCaseInsensitive(const SString &s) const
 //-----------------------------------------------------------------------------
 BOOL SString::Equals(const SString &s) const
 {
-    CONTRACTL
+    CONTRACT(BOOL)
     {
         INSTANCE_CHECK;
         PRECONDITION(s.Check());
         THROWS_UNLESS_BOTH_NORMALIZED(s);
+        FAULTS_UNLESS_BOTH_NORMALIZED(s, ThrowOutOfMemory());
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     StackSString temp;
     const SString &source = GetCompatibleString(s, temp);
@@ -1419,25 +1435,25 @@ BOOL SString::Equals(const SString &s) const
     COUNT_T count = GetRawCount();
 
     if (count != source.GetRawCount())
-        return FALSE;
+        RETURN FALSE;
 
     switch (GetRepresentation())
     {
     case REPRESENTATION_UNICODE:
-        return u16_strncmp(GetRawUnicode(), source.GetRawUnicode(), count) == 0;
+        RETURN (u16_strncmp(GetRawUnicode(), source.GetRawUnicode(), count) == 0);
 
     case REPRESENTATION_ASCII:
-        return strncmp(GetRawASCII(), source.GetRawASCII(), count) == 0;
+        RETURN (strncmp(GetRawASCII(), source.GetRawASCII(), count) == 0);
 
     case REPRESENTATION_EMPTY:
-        return TRUE;
+        RETURN TRUE;
 
     default:
     case REPRESENTATION_UTF8:
         UNREACHABLE();
     }
 
-    return FALSE;
+    RETURN FALSE;
 }
 
 //-----------------------------------------------------------------------------
@@ -1446,14 +1462,15 @@ BOOL SString::Equals(const SString &s) const
 //-----------------------------------------------------------------------------
 BOOL SString::EqualsCaseInsensitive(const SString &s) const
 {
-    CONTRACTL
+    CONTRACT(BOOL)
     {
         INSTANCE_CHECK;
         PRECONDITION(s.Check());
         THROWS_UNLESS_BOTH_NORMALIZED(s);
+        FAULTS_UNLESS_BOTH_NORMALIZED(s, ThrowOutOfMemory());
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     StackSString temp;
     const SString &source = GetCompatibleString(s, temp);
@@ -1461,25 +1478,25 @@ BOOL SString::EqualsCaseInsensitive(const SString &s) const
     COUNT_T count = GetRawCount();
 
     if (count != source.GetRawCount())
-        return FALSE;
+        RETURN FALSE;
 
     switch (GetRepresentation())
     {
     case REPRESENTATION_UNICODE:
-        return CaseCompareHelper(GetRawUnicode(), source.GetRawUnicode(), count, FALSE, TRUE) == 0;
+        RETURN (CaseCompareHelper(GetRawUnicode(), source.GetRawUnicode(), count, FALSE, TRUE) == 0);
 
     case REPRESENTATION_ASCII:
-        return CaseCompareHelperA(GetRawASCII(), source.GetRawASCII(), count, FALSE, TRUE) == 0;
+        RETURN (CaseCompareHelperA(GetRawASCII(), source.GetRawASCII(), count, FALSE, TRUE) == 0);
 
     case REPRESENTATION_EMPTY:
-        return TRUE;
+        RETURN TRUE;
 
     default:
     case REPRESENTATION_UTF8:
         UNREACHABLE();
     }
 
-    return FALSE;
+    RETURN FALSE;
 }
 
 //-----------------------------------------------------------------------------
@@ -1489,7 +1506,7 @@ BOOL SString::EqualsCaseInsensitive(const SString &s) const
 //-----------------------------------------------------------------------------
 BOOL SString::Match(const CIterator &i, const SString &s) const
 {
-    CONTRACTL
+    CONTRACT(BOOL)
     {
         INSTANCE_CHECK;
         PRECONDITION(CheckIteratorRange(i));
@@ -1497,7 +1514,7 @@ BOOL SString::Match(const CIterator &i, const SString &s) const
         THROWS_UNLESS_BOTH_NORMALIZED(s);
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     StackSString temp;
     const SString &source = GetCompatibleString(s, temp, i);
@@ -1506,25 +1523,25 @@ BOOL SString::Match(const CIterator &i, const SString &s) const
     COUNT_T count = source.GetRawCount();
 
     if (remaining < count)
-        return FALSE;
+        RETURN FALSE;
 
     switch (GetRepresentation())
     {
     case REPRESENTATION_UNICODE:
-        return u16_strncmp(i.GetUnicode(), source.GetRawUnicode(), count) == 0;
+        RETURN (u16_strncmp(i.GetUnicode(), source.GetRawUnicode(), count) == 0);
 
     case REPRESENTATION_ASCII:
-        return strncmp(i.GetASCII(), source.GetRawASCII(), count) == 0;
+        RETURN (strncmp(i.GetASCII(), source.GetRawASCII(), count) == 0);
 
     case REPRESENTATION_EMPTY:
-        return TRUE;
+        RETURN TRUE;
 
     default:
     case REPRESENTATION_UTF8:
         UNREACHABLE();
     }
 
-    return FALSE;
+    RETURN FALSE;
 }
 
 //-----------------------------------------------------------------------------
@@ -1533,7 +1550,7 @@ BOOL SString::Match(const CIterator &i, const SString &s) const
 //-----------------------------------------------------------------------------
 BOOL SString::MatchCaseInsensitive(const CIterator &i, const SString &s) const
 {
-    CONTRACTL
+    CONTRACT(BOOL)
     {
         INSTANCE_CHECK;
         PRECONDITION(CheckIteratorRange(i));
@@ -1541,7 +1558,7 @@ BOOL SString::MatchCaseInsensitive(const CIterator &i, const SString &s) const
         THROWS_UNLESS_BOTH_NORMALIZED(s);
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     StackSString temp;
     const SString &source = GetCompatibleString(s, temp, i);
@@ -1550,25 +1567,25 @@ BOOL SString::MatchCaseInsensitive(const CIterator &i, const SString &s) const
     COUNT_T count = source.GetRawCount();
 
     if (remaining < count)
-        return FALSE;
+        RETURN FALSE;
 
     switch (GetRepresentation())
     {
     case REPRESENTATION_UNICODE:
-        return CaseCompareHelper(i.GetUnicode(), source.GetRawUnicode(), count, FALSE, TRUE) == 0;
+        RETURN (CaseCompareHelper(i.GetUnicode(), source.GetRawUnicode(), count, FALSE, TRUE) == 0);
 
     case REPRESENTATION_ASCII:
-        return CaseCompareHelperA(i.GetASCII(), source.GetRawASCII(), count, FALSE, TRUE) == 0;
+        RETURN (CaseCompareHelperA(i.GetASCII(), source.GetRawASCII(), count, FALSE, TRUE) == 0);
 
     case REPRESENTATION_EMPTY:
-        return TRUE;
+        RETURN TRUE;
 
     default:
     case REPRESENTATION_UTF8:
         UNREACHABLE();
     }
 
-    return FALSE;
+    RETURN FALSE;
 }
 
 //-----------------------------------------------------------------------------
@@ -1589,11 +1606,11 @@ BOOL SString::MatchCaseInsensitive(const CIterator &i, WCHAR c) const
     // End() will not throw here
     CONTRACT_VIOLATION(ThrowsViolation);
     if (i >= End())
-        return FALSE;
+        SS_RETURN FALSE;
 
     WCHAR test = i[0];
 
-    return (test == c
+    SS_RETURN (test == c
                || ((CAN_SIMPLE_UPCASE(test) ? SIMPLE_UPCASE(test) : MapChar(test, LCMAP_UPPERCASE))
                    == (CAN_SIMPLE_UPCASE(c) ? SIMPLE_UPCASE(c) : MapChar(c, LCMAP_UPPERCASE))));
 }
@@ -1609,6 +1626,7 @@ void SString::LowerCase()
     {
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(this));
+        SS_POSTCONDITION(CheckPointer(RETVAL));
         if (IsRepresentation(REPRESENTATION_UNICODE)) NOTHROW; else THROWS;
         SUPPORTS_DAC;
     }
@@ -1658,6 +1676,7 @@ void SString::UpperCase()
     {
         GC_NOTRIGGER;
         PRECONDITION(CheckPointer(this));
+        SS_POSTCONDITION(CheckPointer(RETVAL));
         if (IsRepresentation(REPRESENTATION_UNICODE)) NOTHROW; else THROWS;
         GC_NOTRIGGER;
         SUPPORTS_DAC;
@@ -1693,14 +1712,14 @@ void SString::Printf(const CHAR *format, ...)
 
 void SString::VPrintf(const CHAR *format, va_list args)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         INSTANCE_CHECK;
         PRECONDITION(CheckPointer(format));
         THROWS;
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // This method overrides the content of the SString, so it can come in with any format.
     // We're going to change the representation here.
@@ -1720,7 +1739,7 @@ void SString::VPrintf(const CHAR *format, va_list args)
         {
             // Succeeded in writing. Now resize -
             Resize(result, REPRESENTATION_UTF8, PRESERVE);
-            return;
+            RETURN;
         }
     }
 
@@ -1749,7 +1768,7 @@ void SString::VPrintf(const CHAR *format, va_list args)
         {
             // Succeed in writing. Shrink the buffer to fit exactly.
             Resize(result, REPRESENTATION_UTF8, PRESERVE);
-            return;
+            RETURN;
         }
 
         if (errno==ENOMEM)
@@ -1763,6 +1782,7 @@ void SString::VPrintf(const CHAR *format, va_list args)
             ThrowHR(HRESULT_FROM_WIN32(ERROR_NO_UNICODE_TRANSLATION));
         }
     }
+    RETURN;
 }
 
 void SString::AppendPrintf(const CHAR *format, ...)
@@ -1799,13 +1819,13 @@ BOOL SString::FormatMessage(DWORD dwFlags, LPCVOID lpSource, DWORD dwMessageId, 
                             const SString &arg7, const SString &arg8,
                             const SString &arg9, const SString &arg10)
 {
-    CONTRACTL
+    CONTRACT(BOOL)
     {
         INSTANCE_CHECK;
         THROWS;
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     const WCHAR *args[] = {arg1.GetUnicode(), arg2.GetUnicode(), arg3.GetUnicode(), arg4.GetUnicode(),
                            arg5.GetUnicode(), arg6.GetUnicode(), arg7.GetUnicode(), arg8.GetUnicode(),
@@ -1831,27 +1851,27 @@ BOOL SString::FormatMessage(DWORD dwFlags, LPCVOID lpSource, DWORD dwMessageId, 
                 result -= 1;
             }
             Resize(result, REPRESENTATION_UNICODE, PRESERVE);
-            return TRUE;
+            RETURN TRUE;
         }
     }
 
     // We don't have enough space in our buffer, do dynamic allocation.
-    LocalAllocHolder<LPWSTR> string;
+    LocalAllocHolder<WCHAR> string;
 
     DWORD result = ::FormatMessage(dwFlags | FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_ARGUMENT_ARRAY,
                                       lpSource, dwMessageId, dwLanguageId,
                                       (LPWSTR)(LPWSTR*)&string, 0, (va_list*)args);
 
     if (result == 0)
-        return FALSE;
+        RETURN FALSE;
+    else
+    {
+        if (string[result-1] == W(' '))
+            string[result-1] = W('\0');
 
-    LPWSTR stringRaw = string;
-    _ASSERTE(stringRaw != NULL);
-    if (stringRaw[result-1] == W(' '))
-        stringRaw[result-1] = W('\0');
-
-    Set(stringRaw);
-    return TRUE;
+        Set(string);
+        RETURN TRUE;
+    }
 }
 
 #if 1
@@ -1862,13 +1882,13 @@ BOOL SString::FormatMessage(DWORD dwFlags, LPCVOID lpSource, DWORD dwMessageId, 
 // @todo -this should be removed and placed outside of SString
 void SString::MakeFullNamespacePath(const SString &nameSpace, const SString &name)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         INSTANCE_CHECK;
         THROWS;
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (nameSpace.GetRepresentation() == REPRESENTATION_UTF8
         && name.GetRepresentation() == REPRESENTATION_UTF8)
@@ -1889,6 +1909,8 @@ void SString::MakeFullNamespacePath(const SString &nameSpace, const SString &nam
         if (count > 0)
             ns::MakePath(GetRawUnicode(), count+1, ns, n);
     }
+
+    RETURN;
 }
 #endif
 
@@ -1900,24 +1922,24 @@ void SString::MakeFullNamespacePath(const SString &nameSpace, const SString &nam
 //----------------------------------------------------------------------------
 BOOL SString::IsRepresentation(Representation representation) const
 {
-    CONTRACTL
+    CONTRACT(BOOL)
     {
         PRECONDITION(CheckRepresentation(representation));
         NOTHROW;
         GC_NOTRIGGER;
         SUPPORTS_DAC;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     Representation currentRepresentation = GetRepresentation();
 
     // If representations are the same, cool.
     if (currentRepresentation == representation)
-        return TRUE;
+        RETURN TRUE;
 
     // If we have an empty representation, we match everything
     if (currentRepresentation == REPRESENTATION_EMPTY)
-        return TRUE;
+        RETURN TRUE;
 
     // If we're a 1 byte charset, there are some more chances to match
     if (currentRepresentation != REPRESENTATION_UNICODE
@@ -1925,15 +1947,15 @@ BOOL SString::IsRepresentation(Representation representation) const
     {
         // If we're ASCII, we can be any 1 byte rep
         if (currentRepresentation == REPRESENTATION_ASCII)
-            return TRUE;
+            RETURN TRUE;
 
         // We really want to be ASCII - scan to see if we qualify
         if (ScanASCII())
-            return TRUE;
+            RETURN TRUE;
     }
 
     // Sorry, must convert.
-    return FALSE;
+    RETURN FALSE;
 }
 
 //----------------------------------------------------------------------------
@@ -2045,13 +2067,14 @@ const SString &SString::GetCompatibleString(const SString &s, SString &scratch) 
 //----------------------------------------------------------------------------
 BOOL SString::ScanASCII() const
 {
-    CONTRACTL
+    CONTRACT(BOOL)
     {
+        POSTCONDITION(IsRepresentation(REPRESENTATION_ASCII) || IsASCIIScanned());
         NOTHROW;
         GC_NOTRIGGER;
         SUPPORTS_DAC;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (!IsASCIIScanned())
     {
@@ -2066,14 +2089,12 @@ BOOL SString::ScanASCII() const
         if (c == cEnd)
         {
             const_cast<SString *>(this)->SetRepresentation(REPRESENTATION_ASCII);
-            _ASSERTE(GetRepresentation() == REPRESENTATION_ASCII || IsASCIIScanned());
-            return TRUE;
+            RETURN TRUE;
         }
         else
             const_cast<SString *>(this)->SetASCIIScanned();
     }
-    _ASSERTE(GetRepresentation() == REPRESENTATION_ASCII || IsASCIIScanned());
-    return FALSE;
+    RETURN FALSE;
 }
 
 //----------------------------------------------------------------------------
@@ -2086,14 +2107,16 @@ BOOL SString::ScanASCII() const
 
 void SString::Resize(COUNT_T count, SString::Representation representation, Preserve preserve)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         PRECONDITION(CountToSize(count) >= count);
+        POSTCONDITION(IsRepresentation(representation));
+        POSTCONDITION(GetRawCount() == count);
         if (count == 0) NOTHROW; else THROWS;
         GC_NOTRIGGER;
         SUPPORTS_DAC_HOST_ONLY;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // If we are resizing to zero, Clear is more efficient
     if (count == 0)
@@ -2120,8 +2143,7 @@ void SString::Resize(COUNT_T count, SString::Representation representation, Pres
         NullTerminate();
     }
 
-    _ASSERTE(IsRepresentation(representation));
-    _ASSERTE(GetRawCount() == count);
+    RETURN;
 }
 
 //-----------------------------------------------------------------------------
@@ -2129,14 +2151,15 @@ void SString::Resize(COUNT_T count, SString::Representation representation, Pres
 //-----------------------------------------------------------------------------
 void SString::Clear()
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         INSTANCE_CHECK;
+        POSTCONDITION(IsEmpty());
         NOTHROW;
         GC_NOTRIGGER;
         SUPPORTS_DAC_HOST_ONLY;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     SetRepresentation(REPRESENTATION_EMPTY);
 
@@ -2152,7 +2175,7 @@ void SString::Clear()
         GetRawUnicode()[0] = 0;
     }
 
-    _ASSERTE(IsEmpty());
+    RETURN;
 }
 
 

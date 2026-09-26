@@ -8,7 +8,7 @@ using Xunit;
 // Test to make sure we can compute correct loop nest even in the face
 // of loop compaction.
 
-namespace GitHub_13919
+namespace N
 {
     public class C
     {

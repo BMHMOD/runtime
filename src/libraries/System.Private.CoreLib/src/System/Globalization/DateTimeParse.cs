@@ -1,11 +1,10 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace System
@@ -257,7 +256,7 @@ namespace System
             Max = 20,   // marker
         }
 
-        internal enum TM : sbyte
+        internal enum TM
         {
             NotSet = -1,
             AM = 0,
@@ -270,7 +269,7 @@ namespace System
         //
         ////////////////////////////////////////////////////////////////////////////
 
-        internal enum DS : byte
+        internal enum DS
         {
             BEGIN = 0,
             N = 1,        // have one number
@@ -338,77 +337,68 @@ namespace System
         ////////////////////////////////////////////////////////////////////////////
 
         // End        NumEnd      NumAmPm     NumSpace    NumDaySep   NumTimesep  MonthEnd    MonthSpace  MonthDSep   NumDateSuff NumTimeSuff     DayOfWeek     YearSpace   YearDateSep YearEnd     TimeZone   Era         UTCTimeMark
-        private static ReadOnlySpan<DS> DateParsingStates => [
+        private static readonly DS[][] s_dateParsingStates = [
 // DS.BEGIN                                                                             // DS.BEGIN
-DS.BEGIN,  DS.ERROR,   DS.TX_N,    DS.N,       DS.D_Nd,    DS.T_Nt,    DS.ERROR,   DS.D_M,     DS.D_M,     DS.D_S,     DS.T_S,         DS.BEGIN,     DS.D_Y,     DS.D_Y,     DS.ERROR,   DS.BEGIN,  DS.BEGIN,    DS.ERROR,
+[DS.BEGIN,  DS.ERROR,   DS.TX_N,    DS.N,       DS.D_Nd,    DS.T_Nt,    DS.ERROR,   DS.D_M,     DS.D_M,     DS.D_S,     DS.T_S,         DS.BEGIN,     DS.D_Y,     DS.D_Y,     DS.ERROR,   DS.BEGIN,  DS.BEGIN,    DS.ERROR],
 
 // DS.N                                                                                 // DS.N
-DS.ERROR,  DS.DX_NN,   DS.TX_NN,   DS.NN,      DS.D_NNd,   DS.ERROR,   DS.DX_NM,   DS.D_NM,    DS.D_MNd,   DS.D_NDS,   DS.ERROR,       DS.N,         DS.D_YN,    DS.D_YNd,   DS.DX_YN,   DS.N,      DS.N,        DS.ERROR,
+[DS.ERROR,  DS.DX_NN,   DS.TX_NN,   DS.NN,      DS.D_NNd,   DS.ERROR,   DS.DX_NM,   DS.D_NM,    DS.D_MNd,   DS.D_NDS,   DS.ERROR,       DS.N,         DS.D_YN,    DS.D_YNd,   DS.DX_YN,   DS.N,      DS.N,        DS.ERROR],
 
 // DS.NN                                                                                // DS.NN
-DS.DX_NN,  DS.DX_NNN,  DS.TX_NNN,  DS.DX_NNN,  DS.ERROR,   DS.T_Nt,    DS.DX_MNN,  DS.DX_MNN,  DS.ERROR,   DS.ERROR,   DS.T_S,         DS.NN,        DS.DX_NNY,  DS.ERROR,   DS.DX_NNY,  DS.NN,     DS.NN,       DS.ERROR,
+[DS.DX_NN,  DS.DX_NNN,  DS.TX_NNN,  DS.DX_NNN,  DS.ERROR,   DS.T_Nt,    DS.DX_MNN,  DS.DX_MNN,  DS.ERROR,   DS.ERROR,   DS.T_S,         DS.NN,        DS.DX_NNY,  DS.ERROR,   DS.DX_NNY,  DS.NN,     DS.NN,       DS.ERROR],
 
 // DS.D_Nd                                                                              // DS.D_Nd
-DS.ERROR,  DS.DX_NN,   DS.ERROR,   DS.D_NN,    DS.D_NNd,   DS.ERROR,   DS.DX_NM,   DS.D_MN,    DS.D_MNd,   DS.ERROR,   DS.ERROR,       DS.D_Nd,      DS.D_YN,    DS.D_YNd,   DS.DX_YN,   DS.ERROR,  DS.D_Nd,     DS.ERROR,
+[DS.ERROR,  DS.DX_NN,   DS.ERROR,   DS.D_NN,    DS.D_NNd,   DS.ERROR,   DS.DX_NM,   DS.D_MN,    DS.D_MNd,   DS.ERROR,   DS.ERROR,       DS.D_Nd,      DS.D_YN,    DS.D_YNd,   DS.DX_YN,   DS.ERROR,  DS.D_Nd,     DS.ERROR],
 
 // DS.D_NN                                                                              // DS.D_NN
-DS.DX_NN,  DS.DX_NNN,  DS.TX_N,    DS.DX_NNN,  DS.ERROR,   DS.T_Nt,    DS.DX_MNN,  DS.DX_MNN,  DS.ERROR,   DS.DX_DS,   DS.T_S,         DS.D_NN,     DS.DX_NNY,   DS.ERROR,   DS.DX_NNY,  DS.ERROR,  DS.D_NN,     DS.ERROR,
+[DS.DX_NN,  DS.DX_NNN,  DS.TX_N,    DS.DX_NNN,  DS.ERROR,   DS.T_Nt,    DS.DX_MNN,  DS.DX_MNN,  DS.ERROR,   DS.DX_DS,   DS.T_S,         DS.D_NN,     DS.DX_NNY,   DS.ERROR,   DS.DX_NNY,  DS.ERROR,  DS.D_NN,     DS.ERROR],
 
 // DS.D_NNd                                                                             // DS.D_NNd
-DS.ERROR,  DS.DX_NNN,  DS.DX_NNN,  DS.DX_NNN,  DS.ERROR,   DS.ERROR,   DS.DX_MNN,  DS.DX_MNN,  DS.ERROR,   DS.DX_DS,   DS.ERROR,       DS.D_NNd,     DS.DX_NNY,  DS.ERROR,   DS.DX_NNY,  DS.ERROR,  DS.D_NNd,    DS.ERROR,
+[DS.ERROR,  DS.DX_NNN,  DS.DX_NNN,  DS.DX_NNN,  DS.ERROR,   DS.ERROR,   DS.DX_MNN,  DS.DX_MNN,  DS.ERROR,   DS.DX_DS,   DS.ERROR,       DS.D_NNd,     DS.DX_NNY,  DS.ERROR,   DS.DX_NNY,  DS.ERROR,  DS.D_NNd,    DS.ERROR],
 
 // DS.D_M                                                                               // DS.D_M
-DS.ERROR,  DS.DX_MN,   DS.ERROR,   DS.D_MN,    DS.D_MNd,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,       DS.D_M,       DS.D_YM,    DS.D_YMd,   DS.DX_YM,   DS.ERROR,  DS.D_M,      DS.ERROR,
+[DS.ERROR,  DS.DX_MN,   DS.ERROR,   DS.D_MN,    DS.D_MNd,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,       DS.D_M,       DS.D_YM,    DS.D_YMd,   DS.DX_YM,   DS.ERROR,  DS.D_M,      DS.ERROR],
 
 // DS.D_MN                                                                              // DS.D_MN
-DS.DX_MN,  DS.DX_MNN,  DS.DX_MNN,  DS.DX_MNN,  DS.ERROR,   DS.T_Nt,    DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.DX_DS,   DS.T_S,         DS.D_MN,      DS.DX_YMN,  DS.ERROR,   DS.DX_YMN,  DS.ERROR,  DS.D_MN,     DS.ERROR,
+[DS.DX_MN,  DS.DX_MNN,  DS.DX_MNN,  DS.DX_MNN,  DS.ERROR,   DS.T_Nt,    DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.DX_DS,   DS.T_S,         DS.D_MN,      DS.DX_YMN,  DS.ERROR,   DS.DX_YMN,  DS.ERROR,  DS.D_MN,     DS.ERROR],
 
 // DS.D_NM                                                                              // DS.D_NM
-DS.DX_NM,  DS.DX_MNN,  DS.DX_MNN,  DS.DX_MNN,  DS.ERROR,   DS.T_Nt,    DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.DX_DS,   DS.T_S,         DS.D_NM,      DS.DX_YMN,  DS.ERROR,   DS.DX_YMN,  DS.ERROR,   DS.D_NM,    DS.ERROR,
+[DS.DX_NM,  DS.DX_MNN,  DS.DX_MNN,  DS.DX_MNN,  DS.ERROR,   DS.T_Nt,    DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.DX_DS,   DS.T_S,         DS.D_NM,      DS.DX_YMN,  DS.ERROR,   DS.DX_YMN,  DS.ERROR,   DS.D_NM,    DS.ERROR],
 
 // DS.D_MNd                                                                             // DS.D_MNd
-DS.ERROR,  DS.DX_MNN,  DS.ERROR,   DS.DX_MNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,       DS.D_MNd,     DS.DX_YMN,  DS.ERROR,   DS.DX_YMN,  DS.ERROR,   DS.D_MNd,   DS.ERROR,
+[DS.ERROR,  DS.DX_MNN,  DS.ERROR,   DS.DX_MNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,       DS.D_MNd,     DS.DX_YMN,  DS.ERROR,   DS.DX_YMN,  DS.ERROR,   DS.D_MNd,   DS.ERROR],
 
 // DS.D_NDS,                                                                            // DS.D_NDS,
-DS.DX_NDS, DS.DX_NNDS, DS.DX_NNDS, DS.DX_NNDS, DS.ERROR,   DS.T_Nt,    DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_NDS,   DS.T_S,         DS.D_NDS,     DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_NDS,   DS.ERROR,
+[DS.DX_NDS, DS.DX_NNDS, DS.DX_NNDS, DS.DX_NNDS, DS.ERROR,   DS.T_Nt,    DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_NDS,   DS.T_S,         DS.D_NDS,     DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_NDS,   DS.ERROR],
 
 // DS.D_Y                                                                               // DS.D_Y
-DS.ERROR,  DS.DX_YN,   DS.ERROR,   DS.D_YN,    DS.D_YNd,   DS.ERROR,   DS.DX_YM,   DS.D_YM,    DS.D_YMd,   DS.D_YM,    DS.ERROR,       DS.D_Y,       DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_Y,     DS.ERROR,
+[DS.ERROR,  DS.DX_YN,   DS.ERROR,   DS.D_YN,    DS.D_YNd,   DS.ERROR,   DS.DX_YM,   DS.D_YM,    DS.D_YMd,   DS.D_YM,    DS.ERROR,       DS.D_Y,       DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_Y,     DS.ERROR],
 
 // DS.D_YN                                                                              // DS.D_YN
-DS.DX_YN,  DS.DX_YNN,  DS.DX_YNN,  DS.DX_YNN,  DS.ERROR,   DS.ERROR,   DS.DX_YMN,  DS.DX_YMN,  DS.ERROR,   DS.ERROR,   DS.ERROR,       DS.D_YN,      DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_YN,    DS.ERROR,
+[DS.DX_YN,  DS.DX_YNN,  DS.DX_YNN,  DS.DX_YNN,  DS.ERROR,   DS.ERROR,   DS.DX_YMN,  DS.DX_YMN,  DS.ERROR,   DS.ERROR,   DS.ERROR,       DS.D_YN,      DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_YN,    DS.ERROR],
 
 // DS.D_YNd                                                                             // DS.D_YNd
-DS.ERROR,  DS.DX_YNN,  DS.DX_YNN,  DS.DX_YNN,  DS.ERROR,   DS.ERROR,   DS.DX_YMN,  DS.DX_YMN,  DS.ERROR,   DS.ERROR,   DS.ERROR,       DS.D_YN,      DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_YN,    DS.ERROR,
+[DS.ERROR,  DS.DX_YNN,  DS.DX_YNN,  DS.DX_YNN,  DS.ERROR,   DS.ERROR,   DS.DX_YMN,  DS.DX_YMN,  DS.ERROR,   DS.ERROR,   DS.ERROR,       DS.D_YN,      DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_YN,    DS.ERROR],
 
 // DS.D_YM                                                                              // DS.D_YM
-DS.DX_YM,  DS.DX_YMN,  DS.DX_YMN,  DS.DX_YMN,  DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,       DS.D_YM,      DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_YM,    DS.ERROR,
+[DS.DX_YM,  DS.DX_YMN,  DS.DX_YMN,  DS.DX_YMN,  DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,       DS.D_YM,      DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_YM,    DS.ERROR],
 
 // DS.D_YMd                                                                             // DS.D_YMd
-DS.ERROR,  DS.DX_YMN,  DS.DX_YMN,  DS.DX_YMN,  DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,       DS.D_YM,      DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_YM,    DS.ERROR,
+[DS.ERROR,  DS.DX_YMN,  DS.DX_YMN,  DS.DX_YMN,  DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,       DS.D_YM,      DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_YM,    DS.ERROR],
 
 // DS.D_S                                                                               // DS.D_S
-DS.DX_DS,  DS.DX_DSN,  DS.TX_N,    DS.T_Nt,    DS.ERROR,   DS.T_Nt,    DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_S,     DS.T_S,         DS.D_S,       DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_S,     DS.ERROR,
+[DS.DX_DS,  DS.DX_DSN,  DS.TX_N,    DS.T_Nt,    DS.ERROR,   DS.T_Nt,    DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_S,     DS.T_S,         DS.D_S,       DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_S,     DS.ERROR],
 
 // DS.T_S                                                                               // DS.T_S
-DS.TX_TS,  DS.TX_TS,   DS.TX_TS,   DS.T_Nt,    DS.D_Nd,    DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_S,     DS.T_S,         DS.T_S,       DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.T_S,     DS.T_S,     DS.ERROR,
+[DS.TX_TS,  DS.TX_TS,   DS.TX_TS,   DS.T_Nt,    DS.D_Nd,    DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.D_S,     DS.T_S,         DS.T_S,       DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.T_S,     DS.T_S,     DS.ERROR],
 
 // DS.T_Nt                                                                              // DS.T_Nt
-DS.ERROR,  DS.TX_NN,   DS.TX_NN,   DS.TX_NN,   DS.ERROR,   DS.T_NNt,   DS.DX_NM,   DS.D_NM,    DS.ERROR,   DS.ERROR,   DS.T_S,         DS.ERROR,     DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.T_Nt,    DS.T_Nt,    DS.TX_NN,
+[DS.ERROR,  DS.TX_NN,   DS.TX_NN,   DS.TX_NN,   DS.ERROR,   DS.T_NNt,   DS.DX_NM,   DS.D_NM,    DS.ERROR,   DS.ERROR,   DS.T_S,         DS.ERROR,     DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.T_Nt,    DS.T_Nt,    DS.TX_NN],
 
 // DS.T_NNt                                                                             // DS.T_NNt
-DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.T_S,         DS.T_NNt,     DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.T_NNt,   DS.T_NNt,   DS.TX_NNN,
+[DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.T_S,         DS.T_NNt,     DS.ERROR,   DS.ERROR,   DS.ERROR,   DS.T_NNt,   DS.T_NNt,   DS.TX_NNN],
 ];
         // End        NumEnd      NumAmPm     NumSpace    NumDaySep   NumTimesep  MonthEnd    MonthSpace  MonthDSep   NumDateSuff NumTimeSuff     DayOfWeek     YearSpace   YearDateSep YearEnd     TimeZone    Era        UTCMark
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static DS GetParsingState(DS dps, DTT dtt)
-        {
-            const int Width = 18;
-            const int Height = 20;
-            Debug.Assert(DateParsingStates.Length == Width * Height);
-            return DateParsingStates[(int)dps * Width + (int)dtt];
-        }
 
         internal const string GMTName = "GMT";
         internal const string ZuluName = "Z";
@@ -729,7 +719,8 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                                 case TokenType.SEP_DateOrOffset:
                                     // The separator is either a date separator or the start of a time zone offset. If the token will complete the date then
                                     // process just the number and roll back the index so that the outer loop can attempt to parse the time zone offset.
-                                    if (GetParsingState(dps, DTT.YearDateSep) == DS.ERROR && GetParsingState(dps, DTT.YearSpace) > DS.ERROR)
+                                    if ((s_dateParsingStates[(int)dps][(int)DTT.YearDateSep] == DS.ERROR)
+                                        && (s_dateParsingStates[(int)dps][(int)DTT.YearSpace] > DS.ERROR))
                                     {
                                         str.Index = indexBeforeSeparator;
                                         str.m_current = charBeforeSeparator;
@@ -820,7 +811,8 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                         case TokenType.SEP_DateOrOffset:
                             // The separator is either a date separator or the start of a time zone offset. If the token will complete the date then
                             // process just the number and roll back the index so that the outer loop can attempt to parse the time zone offset.
-                            if (GetParsingState(dps, DTT.NumDatesep) == DS.ERROR && GetParsingState(dps, DTT.NumSpace) > DS.ERROR)
+                            if ((s_dateParsingStates[(int)dps][(int)DTT.NumDatesep] == DS.ERROR)
+                                && (s_dateParsingStates[(int)dps][(int)DTT.NumSpace] > DS.ERROR))
                             {
                                 str.Index = indexBeforeSeparator;
                                 str.m_current = charBeforeSeparator;
@@ -903,7 +895,7 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                                 case TokenType.SEP_DateOrOffset:
                                     // The separator is either a date separator or the start of a time zone offset. If the token will complete the date then
                                     // process just the number and roll back the index so that the outer loop can attempt to parse the time zone offset.
-                                    if (GetParsingState(dps, DTT.YearSpace) > DS.ERROR)
+                                    if (s_dateParsingStates[(int)dps][(int)DTT.YearSpace] > DS.ERROR)
                                     {
                                         str.Index = indexBeforeSeparator;
                                         str.m_current = charBeforeSeparator;
@@ -948,7 +940,8 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                             case TokenType.SEP_DateOrOffset:
                                 // The separator is either a date separator or the start of a time zone offset. If the token will complete the date then
                                 // process just the number and roll back the index so that the outer loop can attempt to parse the time zone offset.
-                                if (GetParsingState(dps, DTT.NumDatesep) == DS.ERROR && GetParsingState(dps, DTT.NumSpace) > DS.ERROR)
+                                if ((s_dateParsingStates[(int)dps][(int)DTT.NumDatesep] == DS.ERROR)
+                                    && (s_dateParsingStates[(int)dps][(int)DTT.NumSpace] > DS.ERROR))
                                 {
                                     str.Index = indexBeforeSeparator;
                                     str.m_current = charBeforeSeparator;
@@ -1015,7 +1008,8 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                             case TokenType.SEP_DateOrOffset:
                                 // The separator is either a date separator or the start of a time zone offset. If the token will complete the date then
                                 // process just the number and roll back the index so that the outer loop can attempt to parse the time zone offset.
-                                if (GetParsingState(dps, DTT.MonthDatesep) == DS.ERROR && GetParsingState(dps, DTT.MonthSpace) > DS.ERROR)
+                                if ((s_dateParsingStates[(int)dps][(int)DTT.MonthDatesep] == DS.ERROR)
+                                    && (s_dateParsingStates[(int)dps][(int)DTT.MonthSpace] > DS.ERROR))
                                 {
                                     str.Index = indexBeforeSeparator;
                                     str.m_current = charBeforeSeparator;
@@ -2516,7 +2510,11 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
             DateTimeToken dtok = default;      // The buffer to store the parsing token.
             dtok.suffix = TokenType.SEP_Unk;
             DateTimeRawInfo raw = default;    // The buffer to store temporary parsing information.
-            raw.Init();
+            unsafe
+            {
+                int* numberPointer = stackalloc int[3];
+                raw.Init(numberPointer);
+            }
             raw.hasSameDateAndTimeSeparators = dtfi.DateSeparator.Equals(dtfi.TimeSeparator, StringComparison.Ordinal);
 
             result.calendar = dtfi.Calendar;
@@ -2602,7 +2600,7 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                         }
 
                         bool atEnd = str.AtEnd();
-                        if (GetParsingState(dps, dtok.dtt) == DS.ERROR || atEnd)
+                        if (s_dateParsingStates[(int)dps][(int)dtok.dtt] == DS.ERROR || atEnd)
                         {
                             switch (dtok.dtt)
                             {
@@ -2620,7 +2618,7 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                     //
                     // Advance to the next state, and continue
                     //
-                    dps = GetParsingState(dps, dtok.dtt);
+                    dps = s_dateParsingStates[(int)dps][(int)dtok.dtt];
 
                     if (dps == DS.ERROR)
                     {
@@ -2686,23 +2684,6 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                 return false;
             }
 
-            // Per ISO 8601, 24:00:00 represents end of a calendar day
-            // (same instant as next day's 00:00:00), but only when minute, second, and fraction are all zero.
-            // We treat it as hour=0 and add one day at the end.
-            bool isEndOfDay = false;
-            if (result.Hour == 24)
-            {
-                if (result.Minute != 0 || result.Second != 0 || raw.fraction > 0)
-                {
-                    result.SetBadDateTimeFailure();
-                    TPTraceExit("0095 (hour 24 with non-zero minute/second/fraction)", dps);
-                    return false;
-                }
-
-                result.Hour = 0;
-                isEndOfDay = true;
-            }
-
             if (!result.calendar.TryToDateTime(result.Year, result.Month, result.Day,
                     result.Hour, result.Minute, result.Second, 0, result.era, out DateTime time))
             {
@@ -2717,17 +2698,6 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                 {
                     result.SetBadDateTimeFailure();
                     TPTraceExit("0100 (time.TryAddTicks)", dps);
-                    return false;
-                }
-            }
-
-            // If hour was originally 24 (end of day per ISO 8601), add one day to advance to next day's 00:00:00
-            if (isEndOfDay)
-            {
-                if (!time.TryAddTicks(TimeSpan.TicksPerDay, out time))
-                {
-                    result.SetBadDateTimeFailure();
-                    TPTraceExit("0105 (hour 24 overflow adding one day)", dps);
                     return false;
                 }
             }
@@ -3077,22 +3047,6 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                 }
             }
 
-            // Per ISO 8601, 24:00:00 represents end of a calendar day
-            // (same instant as next day's 00:00:00), but only when minute, second, and fraction are all zero.
-            // We treat it as hour=0 and add one day at the end.
-            bool isEndOfDay = false;
-            if (hour == 24)
-            {
-                if (minute != 0 || second != 0 || partSecond != 0)
-                {
-                    result.SetBadDateTimeFailure();
-                    return false;
-                }
-
-                hour = 0;
-                isEndOfDay = true;
-            }
-
             Calendar calendar = GregorianCalendar.GetDefaultInstance();
             if (!calendar.TryToDateTime(raw.year, raw.GetNumber(0), raw.GetNumber(1),
                     hour, minute, second, 0, result.era, out DateTime time))
@@ -3105,16 +3059,6 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
             {
                 result.SetBadDateTimeFailure();
                 return false;
-            }
-
-            // If hour was originally 24 (end of day per ISO 8601), add one day to advance to next day's 00:00:00
-            if (isEndOfDay)
-            {
-                if (!time.TryAddTicks(TimeSpan.TicksPerDay, out time))
-                {
-                    result.SetBadDateTimeFailure();
-                    return false;
-                }
             }
 
             result.parsedDate = time;
@@ -3798,36 +3742,24 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
 
             if (str.GetNext())
             {
-                string amDesignator = dtfi.AMDesignator;
-                string pmDesignator;
-
-                if (amDesignator.Length > 0)
+                string searchStr = dtfi.AMDesignator;
+                if (searchStr.Length > 0)
                 {
-                    if (str.MatchSpecifiedWord(amDesignator))
+                    if (str.MatchSpecifiedWord(searchStr))
                     {
-                        pmDesignator = dtfi.PMDesignator;
-                        if (pmDesignator.StartsWith(amDesignator, StringComparison.Ordinal) && str.MatchSpecifiedWord(pmDesignator))
-                        {
-                            // AM designator is a prefix of PM designator and we have matched PM designator. Use longer match.
-                            str.Index += (pmDesignator.Length - 1);
-                            result = TM.PM;
-                            return true;
-                        }
-
                         // Found an AM timemark with length > 0.
-                        str.Index += (amDesignator.Length - 1);
+                        str.Index += (searchStr.Length - 1);
                         result = TM.AM;
                         return true;
                     }
                 }
-
-                pmDesignator = dtfi.PMDesignator;
-                if (pmDesignator.Length > 0)
+                searchStr = dtfi.PMDesignator;
+                if (searchStr.Length > 0)
                 {
-                    if (str.MatchSpecifiedWord(pmDesignator))
+                    if (str.MatchSpecifiedWord(searchStr))
                     {
                         // Found a PM timemark with length > 0.
-                        str.Index += (pmDesignator.Length - 1);
+                        str.Index += (searchStr.Length - 1);
                         result = TM.PM;
                         return true;
                     }
@@ -3852,45 +3784,26 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
 
         private static bool MatchAbbreviatedTimeMark(ref __DTString str, DateTimeFormatInfo dtfi, scoped ref TM result)
         {
+            // NOTENOTE : the assumption here is that abbreviated time mark is the first
+            // character of the AM/PM designator.  If this invariant changes, we have to
+            // change the code below.
             if (str.GetNext())
             {
                 string amDesignator = dtfi.AMDesignator;
-                if (MatchesDesignator(ref str, amDesignator))
+                if (amDesignator.Length > 0 && str.GetChar() == amDesignator[0])
                 {
                     result = TM.AM;
                     return true;
                 }
 
                 string pmDesignator = dtfi.PMDesignator;
-                if (MatchesDesignator(ref str, pmDesignator))
+                if (pmDesignator.Length > 0 && str.GetChar() == pmDesignator[0])
                 {
                     result = TM.PM;
                     return true;
                 }
             }
             return false;
-
-            static bool MatchesDesignator(ref __DTString str, string designator)
-            {
-                if (designator.Length == 0 || str.GetChar() != designator[0])
-                {
-                    return false;
-                }
-
-                if (char.IsHighSurrogate(designator[0]) &&
-                    designator.Length > 1 &&
-                    char.IsLowSurrogate(designator[1]))
-                {
-                    if (str.Index + 1 >= str.Length || str.Value[str.Index + 1] != designator[1])
-                    {
-                        return false;
-                    }
-
-                    str.Advance(1);
-                }
-
-                return true;
-            }
         }
 
         /*=================================CheckNewValue==================================
@@ -4835,23 +4748,6 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                     return false;
                 }
             }
-
-            // Per ISO 8601:2004, 24:00:00 represents the end of a calendar day
-            // (the same instant as the next day's 00:00:00), but only when minute, second, and fraction are all zero.
-            // We treat it as hour=0 and add one day at the end.
-            bool isEndOfDay = false;
-            if (result.Hour == 24)
-            {
-                if (result.Minute != 0 || result.Second != 0 || result.fraction > 0)
-                {
-                    result.SetBadDateTimeFailure();
-                    return false;
-                }
-
-                result.Hour = 0;
-                isEndOfDay = true;
-            }
-
             if (!parseInfo.calendar.TryToDateTime(result.Year, result.Month, result.Day,
                     result.Hour, result.Minute, result.Second, 0, result.era, out result.parsedDate))
             {
@@ -4861,16 +4757,6 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
             if (result.fraction > 0)
             {
                 if (!result.parsedDate.TryAddTicks((long)Math.Round(result.fraction * TimeSpan.TicksPerSecond), out result.parsedDate))
-                {
-                    result.SetBadDateTimeFailure();
-                    return false;
-                }
-            }
-
-            // If hour was originally 24 (end of day per ISO 8601), add one day to advance to next day's 00:00:00
-            if (isEndOfDay)
-            {
-                if (!result.parsedDate.TryAddTicks(TimeSpan.TicksPerDay, out result.parsedDate))
                 {
                     result.SetBadDateTimeFailure();
                     return false;
@@ -5190,11 +5076,7 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                 second = (int)(s1 * 10 + s2);
             }
 
-            // The "O" format always has exactly 7 fractional-second digits, which is the same precision
-            // as DateTime's ticks (TimeSpan.TicksPerSecond == 10_000_000), so the integer value formed
-            // by the seven digits is exactly the sub-second tick count. Compute it directly instead of
-            // going through a double divide/multiply/Math.Round round-trip.
-            int fractionTicks;
+            double fraction;
             {
                 uint f1 = (uint)(source[20] - '0');
                 uint f2 = (uint)(source[21] - '0');
@@ -5210,15 +5092,7 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                     return false;
                 }
 
-                fractionTicks = (int)(f1 * 1000000 + f2 * 100000 + f3 * 10000 + f4 * 1000 + f5 * 100 + f6 * 10 + f7);
-            }
-
-            // Per ISO 8601, 24:00:00 represents the end of a calendar day
-            // (the same instant as the next day's 00:00:00), but only when minute, second, and fraction are all zero
-            if (hour == 24 && (minute != 0 || second != 0 || fractionTicks != 0))
-            {
-                result.SetBadDateTimeFailure();
-                return false;
+                fraction = (f1 * 1000000 + f2 * 100000 + f3 * 10000 + f4 * 1000 + f5 * 100 + f6 * 10 + f7) / 10000000.0;
             }
 
             if (!DateTime.TryCreate(year, month, day, hour, minute, second, 0, out DateTime dateTime))
@@ -5227,7 +5101,7 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
                 return false;
             }
 
-            if (!dateTime.TryAddTicks(fractionTicks, out result.parsedDate))
+            if (!dateTime.TryAddTicks((long)Math.Round(fraction * TimeSpan.TicksPerSecond), out result.parsedDate))
             {
                 result.SetBadDateTimeFailure();
                 return false;
@@ -6090,7 +5964,7 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
         }
     }
 
-    internal enum DTSubStringType : byte
+    internal enum DTSubStringType
     {
         Unknown = 0,
         Invalid = 1,
@@ -6113,7 +5987,8 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
     //
     // The buffer to store the parsing token.
     //
-    internal struct DateTimeToken
+    internal
+    struct DateTimeToken
     {
         internal DateTimeParse.DTT dtt;    // Store the token
         internal TokenType suffix; // Store the CJK Year/Month/Day suffix (if any)
@@ -6123,19 +5998,19 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
     //
     // The buffer to store temporary parsing information.
     //
-    internal struct DateTimeRawInfo
+    internal unsafe struct DateTimeRawInfo
     {
-        private InlineArray3<int> num;
+        private int* num;
         internal int numCount;
         internal int month;
         internal int year;
         internal int dayOfWeek;
         internal int era;
-        internal double fraction;
         internal DateTimeParse.TM timeMark;
+        internal double fraction;
         internal bool hasSameDateAndTimeSeparators;
 
-        internal void Init()
+        internal void Init(int* numberBuffer)
         {
             month = -1;
             year = -1;
@@ -6143,6 +6018,7 @@ DS.ERROR,  DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,   DS.ERROR,
             era = -1;
             timeMark = DateTimeParse.TM.NotSet;
             fraction = -1;
+            num = numberBuffer;
         }
 
         internal void AddNumber(int value)

@@ -51,7 +51,9 @@ namespace System.Net
                 null;
 
         internal static bool IsBasicHeader(string header) =>
-            header.StartsWith("Basic ", StringComparison.OrdinalIgnoreCase);
+            header.Length >= 6 &&
+            header[5] == ' ' &&
+            string.Compare(header, 0, AuthenticationTypes.Basic, 0, 5, StringComparison.OrdinalIgnoreCase) == 0;
 
         internal static bool TryParseBasicAuth(string headerValue, out HttpStatusCode errorCode, [NotNullWhen(true)] out string? username, [NotNullWhen(true)] out string? password)
         {

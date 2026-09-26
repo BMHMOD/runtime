@@ -8,7 +8,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 
 
@@ -7347,7 +7346,6 @@ public class Test999
 
 public class Test_RecursiveInheritance
 {
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint()
     {

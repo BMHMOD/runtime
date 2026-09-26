@@ -165,7 +165,7 @@ namespace System
                 {
                     if (!TryLoadEmbeddedTzFile(fileName, out var rawData))
                     {
-                        return [];
+                        return Array.Empty<string>();
                     }
                     using var blobReader = new StreamReader(new MemoryStream(rawData), Encoding.UTF8);
                     return ParseTimeZoneIds(blobReader);
@@ -176,7 +176,7 @@ namespace System
             }
             catch (IOException) { }
             catch (UnauthorizedAccessException) { }
-            return [];
+            return Array.Empty<string>();
         }
 
         private static List<string> ParseTimeZoneIds(StreamReader reader)

@@ -47,7 +47,7 @@ namespace System.Security.Cryptography.X509Certificates.Asn1
         {
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(encoded.Span, ruleSet);
+                AsnValueReader reader = new AsnValueReader(encoded.Span, ruleSet);
 
                 DecodeCore(ref reader, expectedTag, out PolicyConstraintsAsn decoded);
                 reader.ThrowIfNotEmpty();
@@ -59,12 +59,12 @@ namespace System.Security.Cryptography.X509Certificates.Asn1
             }
         }
 
-        internal static void Decode(ref ValueAsnReader reader, out PolicyConstraintsAsn decoded)
+        internal static void Decode(ref AsnValueReader reader, out PolicyConstraintsAsn decoded)
         {
             Decode(ref reader, Asn1Tag.Sequence, out decoded);
         }
 
-        internal static void Decode(ref ValueAsnReader reader, Asn1Tag expectedTag, out PolicyConstraintsAsn decoded)
+        internal static void Decode(ref AsnValueReader reader, Asn1Tag expectedTag, out PolicyConstraintsAsn decoded)
         {
             try
             {
@@ -76,10 +76,10 @@ namespace System.Security.Cryptography.X509Certificates.Asn1
             }
         }
 
-        private static void DecodeCore(ref ValueAsnReader reader, Asn1Tag expectedTag, out PolicyConstraintsAsn decoded)
+        private static void DecodeCore(ref AsnValueReader reader, Asn1Tag expectedTag, out PolicyConstraintsAsn decoded)
         {
             decoded = default;
-            ValueAsnReader sequenceReader = reader.ReadSequence(expectedTag);
+            AsnValueReader sequenceReader = reader.ReadSequence(expectedTag);
 
 
             if (sequenceReader.HasData && sequenceReader.PeekTag().HasSameClassAndValue(new Asn1Tag(TagClass.ContextSpecific, 0)))

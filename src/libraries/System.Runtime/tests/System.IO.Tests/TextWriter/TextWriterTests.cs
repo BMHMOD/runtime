@@ -4,7 +4,6 @@
 using System.CodeDom.Compiler;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
@@ -514,7 +513,7 @@ namespace System.IO.Tests
 
         #region Write Async Overloads
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task WriteAsyncCharTest()
         {
             using (CharArrayTextWriter tw = NewTextWriter)
@@ -524,7 +523,7 @@ namespace System.IO.Tests
             }
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task WriteAsyncRuneTest()
         {
             using (CharArrayTextWriter tw = NewTextWriter)
@@ -534,7 +533,7 @@ namespace System.IO.Tests
             }
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task WriteAsyncStringTest()
         {
             using (CharArrayTextWriter tw = NewTextWriter)
@@ -545,7 +544,7 @@ namespace System.IO.Tests
             }
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task WriteAsyncCharArrayIndexCountTest()
         {
             using (CharArrayTextWriter tw = NewTextWriter)
@@ -559,7 +558,7 @@ namespace System.IO.Tests
 
         #region WriteLineAsync Overloads
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task WriteLineAsyncTest()
         {
             using (CharArrayTextWriter tw = NewTextWriter)
@@ -569,7 +568,7 @@ namespace System.IO.Tests
             }
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task WriteLineAsyncCharTest()
         {
             using (CharArrayTextWriter tw = NewTextWriter)
@@ -579,7 +578,7 @@ namespace System.IO.Tests
             }
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task WriteLineAsyncRuneTest()
         {
             using (CharArrayTextWriter tw = NewTextWriter)
@@ -589,7 +588,7 @@ namespace System.IO.Tests
             }
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task WriteLineAsyncStringTest()
         {
             using (CharArrayTextWriter tw = NewTextWriter)
@@ -600,7 +599,7 @@ namespace System.IO.Tests
             }
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task WriteLineAsyncCharArrayIndexCount()
         {
             using (CharArrayTextWriter tw = NewTextWriter)
@@ -634,7 +633,7 @@ namespace System.IO.Tests
             }
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task WriteCharMemoryTest()
         {
             using (CharArrayTextWriter tw = NewTextWriter)
@@ -645,7 +644,7 @@ namespace System.IO.Tests
             }
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task WriteLineCharMemoryTest()
         {
             using (CharArrayTextWriter tw = NewTextWriter)
@@ -692,9 +691,9 @@ namespace System.IO.Tests
         {
             StringBuilder testData = GetTestStringBuilder(testStringBuilderKind);
 
-            if (!isSynchronized && !PlatformDetection.IsMultithreadingSupported)
+            if (!isSynchronized && !PlatformDetection.IsThreadingSupported)
             {
-                throw new SkipTestException(nameof(PlatformDetection.IsMultithreadingSupported));
+                throw new SkipTestException(nameof(PlatformDetection.IsThreadingSupported));
             }
 
             using (CharArrayTextWriter ctw = NewTextWriter)
@@ -712,9 +711,9 @@ namespace System.IO.Tests
         {
             StringBuilder testData = GetTestStringBuilder(testStringBuilderKind);
 
-            if (!isSynchronized && !PlatformDetection.IsMultithreadingSupported)
+            if (!isSynchronized && !PlatformDetection.IsThreadingSupported)
             {
-                throw new SkipTestException(nameof(PlatformDetection.IsMultithreadingSupported));
+                throw new SkipTestException(nameof(PlatformDetection.IsThreadingSupported));
             }
 
             using (CharArrayTextWriter ctw = NewTextWriter)
@@ -723,91 +722,6 @@ namespace System.IO.Tests
                 await tw.WriteLineAsync(testData);
                 tw.Flush();
                 Assert.Equal(testData + tw.NewLine, ctw.Text);
-            }
-        }
-
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
-        public async Task WriteAsyncStringWithCancellationTokenTest()
-        {
-            using (CharArrayTextWriter tw = NewTextWriter)
-            {
-                var toWrite = new string(TestDataProvider.CharData);
-                await tw.WriteAsync(toWrite, CancellationToken.None);
-                Assert.Equal(toWrite, tw.Text);
-            }
-        }
-
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
-        public async Task WriteAsyncStringWithCancellationTokenNullTest()
-        {
-            using (CharArrayTextWriter tw = NewTextWriter)
-            {
-                await tw.WriteAsync((string?)null, CancellationToken.None);
-                Assert.Equal(string.Empty, tw.Text);
-            }
-        }
-
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
-        public async Task WriteAsyncStringWithCancellationTokenCanceledTest()
-        {
-            using (CharArrayTextWriter tw = NewTextWriter)
-            {
-                var cts = new CancellationTokenSource();
-                cts.Cancel();
-                await Assert.ThrowsAsync<TaskCanceledException>(() => tw.WriteAsync("test", cts.Token));
-            }
-        }
-
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
-        public async Task WriteLineAsyncWithCancellationTokenTest()
-        {
-            using (CharArrayTextWriter tw = NewTextWriter)
-            {
-                await tw.WriteLineAsync(CancellationToken.None);
-                Assert.Equal(tw.NewLine, tw.Text);
-            }
-        }
-
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
-        public async Task WriteLineAsyncWithCancellationTokenCanceledTest()
-        {
-            using (CharArrayTextWriter tw = NewTextWriter)
-            {
-                var cts = new CancellationTokenSource();
-                cts.Cancel();
-                await Assert.ThrowsAsync<TaskCanceledException>(() => tw.WriteLineAsync(cts.Token));
-            }
-        }
-
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
-        public async Task WriteLineAsyncStringWithCancellationTokenTest()
-        {
-            using (CharArrayTextWriter tw = NewTextWriter)
-            {
-                var toWrite = new string(TestDataProvider.CharData);
-                await tw.WriteLineAsync(toWrite, CancellationToken.None);
-                Assert.Equal(toWrite + tw.NewLine, tw.Text);
-            }
-        }
-
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
-        public async Task WriteLineAsyncStringWithCancellationTokenNullTest()
-        {
-            using (CharArrayTextWriter tw = NewTextWriter)
-            {
-                await tw.WriteLineAsync((string?)null, CancellationToken.None);
-                Assert.Equal(tw.NewLine, tw.Text);
-            }
-        }
-
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
-        public async Task WriteLineAsyncStringWithCancellationTokenCanceledTest()
-        {
-            using (CharArrayTextWriter tw = NewTextWriter)
-            {
-                var cts = new CancellationTokenSource();
-                cts.Cancel();
-                await Assert.ThrowsAsync<TaskCanceledException>(() => tw.WriteLineAsync("test", cts.Token));
             }
         }
 
@@ -832,7 +746,7 @@ namespace System.IO.Tests
         }
 
         // single-threaded WASM bypasses SyncTextWriter for faster startup
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public async Task FlushAsync_Precanceled()
         {
             Assert.Equal(TaskStatus.RanToCompletion, TextWriter.Null.FlushAsync(new CancellationToken(true)).Status);
@@ -1050,7 +964,6 @@ namespace System.IO.Tests
         }
 
         [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsNotBuiltWithAggressiveTrimming))]
-        [UnconditionalSuppressMessage("Trimming", "IL2075", Justification = "Test is skipped under trimming via IsNotBuiltWithAggressiveTrimming.")]
         public void CreateBroadcasting_AllMethodsOverridden()
         {
             HashSet<string> exempted = ["Close", "Dispose", "get_NewLine", "set_NewLine"];

@@ -21,25 +21,21 @@ This contract exposes properties that describe the target platform
 
 ## Version 1
 
-<!-- BEGIN GENERATED: usage contract=PlatformMetadata version=c1 -->
-### Data descriptors used
-
-| Data Descriptor | Field | Type | Meaning |
-| --- | --- | --- | --- |
-| `PlatformMetadata` | `CodePointerFlags` | `uint8` | fields describing the behavior of target code pointers |
-| `PlatformMetadata` | `PrecodeMachineDescriptor` | `pointer` | precode stub-related platform specific properties |
-
-### Global variables used
-
-| Global | Type | Meaning |
+Data descriptors used:
+| Data Descriptor Name | Field | Meaning |
 | --- | --- | --- |
-| `PlatformMetadata` | `pointer` | address of the PlatformMetadata data |
+| PlatformMetadata | PrecodeMachineDescriptor | precode stub-related platform specific properties |
+| PlatformMetadata | CodePointerFlags | fields describing the behavior of target code pointers |
 
-### Contracts used
+Global variables used:
+| Global Name | Type | Purpose |
+| --- | --- | --- |
+| PlatformMetadata | pointer | address of the `PlatformMetadata` data |
 
-_None._
-<!-- END GENERATED: usage contract=PlatformMetadata version=c1 -->
-
+Contracts used:
+| Contract Name |
+| --- |
+| *none* |
 
 ```csharp
 TargetPointer GetPrecodeMachineDescriptor()

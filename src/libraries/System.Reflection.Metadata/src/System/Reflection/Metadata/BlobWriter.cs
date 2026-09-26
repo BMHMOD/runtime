@@ -6,7 +6,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Reflection.Internal;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace System.Reflection.Metadata
 {
@@ -470,7 +469,7 @@ namespace System.Reflection.Metadata
             fixed (char* strPtr = str)
             {
                 char* charPtr = strPtr + start;
-                int byteCount = Encoding.UTF8.GetByteCount(charPtr, length);
+                int byteCount = BlobUtilities.GetUTF8ByteCount(charPtr, length);
 
                 if (prependSize)
                 {

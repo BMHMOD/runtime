@@ -7,7 +7,6 @@ set( CORGUIDS_IDL_SOURCES
   corprof.idl
   corsym.idl
   sospriv.idl
-  dacdbi.idl
 )
 
 if(CLR_CMAKE_HOST_WIN32)

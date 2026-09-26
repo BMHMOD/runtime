@@ -238,11 +238,11 @@ namespace System.Text.Json.Nodes
             List[index] = value;
         }
 
-        internal override unsafe void GetPath(ref ValueStringBuilder path, JsonNode? child)
+        internal override void GetPath(ref ValueStringBuilder path, JsonNode? child)
         {
             Parent?.GetPath(ref path, this);
 
-            if (child is not null)
+            if (child != null)
             {
                 int index = List.IndexOf(child);
                 Debug.Assert(index >= 0);
@@ -380,7 +380,7 @@ namespace System.Text.Json.Nodes
                 {
                     get
                     {
-                        if (Value is null)
+                        if (Value == null)
                         {
                             return $"null";
                         }

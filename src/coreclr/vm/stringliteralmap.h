@@ -320,18 +320,7 @@ private:
     static StringLiteralEntry      *s_FreeEntryList; // free list chained thru the arrays.
 };
 
-struct StringLiteralEntryTraits final
-{
-    using Type = StringLiteralEntry*;
-    static constexpr Type Default() { return NULL; }
-    static void Free(Type pEntry)
-    {
-        STATIC_CONTRACT_WRAPPER;
-        if (pEntry != NULL)
-            StringLiteralEntry::StaticRelease(pEntry);
-    }
-};
-using StringLiteralEntryHolder = LifetimeHolder<StringLiteralEntryTraits>;
+typedef Wrapper<StringLiteralEntry*,DoNothing,StringLiteralEntry::StaticRelease> StringLiteralEntryHolder;
 
 class StringLiteralEntryArray
 {

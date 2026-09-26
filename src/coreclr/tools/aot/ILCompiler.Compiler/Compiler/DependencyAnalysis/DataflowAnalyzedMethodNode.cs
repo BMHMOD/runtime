@@ -19,7 +19,7 @@ namespace ILCompiler.DependencyAnalysis
     public class DataflowAnalyzedMethodNode : DependencyNodeCore<NodeFactory>
     {
         private readonly MethodIL _methodIL;
-        private List<(MethodDesc OwningMethod, INodeWithRuntimeDeterminedDependencies Dependency)> _runtimeDependencies;
+        private List<INodeWithRuntimeDeterminedDependencies> _runtimeDependencies;
 
         public DataflowAnalyzedMethodNode(MethodIL methodIL)
         {
@@ -39,30 +39,29 @@ namespace ILCompiler.DependencyAnalysis
             {
                 // Something wrong with the input - missing references, etc.
                 // The method body likely won't compile either, so we don't care.
-                _runtimeDependencies = new List<(MethodDesc, INodeWithRuntimeDeterminedDependencies)>();
+                _runtimeDependencies = new List<INodeWithRuntimeDeterminedDependencies>();
                 return Array.Empty<DependencyListEntry>();
             }
         }
 
         public override IEnumerable<CombinedDependencyListEntry> SearchDynamicDependencies(List<DependencyNodeCore<NodeFactory>> markedNodes, int firstNode, NodeFactory factory)
         {
-            // Look for any generic specialization of this method or its compiler-generated callees (local methods, lambdas).
-            // If any are found, specialize the dataflow dependencies that originated from that method.
+            MethodDesc analyzedMethod = _methodIL.OwningMethod;
+
+            // Look for any generic specialization of this method. If any are found, specialize any dataflow dependencies.
             for (int i = firstNode; i < markedNodes.Count; i++)
             {
                 if (markedNodes[i] is not IMethodBodyNode methodBody)
                     continue;
 
                 MethodDesc method = methodBody.Method;
-                MethodDesc typicalMethod = method.GetTypicalMethodDefinition();
+                if (method.GetTypicalMethodDefinition() != analyzedMethod)
+                    continue;
 
-                // Instantiate runtime dependencies whose owning method matches this method body's typical definition
+                // Instantiate all runtime dependencies for the found generic specialization
                 foreach (var n in _runtimeDependencies)
                 {
-                    if (n.OwningMethod != typicalMethod)
-                        continue;
-
-                    foreach (var d in n.Dependency.InstantiateDependencies(factory, method.OwningType.Instantiation, method.Instantiation, isConcreteInstantiation: !method.IsSharedByGenericInstantiations))
+                    foreach (var d in n.InstantiateDependencies(factory, method.OwningType.Instantiation, method.Instantiation))
                     {
                         yield return new CombinedDependencyListEntry(d.Node, null, d.Reason);
                     }

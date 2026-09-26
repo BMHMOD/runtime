@@ -8,7 +8,6 @@ using Xunit;
 
 namespace System.Security.Cryptography.Pkcs.Tests
 {
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/126697", typeof(PlatformDetection), nameof(PlatformDetection.IsAppleMobile), nameof(PlatformDetection.IsNativeAot))]
     public static class TimestampTokenTests
     {
         [Theory]

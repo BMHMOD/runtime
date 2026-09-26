@@ -37,7 +37,6 @@ public:
     // a sequence point will also be a stack_empty point, and/or a call site.
     // The debugger will check to see if a boundary offset's source field &
     // SEQUENCE_POINT is true to determine if the boundary is a sequence point.
-    // [cDAC] [DebugInfo]: Contract depends on the values of SOURCE_TYPE_INVALID, STACK_EMPTY, CALL_INSTRUCTION, and ASYNC.
 
     enum SourceTypes
     {
@@ -46,12 +45,10 @@ public:
         STACK_EMPTY                = 0x02, // The stack is empty here
         CALL_SITE                  = 0x04, // This is a call site.
         NATIVE_END_OFFSET_UNKNOWN  = 0x08, // Indicates a epilog endpoint
-        CALL_INSTRUCTION           = 0x10, // The actual instruction of a call.
-        ASYNC                      = 0x20, // Indicates suspension/resumption for an async call
+        CALL_INSTRUCTION           = 0x10  // The actual instruction of a call.
 
     };
 
-    // [cDAC]: Mirrored in managed code (IDacDbiInterface.cs).
     struct OffsetMapping
     {
         uint32_t        nativeOffset;
@@ -131,41 +128,6 @@ public:
         REGNUM_LR,
         REGNUM_SP,
         REGNUM_PC,
-
-        // SIMD/FP V registers
-        REGNUM_FP_FIRST,
-        REGNUM_V0 = REGNUM_FP_FIRST,
-        REGNUM_V1,
-        REGNUM_V2,
-        REGNUM_V3,
-        REGNUM_V4,
-        REGNUM_V5,
-        REGNUM_V6,
-        REGNUM_V7,
-        REGNUM_V8,
-        REGNUM_V9,
-        REGNUM_V10,
-        REGNUM_V11,
-        REGNUM_V12,
-        REGNUM_V13,
-        REGNUM_V14,
-        REGNUM_V15,
-        REGNUM_V16,
-        REGNUM_V17,
-        REGNUM_V18,
-        REGNUM_V19,
-        REGNUM_V20,
-        REGNUM_V21,
-        REGNUM_V22,
-        REGNUM_V23,
-        REGNUM_V24,
-        REGNUM_V25,
-        REGNUM_V26,
-        REGNUM_V27,
-        REGNUM_V28,
-        REGNUM_V29,
-        REGNUM_V30,
-        REGNUM_V31,
 #elif TARGET_AMD64
         REGNUM_RAX,
         REGNUM_RCX,
@@ -183,23 +145,6 @@ public:
         REGNUM_R13,
         REGNUM_R14,
         REGNUM_R15,
-        REGNUM_FP_FIRST,
-        REGNUM_XMM0 = REGNUM_FP_FIRST,
-        REGNUM_XMM1,
-        REGNUM_XMM2,
-        REGNUM_XMM3,
-        REGNUM_XMM4,
-        REGNUM_XMM5,
-        REGNUM_XMM6,
-        REGNUM_XMM7,
-        REGNUM_XMM8,
-        REGNUM_XMM9,
-        REGNUM_XMM10,
-        REGNUM_XMM11,
-        REGNUM_XMM12,
-        REGNUM_XMM13,
-        REGNUM_XMM14,
-        REGNUM_XMM15,
 #elif TARGET_LOONGARCH64
         REGNUM_R0,
         REGNUM_RA,
@@ -268,7 +213,7 @@ public:
         REGNUM_T5,
         REGNUM_T6,
         REGNUM_PC,
-#elif defined(TARGET_WASM)
+#elif TARGET_WASM
         REGNUM_PC, // wasm doesn't have registers
 #else
         PORTABILITY_WARNING("Register numbers not defined on this platform")
@@ -301,7 +246,6 @@ public:
 
     // VarLoc describes the location of a native variable.  Note that currently, VLT_REG_BYREF and VLT_STK_BYREF
     // are only used for value types on X64.
-    // [cDAC]: Mirrored in managed code (IDacDbiInterface.cs).
 
     enum VarLocType
     {
@@ -342,12 +286,8 @@ public:
         signed      vlsOffset;
     };
 
-    // VLT_REG_REG -- value lives in two registers.
+    // VLT_REG_REG -- TYP_LONG with both uint32_ts enregistred
     // eg. RBM_EAXEDX
-    //
-    // vlrrReg1 holds the low part of the value, vlrrReg2 the high part. The
-    // registers may be integer RegNum values or, on platforms that include them
-    // in RegNum, floating-point RegNum values.
 
     struct vlRegReg
     {
@@ -410,7 +350,14 @@ public:
         unsigned        vlfvOffset;
     };
 
-    // [cDAC]: Mirrored in managed code (IDacDbiInterface.cs).
+    // VLT_MEMORY
+
+    struct vlMemory
+    {
+        void        *rpValue; // pointer to the in-process
+        // location of the value.
+    };
+
     struct VarLoc
     {
         VarLocType      vlType;
@@ -425,6 +372,7 @@ public:
             ICorDebugInfo::vlStk2          vlStk2;
             ICorDebugInfo::vlFPstk         vlFPstk;
             ICorDebugInfo::vlFixedVarArg   vlFixedVarArg;
+            ICorDebugInfo::vlMemory        vlMemory;
         };
     };
 
@@ -432,16 +380,14 @@ public:
 
     enum
     {
-        VARARGS_HND_ILNUM        = -1, // Value for the CORINFO_VARARGS_HANDLE varNumber
-        RETBUF_ILNUM             = -2, // Pointer to the return-buffer
-        TYPECTXT_ILNUM           = -3, // ParamTypeArg for CORINFO_GENERICS_CTXT_FROM_PARAMTYPEARG
-        ASYNC_CONTINUATION_ILNUM = -4, // Async continuation argument
-        CALL_RETURN_ILNUM        = -5, // The return value of a call
+        VARARGS_HND_ILNUM   = -1, // Value for the CORINFO_VARARGS_HANDLE varNumber
+        RETBUF_ILNUM        = -2, // Pointer to the return-buffer
+        TYPECTXT_ILNUM      = -3, // ParamTypeArg for CORINFO_GENERICS_CTXT_FROM_PARAMTYPEARG
 
-        UNKNOWN_ILNUM            = -6, // Unknown variable
+        UNKNOWN_ILNUM       = -4, // Unknown variable
 
-        MAX_ILNUM                = -6  // Sentinel value. This should be set to the largest magnitude value in the enum
-                                       // so that the compression routines know the enum's range.
+        MAX_ILNUM           = -4  // Sentinel value. This should be set to the largest magnitude value in th enum
+                                  // so that the compression routines know the enum's range.
     };
 
     struct ILVarInfo
@@ -451,12 +397,10 @@ public:
         uint32_t        varNumber;
     };
 
-    // [cDAC]: Mirrored in managed code (IDacDbiInterface.cs).
     struct NativeVarInfo
     {
         uint32_t        startOffset;
         uint32_t        endOffset;
-        uint32_t        callReturnValueILOffset;
         uint32_t        varNumber;
         VarLoc          loc;
     };
@@ -486,31 +430,5 @@ public:
         uint32_t ILOffset;
         // Source information about the IL instruction in the inlinee
         SourceTypes Source;
-    };
-
-    struct AsyncContinuationVarInfo
-    {
-        // IL number of variable (or one of the special IL numbers, like TYPECTXT_ILNUM)
-        uint32_t VarNumber;
-        // Offset in continuation object where this variable is stored
-        uint32_t Offset;
-    };
-
-    struct AsyncSuspensionPoint
-    {
-        // Offset of IP stored in ResumeInfo.DiagnosticIP. This offset maps to
-        // the IL call that resulted in the suspension point through an ASYNC
-        // mapping. Also used as a unique key for debug information about the
-        // suspension point. See ResumeInfo.DiagnosticIP in SPC for more info.
-        uint32_t DiagnosticNativeOffset;
-        // Count of AsyncContinuationVarInfo in array of locals starting where
-        // the previous suspension point's locals end.
-        uint32_t NumContinuationVars;
-    };
-
-    struct AsyncInfo
-    {
-        // Number of suspension points in the method.
-        uint32_t NumSuspensionPoints;
     };
 };

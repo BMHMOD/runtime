@@ -69,31 +69,21 @@ static bool IsSaSigInfo(struct sigaction* action)
 static bool IsSigDfl(struct sigaction* action)
 {
     assert(action);
-    bool isDefault;
     // macOS can return sigaction with SIG_DFL and SA_SIGINFO.
     // SA_SIGINFO means we should use sa_sigaction, but here we want to check sa_handler.
     // So we ignore SA_SIGINFO when sa_sigaction and sa_handler are at the same address.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wstrict-prototypes"
-    isDefault = (&action->sa_handler == (void*)&action->sa_sigaction || !IsSaSigInfo(action)) &&
-                action->sa_handler == SIG_DFL;
-#pragma clang diagnostic pop
-    return isDefault;
+    return (&action->sa_handler == (void*)&action->sa_sigaction || !IsSaSigInfo(action)) &&
+            action->sa_handler == SIG_DFL;
 }
 
 static bool IsSigIgn(struct sigaction* action)
 {
     assert(action);
-    bool isIgnored;
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wstrict-prototypes"
-    isIgnored = (&action->sa_handler == (void*)&action->sa_sigaction || !IsSaSigInfo(action)) &&
-                action->sa_handler == SIG_IGN;
-#pragma clang diagnostic pop
-    return isIgnored;
+    return (&action->sa_handler == (void*)&action->sa_sigaction || !IsSaSigInfo(action)) &&
+            action->sa_handler == SIG_IGN;
 }
 
-bool TryConvertSignalCodeToPosixSignal(int signalCode, PosixSignal* posixSignal)
+static bool TryConvertSignalCodeToPosixSignal(int signalCode, PosixSignal* posixSignal)
 {
     assert(posixSignal != NULL);
 
@@ -139,10 +129,6 @@ bool TryConvertSignalCodeToPosixSignal(int signalCode, PosixSignal* posixSignal)
             *posixSignal = PosixSignalSIGTSTP;
             return true;
 
-        case SIGKILL:
-            *posixSignal = PosixSignalSIGKILL;
-            return true;
-
         default:
             *posixSignal = (PosixSignal)signalCode;
             return false;
@@ -183,9 +169,6 @@ int32_t SystemNative_GetPlatformSignalNumber(PosixSignal signal)
         case PosixSignalSIGTSTP:
             return SIGTSTP;
 
-        case PosixSignalSIGKILL:
-            return SIGKILL;
-
         case PosixSignalInvalid:
             break;
     }
@@ -196,11 +179,6 @@ int32_t SystemNative_GetPlatformSignalNumber(PosixSignal signal)
     }
 
     return 0;
-}
-
-int32_t SystemNative_GetPlatformSIGSTOP(void)
-{
-    return SIGSTOP;
 }
 
 void SystemNative_SetPosixSignalHandler(PosixSignalHandler signalHandler)
@@ -249,7 +227,7 @@ static void SignalHandler(int sig, siginfo_t* siginfo, void* context)
             else
             {
                 assert(origHandler->sa_handler);
-                ((void (*)(int))origHandler->sa_handler)(sig);
+                origHandler->sa_handler(sig);
             }
 
         }
@@ -507,7 +485,7 @@ void SystemNative_SetTerminalInvalidationHandler(TerminalInvalidationCallback ca
 
         installed = InstallSignalHandler(SIGCONT, SA_RESTART);
         assert(installed);
-        installed = InstallSignalHandler(SIGCHLD, SA_RESTART | SA_NOCLDSTOP);
+        installed = InstallSignalHandler(SIGCHLD, SA_RESTART);
         assert(installed);
         installed = InstallSignalHandler(SIGWINCH, SA_RESTART);
         assert(installed);
@@ -526,7 +504,7 @@ void SystemNative_RegisterForSigChld(SigChldCallback callback)
     {
         g_sigChldCallback = callback;
 
-        installed = InstallSignalHandler(SIGCHLD, SA_RESTART | SA_NOCLDSTOP);
+        installed = InstallSignalHandler(SIGCHLD, SA_RESTART);
         assert(installed);
     }
     pthread_mutex_unlock(&lock);

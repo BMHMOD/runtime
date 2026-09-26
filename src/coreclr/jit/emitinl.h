@@ -229,7 +229,6 @@ inline ssize_t emitter::emitGetInsAmdAny(const instrDesc* id) const
  */
 /*static*/ inline void emitter::emitEncodeCallGCregs(regMaskTP regmask, instrDesc* id)
 {
-#if HAS_FIXED_REGISTER_SET
     unsigned encodeMask;
 
 #ifdef TARGET_X86
@@ -416,10 +415,8 @@ inline ssize_t emitter::emitGetInsAmdAny(const instrDesc* id) const
 #else
     NYI("unknown target");
 #endif
-#endif // HAS_FIXED_REGISTER_SET
 }
 
-#if HAS_FIXED_REGISTER_SET
 /*static*/ inline unsigned emitter::emitDecodeCallGCregs(instrDesc* id)
 {
     regMaskTP regmask = RBM_NONE;
@@ -589,7 +586,6 @@ inline ssize_t emitter::emitGetInsAmdAny(const instrDesc* id) const
 
     return (unsigned int)regmask.getLow();
 }
-#endif // HAS_FIXED_REGISTER_SET
 
 #ifdef TARGET_XARCH
 inline bool insIsCMOV(instruction ins)
@@ -611,7 +607,9 @@ bool emitter::emitGenNoGCLst(Callback& cb, bool skipMainPrologsAndEpilogs /* = f
     {
         if (skipMainPrologsAndEpilogs)
         {
-            if ((ig->igFlags & (IGF_PROLOG | IGF_EPILOG)) != 0)
+            if (ig == emitPrologIG)
+                continue;
+            if (ig->igFlags & IGF_EPILOG)
                 continue;
         }
         if ((ig->igFlags & IGF_NOGCINTERRUPT) && ig->igSize > 0)

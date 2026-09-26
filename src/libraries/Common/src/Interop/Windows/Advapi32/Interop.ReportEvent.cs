@@ -9,7 +9,6 @@ internal static partial class Interop
 {
     internal static partial class Advapi32
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Advapi32, EntryPoint = "ReportEventW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
         [return: MarshalAs(UnmanagedType.Bool)]
         public static partial bool ReportEvent(
@@ -17,7 +16,7 @@ internal static partial class Interop
             short wType,
             ushort wcategory,
             uint dwEventID,
-            byte[]? lpUserSid,
+            byte[] lpUserSid,
             short wNumStrings,
             int dwDataSize,
             IntPtr lpStrings,

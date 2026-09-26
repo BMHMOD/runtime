@@ -11,7 +11,6 @@ using System.Text;
 
 using ILCompiler.DependencyAnalysis;
 using Internal.JitInterface;
-using Internal.Text;
 using Internal.TypeSystem;
 using Internal.TypeSystem.TypesDebugInfo;
 
@@ -100,16 +99,10 @@ namespace ILCompiler.ObjectWriter
                     };
 
                 case TargetArchitecture.ARM64:
-                    // X0-X28, FP, LR, SP have the same order.
-                    if (regNum <= 31)
+                    // X0-X28, FP, LR, SP have same order
+                    if (regNum <= 32)
                         return (CodeViewRegister)(regNum + (uint)CV_ARM64_X0);
-
-                    if (regNum == 32)
-                        return CV_ARM64_PC;
-
-                    if (regNum <= 64)
-                        return (CodeViewRegister)(regNum - 33 + (uint)CV_ARM64_Q0);
-
+                    // TODO: Floating point
                     return CV_REG_NONE;
 
                 default:
@@ -118,8 +111,7 @@ namespace ILCompiler.ObjectWriter
         }
 
         public void EmitSubprogramInfo(
-            Utf8String methodDisplayName,
-            Utf8String methodName,
+            string methodName,
             int methodPCLength,
             uint methodTypeIndex,
             IEnumerable<(DebugVarInfoMetadata, uint)> debugVars,
@@ -128,6 +120,7 @@ namespace ILCompiler.ObjectWriter
             using var symbolSubsection = GetSubsection(DebugSymbolsSubsectionType.Symbols);
 
             // TODO: Do we need those?
+            _ = methodTypeIndex;
             _ = debugEHClauseInfos;
 
             using (var recordWriter = symbolSubsection.StartRecord(S_GPROC32_ID))
@@ -138,11 +131,11 @@ namespace ILCompiler.ObjectWriter
                 recordWriter.Write((uint)methodPCLength);
                 recordWriter.Write((uint)0); // Debug start offset
                 recordWriter.Write((uint)methodPCLength); // Debug end offset
-                recordWriter.Write(methodTypeIndex); // Type index or ID
+                recordWriter.Write((uint)0); // Type index or ID
                 recordWriter.EmitSymbolReference(RelocType.IMAGE_REL_SECREL, methodName);
                 recordWriter.EmitSymbolReference(RelocType.IMAGE_REL_SECTION, methodName);
                 recordWriter.Write((byte)0); // Proc flags
-                recordWriter.Write(methodDisplayName);
+                recordWriter.Write(methodName);
             }
 
             foreach (var (debugVar, typeIndex) in debugVars)
@@ -226,7 +219,7 @@ namespace ILCompiler.ObjectWriter
 
         public void EmitLineInfo(
             CodeViewFileTableBuilder fileTableBuilder,
-            Utf8String methodName,
+            string methodName,
             int methodPCLength,
             IEnumerable<NativeSequencePoint> sequencePoints)
         {
@@ -282,7 +275,7 @@ namespace ILCompiler.ObjectWriter
             }
         }
 
-        public void WriteUserDefinedTypes(IList<(Utf8String, uint)> userDefinedTypes)
+        public void WriteUserDefinedTypes(IList<(string, uint)> userDefinedTypes)
         {
             using var symbolSubsection = GetSubsection(DebugSymbolsSubsectionType.Symbols);
             foreach (var (name, typeIndex) in userDefinedTypes)
@@ -306,7 +299,7 @@ namespace ILCompiler.ObjectWriter
             private readonly SectionWriter _sectionWriter;
             internal uint _size;
             internal readonly List<byte[]> _data = new();
-            internal readonly List<(uint, RelocType, Utf8String)> _relocations = new();
+            internal readonly List<(uint, RelocType, string)> _relocations = new();
 
             public SubsectionWriter(DebugSymbolsSubsectionType kind, SectionWriter sectionWriter)
             {
@@ -406,13 +399,6 @@ namespace ILCompiler.ObjectWriter
                 _bufferWriter.Advance(sizeof(ulong));
             }
 
-            public void Write(Utf8String value)
-            {
-                int byteCount = value.Length + 1;
-                value.AsSpan().CopyTo(_bufferWriter.GetSpan(byteCount));
-                _bufferWriter.Advance(byteCount);
-            }
-
             public void Write(string value)
             {
                 int byteCount = Encoding.UTF8.GetByteCount(value) + 1;
@@ -422,7 +408,7 @@ namespace ILCompiler.ObjectWriter
 
             public void EmitSymbolReference(
                 RelocType relocType,
-                Utf8String symbolName,
+                string symbolName,
                 int addend = 0)
             {
                 _subsectionWriter._relocations.Add((

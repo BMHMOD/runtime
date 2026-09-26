@@ -29,8 +29,9 @@ namespace System.Net.Http
         RetryOnNextProxy,
 
         /// <summary>
-        /// The request received a session-based authentication challenge (e.g., NTLM or Negotiate) on HTTP/2 and should be retried on HTTP/1.1.
+        /// The HTTP/2 connection reached the maximum number of streams and
+        /// another HTTP/2 connection must be created or found to serve the request.
         /// </summary>
-        RetryOnSessionAuthenticationChallenge
+        RetryOnStreamLimitReached
     }
 }

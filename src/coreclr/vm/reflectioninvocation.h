@@ -45,7 +45,7 @@
 class ReflectionInvocation
 {
 public:
-    FCDECL0(static FC_BOOL_RET, TryEnsureSufficientExecutionStack);
+    static FCDECL0(FC_BOOL_RET, TryEnsureSufficientExecutionStack);
 };
 
 extern "C" void QCALLTYPE ReflectionInvocation_CompileMethod(MethodDesc * pMD);

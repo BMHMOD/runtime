@@ -9,8 +9,6 @@ namespace System.Security.Cryptography
     {
         internal static new bool IsSupported => false;
 
-        internal static bool IsAlgorithmSupported(MLKemAlgorithm _) => false;
-
         private MLKemImplementation(MLKemAlgorithm algorithm) : base(algorithm)
         {
             Debug.Fail("Caller should have checked platform availability.");

@@ -13,15 +13,11 @@
 // <Expects Status=success></Expects>
 
 // <Code> 
-
-namespace b48990a;
-
 using System;
 using Xunit;
 
 public class MyClass
 {
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

@@ -16,7 +16,6 @@ namespace System.IO.Compression
         private int _bufferOffset;
         private int _bufferCount;
         private bool _nonEmptyInput;
-        private volatile bool _decompressionFinished;
 
         /// <summary>Reads a number of decompressed bytes into the specified byte array.</summary>
         /// <param name="buffer">The array used to store decompressed bytes.</param>
@@ -62,9 +61,7 @@ namespace System.IO.Compression
             EnsureNotDisposed();
 
             int bytesWritten;
-            OperationStatus lastResult;
-
-            while (!TryDecompress(buffer, out bytesWritten, out lastResult))
+            while (!TryDecompress(buffer, out bytesWritten))
             {
                 int bytesRead = _stream.Read(_buffer, _bufferCount, _buffer.Length - _bufferCount);
                 if (bytesRead <= 0)
@@ -81,13 +78,6 @@ namespace System.IO.Compression
                 {
                     ThrowInvalidStream();
                 }
-            }
-
-            // When decompression finishes, rewind the stream to the exact end of compressed data
-            if (bytesWritten == 0 && lastResult == OperationStatus.Done && !_decompressionFinished && _stream.CanSeek)
-            {
-                TryRewindStream(_stream);
-                _decompressionFinished = true;
             }
 
             return bytesWritten;
@@ -159,9 +149,7 @@ namespace System.IO.Compression
                 try
                 {
                     int bytesWritten;
-                    OperationStatus lastResult;
-
-                    while (!TryDecompress(buffer.Span, out bytesWritten, out lastResult))
+                    while (!TryDecompress(buffer.Span, out bytesWritten))
                     {
                         int bytesRead = await _stream.ReadAsync(_buffer.AsMemory(_bufferCount), cancellationToken).ConfigureAwait(false);
                         if (bytesRead <= 0)
@@ -180,13 +168,6 @@ namespace System.IO.Compression
                         }
                     }
 
-                    // When decompression finishes, rewind the stream to the exact end of compressed data
-                    if (bytesWritten == 0 && lastResult == OperationStatus.Done && !_decompressionFinished && _stream.CanSeek)
-                    {
-                        TryRewindStream(_stream);
-                        _decompressionFinished = true;
-                    }
-
                     return bytesWritten;
                 }
                 finally
@@ -199,12 +180,11 @@ namespace System.IO.Compression
         /// <summary>Tries to decode available data into the destination buffer.</summary>
         /// <param name="destination">The destination buffer for the decompressed data.</param>
         /// <param name="bytesWritten">The number of bytes written to destination.</param>
-        /// <param name="lastResult">The result of the last decompress operation.</param>
         /// <returns>true if the caller should consider the read operation completed; otherwise, false.</returns>
-        private bool TryDecompress(Span<byte> destination, out int bytesWritten, out OperationStatus lastResult)
+        private bool TryDecompress(Span<byte> destination, out int bytesWritten)
         {
             // Decompress any data we may have in our buffer.
-            lastResult = _decoder.Decompress(new ReadOnlySpan<byte>(_buffer, _bufferOffset, _bufferCount), destination, out int bytesConsumed, out bytesWritten);
+            OperationStatus lastResult = _decoder.Decompress(new ReadOnlySpan<byte>(_buffer, _bufferOffset, _bufferCount), destination, out int bytesConsumed, out bytesWritten);
             if (lastResult == OperationStatus.InvalidData)
             {
                 throw new InvalidOperationException(SR.BrotliStream_Decompress_InvalidData);

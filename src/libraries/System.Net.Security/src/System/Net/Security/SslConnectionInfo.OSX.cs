@@ -25,7 +25,7 @@ namespace System.Net.Security
             }
         }
 
-        private unsafe void UpdateSslConnectionInfoNetworkFramework(SafeDeleteNwContext context)
+        private void UpdateSslConnectionInfoNetworkFramework(SafeDeleteNwContext context)
         {
             SafeNwHandle nwContext = context.ConnectionHandle;
             SslProtocols protocol;

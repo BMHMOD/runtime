@@ -134,7 +134,8 @@ CObjectType CorUnix::otFileMapping(
                 NULL,   // No process local data cleanup routine
                 CObjectType::UnwaitableObject,
                 CObjectType::SignalingNotApplicable,
-                CObjectType::ThreadReleaseNotApplicable
+                CObjectType::ThreadReleaseNotApplicable,
+                CObjectType::OwnershipNotApplicable
                 );
 
 CAllowedObjectTypes aotFileMapping(otiFileMapping);
@@ -466,19 +467,7 @@ CorUnix::InternalCreateFileMapping(
             // information, though...
             //
 
-#ifdef TARGET_WASI
-            // WASI has no dup(); re-open by path with the same access mode
-            // so writable mappings still work. O_CLOEXEC isn't meaningful
-            // on WASI (no exec). Handles created by init_std_handle()
-            // (STDIN/STDOUT/STDERR) have no backing path, so there is nothing
-            // to re-open; fail gracefully instead of passing NULL to open().
-            UnixFd = (pFileLocalData->unix_filename != NULL)
-                ? open(pFileLocalData->unix_filename,
-                       pFileLocalData->open_flags & O_ACCMODE)
-                : -1;
-#else
             UnixFd = fcntl(pFileLocalData->unix_fd, F_DUPFD_CLOEXEC, 0); // dup, but with CLOEXEC
-#endif
             if (-1 == UnixFd)
             {
                 ERROR( "Unable to duplicate the Unix file descriptor!\n" );
@@ -2563,7 +2552,7 @@ BOOL MAPMarkSectionAsNotNeeded(LPCVOID lpAddress)
 
     BOOL retval = TRUE;
 
-#if !defined(TARGET_ANDROID) && !defined(TARGET_WASM)
+#ifndef TARGET_ANDROID
     minipal_mutex_enter(&mapping_critsec);
     PLIST_ENTRY pLink, pLinkNext = NULL;
 
@@ -2593,7 +2582,7 @@ BOOL MAPMarkSectionAsNotNeeded(LPCVOID lpAddress)
     }
 
     minipal_mutex_leave(&mapping_critsec);
-#endif // !TARGET_ANDROID && !TARGET_WASM
+#endif // TARGET_ANDROID
 
     TRACE_(LOADER)("MAPMarkSectionAsNotNeeded returning %d\n", retval);
     return retval;

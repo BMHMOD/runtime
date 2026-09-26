@@ -7,9 +7,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using Xunit;
 
-namespace SIMDTests.VectorCastTests;
-
-public partial class VectorTest : VectorTestBase
+public partial class VectorTest
 {
     const int Pass = 100;
     const int Fail = -1;

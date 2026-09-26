@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using Point = System.Numerics.Vector4;
 using Xunit;
 
-namespace SIMDTests.MinMaxTests
+namespace VectorMathTests
 {
     public class Program
     {

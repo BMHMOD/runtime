@@ -43,7 +43,7 @@ namespace System.Text.Json.Serialization
                     ThrowHelper.ThrowInvalidOperationException_SerializerConverterFactoryReturnsNull(GetType());
                     break;
                 case JsonConverterFactory:
-                    ThrowHelper.ThrowInvalidOperationException_SerializerConverterFactoryReturnsJsonConverterFactory(GetType());
+                    ThrowHelper.ThrowInvalidOperationException_SerializerConverterFactoryReturnsJsonConverterFactorty(GetType());
                     break;
             }
 

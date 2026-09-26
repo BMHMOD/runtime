@@ -28,7 +28,7 @@ public struct Tuple<T0, T1>
 
 public static class M
 {
-    [ConditionalFact(typeof(TestLibrary.Utilities), nameof(TestLibrary.Utilities.IsNotNativeAot))]
+    [Fact]
     [OuterLoop]
     public static int TestEntryPoint()
     {

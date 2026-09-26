@@ -5,7 +5,7 @@ using Mono.Linker.Tests.Cases.Expectations.Metadata;
 namespace Mono.Linker.Tests.Cases.BCLFeatures.ETW
 {
     [Reference("System.Diagnostics.Tracing.dll")]
-    [SetupLinkerArgument("-a", "test", "library")]
+    [SetupLinkerArgument("-a", "test.exe", "library")]
     [KeptMember(".ctor()")]
     public class CustomLibraryEventSource
     {

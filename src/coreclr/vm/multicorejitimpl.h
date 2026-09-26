@@ -626,13 +626,13 @@ private:
     unsigned FindModule(Module * pModule);
     unsigned GetOrAddModuleIndex(Module * pModule);
 
-    HRESULT WriteModuleRecord(FILE * fp,  const RecorderModuleInfo & module);
+    HRESULT WriteModuleRecord(IStream * pStream,  const RecorderModuleInfo & module);
 
     void RecordMethodInfo(unsigned moduleIndex, MethodDesc * pMethod, bool application);
     unsigned RecordModuleInfo(Module * pModule);
     void RecordOrUpdateModuleInfo(FileLoadLevel needLevel, unsigned moduleIndex);
 
-    HRESULT WriteOutput(FILE * fp);
+    HRESULT WriteOutput(IStream * pStream);
 
     HRESULT WriteOutput();
 
@@ -730,8 +730,7 @@ public:
 
 #ifdef MULTICOREJIT_LOGGING
 
-#include <minipal/types.h>
-void _MulticoreJitTrace(const char * format, ...) MINIPAL_ATTR_FORMAT_PRINTF(1, 2);
+void _MulticoreJitTrace(const char * format, ...);
 
 #define MulticoreJitTrace(x)      do { _MulticoreJitTrace x; } while (0)
 

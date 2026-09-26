@@ -12,9 +12,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using WasiHttpWorld;
-using WasiHttpWorld.wit.Imports.wasi.http.v0_2_8;
-using WasiHttpWorld.wit.Imports.wasi.io.v0_2_8;
-using static WasiHttpWorld.wit.Imports.wasi.http.v0_2_8.ITypesImports;
+using WasiHttpWorld.wit.imports.wasi.http.v0_2_0;
+using WasiHttpWorld.wit.imports.wasi.io.v0_2_0;
+using static WasiHttpWorld.wit.imports.wasi.http.v0_2_0.ITypes;
 
 namespace System.Net.Http
 {
@@ -48,7 +48,7 @@ namespace System.Net.Http
 #pragma warning restore CA2025
 #pragma warning restore CS4014
 
-                future = IOutgoingHandlerImports.Handle(outgoingRequest, null);
+                future = OutgoingHandlerInterop.Handle(outgoingRequest, null);
 
                 using var incomingResponse = await SendRequest(cancellationToken).ConfigureAwait(false);
 

@@ -7,7 +7,6 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace System.Text.Json
 {
@@ -140,7 +139,7 @@ namespace System.Text.Json
                 return property;
             }
 
-            throw new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, propertyName));
+            throw new KeyNotFoundException();
         }
 
         /// <summary>
@@ -178,7 +177,7 @@ namespace System.Text.Json
                 return property;
             }
 
-            throw new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, propertyName.ToString()));
+            throw new KeyNotFoundException();
         }
 
         /// <summary>
@@ -218,7 +217,7 @@ namespace System.Text.Json
                 return property;
             }
 
-            throw new KeyNotFoundException(SR.Format(SR.Arg_KeyNotFoundWithKey, Encoding.UTF8.GetString(utf8PropertyName)));
+            throw new KeyNotFoundException();
         }
 
         /// <summary>
@@ -473,12 +472,12 @@ namespace System.Text.Json
         [CLSCompliant(false)]
         public sbyte GetSByte()
         {
-            if (!TryGetSByte(out sbyte value))
+            if (TryGetSByte(out sbyte value))
             {
-                ThrowHelper.ThrowFormatException();
+                return value;
             }
 
-            return value;
+            throw new FormatException();
         }
 
         /// <summary>
@@ -523,12 +522,12 @@ namespace System.Text.Json
         /// </exception>
         public byte GetByte()
         {
-            if (!TryGetByte(out byte value))
+            if (TryGetByte(out byte value))
             {
-                ThrowHelper.ThrowFormatException();
+                return value;
             }
 
-            return value;
+            throw new FormatException();
         }
 
         /// <summary>
@@ -570,12 +569,12 @@ namespace System.Text.Json
         /// </exception>
         public short GetInt16()
         {
-            if (!TryGetInt16(out short value))
+            if (TryGetInt16(out short value))
             {
-                ThrowHelper.ThrowFormatException();
+                return value;
             }
 
-            return value;
+            throw new FormatException();
         }
 
         /// <summary>
@@ -622,12 +621,12 @@ namespace System.Text.Json
         [CLSCompliant(false)]
         public ushort GetUInt16()
         {
-            if (!TryGetUInt16(out ushort value))
+            if (TryGetUInt16(out ushort value))
             {
-                ThrowHelper.ThrowFormatException();
+                return value;
             }
 
-            return value;
+            throw new FormatException();
         }
 
         /// <summary>
@@ -1257,7 +1256,7 @@ namespace System.Text.Json
         /// </remarks>
         public static bool DeepEquals(JsonElement element1, JsonElement element2)
         {
-            if (!RuntimeHelpers.TryEnsureSufficientExecutionStack())
+            if (!StackHelper.TryEnsureSufficientExecutionStack())
             {
                 ThrowHelper.ThrowInsufficientExecutionStackException_JsonElementDeepEqualsInsufficientExecutionStack();
             }
@@ -1442,7 +1441,7 @@ namespace System.Text.Json
 
             if (TokenType == JsonTokenType.Null)
             {
-                return text is null;
+                return text == null;
             }
 
             return TextEqualsHelper(text.AsSpan(), isPropertyName: false);
@@ -1661,7 +1660,7 @@ namespace System.Text.Json
                 case JsonTokenType.StartObject:
                     {
                         // null parent should have hit the None case
-                        Debug.Assert(_parent is not null);
+                        Debug.Assert(_parent != null);
                         return _parent.GetRawValueAsString(_idx);
                     }
                 case JsonTokenType.String:
@@ -1704,7 +1703,7 @@ namespace System.Text.Json
 
         private void CheckValidInstance()
         {
-            if (_parent is null)
+            if (_parent == null)
             {
                 throw new InvalidOperationException();
             }

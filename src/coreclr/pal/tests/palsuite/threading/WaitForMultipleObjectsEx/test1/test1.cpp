@@ -179,7 +179,7 @@ BOOL WaitMultipleDuplicateHandleTest_WFMOEx_test1()
     HANDLE eventHandles[] = {eventHandle, eventHandle};
 
     // WaitAny - Wait for any of the events (no error expected)
-    DWORD result = WaitForMultipleObjectsEx(sizeof(eventHandles) / sizeof(eventHandles[0]), eventHandles, FALSE, 0, FALSE);
+    DWORD result = WaitForMultipleObjects(sizeof(eventHandles) / sizeof(eventHandles[0]), eventHandles, FALSE, 0);
     if (result != WAIT_OBJECT_0)
     {
         Trace("WaitMultipleDuplicateHandleTest:WaitAny failed (%x)\n", GetLastError());
@@ -187,7 +187,7 @@ BOOL WaitMultipleDuplicateHandleTest_WFMOEx_test1()
     }
 
     // WaitAll - Wait for all of the events (error expected)
-    result = WaitForMultipleObjectsEx(sizeof(eventHandles) / sizeof(eventHandles[0]), eventHandles, TRUE, 0, FALSE);
+    result = WaitForMultipleObjects(sizeof(eventHandles) / sizeof(eventHandles[0]), eventHandles, TRUE, 0);
     if (result != WAIT_FAILED)
     {
         Trace("WaitMultipleDuplicateHandleTest:WaitAll failed: call unexpectedly succeeded\n");

@@ -383,7 +383,7 @@ namespace System.Diagnostics
             Write(string.Create(CultureInfo.InvariantCulture, stackalloc char[256], $"{source} {eventType}: {id} : "));
         }
 
-        private unsafe void WriteFooter(TraceEventCache? eventCache)
+        private void WriteFooter(TraceEventCache? eventCache)
         {
             if (eventCache == null)
                 return;

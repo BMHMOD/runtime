@@ -34,8 +34,7 @@ namespace System.Runtime.InteropServices.Marshalling
         /// The default strategy to use for calling <c>IUnknown</c> methods.
         /// </summary>
         /// <remarks>
-        /// This strategy expects that all provided COM objects are either free threaded and that calls to <c>IUnknown</c> methods can be made from any thread or affinitized to the current apartment and <c>IUnknown</c> methods can safely be called on the current thread.
-        /// This strategy is always safe on non-Windows platforms, since COM apartments do not exist on those platforms.
+        /// This strategy assumes that all provided COM objects are free threaded and that calls to <c>IUnknown</c> methods can be made from any thread.
         /// </remarks>
         public static IIUnknownStrategy DefaultIUnknownStrategy { get; } = FreeThreadedStrategy.Instance;
 

@@ -14,8 +14,6 @@ namespace ILCompiler
         public CompilerTypeSystemContext(TargetDetails details, SharedGenericsMode genericsMode)
             : base(details)
         {
-            _virtualMethodAlgorithm = new AsyncAwareVirtualMethodResolutionAlgorithm(this);
-            _continuationTypeHashtable = new(this);
             _genericsMode = genericsMode;
         }
 
@@ -51,21 +49,17 @@ namespace ILCompiler
         private VectorOfTFieldLayoutAlgorithm _vectorOfTFieldLayoutAlgorithm;
         private VectorFieldLayoutAlgorithm _vectorFieldLayoutAlgorithm;
         private Int128FieldLayoutAlgorithm _int128FieldLayoutAlgorithm;
-        private DecimalFieldLayoutAlgorithm _decimalFieldLayoutAlgorithm;
         private TypeWithRepeatedFieldsFieldLayoutAlgorithm _typeWithRepeatedFieldsFieldLayoutAlgorithm;
         private RuntimeInterfacesAlgorithm _arrayOfTRuntimeInterfacesAlgorithm;
 
         public ReadyToRunCompilerContext(
             TargetDetails details,
             SharedGenericsMode genericsMode,
-            bool bubbleIncludesCoreModule,
-            bool targetAllowsRuntimeCodeGeneration,
+            bool bubbleIncludesCorelib,
             InstructionSetSupport instructionSetSupport,
             CompilerTypeSystemContext oldTypeSystemContext)
             : base(details, genericsMode)
         {
-            BubbleIncludesCoreModule = bubbleIncludesCoreModule;
-            TargetAllowsRuntimeCodeGeneration = targetAllowsRuntimeCodeGeneration;
             InstructionSetSupport = instructionSetSupport;
             _r2rFieldLayoutAlgorithm = new ReadyToRunMetadataFieldLayoutAlgorithm();
             _systemObjectFieldLayoutAlgorithm = new SystemObjectFieldLayoutAlgorithm(_r2rFieldLayoutAlgorithm);
@@ -89,7 +83,6 @@ namespace ILCompiler
 
             _vectorOfTFieldLayoutAlgorithm = new VectorOfTFieldLayoutAlgorithm(_r2rFieldLayoutAlgorithm, _vectorFieldLayoutAlgorithm, matchingVectorType);
             _int128FieldLayoutAlgorithm = new Int128FieldLayoutAlgorithm(_r2rFieldLayoutAlgorithm);
-            _decimalFieldLayoutAlgorithm = new DecimalFieldLayoutAlgorithm(_r2rFieldLayoutAlgorithm);
 
             _typeWithRepeatedFieldsFieldLayoutAlgorithm = new TypeWithRepeatedFieldsFieldLayoutAlgorithm(_r2rFieldLayoutAlgorithm);
 
@@ -99,11 +92,7 @@ namespace ILCompiler
             }
         }
 
-        public bool BubbleIncludesCoreModule { get; }
-
         public InstructionSetSupport InstructionSetSupport { get; }
-
-        public bool TargetAllowsRuntimeCodeGeneration { get; }
 
         public override FieldLayoutAlgorithm GetLayoutAlgorithmForType(DefType type)
         {
@@ -124,10 +113,6 @@ namespace ILCompiler
             else if (Int128FieldLayoutAlgorithm.IsIntegerType(type))
             {
                 return _int128FieldLayoutAlgorithm;
-            }
-            else if (DecimalFieldLayoutAlgorithm.IsDecimalFloatingPointType(type))
-            {
-                return _decimalFieldLayoutAlgorithm;
             }
             else if (type is TypeWithRepeatedFields)
             {
@@ -197,7 +182,7 @@ namespace ILCompiler
             {
                 if (_asyncStateMachineBox == null)
                 {
-                    _asyncStateMachineBox = SystemModule.GetType("System.Runtime.CompilerServices"u8, "AsyncTaskMethodBuilder`1"u8).GetNestedType("AsyncStateMachineBox`1"u8);
+                    _asyncStateMachineBox = SystemModule.GetType("System.Runtime.CompilerServices"u8, "AsyncTaskMethodBuilder`1"u8).GetNestedType("AsyncStateMachineBox`1");
                     if (_asyncStateMachineBox == null)
                         throw new Exception();
                 }
@@ -299,10 +284,7 @@ namespace ILCompiler
                 {
                     ByteCountUnaligned = layoutFromSimilarIntrinsicVector.ByteCountUnaligned,
                     ByteCountAlignment = layoutFromMetadata.ByteCountAlignment,
-                    // On wasm Vector<T> is passed as a v128 and must share its 16-byte alignment.
-                    FieldAlignment = type.Context.Target.Architecture == TargetArchitecture.Wasm32
-                        ? layoutFromSimilarIntrinsicVector.FieldAlignment
-                        : layoutFromMetadata.FieldAlignment,
+                    FieldAlignment = layoutFromMetadata.FieldAlignment,
                     FieldSize = layoutFromSimilarIntrinsicVector.FieldSize,
                     Offsets = layoutFromMetadata.Offsets,
                     LayoutAbiStable = true,
@@ -320,7 +302,7 @@ namespace ILCompiler
         public override ValueTypeShapeCharacteristics ComputeValueTypeShapeCharacteristics(DefType type)
         {
             if (type.Context.Target.Architecture == TargetArchitecture.ARM64 &&
-                VectorFieldLayoutAlgorithm.IsSupportedVectorBaseType(type.Instantiation[0]))
+                type.Instantiation[0].IsPrimitiveNumeric)
             {
                 return type.InstanceFieldSize.AsInt switch
                 {
@@ -333,7 +315,7 @@ namespace ILCompiler
 
         public static bool IsVectorOfTType(DefType type)
         {
-            return type.IsIntrinsic && type.Namespace == "System.Numerics"u8 && type.Name == "Vector`1"u8;
+            return type.IsIntrinsic && type.Namespace.SequenceEqual("System.Numerics"u8) && type.Name.SequenceEqual("Vector`1"u8);
         }
     }
 }

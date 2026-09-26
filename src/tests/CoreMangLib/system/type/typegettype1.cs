@@ -30,7 +30,6 @@ class MyTypeClass
 
 public class TypeGetType1
 {
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

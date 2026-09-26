@@ -24,7 +24,7 @@ void ArrayListBase::Clear()
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        FORBID_FAULT;
     }
     CONTRACTL_END
 
@@ -42,6 +42,7 @@ void ArrayListBase::Clear()
 PTR_VOID * ArrayListBase::GetPtr(DWORD index) const
 {
     STATIC_CONTRACT_NOTHROW;
+    STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
     SUPPORTS_DAC;
 
@@ -65,7 +66,7 @@ HRESULT ArrayListBase::Append(void *element)
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        INJECT_FAULT(return E_OUTOFMEMORY;);
     }
     CONTRACTL_END
 
@@ -111,7 +112,7 @@ DWORD ArrayListBase::FindElement(DWORD start, PTR_VOID element) const
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
+        FORBID_FAULT;
     }
     CONTRACTL_END
 

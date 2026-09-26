@@ -19,14 +19,6 @@ namespace System.Net.Http
     {
         /// <summary>List of available HTTP/2 connections stored in the pool.</summary>
         private List<Http2Connection>? _availableHttp2Connections;
-        /// <summary>
-        /// HTTP/2 connections created by this pool that haven't completed their teardown yet.
-        /// Unlike <see cref="_availableHttp2Connections"/>, this also includes connections that reached
-        /// their stream limit, or that are shutting down (e.g. after a GOAWAY frame) but are still
-        /// processing requests. Only tracked if keep alive pings are enabled, as this list exists
-        /// solely to keep <see cref="HeartBeat"/> working for the whole lifetime of a connection.
-        /// </summary>
-        private List<Http2Connection>? _http2ConnectionsForHeartBeat;
         /// <summary>The number of HTTP/2 connections associated with the pool, including in use, available, and pending.</summary>
         private int _associatedHttp2ConnectionCount;
         /// <summary>Indicates whether an HTTP/2 connection is in the process of being established.</summary>
@@ -35,7 +27,6 @@ namespace System.Net.Http
         private RequestQueue<Http2Connection?> _http2RequestQueue;
 
         private bool _http2Enabled;
-        private bool _http2SessionAuthSeen;
         private byte[]? _http2AltSvcOriginUri;
         internal readonly byte[]? _http2EncodedAuthorityHostHeader;
 
@@ -72,7 +63,7 @@ namespace System.Net.Http
 
         private bool TryGetPooledHttp2Connection(HttpRequestMessage request, [NotNullWhen(true)] out Http2Connection? connection, out HttpConnectionWaiter<Http2Connection?>? waiter)
         {
-            Debug.Assert(_kind is HttpConnectionKind.Https or HttpConnectionKind.SslProxyTunnel or HttpConnectionKind.Http or HttpConnectionKind.ProxyTunnel or HttpConnectionKind.SocksTunnel or HttpConnectionKind.SslSocksTunnel);
+            Debug.Assert(_kind == HttpConnectionKind.Https || _kind == HttpConnectionKind.SslProxyTunnel || _kind == HttpConnectionKind.Http || _kind == HttpConnectionKind.SocksTunnel || _kind == HttpConnectionKind.SslSocksTunnel);
 
             // Look for a usable connection.
             while (true)
@@ -193,7 +184,7 @@ namespace System.Net.Http
             CancellationTokenSource cts = GetConnectTimeoutCancellationTokenSource(waiter);
             try
             {
-                (Stream stream, TransportContext? transportContext, Activity? activity, IPEndPoint? remoteEndPoint, long connectionId) = await ConnectAsync(queueItem.Request, true, isForHttp2: true, cts.Token).ConfigureAwait(false);
+                (Stream stream, TransportContext? transportContext, Activity? activity, IPEndPoint? remoteEndPoint) = await ConnectAsync(queueItem.Request, true, cts.Token).ConfigureAwait(false);
 
                 if (IsSecure)
                 {
@@ -210,19 +201,19 @@ namespace System.Net.Http
                         }
                         else
                         {
-                            connection = await ConstructHttp2ConnectionAsync(stream, queueItem.Request, activity, remoteEndPoint, connectionId, cts.Token).ConfigureAwait(false);
+                            connection = await ConstructHttp2ConnectionAsync(stream, queueItem.Request, activity, remoteEndPoint, cts.Token).ConfigureAwait(false);
                         }
                     }
                     else
                     {
                         // We established an SSL connection, but the server denied our request for HTTP2.
-                        await HandleHttp11Downgrade(queueItem.Request, stream, transportContext, activity, remoteEndPoint, connectionId, cts.Token).ConfigureAwait(false);
+                        await HandleHttp11Downgrade(queueItem.Request, stream, transportContext, activity, remoteEndPoint, cts.Token).ConfigureAwait(false);
                         return;
                     }
                 }
                 else
                 {
-                    connection = await ConstructHttp2ConnectionAsync(stream, queueItem.Request, activity, remoteEndPoint, connectionId, cts.Token).ConfigureAwait(false);
+                    connection = await ConstructHttp2ConnectionAsync(stream, queueItem.Request, activity, remoteEndPoint, cts.Token).ConfigureAwait(false);
                 }
             }
             catch (Exception e)
@@ -252,11 +243,11 @@ namespace System.Net.Http
             }
         }
 
-        private async ValueTask<Http2Connection> ConstructHttp2ConnectionAsync(Stream stream, HttpRequestMessage request, Activity? activity, IPEndPoint? remoteEndPoint, long connectionId, CancellationToken cancellationToken)
+        private async ValueTask<Http2Connection> ConstructHttp2ConnectionAsync(Stream stream, HttpRequestMessage request, Activity? activity, IPEndPoint? remoteEndPoint, CancellationToken cancellationToken)
         {
-            stream = await ApplyPlaintextFilterAsync(async: true, stream, HttpVersion.Version20, request, connectionId, cancellationToken).ConfigureAwait(false);
+            stream = await ApplyPlaintextFilterAsync(async: true, stream, HttpVersion.Version20, request, cancellationToken).ConfigureAwait(false);
 
-            Http2Connection http2Connection = new Http2Connection(this, stream, activity, remoteEndPoint, connectionId);
+            Http2Connection http2Connection = new Http2Connection(this, stream, activity, remoteEndPoint);
             try
             {
                 await http2Connection.SetupAsync(cancellationToken).ConfigureAwait(false);
@@ -295,19 +286,7 @@ namespace System.Net.Http
             }
         }
 
-        /// <summary>
-        /// Marks this pool as having seen a session-based authentication challenge on HTTP/2.
-        /// Future requests that can fall back to HTTP/1.1 (see <see cref="CanFallBackToHttp11"/>)
-        /// will skip HTTP/2 and go directly to HTTP/1.1.
-        /// Requests that require HTTP/2 (e.g., <see cref="HttpVersionPolicy.RequestVersionExact"/>
-        /// with <see cref="HttpRequestMessage.Version"/> >= 2.0) continue to use HTTP/2 as before.
-        /// </summary>
-        internal void OnSessionAuthenticationChallengeSeen()
-        {
-            _http2SessionAuthSeen = true;
-        }
-
-        private async Task HandleHttp11Downgrade(HttpRequestMessage request, Stream stream, TransportContext? transportContext, Activity? activity, IPEndPoint? remoteEndPoint, long connectionId, CancellationToken cancellationToken)
+        private async Task HandleHttp11Downgrade(HttpRequestMessage request, Stream stream, TransportContext? transportContext, Activity? activity, IPEndPoint? remoteEndPoint, CancellationToken cancellationToken)
         {
             if (NetEventSource.Log.IsEnabled()) Trace("Server does not support HTTP2; disabling HTTP2 use and proceeding with HTTP/1.1 connection");
 
@@ -365,7 +344,7 @@ namespace System.Net.Http
             try
             {
                 // Note, the same CancellationToken from the original HTTP2 connection establishment still applies here.
-                http11Connection = await ConstructHttp11ConnectionAsync(true, stream, transportContext, request, activity, remoteEndPoint, connectionId, cancellationToken).ConfigureAwait(false);
+                http11Connection = await ConstructHttp11ConnectionAsync(true, stream, transportContext, request, activity, remoteEndPoint, cancellationToken).ConfigureAwait(false);
             }
             catch (OperationCanceledException oce) when (oce.CancellationToken == cancellationToken)
             {
@@ -584,61 +563,12 @@ namespace System.Net.Http
             }
         }
 
-        /// <summary>Whether HTTP/2 connections in this pool should be sending keep alive PINGs.</summary>
-        private bool Http2KeepAlivePingEnabled => Settings._keepAlivePingDelay != Timeout.InfiniteTimeSpan;
-
-        /// <summary>
-        /// Registers a newly created HTTP/2 connection with the pool so that it participates in <see cref="HeartBeat"/>.
-        /// Called from the <see cref="Http2Connection"/> constructor so that the connection is tracked even if it
-        /// tears down before it's ever handed out to a request.
-        /// </summary>
-        public void AddHttp2ConnectionForHeartBeat(Http2Connection connection)
-        {
-            Debug.Assert(!HasSyncObjLock);
-
-            if (!Http2KeepAlivePingEnabled)
-            {
-                return;
-            }
-
-            lock (SyncObj)
-            {
-                (_http2ConnectionsForHeartBeat ??= new List<Http2Connection>()).Add(connection);
-            }
-        }
-
-        /// <summary>Called when an HTTP/2 connection has completed its teardown and no longer needs heart beats.</summary>
-        public void RemoveHttp2ConnectionFromHeartBeat(Http2Connection connection)
-        {
-            Debug.Assert(!HasSyncObjLock);
-
-            if (!Http2KeepAlivePingEnabled)
-            {
-                return;
-            }
-
-            lock (SyncObj)
-            {
-                bool removed = _http2ConnectionsForHeartBeat?.Remove(connection) ?? false;
-                Debug.Assert(removed);
-            }
-        }
-
-        /// <summary>
-        /// Sends keep alive PINGs on all live HTTP/2 connections.
-        /// Returns whether the pool may still have HTTP/2 connections that need heart beats.
-        /// </summary>
-        public bool HeartBeat()
+        public void HeartBeat()
         {
             Http2Connection[]? localHttp2Connections;
-            bool anyConnections;
             lock (SyncObj)
             {
-                localHttp2Connections = _http2ConnectionsForHeartBeat?.ToArray();
-
-                // Also account for connections that are still being established -- they aren't in the
-                // list yet, but they will need heart beats as soon as they are.
-                anyConnections = localHttp2Connections is { Length: > 0 } || _associatedHttp2ConnectionCount > 0;
+                localHttp2Connections = _availableHttp2Connections?.ToArray();
             }
 
             // Avoid calling HeartBeat under the lock, as it may call back into HttpConnectionPool.InvalidateHttp2Connection.
@@ -649,8 +579,6 @@ namespace System.Net.Http
                     http2Connection.HeartBeat();
                 }
             }
-
-            return anyConnections;
         }
 
         private static int ScavengeHttp2ConnectionList(List<Http2Connection> list, ref List<HttpConnectionBase>? toDispose, long nowTicks, TimeSpan pooledConnectionLifetime, TimeSpan pooledConnectionIdleTimeout)

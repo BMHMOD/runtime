@@ -157,11 +157,6 @@ public sealed class FinalizerTest {
 
 
     public static int Main(string[] args) {
-        if (TestLibrary.Utilities.IsX86)
-        {
-            return 100;
-        }
-
         FinalizerTest test = new FinalizerTest(MemCheck.ParseSizeMBAndLimitByAvailableMem(args));
 
         if (test.RunTests()) {

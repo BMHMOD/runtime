@@ -332,4 +332,6 @@ const char StackOverflowMessage[] = "Stack overflow.\n";
 
 #endif // __cplusplus
 
+DWORD PALAPI GetCurrentSessionId();
+
 #endif /* _PAL_INTERNAL_H_ */

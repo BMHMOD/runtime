@@ -2,8 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Runtime.CompilerServices;
+
+#if NET9_0_OR_GREATER
 using System.Collections;
 using System.Collections.Generic;
+#endif
 
 namespace System.Numerics.Tensors
 {
@@ -57,7 +60,10 @@ namespace System.Numerics.Tensors
         public Enumerator GetEnumerator() => new Enumerator(this);
 
         /// <summary>Enumerates the spans of a tensor dimension span.</summary>
-        public ref struct Enumerator : IEnumerator<ReadOnlyTensorSpan<T>>
+        public ref struct Enumerator
+#if NET9_0_OR_GREATER
+            : IEnumerator<ReadOnlyTensorSpan<T>>
+#endif
         {
             private readonly ReadOnlyTensorDimensionSpan<T> _span;
             private nint _index;
@@ -90,6 +96,7 @@ namespace System.Numerics.Tensors
                 _index = -1;
             }
 
+#if NET9_0_OR_GREATER
             //
             // IDisposable
             //
@@ -101,6 +108,7 @@ namespace System.Numerics.Tensors
             //
 
             readonly object? IEnumerator.Current => throw new NotSupportedException();
+#endif
         }
     }
 }

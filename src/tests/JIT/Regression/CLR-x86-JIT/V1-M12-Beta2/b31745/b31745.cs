@@ -3,8 +3,7 @@
 //
 
 using Xunit;
-using TestLibrary;
-namespace b31745
+namespace Test
 {
     using System;
 
@@ -18,7 +17,7 @@ namespace b31745
         public static int[] Test(ref double[] param1, ref float[] param3)
         { return Method1(m_auStatic1, ref param3[2], __arglist()); }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsVarArgSupported))]
+        [ConditionalFact(typeof(TestLibrary.PlatformDetection), nameof(TestLibrary.PlatformDetection.IsVarArgSupported))]
         public static void TestEntryPoint()
         {
             double[] ad = new double[16];

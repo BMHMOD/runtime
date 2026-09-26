@@ -33,7 +33,6 @@ namespace BasicEventSourceTests
                     eventSource.Name != "System.Runtime" &&
                     eventSource.Name != "System.Diagnostics.Metrics" &&
                     eventSource.Name != "Microsoft-Diagnostics-DiagnosticSource" &&
-                    eventSource.Name != "System.Runtime.CompilerServices.AsyncProfilerEventSource" &&
 
                     // event source from xunit runner
                     eventSource.Name != "xUnit.TestEventSource" &&

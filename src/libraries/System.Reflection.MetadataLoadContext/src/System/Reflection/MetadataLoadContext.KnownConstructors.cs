@@ -9,28 +9,28 @@ namespace System.Reflection
     public sealed partial class MetadataLoadContext
     {
         internal ConstructorInfo? TryGetFieldOffsetCtor() => _lazyFieldOffset ??= TryGetConstructor(CoreType.FieldOffsetAttribute, CoreType.Int32);
-        private ConstructorInfo? _lazyFieldOffset;
+        private volatile ConstructorInfo? _lazyFieldOffset;
 
         internal ConstructorInfo? TryGetInCtor() => _lazyIn ??= TryGetConstructor(CoreType.InAttribute);
-        private ConstructorInfo? _lazyIn;
+        private volatile ConstructorInfo? _lazyIn;
 
         internal ConstructorInfo? TryGetOutCtor() => _lazyOut ??= TryGetConstructor(CoreType.OutAttribute);
-        private ConstructorInfo? _lazyOut;
+        private volatile ConstructorInfo? _lazyOut;
 
         internal ConstructorInfo? TryGetOptionalCtor() => _lazyOptional ??= TryGetConstructor(CoreType.OptionalAttribute);
-        private ConstructorInfo? _lazyOptional;
+        private volatile ConstructorInfo? _lazyOptional;
 
         internal ConstructorInfo? TryGetPreserveSigCtor() => _lazyPreserveSig ??= TryGetConstructor(CoreType.PreserveSigAttribute);
-        private ConstructorInfo? _lazyPreserveSig;
+        private volatile ConstructorInfo? _lazyPreserveSig;
 
         internal ConstructorInfo? TryGetComImportCtor() => _lazyComImport ??= TryGetConstructor(CoreType.ComImportAttribute);
-        private ConstructorInfo? _lazyComImport;
+        private volatile ConstructorInfo? _lazyComImport;
 
         internal ConstructorInfo? TryGetDllImportCtor() => _lazyDllImport ??= TryGetConstructor(CoreType.DllImportAttribute, CoreType.String);
-        private ConstructorInfo? _lazyDllImport;
+        private volatile ConstructorInfo? _lazyDllImport;
 
         internal ConstructorInfo? TryGetMarshalAsCtor() => _lazyMarshalAs ??= TryGetConstructor(CoreType.MarshalAsAttribute, CoreType.UnmanagedType);
-        private ConstructorInfo? _lazyMarshalAs;
+        private volatile ConstructorInfo? _lazyMarshalAs;
 
         private ConstructorInfo? TryGetConstructor(CoreType attributeCoreType, params CoreType[] parameterCoreTypes)
         {

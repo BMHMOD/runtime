@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-namespace JitTest_Generics_Arrays_TypeParameters_MultiDim_struct01;
-
 using System;
 using Xunit;
 
@@ -96,7 +94,6 @@ public class Test_struct01
 
     }
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

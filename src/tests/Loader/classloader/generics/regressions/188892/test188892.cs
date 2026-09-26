@@ -6,7 +6,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 class C2<T> { }
 class C1<T> : C2<C3> { }
@@ -24,7 +23,6 @@ public class Test_test188892
 		C1<C3> c3 = new C3();
 	}
 	
-     [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     	[Fact]
     	public static int TestEntryPoint()
     	{	

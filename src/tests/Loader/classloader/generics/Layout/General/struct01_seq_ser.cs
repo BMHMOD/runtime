@@ -4,7 +4,6 @@
 using System;
 using System.Runtime.InteropServices;
 using Xunit;
-using TestLibrary;
 
 public struct ValX1<T> {}
 public struct ValX2<T,U> {}
@@ -104,7 +103,6 @@ public class Test_struct01_seq_ser
 	
 	}
 	
- [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
 	[Fact]
 	public static int TestEntryPoint()
 	{

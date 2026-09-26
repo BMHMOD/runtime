@@ -64,7 +64,7 @@ namespace System.Text.Json.Nodes
                 return CreateFromElement(ref element, options);
             }
 
-            var jsonTypeInfo = JsonSerializerOptions.Default.GetTypeInfo<T>();
+            var jsonTypeInfo = (JsonTypeInfo<T>)JsonSerializerOptions.Default.GetTypeInfo(typeof(T));
             return CreateFromTypeInfo(value, jsonTypeInfo, options);
         }
 
@@ -153,7 +153,7 @@ namespace System.Text.Json.Nodes
 
         internal sealed override void GetPath(ref ValueStringBuilder path, JsonNode? child)
         {
-            Debug.Assert(child is null);
+            Debug.Assert(child == null);
 
             Parent?.GetPath(ref path, this);
         }
@@ -161,7 +161,7 @@ namespace System.Text.Json.Nodes
         internal static JsonValue CreateFromTypeInfo<T>(T value, JsonTypeInfo<T> jsonTypeInfo, JsonNodeOptions? options = null)
         {
             Debug.Assert(jsonTypeInfo.IsConfigured);
-            Debug.Assert(value is not null);
+            Debug.Assert(value != null);
 
             if (JsonValue<T>.TypeIsSupportedPrimitive &&
                 jsonTypeInfo is { EffectiveConverter.IsInternalConverter: true } &&

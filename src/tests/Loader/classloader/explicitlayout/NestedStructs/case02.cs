@@ -4,7 +4,6 @@
 using System;
 using System.Runtime.InteropServices;
 using Xunit;
-using TestLibrary;
 
 [StructLayout(LayoutKind.Explicit, Size = 16)]
 public struct FirstLevel
@@ -60,7 +59,6 @@ public class Test_NestedStructsWithExplicitLayout_Case02
         return x.SecondLevel.ThirdLevel.Low;
     }
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static int TestEntryPoint()
     {

@@ -6,7 +6,4 @@
   <ItemGroup>
     <Compile Include="CuriouslyRecurringThroughInterface.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

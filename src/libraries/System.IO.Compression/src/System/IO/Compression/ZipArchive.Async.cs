@@ -1,7 +1,6 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Text;
@@ -93,10 +92,6 @@ public partial class ZipArchive : IDisposable, IAsyncDisposable
                     break;
                 case ZipArchiveMode.Read:
                     await zipArchive.ReadEndOfCentralDirectoryAsync(cancellationToken).ConfigureAwait(false);
-
-                    // As there is no API for accessing .Entries asynchronously, we are expected to read the central
-                    // directory up-front
-                    await zipArchive.EnsureCentralDirectoryReadAsync(cancellationToken).ConfigureAwait(false);
                     break;
                 case ZipArchiveMode.Update:
                 default:
@@ -148,24 +143,10 @@ public partial class ZipArchive : IDisposable, IAsyncDisposable
                     case ZipArchiveMode.Read:
                         break;
                     case ZipArchiveMode.Create:
-                        await WriteFileAsync().ConfigureAwait(false);
-                        break;
                     case ZipArchiveMode.Update:
                     default:
-                        Debug.Assert(_mode == ZipArchiveMode.Update);
-                        // Only write if the archive has been modified
-                        if (IsModified)
-                        {
-                            await WriteFileAsync().ConfigureAwait(false);
-                        }
-                        else
-                        {
-                            // Even if we didn't write, unload any entry buffers that may have been loaded
-                            foreach (ZipArchiveEntry entry in _entries)
-                            {
-                                await entry.UnloadStreamsAsync().ConfigureAwait(false);
-                            }
-                        }
+                        Debug.Assert(_mode == ZipArchiveMode.Update || _mode == ZipArchiveMode.Create);
+                        await WriteFileAsync().ConfigureAwait(false);
                         break;
                 }
             }
@@ -214,12 +195,9 @@ public partial class ZipArchive : IDisposable, IAsyncDisposable
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        byte[] arrayPoolArray = ArrayPool<byte>.Shared.Rent(ReadCentralDirectoryReadBufferSize);
         try
         {
-            Memory<byte> fileBuffer = arrayPoolArray;
-
-            ReadCentralDirectoryInitialize(out long numberOfEntries, out bool saveExtraFieldsAndComments, out bool continueReadingCentralDirectory, out int bytesRead, out int currPosition, out int bytesConsumed);
+            ReadCentralDirectoryInitialize(out byte[] fileBuffer, out long numberOfEntries, out bool saveExtraFieldsAndComments, out bool continueReadingCentralDirectory, out int bytesRead, out int currPosition, out int bytesConsumed);
 
             // read the central directory
             while (continueReadingCentralDirectory)
@@ -227,38 +205,28 @@ public partial class ZipArchive : IDisposable, IAsyncDisposable
                 // the buffer read must always be large enough to fit the constant section size of at least one header
                 int currBytesRead = await _archiveStream.ReadAtLeastAsync(fileBuffer, ZipCentralDirectoryFileHeader.BlockConstantSectionSize, throwOnEndOfStream: false, cancellationToken).ConfigureAwait(false);
 
-                ReadOnlyMemory<byte> sizedFileBuffer = fileBuffer[0..currBytesRead];
+                byte[] sizedFileBuffer = fileBuffer[0..currBytesRead];
                 continueReadingCentralDirectory = currBytesRead >= ZipCentralDirectoryFileHeader.BlockConstantSectionSize;
 
                 while (currPosition + ZipCentralDirectoryFileHeader.BlockConstantSectionSize <= currBytesRead)
                 {
                     (bool result, bytesConsumed, ZipCentralDirectoryFileHeader? currentHeader) =
-                        await ZipCentralDirectoryFileHeader.TryReadBlockAsync(sizedFileBuffer.Slice(currPosition), _archiveStream, saveExtraFieldsAndComments, cancellationToken).ConfigureAwait(false);
+                        await ZipCentralDirectoryFileHeader.TryReadBlockAsync(sizedFileBuffer.AsMemory(currPosition), _archiveStream, saveExtraFieldsAndComments, cancellationToken).ConfigureAwait(false);
 
                     if (!ReadCentralDirectoryEndOfInnerLoopWork(result, currentHeader, bytesConsumed, ref continueReadingCentralDirectory, ref numberOfEntries, ref currPosition, ref bytesRead))
                     {
                         break;
                     }
-
-                    ZipArchiveEntry lastEntry = _entries[_entries.Count - 1];
-                    if (lastEntry.IsEncrypted)
-                    {
-                        await lastEntry.ReadEncryptionSaltIfNeededAsync(cancellationToken).ConfigureAwait(false);
-                    }
                 }
 
-                ReadCentralDirectoryEndOfOuterLoopWork(ref currPosition, sizedFileBuffer.Span);
+                ReadCentralDirectoryEndOfOuterLoopWork(ref currPosition, sizedFileBuffer);
             }
 
             ReadCentralDirectoryPostOuterLoopWork(numberOfEntries);
         }
         catch (EndOfStreamException ex)
         {
-            throw new InvalidDataException(SR.CentralDirectoryInvalid, ex);
-        }
-        finally
-        {
-            ArrayPool<byte>.Shared.Return(arrayPoolArray);
+            throw new InvalidDataException(SR.Format(SR.CentralDirectoryInvalid, ex));
         }
     }
 
@@ -371,7 +339,6 @@ public partial class ZipArchive : IDisposable, IAsyncDisposable
             completeRewriteStartingOffset = startingOffset;
 
             entriesToWrite = new(_entries.Count);
-
             foreach (ZipArchiveEntry entry in _entries)
             {
                 if (!entry.OriginallyInArchive)
@@ -380,6 +347,7 @@ public partial class ZipArchive : IDisposable, IAsyncDisposable
                 }
                 else
                 {
+
                     WriteFileCalculateOffsets(entry, ref startingOffset, ref nextFileOffset);
 
                     // We want to re-write entries which are after the starting offset of the first entry which has pending data to write.

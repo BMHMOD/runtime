@@ -65,8 +65,8 @@ namespace System.Security.Cryptography
 
             try
             {
-                ValueAsnReader reader = new ValueAsnReader(input, AsnEncodingRules.DER);
-                ValueAsnReader sequenceReader = reader.ReadSequence();
+                AsnValueReader reader = new AsnValueReader(input, AsnEncodingRules.DER);
+                AsnValueReader sequenceReader = reader.ReadSequence();
                 reader.ThrowIfNotEmpty();
                 ReadOnlySpan<byte> rDer = sequenceReader.ReadIntegerBytes();
                 ReadOnlySpan<byte> sDer = sequenceReader.ReadIntegerBytes();

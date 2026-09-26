@@ -151,9 +151,6 @@ static void RemoveBoundsChk(Compiler* comp, GenTree** treeUse, Statement* stmt)
 //  nextBb:
 //    ...
 //
-// For BBJ_RETURN blocks where the bounds checks are in the return statement,
-// both fastpathBb and fallbackBb are BBJ_RETURN blocks (no nextBb needed).
-//
 // Arguments:
 //    comp        - The compiler instance
 //    block       - The block to clone
@@ -193,24 +190,15 @@ static BasicBlock* optRangeCheckCloning_DoClone(Compiler*             comp,
     // Now split the block at the last bounds check using fgSplitBlockAfterStatement:
     // TODO-RangeCheckCloning: call gtSplitTree for lastBndChkStmt as well, to cut off
     // the stuff we don't have to clone.
-    //
-    // For BBJ_RETURN blocks where lastStmt is the block's last statement (i.e., the return
-    // statement contains bounds checks), we don't need to split - both fast and slow paths
-    // will be BBJ_RETURN blocks directly.
-    bool        isReturnBlock = fastpathBb->KindIs(BBJ_RETURN) && (lastStmt == fastpathBb->lastStmt());
-    BasicBlock* lastBb        = nullptr;
-    if (!isReturnBlock)
-    {
-        lastBb = comp->fgSplitBlockAfterStatement(fastpathBb, lastStmt);
-    }
+    BasicBlock* lastBb = comp->fgSplitBlockAfterStatement(fastpathBb, lastStmt);
 
     DebugInfo debugInfo = fastpathBb->firstStmt()->GetDebugInfo();
 
     // Find the maximum offset
     int offset = 0;
-    for (const BoundsCheckInfo& bci : bndChkStack->TopDownOrder())
+    for (int i = 0; i < bndChkStack->Height(); i++)
     {
-        offset = max(offset, bci.offset);
+        offset = max(offset, bndChkStack->Top(i).offset);
     }
     assert(offset >= 0);
 
@@ -282,9 +270,8 @@ static BasicBlock* optRangeCheckCloning_DoClone(Compiler*             comp,
     // 3) fallbackBb:
     //
     // For the fallback (slow path), we just entirely clone the fast path.
-    // For BBJ_RETURN blocks, the fallback is also a return block.
     //
-    BasicBlock* fallbackBb = comp->fgNewBBafter(isReturnBlock ? BBJ_RETURN : BBJ_ALWAYS, upperBndBb, false);
+    BasicBlock* fallbackBb = comp->fgNewBBafter(BBJ_ALWAYS, upperBndBb, false);
     BasicBlock::CloneBlockState(comp, fallbackBb, fastpathBb);
 
     // 4) fastBlockBb:
@@ -294,16 +281,12 @@ static BasicBlock* optRangeCheckCloning_DoClone(Compiler*             comp,
     // Wire up the edges
     //
     comp->fgRedirectEdge(prevBb->TargetEdgeRef(), lowerBndBb);
+    FlowEdge* fallbackToNextBb       = comp->fgAddRefPred(lastBb, fallbackBb);
     FlowEdge* lowerBndToUpperBndEdge = comp->fgAddRefPred(upperBndBb, lowerBndBb);
     FlowEdge* lowerBndToFallbackEdge = comp->fgAddRefPred(fallbackBb, lowerBndBb);
     FlowEdge* upperBndToFastPathEdge = comp->fgAddRefPred(fastpathBb, upperBndBb);
     FlowEdge* upperBndToFallbackEdge = comp->fgAddRefPred(fallbackBb, upperBndBb);
-    if (!isReturnBlock)
-    {
-        FlowEdge* fallbackToNextBb = comp->fgAddRefPred(lastBb, fallbackBb);
-        fallbackBb->SetTargetEdge(fallbackToNextBb);
-        fallbackToNextBb->setLikelihood(1.0f);
-    }
+    fallbackBb->SetTargetEdge(fallbackToNextBb);
     lowerBndBb->SetTrueEdge(lowerBndToFallbackEdge);
     lowerBndBb->SetFalseEdge(lowerBndToUpperBndEdge);
     upperBndBb->SetTrueEdge(upperBndToFastPathEdge);
@@ -315,6 +298,7 @@ static BasicBlock* optRangeCheckCloning_DoClone(Compiler*             comp,
     upperBndBb->inheritWeight(prevBb);
     fastpathBb->inheritWeight(prevBb);
     fallbackBb->bbSetRunRarely();
+    fallbackToNextBb->setLikelihood(1.0f);
     lowerBndToUpperBndEdge->setLikelihood(1.0f);
     lowerBndToFallbackEdge->setLikelihood(0.0f);
     upperBndToFastPathEdge->setLikelihood(1.0f);
@@ -337,8 +321,14 @@ static BasicBlock* optRangeCheckCloning_DoClone(Compiler*             comp,
                 statementFound = true;
 
                 // Find the bndChk in the statement
+                Compiler::fgWalkResult result = comp->fgWalkTreePre(
+                    stmt->GetRootNodePointer(),
+                    [](GenTree** pTree, Compiler::fgWalkData* data) -> Compiler::fgWalkResult {
+                    return (*pTree == (GenTree*)data->pCallbackData) ? Compiler::WALK_ABORT : Compiler::WALK_CONTINUE;
+                },
+                    info.BndChk());
                 // We don't need to validate bndChkParent - RemoveBoundsChk will do it for us
-                assert(comp->gtFindLink(stmt, info.BndChk()).result != nullptr);
+                assert(result == Compiler::WALK_ABORT);
                 break;
             }
         }
@@ -367,7 +357,7 @@ static BasicBlock* optRangeCheckCloning_DoClone(Compiler*             comp,
     assert(BasicBlock::sameEHRegion(prevBb, upperBndBb));
     assert(BasicBlock::sameEHRegion(prevBb, fastpathBb));
     assert(BasicBlock::sameEHRegion(prevBb, fallbackBb));
-    assert(isReturnBlock || BasicBlock::sameEHRegion(prevBb, lastBb));
+    assert(BasicBlock::sameEHRegion(prevBb, lastBb));
 
     return fastpathBb;
 }
@@ -535,21 +525,9 @@ PhaseStatus Compiler::optRangeCheckCloning()
             stmtIdx++;
             if (block->HasTerminator() && (stmt == block->lastStmt()))
             {
-                // For BBJ_RETURN blocks, we can still process the last statement since
-                // we can duplicate return blocks without needing a diamond/join shape.
-                // However, we must skip if:
-                //   - JIT32_GCENCODER is defined (hard limit on epilogue count)
-                //   - The block is genReturnBB (shared return block)
-#ifdef JIT32_GCENCODER
+                // TODO-RangeCheckCloning: Splitting these blocks at the last statements
+                // require using gtSplitTree for the last bounds check.
                 break;
-#else
-                if (!block->KindIs(BBJ_RETURN) || (block == genReturnBB))
-                {
-                    // TODO-RangeCheckCloning: Splitting these blocks at the last statements
-                    // require using gtSplitTree for the last bounds check.
-                    break;
-                }
-#endif
             }
 
             // Now just record all the bounds checks in the block (in the execution order)
@@ -568,9 +546,10 @@ PhaseStatus Compiler::optRangeCheckCloning()
         // We could do it directly in the visitor above and avoid this O(n) pass,
         // but it's more TP/Memory wise to use stack-allocated ArrayStack first and
         // bail out on <MIN_CHECKS_PER_GROUP cases.
-        for (BoundCheckLocation loc : bndChkLocations.BottomUpOrder())
+        for (int i = 0; i < bndChkLocations.Height(); i++)
         {
-            BoundsCheckInfo bci{};
+            BoundCheckLocation loc = bndChkLocations.Bottom(i);
+            BoundsCheckInfo    bci{};
             if (bci.Initialize(this, loc.stmt, loc.stmtIdx, loc.bndChkUse))
             {
                 IdxLenPair             key(bci.idxVN, bci.lenVN);
@@ -618,10 +597,11 @@ PhaseStatus Compiler::optRangeCheckCloning()
         //
         BoundsCheckInfoStack* firstGroup = groups.Top();
         BoundsCheckInfoStack* lastGroup  = groups.Top();
-        for (BoundsCheckInfoStack* const group : groups.BottomUpOrder())
+        for (int i = 0; i < groups.Height(); i++)
         {
-            int firstStmt  = group->Bottom().stmtIdx;
-            int secondStmt = group->Top().stmtIdx;
+            BoundsCheckInfoStack* group      = groups.Bottom(i);
+            int                   firstStmt  = group->Bottom().stmtIdx;
+            int                   secondStmt = group->Top().stmtIdx;
             if (firstStmt < firstGroup->Bottom().stmtIdx)
             {
                 firstGroup = group;

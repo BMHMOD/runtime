@@ -56,14 +56,14 @@ extern "C" void QCALLTYPE ComWeakRefToObject(IWeakReference* pComWeakReference, 
 
     // If the weak reference was in a state that it had an IWeakReference* for us to use, then we need to find the IUnknown
     // identity of the underlying COM object (assuming that object is still alive).
-    ReleaseHolder<IUnknown> pTargetIdentity;
+    SafeComHolder<IUnknown> pTargetIdentity = nullptr;
 
     // Using the IWeakReference*, get ahold of the target native COM object's IInspectable*.  If this resolve fails, then we
     // assume that the underlying native COM object is no longer alive, and thus we cannot create a new RCW for it.
-    ReleaseHolder<IInspectable> pTarget;
+    SafeComHolderPreemp<IInspectable> pTarget = nullptr;
     if (SUCCEEDED(pComWeakReference->Resolve(IID_IInspectable, &pTarget)))
     {
-        if (pTarget != nullptr)
+        if (!pTarget.IsNull())
         {
             // Get the IUnknown identity for the underlying object
             SafeQueryInterfacePreemp(pTarget, IID_IUnknown, &pTargetIdentity);
@@ -71,7 +71,7 @@ extern "C" void QCALLTYPE ComWeakRefToObject(IWeakReference* pComWeakReference, 
     }
 
     // If we were able to get an IUnknown identity for the object, then we can find or create an associated RCW for it.
-    if (pTargetIdentity != nullptr)
+    if (!pTargetIdentity.IsNull())
     {
         GCX_COOP();
         OBJECTREF rcwRef = NULL;
@@ -95,7 +95,8 @@ extern "C" IWeakReference * QCALLTYPE ObjectToComWeakRef(QCall::ObjectHandleOnSt
     IWeakReference* pWeakReference = nullptr;
     BEGIN_QCALL;
 
-    IWeakReferenceSource* pWeakReferenceSourceRaw = nullptr;
+    SafeComHolder<IWeakReferenceSource> pWeakReferenceSource(nullptr);
+
     {
         // COM helpers assume COOP mode and the arguments are protected refs.
         GCX_COOP();
@@ -111,19 +112,19 @@ extern "C" IWeakReference * QCALLTYPE ObjectToComWeakRef(QCall::ObjectHandleOnSt
         if (pMT->IsComObjectType()
             && (pMT == g_pBaseCOMObject || !pMT->IsExtensibleRCW()))
         {
-            pWeakReferenceSourceRaw = reinterpret_cast<IWeakReferenceSource*>(GetComIPFromObjectRef(&objRef, IID_IWeakReferenceSource, false /* throwIfNoComIP */));
+            pWeakReferenceSource = reinterpret_cast<IWeakReferenceSource*>(GetComIPFromObjectRef(&objRef, IID_IWeakReferenceSource, false /* throwIfNoComIP */));
         }
 
         GCPROTECT_END();
     }
 
-    ReleaseHolder<IWeakReferenceSource> pWeakReferenceSource{ pWeakReferenceSourceRaw };
     if (pWeakReferenceSource != nullptr)
     {
-        ReleaseHolder<IWeakReference> weakReferenceHolder;
+        SafeComHolderPreemp<IWeakReference> weakReferenceHolder;
         if (!FAILED(pWeakReferenceSource->GetWeakReference(&weakReferenceHolder)))
         {
-            pWeakReference = weakReferenceHolder.Detach();
+            weakReferenceHolder.SuppressRelease();
+            pWeakReference = weakReferenceHolder.GetValue();
         }
     }
 

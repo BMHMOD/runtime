@@ -21,28 +21,30 @@ static TypeHandle GetTypeHelper(LPCWSTR szTypeName, Assembly* pRequestingAssembl
 
     GCX_COOP();
 
-    struct {
-        OBJECTREF objRequestingAssembly;
-        OBJECTREF objType;
-    } gc;
-    gc.objRequestingAssembly = NULL;
-    gc.objType = NULL;
-
-    GCPROTECT_BEGIN(gc);
+    OBJECTREF objRequestingAssembly = NULL;
+    GCPROTECT_BEGIN(objRequestingAssembly);
 
     if (pRequestingAssembly != NULL)
     {
-        gc.objRequestingAssembly = pRequestingAssembly->GetExposedObject();
+        objRequestingAssembly = pRequestingAssembly->GetExposedObject();
     }
 
     OVERRIDE_TYPE_LOAD_LEVEL_LIMIT(CLASS_LOADED);
 
-    UnmanagedCallersOnlyCaller getTypeHelper(METHOD__TYPE_NAME_RESOLVER__GET_TYPE_HELPER);
-    getTypeHelper.InvokeThrowing(szTypeName, &gc.objRequestingAssembly, CLR_BOOL_ARG(bThrowIfNotFound), CLR_BOOL_ARG(bRequireAssemblyQualifiedName), (INT_PTR)unsafeAccessorMethod, &gc.objType);
+    PREPARE_NONVIRTUAL_CALLSITE(METHOD__TYPE_NAME_RESOLVER__GET_TYPE_HELPER);
+    DECLARE_ARGHOLDER_ARRAY(args, 5);
+    args[ARGNUM_0] = PTR_TO_ARGHOLDER(szTypeName);
+    args[ARGNUM_1] = OBJECTREF_TO_ARGHOLDER(objRequestingAssembly);
+    args[ARGNUM_2] = BOOL_TO_ARGHOLDER(bThrowIfNotFound);
+    args[ARGNUM_3] = BOOL_TO_ARGHOLDER(bRequireAssemblyQualifiedName);
+    args[ARGNUM_4] = PTR_TO_ARGHOLDER(unsafeAccessorMethod);
 
-    if (gc.objType != NULL)
+    REFLECTCLASSBASEREF objType = NULL;
+    CALL_MANAGED_METHOD_RETREF(objType, REFLECTCLASSBASEREF, args);
+
+    if (objType != NULL)
     {
-        type = ((REFLECTCLASSBASEREF)gc.objType)->GetType();
+        type = objType->GetType();
     }
 
     GCPROTECT_END();

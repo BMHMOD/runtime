@@ -58,7 +58,12 @@ namespace System.Text.Json.Nodes
             {
                 ThrowHelper.ThrowArgumentNullException(nameof(propertyName));
             }
+#if NET9_0
+            bool success = Dictionary.TryAdd(propertyName, value);
+            index = success ? Dictionary.Count - 1 : Dictionary.IndexOf(propertyName);
+#else
             bool success = Dictionary.TryAdd(propertyName, value, out index);
+#endif
             if (success)
             {
                 value?.AssignParent(this);

@@ -114,13 +114,12 @@ bool JitHost::convertStringValueToInt(const char* key, const char* stringValue, 
         return false;
     }
 
-    char* endPtr;
-    errno = 0;
+    char*      endPtr;
     unsigned long longResult = strtoul(stringValue, &endPtr, 16);
-    bool          succeeded  = (errno != ERANGE) && (endPtr != stringValue) && (longResult <= UINT_MAX);
+    bool          succeeded  = (errno != ERANGE) && (endPtr != stringValue) && (longResult <= INT_MAX);
     if (!succeeded)
     {
-        LogWarning("Can't convert int config value from string, key: %s, string value: %s\n", key, stringValue);
+        LogWarning("Can't convert int config value from string, key: %ws, string value: %ws\n", key, stringValue);
         return false;
     }
 
@@ -159,11 +158,6 @@ int JitHost::getIntConfigValue(const char* key, int defaultValue)
         if (strcmp(key, "SuperPMIMethodContextNumber") == 0)
         {
             result     = jitInstance.mc->index;
-            valueFound = true;
-        }
-        else if (strcmp(key, "JitReportMetrics") == 0)
-        {
-            result     = 1;
             valueFound = true;
         }
     }

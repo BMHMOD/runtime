@@ -59,7 +59,6 @@ namespace ILCompiler
                         TypeDesc genericTypeDefinition = type.GetTypeDefinition();
                         Instantiation genericTypeParameters = genericTypeDefinition.Instantiation;
                         Instantiation genericTypeArguments = type.Instantiation;
-
                         for (int i = 0; i < genericTypeArguments.Length; i++)
                         {
                             var genericTypeParameter = (EcmaGenericParameter)genericTypeParameters[i];

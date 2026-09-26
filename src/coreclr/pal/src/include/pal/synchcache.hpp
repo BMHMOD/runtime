@@ -29,9 +29,9 @@ namespace CorUnix
 
         static const int MaxDepth = 256;
 
-        USynchCacheStackNode* m_pHead;
+        Volatile<USynchCacheStackNode*> m_pHead;
         minipal_mutex m_cs;
-        int m_iDepth;
+        Volatile<int> m_iDepth;
         int m_iMaxDepth;
 #ifdef _DEBUG
         int m_iMaxTrackedDepth;
@@ -153,12 +153,11 @@ namespace CorUnix
             }
             else
             {
-                delete pNode;
+                delete (char *)pNode;
             }
             Unlock(pthrCurrent);
         }
 
-private:
         void Flush(CPalThread * pthrCurrent, bool fDontLock = false)
         {
             USynchCacheStackNode * pNode, * pTemp;
@@ -205,9 +204,9 @@ private:
                                               // instances and store them into the
                                               // cache before continuing
 
-        USHRSynchCacheStackNode* m_pHead;
+        Volatile<USHRSynchCacheStackNode*> m_pHead;
         minipal_mutex m_cs;
-        int m_iDepth;
+        Volatile<int> m_iDepth;
         int m_iMaxDepth;
 #ifdef _DEBUG
         int m_iMaxTrackedDepth;
@@ -359,7 +358,6 @@ private:
             Unlock(pthrCurrent);
         }
 
-private:
         void Flush(CPalThread * pthrCurrent, bool fDontLock = false)
         {
             USHRSynchCacheStackNode * pNode, * pTemp;

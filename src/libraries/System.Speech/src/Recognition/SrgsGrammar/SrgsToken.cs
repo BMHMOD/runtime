@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Speech.Internal;
 using System.Speech.Internal.SrgsParser;
 using System.Text;
@@ -45,9 +44,7 @@ namespace System.Speech.Recognition.SrgsGrammar
                 _text = text;
             }
         }
-
-        [DisallowNull]
-        public string? Pronunciation
+        public string Pronunciation
         {
             get
             {
@@ -59,9 +56,7 @@ namespace System.Speech.Recognition.SrgsGrammar
                 _pronunciation = value;
             }
         }
-
-        [DisallowNull]
-        public string? Display
+        public string Display
         {
             get
             {
@@ -165,9 +160,9 @@ namespace System.Speech.Recognition.SrgsGrammar
 
         private string _text = string.Empty;
 
-        private string? _pronunciation;
+        private string _pronunciation;
 
-        private string? _display;
+        private string _display;
 
         #endregion
     }

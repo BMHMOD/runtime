@@ -24,12 +24,13 @@ steps:
       TargetFolder: '$(Build.StagingDirectory)/IntermediateArtifacts'
       CleanTargetFolder: true
 
-  - task: PublishPipelineArtifact@1
+  - task: PublishBuildArtifacts@1
     displayName: Publish intermediate artifacts
     condition: and(succeeded(), ${{ parameters.publishArtifactsForWorkload }})
     inputs:
-      targetPath: '$(Build.StagingDirectory)/IntermediateArtifacts'
+      pathToPublish: '$(Build.StagingDirectory)/IntermediateArtifacts'
       artifactName: BuildArtifacts_${{ parameters.osGroup }}_wasm_$(_hostedOs)_${{ parameters.buildConfig }}_${{ parameters.nameSuffix }}
+      artifactType: container
 
   - task: CopyFiles@2
     displayName: Copy WBT
@@ -40,9 +41,10 @@ steps:
       TargetFolder: '$(Build.StagingDirectory)/IntermediateArtifacts'
       CleanTargetFolder: true
 
-  - task: PublishPipelineArtifact@1
+  - task: PublishBuildArtifacts@1
     displayName: Publish Wasm.Build.Tests archive
     condition: and(succeeded(), ${{ parameters.publishWBT }})
     inputs:
-      targetPath: '$(Build.StagingDirectory)/IntermediateArtifacts'
+      pathToPublish: '$(Build.StagingDirectory)/IntermediateArtifacts'
       artifactName: WasmBuildTests_$(_hostedOs)_${{ parameters.nameSuffix }}
+      artifactType: container

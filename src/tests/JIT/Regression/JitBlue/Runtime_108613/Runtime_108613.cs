@@ -6,9 +6,6 @@
 // Failure:
 //   Assertion failed 'false && "found use of a node that is not in the LIR sequence"'
 
-
-namespace Runtime_108613;
-
 using System;
 using System.Runtime.Intrinsics;
 using Xunit;

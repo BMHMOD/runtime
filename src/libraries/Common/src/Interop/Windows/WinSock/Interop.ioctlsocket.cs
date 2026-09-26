@@ -9,14 +9,12 @@ internal static partial class Interop
 {
     internal static partial class Winsock
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Interop.Libraries.Ws2_32, SetLastError = true)]
         internal static partial SocketError ioctlsocket(
             IntPtr handle,
             int cmd,
             ref int argp);
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Interop.Libraries.Ws2_32, SetLastError = true)]
         internal static partial SocketError ioctlsocket(
             SafeSocketHandle socketHandle,

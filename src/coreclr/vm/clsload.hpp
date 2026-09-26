@@ -1004,8 +1004,6 @@ private:
                                              TypeHandle typeHnd,
                                              ClassLoadLevel targetLevel);
 #endif //!DACCESS_COMPILE
-public:
-    static bool EligibleForSpecialMarkerTypeUsage(Instantiation inst, MethodTable* pOwnerMT);
 
 };  // class ClassLoader
 

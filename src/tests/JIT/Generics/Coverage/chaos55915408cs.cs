@@ -39,7 +39,7 @@ using Xunit;
 /// ShowOutputInConsole:	False
 /// CompileAndRun:	False
 /// </code></remarks>
-namespace JitTest_Generics_Coverage_chaos55915408cs
+namespace Chaos
 {
     using System;
 

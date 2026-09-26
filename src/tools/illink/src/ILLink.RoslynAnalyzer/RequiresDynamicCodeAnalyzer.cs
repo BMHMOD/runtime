@@ -98,18 +98,6 @@ namespace ILLink.RoslynAnalyzer
                     }
                     return true;
                 }
-                case IntrinsicId.Enum_GetValues:
-                {
-                    foreach (var value in arguments[0].AsEnumerable())
-                    {
-                        if (value is not SystemTypeValue)
-                        {
-                            return false;
-                        }
-                    }
-
-                    return true;
-                }
             }
 
             return false;

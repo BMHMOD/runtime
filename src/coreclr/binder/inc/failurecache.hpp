@@ -28,10 +28,8 @@ namespace BINDER_SPACE
         ~FailureCache();
 
         HRESULT Add(/* in */ SString  &assemblyNameorPath,
-                    /* in */ HRESULT  hrBindResult,
-                    /* in */ LPCWSTR  diagnosticInfo);
-        HRESULT Lookup(/* in */  SString &assemblyNameorPath,
-                       /* out */ SString *pDiagnosticInfo = NULL);
+                    /* in */ HRESULT  hrBindResult);
+        HRESULT Lookup(/* in */ SString &assemblyNameorPath);
         void Remove(/* in */ SString &assemblyName);
     };
 };

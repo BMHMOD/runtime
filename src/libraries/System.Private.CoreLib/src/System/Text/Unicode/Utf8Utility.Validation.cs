@@ -3,13 +3,11 @@
 
 using System.Buffers.Text;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 #if NET
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.Arm;
-using System.Runtime.Intrinsics.Wasm;
 using System.Runtime.Intrinsics.X86;
 #endif
 
@@ -159,15 +157,6 @@ namespace System.Text.Unicode
                                         goto LoopTerminatedEarlyDueToNonAsciiData;
                                     }
                                 }
-                                else if (PackedSimd.IsSupported)
-                                {
-                                    uint mask = Vector128.LoadUnsafe(ref *pInputBuffer).ExtractMostSignificantBits();
-                                    if (mask != 0)
-                                    {
-                                        trailingZeroCount = (nuint)BitOperations.TrailingZeroCount(mask);
-                                        goto LoopTerminatedEarlyDueToNonAsciiData;
-                                    }
-                                }
                                 else
 #endif
                                 {
@@ -190,9 +179,9 @@ namespace System.Text.Unicode
 
 #if NET
                     LoopTerminatedEarlyDueToNonAsciiData:
-                        // x86 and Wasm can only be little endian, while ARM can be big or little endian,
-                        // so if we reached this label we need to check the LE-restricted combinations as well.
-                        Debug.Assert((AdvSimd.Arm64.IsSupported && BitConverter.IsLittleEndian) || Sse2.IsSupported || PackedSimd.IsSupported);
+                        // x86 can only be little endian, while ARM can be big or little endian
+                        // so if we reached this label we need to check both combinations are supported
+                        Debug.Assert((AdvSimd.Arm64.IsSupported && BitConverter.IsLittleEndian) || Sse2.IsSupported);
 
 
                         // The 'mask' value will have a 0 bit for each ASCII byte we saw and a 1 bit

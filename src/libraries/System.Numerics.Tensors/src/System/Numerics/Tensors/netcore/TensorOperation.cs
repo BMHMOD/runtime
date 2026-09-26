@@ -128,14 +128,14 @@ namespace System.Numerics.Tensors
             where TOperation : IUnaryOperation_Tensor<TArg, TResult>
         {
             scoped Span<nint> xIndexes = RentedBuffer.Create(destination.Rank, x.Strides, out nint xLinearOffset, out RentedBuffer<nint> xRentedBuffer);
-            scoped Span<nint> destinationIndexes = RentedBuffer.Create(destination.Rank, destination.Strides, out nint negInnermostStride, out RentedBuffer<nint> destinationRentedBuffer);
+            scoped Span<nint> destinationIndexes = RentedBuffer.Create(destination.Rank, destination.Strides, out nint _, out RentedBuffer<nint> destinationRentedBuffer);
 
-            for (int i = 0; i < destinationIndexes.Length - 1; i++)
+            destinationIndexes[0] = destination.Lengths[0];
+            for (int i = 1; i < destinationIndexes.Length; i++)
             {
                 destinationIndexes[i] = destination.Lengths[i] - 1;
             }
-            destinationIndexes[^1] = destination.Lengths[^1];
-            nint destinationLinearOffset = destination._shape.LinearLength - 1 - negInnermostStride;
+            nint destinationLinearOffset = destination._shape.LinearLength;
 
             for (nint i = 0; i < destination.FlattenedLength; i++)
             {
@@ -361,34 +361,14 @@ namespace System.Numerics.Tensors
             // can do bidirectional validation between x and y, that result can then be broadcast to destination
             if (TensorShape.AreCompatible(x._shape, y._shape, true))
             {
-                int maxRank = Math.Max(x.Rank, y.Rank);
-
-                nint[]? resultLengthsArray = null;
-                scoped Span<nint> resultLengths = (maxRank <= TensorShape.MaxInlineRank)
-                    ? stackalloc nint[TensorShape.MaxInlineRank]
-                    : (resultLengthsArray = ArrayPool<nint>.Shared.Rent(maxRank));
-                resultLengths = resultLengths[..maxRank];
-
-                ReadOnlySpan<nint> xLengths = x.Lengths;
-                ReadOnlySpan<nint> yLengths = y.Lengths;
-
-                int xOffset = maxRank - x.Rank;
-                int yOffset = maxRank - y.Rank;
-
-                for (int i = 0; i < maxRank; i++)
+                if (x.Rank > y.Rank)
                 {
-                    nint xLen = (i >= xOffset) ? xLengths[i - xOffset] : 1;
-                    nint yLen = (i >= yOffset) ? yLengths[i - yOffset] : 1;
-                    resultLengths[i] = Math.Max(xLen, yLen);
+                    destination = Tensor.CreateFromShapeUninitialized<TResult>(x._shape.Lengths);
                 }
-
-                destination = Tensor.CreateFromShapeUninitialized<TResult>(resultLengths);
-
-                if (resultLengthsArray is not null)
+                else
                 {
-                    ArrayPool<nint>.Shared.Return(resultLengthsArray);
+                    destination = Tensor.CreateFromShapeUninitialized<TResult>(y._shape.Lengths);
                 }
-
                 return;
             }
             destination = default!;

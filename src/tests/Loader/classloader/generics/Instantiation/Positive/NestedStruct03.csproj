@@ -5,7 +5,4 @@
   <ItemGroup>
     <Compile Include="NestedStruct03.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

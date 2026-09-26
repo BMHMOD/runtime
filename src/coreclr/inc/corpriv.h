@@ -21,9 +21,6 @@ STDAPI CreateMetaDataDispenser(
     REFIID riid,
     void ** pMetaDataDispenserOut);
 
-// Helper function to get a do-nothing IMetaDataImport2 instance for DIA.
-IMetaDataImport2* GetNoopMetaDataImport2();
-
 // Helper function to get an Internal interface with an in-memory metadata section
 STDAPI  GetMDInternalInterface(
     LPVOID      pData,                  // [IN] in memory metadata section
@@ -373,3 +370,4 @@ DECLARE_INTERFACE_(IGetIMDInternalImport, IUnknown)
 };
 
 #endif  // _CORPRIV_H_
+

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 /*
-using TestLibrary;
 	This is regression test for DevDiv #607
 	Runtime was throwing a TypeLoadException
 	Unhandled Exception: System.TypeLoadException: 
@@ -11,11 +10,9 @@ using TestLibrary;
 */
 using System;
 using Xunit;
-using TestLibrary;
 
 public class Test_DevDiv607
 {	
- [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
 	[Fact]
 	public static int TestEntryPoint()
 	{

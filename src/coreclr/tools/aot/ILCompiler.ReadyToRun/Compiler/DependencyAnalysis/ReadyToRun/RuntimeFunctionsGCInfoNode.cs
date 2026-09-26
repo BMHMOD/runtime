@@ -14,13 +14,11 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
 
         public HashSet<MethodGCInfoNode> Deduplicator;
 
-        protected internal override int Phase => (int)ObjectNodePhase.Ordered;
-
-        public override int ClassCode => (int)ObjectNodeOrder.RuntimeFunctionsGCInfoNode;
+        public override int ClassCode => 316678892;
 
         public override ObjectNodeSection GetSection(NodeFactory factory)
         {
-            return ObjectNodeSection.ReadOnlyDataSection;
+            return ObjectNodeSection.XDataSection;
         }
 
         public override bool StaticDependenciesAreComputed => true;

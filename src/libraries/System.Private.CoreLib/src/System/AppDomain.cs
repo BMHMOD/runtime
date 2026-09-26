@@ -80,16 +80,7 @@ namespace System
 
         public event EventHandler<FirstChanceExceptionEventArgs>? FirstChanceException
         {
-            add
-            {
-                AppContext.FirstChanceException += value;
-#if CORECLR
-                // Once a handler is added, the runtime will attempt
-                // to deliver first chance notifications for all exceptions.
-                // We don't care if handlers are removed.
-                AppContext.SetFirstChanceExceptionHandler();
-#endif
-            }
+            add { AppContext.FirstChanceException += value; }
             remove { AppContext.FirstChanceException -= value; }
         }
 
@@ -198,7 +189,7 @@ namespace System
 
         public Assembly Load(string assemblyString) => Assembly.Load(assemblyString);
 
-        public Assembly[] ReflectionOnlyGetAssemblies() => [];
+        public Assembly[] ReflectionOnlyGetAssemblies() => Array.Empty<Assembly>();
 
         public static bool MonitoringIsEnabled
         {

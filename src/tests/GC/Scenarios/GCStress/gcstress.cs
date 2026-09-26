@@ -10,7 +10,6 @@ namespace DefaultNamespace {
         internal GCStress next;
         internal byte[] data;
 
-        [SkipOnCoreClr("This test is not compatible with GC stress.", RuntimeTestModes.AnyGCStress)]
         [Fact]
         public static int TestEntryPoint()
         {

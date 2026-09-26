@@ -107,12 +107,12 @@ namespace System.Collections.Immutable
                 get
                 {
                     this.ThrowIfDisposed();
-                    if (_current == null)
+                    if (_current != null)
                     {
-                        ThrowHelper.ThrowInvalidOperationException();
+                        return _current.Value;
                     }
 
-                    return _current.Value;
+                    throw new InvalidOperationException();
                 }
             }
 

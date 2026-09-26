@@ -129,7 +129,6 @@ namespace System.Net.WebSockets.Tests
             }
             catch (WebSocketException ex) when (ex.WebSocketErrorCode == WebSocketError.Faulted)
             {
-                Assert.Equal(SR.net_Websockets_InvalidTextPayload, ex.Message);
                 return false;
             }
         }

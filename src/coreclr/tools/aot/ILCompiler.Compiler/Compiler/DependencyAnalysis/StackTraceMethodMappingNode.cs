@@ -15,8 +15,11 @@ namespace ILCompiler.DependencyAnalysis
     /// <summary>
     /// BlobIdStackTraceMethodRvaToTokenMapping - list of 8-byte pairs (method RVA-method token)
     /// </summary>
-    public sealed class StackTraceMethodMappingNode : ObjectNode, ISymbolDefinitionNode
+    public sealed class StackTraceMethodMappingNode : ObjectNode, ISymbolDefinitionNode, INodeWithSize
     {
+        private int? _size;
+
+        int INodeWithSize.Size => _size.Value;
 
         public override bool IsShareable => false;
 
@@ -119,7 +122,7 @@ namespace ILCompiler.DependencyAnalysis
                     }
                 }
 
-                if ((entry.Flags & StackTraceRecordFlags.IsHidden) != 0)
+                if (entry.IsHidden)
                 {
                     command |= StackTraceDataCommand.IsStackTraceHidden;
                 }
@@ -128,6 +131,7 @@ namespace ILCompiler.DependencyAnalysis
                 objData.EmitReloc(factory.MethodEntrypoint(entry.Method), RelocType.IMAGE_REL_BASED_RELPTR32);
             }
 
+            _size = objData.CountBytes;
             return objData.ToObjectData();
         }
     }

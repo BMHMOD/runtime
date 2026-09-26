@@ -33,7 +33,6 @@ HRESULT CHashTable::NewInit(            // Return status.
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -60,7 +59,6 @@ BYTE *CHashTable::Add(                  // New entry.
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -112,7 +110,6 @@ void CHashTable::Delete(
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -143,7 +140,6 @@ void CHashTable::Move(
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -225,7 +221,6 @@ ULONG CHashTable::FindNext(            // Index of struct in m_pcEntries.
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -734,7 +729,6 @@ void *CStructArray::InsertThrowing(
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -765,7 +759,6 @@ void *CStructArray::Insert(int iIndex)
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -792,7 +785,6 @@ void *CStructArray::AppendThrowing()
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -811,7 +803,6 @@ void *CStructArray::Append()
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -840,7 +831,6 @@ void CStructArray::AllocateBlockThrowing(int iCount)
     CONTRACTL
     {
         THROWS;
-        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -857,7 +847,6 @@ int CStructArray::AllocateBlock(int iCount)
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -885,7 +874,6 @@ void CStructArray::Delete(
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 
@@ -908,7 +896,6 @@ void CStructArray::Grow(
 {
     CONTRACTL {
         THROWS;
-        GC_NOTRIGGER;
     } CONTRACTL_END;
 
     BYTE        *pTemp;                 // temporary pointer used in realloc.
@@ -976,7 +963,6 @@ void CStructArray::Clear()
     CONTRACTL
     {
         NOTHROW;
-        GC_NOTRIGGER;
     }
     CONTRACTL_END;
 

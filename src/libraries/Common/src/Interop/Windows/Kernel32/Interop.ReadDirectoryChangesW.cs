@@ -10,7 +10,6 @@ internal static partial class Interop
 {
     internal static partial class Kernel32
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Kernel32, EntryPoint = "ReadDirectoryChangesW", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static unsafe partial bool ReadDirectoryChangesW(

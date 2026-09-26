@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Linq;
-using Microsoft.DotNet.XUnitExtensions;
 using Xunit;
 
 namespace System.IO.Tests
@@ -267,7 +266,7 @@ namespace System.IO.Tests
 
         }
 
-        [ConditionalTheory(typeof(Directory_Exists), nameof(ReservedDeviceNamesAreBlocked))] // device names
+        [ConditionalTheory(nameof(ReservedDeviceNamesAreBlocked))] // device names
         [MemberData(nameof(PathsWithReservedDeviceNames))]
         [OuterLoop]
         public void PathWithReservedDeviceNameAsPath_ReturnsFalse(string component)
@@ -275,6 +274,7 @@ namespace System.IO.Tests
             Assert.False(Exists(component));
         }
 
+        [ActiveIssue("https://github.com/dotnet/runtimelab/issues/901", typeof(PlatformDetection), nameof(PlatformDetection.IsNativeAot))]
         [Theory,
             MemberData(nameof(UncPathsWithoutShareName))]
         public void UncPathWithoutShareNameAsPath_ReturnsFalse(string component)
@@ -301,14 +301,16 @@ namespace System.IO.Tests
             Assert.False(Exists(component));
         }
 
-        [ConditionalFact]
+        [Fact]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/14378")]
         [PlatformSpecific(TestPlatforms.Windows)] // drive labels
         public void NotReadyDriveAsPath_ReturnsFalse()
         {
             var drive = IOServices.GetNotReadyDrive();
-            if (drive is null)
+            if (drive == null)
             {
-                throw new SkipTestException("Unable to find a not-ready drive, such as CD-Rom with no disc inserted.");
+                Console.WriteLine("Skipping test. Unable to find a not-ready drive, such as CD-Rom with no disc inserted.");
+                return;
             }
 
             bool result = Exists(drive);
@@ -316,14 +318,16 @@ namespace System.IO.Tests
             Assert.False(result);
         }
 
-        [ConditionalFact]
+        [Fact]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/14378")]
         [PlatformSpecific(TestPlatforms.Windows)] // drive labels
         public void SubdirectoryOnNotReadyDriveAsPath_ReturnsFalse()
         {
             var drive = IOServices.GetNotReadyDrive();
-            if (drive is null)
+            if (drive == null)
             {
-                throw new SkipTestException("Unable to find a not-ready drive, such as CD-Rom with no disc inserted.");
+                Console.WriteLine("Skipping test. Unable to find a not-ready drive, such as CD-Rom with no disc inserted.");
+                return;
             }
 
             bool result = Exists(Path.Combine(drive, "Subdirectory"));

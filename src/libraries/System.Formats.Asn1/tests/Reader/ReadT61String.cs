@@ -7,35 +7,8 @@ using Xunit;
 
 namespace System.Formats.Asn1.Tests.Reader
 {
-    public sealed class ReadT61StringAsnReaderTests : ReadT61StringBase
+    public sealed class ReadT61String
     {
-        internal override AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default)
-        {
-            return AsnReaderWrapper.CreateClassReader(data, ruleSet, options);
-        }
-    }
-
-    public sealed class ReadT61StringValueAsnReaderTests : ReadT61StringBase
-    {
-        internal override AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default)
-        {
-            return AsnReaderWrapper.CreateValueReader(data, ruleSet, options);
-        }
-    }
-
-    public abstract class ReadT61StringBase
-    {
-        internal abstract AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default);
-
         public static IEnumerable<object[]> ValidEncodingData { get; } =
             new object[][]
             {
@@ -90,13 +63,13 @@ namespace System.Formats.Asn1.Tests.Reader
 
         [Theory]
         [MemberData(nameof(ValidEncodingData))]
-        public void GetT61String_Success(
+        public static void GetT61String_Success(
             AsnEncodingRules ruleSet,
             string inputHex,
             string expectedValue)
         {
             byte[] inputData = inputHex.HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
             string value = reader.ReadCharacterString(UniversalTagNumber.T61String);
 
             Assert.Equal(expectedValue, value);
@@ -104,7 +77,7 @@ namespace System.Formats.Asn1.Tests.Reader
 
         [Theory]
         [MemberData(nameof(ValidEncodingData))]
-        public void TryCopyT61String(
+        public static void TryCopyT61String(
             AsnEncodingRules ruleSet,
             string inputHex,
             string expectedValue)
@@ -112,7 +85,7 @@ namespace System.Formats.Asn1.Tests.Reader
             byte[] inputData = inputHex.HexToByteArray();
             char[] output = new char[expectedValue.Length];
 
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
             bool copied;
             int charsWritten;
 

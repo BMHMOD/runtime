@@ -29,23 +29,26 @@ namespace System.IO
                 // The Windows implementation uses ReadFile, which ignores the offset if the handle
                 // isn't seekable.  We do the same manually with PRead vs Read, in order to enable
                 // the function to be used by FileStream for all the same situations.
-                int result = -1;
-                if (handle.IsAsync)
-                {
-                    result = Interop.Sys.ReadFromNonblocking(handle, bufPtr, buffer.Length);
-                }
-                else if (handle.SupportsRandomAccess)
+                int result;
+                if (handle.SupportsRandomAccess)
                 {
                     // Try pread for seekable files.
                     result = Interop.Sys.PRead(handle, bufPtr, buffer.Length, fileOffset);
-
-                    if (result == -1 && ShouldFallBackToNonOffsetSyscall(Interop.Sys.GetLastErrorInfo()))
+                    if (result == -1)
                     {
-                        handle.SupportsRandomAccess = false; // Fall through to non-offset Read below.
+                        // We need to fallback to the non-offset version for certain file types
+                        // e.g: character devices (such as /dev/tty), pipes, and sockets.
+                        Interop.ErrorInfo errorInfo = Interop.Sys.GetLastErrorInfo();
+
+                        if (errorInfo.Error == Interop.Error.ENXIO ||
+                            errorInfo.Error == Interop.Error.ESPIPE)
+                        {
+                            handle.SupportsRandomAccess = false;
+                            result = Interop.Sys.Read(handle, bufPtr, buffer.Length);
+                        }
                     }
                 }
-
-                if (!handle.IsAsync && !handle.SupportsRandomAccess)
+                else
                 {
                     result = Interop.Sys.Read(handle, bufPtr, buffer.Length);
                 }
@@ -60,7 +63,7 @@ namespace System.IO
             MemoryHandle[] handles = new MemoryHandle[buffers.Count];
             Span<Interop.Sys.IOVector> vectors = buffers.Count <= IovStackThreshold ? stackalloc Interop.Sys.IOVector[IovStackThreshold] : new Interop.Sys.IOVector[buffers.Count];
 
-            long result = -1;
+            long result;
             try
             {
                 int buffersCount = buffers.Count;
@@ -74,20 +77,7 @@ namespace System.IO
 
                 fixed (Interop.Sys.IOVector* pinnedVectors = &MemoryMarshal.GetReference(vectors))
                 {
-                    if (handle.SupportsRandomAccess)
-                    {
-                        result = Interop.Sys.PReadV(handle, pinnedVectors, buffers.Count, fileOffset);
-
-                        if (result == -1 && ShouldFallBackToNonOffsetSyscall(Interop.Sys.GetLastErrorInfo()))
-                        {
-                            handle.SupportsRandomAccess = false; // Fall through to non-offset ReadV below.
-                        }
-                    }
-
-                    if (!handle.SupportsRandomAccess)
-                    {
-                        result = Interop.Sys.ReadV(handle, pinnedVectors, buffers.Count);
-                    }
+                    result = Interop.Sys.PReadV(handle, pinnedVectors, buffers.Count, fileOffset);
                 }
             }
             finally
@@ -108,9 +98,6 @@ namespace System.IO
             => handle.GetThreadPoolValueTaskSource().QueueReadScatter(buffers, fileOffset, cancellationToken);
 
         internal static unsafe void WriteAtOffset(SafeFileHandle handle, ReadOnlySpan<byte> buffer, long fileOffset)
-            => WriteAtOffset(handle, buffer, ref fileOffset);
-
-        internal static unsafe void WriteAtOffset(SafeFileHandle handle, ReadOnlySpan<byte> buffer, ref long fileOffset)
         {
             while (!buffer.IsEmpty)
             {
@@ -120,32 +107,30 @@ namespace System.IO
                     // isn't seekable.  We do the same manually with PWrite vs Write, in order to enable
                     // the function to be used by FileStream for all the same situations.
                     int bytesToWrite = GetNumberOfBytesToWrite(buffer.Length);
-                    int bytesWritten = -1;
-                    if (handle.IsAsync)
-                    {
-                        bytesWritten = Interop.Sys.WriteToNonblocking(handle, bufPtr, bytesToWrite);
-                    }
-                    else if (handle.SupportsRandomAccess)
+                    int bytesWritten;
+                    if (handle.SupportsRandomAccess)
                     {
                         bytesWritten = Interop.Sys.PWrite(handle, bufPtr, bytesToWrite, fileOffset);
-
-                        if (bytesWritten == -1 && ShouldFallBackToNonOffsetSyscall(Interop.Sys.GetLastErrorInfo()))
+                        if (bytesWritten == -1)
                         {
-                            handle.SupportsRandomAccess = false; // Fall through to non-offset Write below.
+                            // We need to fallback to the non-offset version for certain file types
+                            // e.g: character devices (such as /dev/tty), pipes, and sockets.
+                            Interop.ErrorInfo errorInfo = Interop.Sys.GetLastErrorInfo();
+
+                            if (errorInfo.Error == Interop.Error.ENXIO ||
+                                errorInfo.Error == Interop.Error.ESPIPE)
+                            {
+                                handle.SupportsRandomAccess = false;
+                                bytesWritten = Interop.Sys.Write(handle, bufPtr, bytesToWrite);
+                            }
                         }
                     }
-
-                    if (!handle.IsAsync && !handle.SupportsRandomAccess)
+                    else
                     {
                         bytesWritten = Interop.Sys.Write(handle, bufPtr, bytesToWrite);
                     }
 
                     FileStreamHelpers.CheckFileCall(bytesWritten, handle.Path);
-
-                    // Update fileOffset after each successful write so that if a subsequent write fails,
-                    // the caller can observe how many bytes were actually written.
-                    fileOffset += bytesWritten;
-
                     if (bytesWritten == buffer.Length)
                     {
                         break;
@@ -154,6 +139,7 @@ namespace System.IO
                     // The write completed successfully but for fewer bytes than requested.
                     // We need to try again for the remainder.
                     buffer = buffer.Slice(bytesWritten);
+                    fileOffset += bytesWritten;
                 }
             }
         }
@@ -201,24 +187,11 @@ namespace System.IO
                 int buffersOffset = 0;
                 while (totalBytesToWrite > 0)
                 {
-                    long bytesWritten = -1;
+                    long bytesWritten;
                     Span<Interop.Sys.IOVector> left = vectors.Slice(buffersOffset);
                     fixed (Interop.Sys.IOVector* pinnedVectors = &MemoryMarshal.GetReference(left))
                     {
-                        if (handle.SupportsRandomAccess)
-                        {
-                            bytesWritten = Interop.Sys.PWriteV(handle, pinnedVectors, left.Length, fileOffset);
-
-                            if (bytesWritten == -1 && ShouldFallBackToNonOffsetSyscall(Interop.Sys.GetLastErrorInfo()))
-                            {
-                                handle.SupportsRandomAccess = false; // Fall through to non-offset WriteV below.
-                            }
-                        }
-
-                        if (!handle.SupportsRandomAccess)
-                        {
-                            bytesWritten = Interop.Sys.WriteV(handle, pinnedVectors, left.Length);
-                        }
+                        bytesWritten = Interop.Sys.PWriteV(handle, pinnedVectors, left.Length, fileOffset);
                     }
 
                     FileStreamHelpers.CheckFileCall(bytesWritten, handle.Path);
@@ -272,12 +245,5 @@ namespace System.IO
 
         private static ValueTask WriteGatherAtOffsetAsync(SafeFileHandle handle, IReadOnlyList<ReadOnlyMemory<byte>> buffers, long fileOffset, CancellationToken cancellationToken)
             => handle.GetThreadPoolValueTaskSource().QueueWriteGather(buffers, fileOffset, cancellationToken);
-
-        /// <summary>
-        /// Checks the last error after a failed pread/pwrite/preadv/pwritev call
-        /// and returns true if the error indicates a non-seekable file type (ENXIO or ESPIPE).
-        /// </summary>
-        private static bool ShouldFallBackToNonOffsetSyscall(Interop.ErrorInfo lastError)
-            => lastError.Error is Interop.Error.ENXIO or Interop.Error.ESPIPE;
     }
 }

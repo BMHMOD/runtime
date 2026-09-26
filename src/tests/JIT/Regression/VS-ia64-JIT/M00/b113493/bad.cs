@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Xunit;
-namespace b113493
+namespace DefaultNamespace
 {
 
     using System.Threading;

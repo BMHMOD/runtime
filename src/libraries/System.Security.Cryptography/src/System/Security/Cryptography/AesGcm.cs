@@ -18,7 +18,6 @@ namespace System.Security.Cryptography
             ThrowIfNotSupported();
 
             AesAEAD.CheckKeySize(key.Length);
-            KeySizeInBytes = key.Length;
             ImportKey(key);
         }
 

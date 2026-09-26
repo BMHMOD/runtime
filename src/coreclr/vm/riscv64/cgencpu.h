@@ -46,9 +46,19 @@
     CALLEE_SAVED_REGISTER(F[26]) \
     CALLEE_SAVED_REGISTER(F[27])
 
+EXTERN_C void getFPReturn(int fpSize, INT64 *pRetVal);
+EXTERN_C void setFPReturn(int fpSize, INT64 retVal);
+
+
 class ComCallMethodDesc;
 
 extern PCODE GetPreStubEntryPoint();
+
+#define COMMETHOD_PREPAD                        24   // # extra bytes to allocate in addition to sizeof(ComCallMethodDesc)
+#ifdef FEATURE_COMINTEROP
+#define COMMETHOD_CALL_PRESTUB_SIZE             24
+#define COMMETHOD_CALL_PRESTUB_ADDRESS_OFFSET   16   // the offset of the call target address inside the prestub
+#endif // FEATURE_COMINTEROP
 
 #define STACK_ALIGN_SIZE                        16
 
@@ -88,6 +98,14 @@ inline unsigned StackElemSize(unsigned parmSize, bool isValueType, bool isFloatH
     const unsigned stackSlotSize = 8;
     return ALIGN_UP(parmSize, stackSlotSize);
 }
+
+//
+// JIT HELPERS.
+//
+// Create alias for optimized implementations of helpers provided on this platform
+//
+#define JIT_GetDynamicGCStaticBase           JIT_GetDynamicGCStaticBase_SingleAppDomain
+#define JIT_GetDynamicNonGCStaticBase        JIT_GetDynamicNonGCStaticBase_SingleAppDomain
 
 //**********************************************************************
 // Frames
@@ -273,6 +291,10 @@ inline TADDR GetMem(PCODE address, SIZE_T size, bool signExtend)
     return mem;
 }
 
+#ifdef FEATURE_COMINTEROP
+void emitCOMStubCall (ComCallMethodDesc *pCOMMethodRX, ComCallMethodDesc *pCOMMethodRW, PCODE target);
+#endif // FEATURE_COMINTEROP
+
 inline BOOL ClrFlushInstructionCache(LPCVOID pCodeAddr, size_t sizeOfCode, bool hasCodeExecutedBefore = false)
 {
     return FlushInstructionCache(GetCurrentProcess(), pCodeAddr, sizeOfCode);
@@ -391,11 +413,6 @@ struct HijackArgs
              DWORD64 A1;
          };
         size_t ReturnValue[2];
-    };
-    union
-    {
-        DWORD64 A2;
-        size_t AsyncRet;
     };
     union
     {

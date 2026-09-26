@@ -6,9 +6,6 @@
 // jump for the low compare.
 //
 
-
-namespace GitHub_6239;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
@@ -30,7 +27,6 @@ public class Program
         }
     }
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

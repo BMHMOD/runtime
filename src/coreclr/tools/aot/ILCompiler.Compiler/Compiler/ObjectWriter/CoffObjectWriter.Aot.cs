@@ -14,7 +14,6 @@ using System.Runtime.InteropServices;
 using System.Text;
 using ILCompiler.DependencyAnalysis;
 using ILCompiler.DependencyAnalysisFramework;
-using Internal.Text;
 using Internal.TypeSystem;
 using Internal.TypeSystem.TypesDebugInfo;
 using static ILCompiler.DependencyAnalysis.RelocType;
@@ -56,20 +55,18 @@ namespace ILCompiler.ObjectWriter
         private CodeViewTypesBuilder _debugTypesBuilder;
 
         // Exception handling
-        private static readonly ObjectNodeSection XDataSection = new ObjectNodeSection("xdata", SectionType.ReadOnly);
-        private static readonly ObjectNodeSection PDataSection = new ObjectNodeSection("pdata", SectionType.UnwindData);
         private SectionWriter _pdataSectionWriter;
 
         private protected override void CreateEhSections()
         {
             // Create .pdata
-            _pdataSectionWriter = GetOrCreateSection(PDataSection);
+            _pdataSectionWriter = GetOrCreateSection(ObjectNodeSection.PDataSection);
         }
 
         private protected override void EmitUnwindInfo(
             SectionWriter sectionWriter,
             INodeWithCodeInfo nodeWithCodeInfo,
-            Utf8String currentSymbolName)
+            string currentSymbolName)
         {
             if (nodeWithCodeInfo.FrameInfos is FrameInfo[] frameInfos &&
                 nodeWithCodeInfo is ISymbolDefinitionNode)
@@ -77,8 +74,6 @@ namespace ILCompiler.ObjectWriter
                 SectionWriter xdataSectionWriter;
                 SectionWriter pdataSectionWriter;
                 bool shareSymbol = ShouldShareSymbol((ObjectNode)nodeWithCodeInfo);
-
-                Span<byte> i_str = stackalloc byte[16];
 
                 for (int i = 0; i < frameInfos.Length; i++)
                 {
@@ -88,23 +83,19 @@ namespace ILCompiler.ObjectWriter
                     int end = frameInfo.EndOffset;
                     byte[] blob = frameInfo.BlobData;
 
-                    _utf8StringBuilder.Clear()
-                        .Append("_unwind"u8)
-                        .Append(FormatUtf8Int(i_str, i))
-                        .Append(currentSymbolName);
-                    Utf8String unwindSymbolName = _utf8StringBuilder.ToUtf8String();
+                    string unwindSymbolName = $"_unwind{i}{currentSymbolName}";
 
                     if (shareSymbol)
                     {
                         // Produce an associative COMDAT symbol.
-                        xdataSectionWriter = GetOrCreateSection(XDataSection, currentSymbolName, unwindSymbolName);
-                        pdataSectionWriter = GetOrCreateSection(PDataSection, currentSymbolName, default);
+                        xdataSectionWriter = GetOrCreateSection(ObjectNodeSection.XDataSection, currentSymbolName, unwindSymbolName);
+                        pdataSectionWriter = GetOrCreateSection(ObjectNodeSection.PDataSection, currentSymbolName, null);
                     }
                     else
                     {
                         // Produce a COMDAT section for each unwind symbol and let linker
                         // do the deduplication across the ones with identical content.
-                        xdataSectionWriter = GetOrCreateSection(XDataSection, unwindSymbolName, unwindSymbolName);
+                        xdataSectionWriter = GetOrCreateSection(ObjectNodeSection.XDataSection, unwindSymbolName, unwindSymbolName);
                         pdataSectionWriter = _pdataSectionWriter;
                     }
 
@@ -188,10 +179,10 @@ namespace ILCompiler.ObjectWriter
 
         private protected override void EmitDebugFunctionInfo(
             uint methodTypeIndex,
-            Utf8String methodDisplayName,
-            Utf8String methodName,
+            string methodName,
             SymbolDefinition methodSymbol,
-            INodeWithDebugInfo debugNode)
+            INodeWithDebugInfo debugNode,
+            bool hasSequencePoints)
         {
             DebugEHClauseInfo[] clauses = null;
             CodeViewSymbolsBuilder debugSymbolsBuilder;
@@ -205,7 +196,7 @@ namespace ILCompiler.ObjectWriter
             {
                 // If the method is emitted in COMDAT section then we need to create an
                 // associated COMDAT section for the debugging symbols.
-                var sectionWriter = GetOrCreateSection(DebugSymbolSection, methodName, default);
+                var sectionWriter = GetOrCreateSection(DebugSymbolSection, methodName, null);
                 debugSymbolsBuilder = new CodeViewSymbolsBuilder(_nodeFactory.Target.Architecture, sectionWriter);
             }
             else
@@ -214,14 +205,13 @@ namespace ILCompiler.ObjectWriter
             }
 
             debugSymbolsBuilder.EmitSubprogramInfo(
-                methodDisplayName,
                 methodName,
                 methodSymbol.Size,
                 methodTypeIndex,
                 debugNode.GetDebugVars().Select(debugVar => (debugVar, GetVarTypeIndex(debugNode.IsStateMachineMoveNextMethod, debugVar))),
                 clauses ?? Array.Empty<DebugEHClauseInfo>());
 
-            if (debugNode.GetNativeSequencePoints().Any())
+            if (hasSequencePoints)
             {
                 debugSymbolsBuilder.EmitLineInfo(
                     _debugFileTableBuilder,
@@ -232,7 +222,7 @@ namespace ILCompiler.ObjectWriter
         }
 
         private protected override void EmitDebugThunkInfo(
-            Utf8String methodName,
+            string methodName,
             SymbolDefinition methodSymbol,
             INodeWithDebugInfo debugNode)
         {
@@ -245,7 +235,7 @@ namespace ILCompiler.ObjectWriter
             {
                 // If the method is emitted in COMDAT section then we need to create an
                 // associated COMDAT section for the debugging symbols.
-                var sectionWriter = GetOrCreateSection(DebugSymbolSection, methodName, default);
+                var sectionWriter = GetOrCreateSection(DebugSymbolSection, methodName, null);
                 debugSymbolsBuilder = new CodeViewSymbolsBuilder(_nodeFactory.Target.Architecture, sectionWriter);
             }
             else
@@ -260,7 +250,7 @@ namespace ILCompiler.ObjectWriter
                 debugNode.GetNativeSequencePoints());
         }
 
-        private protected override void EmitDebugSections(IDictionary<Utf8String, SymbolDefinition> definedSymbols)
+        private protected override void EmitDebugSections(IDictionary<string, SymbolDefinition> definedSymbols)
         {
             _debugSymbolsBuilder.WriteUserDefinedTypes(_debugTypesBuilder.UserDefinedTypes);
             _debugFileTableBuilder.Write(_debugSymbolSectionWriter);

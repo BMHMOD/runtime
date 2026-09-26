@@ -3,6 +3,7 @@
 
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using Microsoft.Win32.SafeHandles;
 using Internal.Cryptography;
@@ -36,12 +37,29 @@ namespace System.Security.Cryptography
             }
 
             _hAlgorithm = Interop.BCrypt.BCryptAlgorithmCache.GetCachedBCryptAlgorithmHandle(hashAlgId, dwFlags, out _hashSize);
-            NTSTATUS ntStatus = Interop.BCrypt.BCryptCreateHash(_hAlgorithm, out _hHash, IntPtr.Zero, 0, key, key.Length, BCryptCreateHashFlags.BCRYPT_HASH_REUSABLE_FLAG);
 
-            if (ntStatus != NTSTATUS.STATUS_SUCCESS)
+            // Win7 won't set hHash to a valid handle, Win8+ will; and both will set _hHash.
+            // So keep hHash trapped in this scope to prevent (mis-)use of it.
             {
-                _hHash.Dispose();
-                throw Interop.BCrypt.CreateCryptographicException(ntStatus);
+                SafeBCryptHashHandle hHash;
+                NTSTATUS ntStatus = Interop.BCrypt.BCryptCreateHash(_hAlgorithm, out hHash, IntPtr.Zero, 0, key, key.Length, BCryptCreateHashFlags.BCRYPT_HASH_REUSABLE_FLAG);
+                if (ntStatus == NTSTATUS.STATUS_INVALID_PARAMETER)
+                {
+                    hHash.Dispose();
+                    // If we got here, we're running on a downlevel OS (pre-Win8) that doesn't support reusable CNG hash objects. Fall back to creating a
+                    // new HASH object each time.
+                    Reset();
+                }
+                else if (ntStatus != NTSTATUS.STATUS_SUCCESS)
+                {
+                    hHash.Dispose();
+                    throw Interop.BCrypt.CreateCryptographicException(ntStatus);
+                }
+                else
+                {
+                    _hHash = hHash;
+                    _reusable = true;
+                }
             }
         }
 
@@ -49,12 +67,14 @@ namespace System.Security.Cryptography
             SafeBCryptAlgorithmHandle algorithmHandle,
             SafeBCryptHashHandle hashHandle,
             byte[]? key,
+            bool reusable,
             int hashSize,
             bool running)
         {
             _hAlgorithm = algorithmHandle;
             _hHash = hashHandle;
             _key = key.CloneByteArray();
+            _reusable = reusable;
             _hashSize = hashSize;
             _running = running;
         }
@@ -121,7 +141,7 @@ namespace System.Security.Cryptography
             using (ConcurrencyBlock.Enter(ref _block))
             {
                 SafeBCryptHashHandle clone = Interop.BCrypt.BCryptDuplicateHash(_hHash);
-                return new HashProviderCng(_hAlgorithm, clone, _key, _hashSize, _running);
+                return new HashProviderCng(_hAlgorithm, clone, _key, _reusable, _hashSize, _running);
             }
         }
 
@@ -143,20 +163,24 @@ namespace System.Security.Cryptography
 
         public sealed override int HashSizeInBytes => _hashSize;
 
+        [MemberNotNull(nameof(_hHash))]
         public override void Reset()
         {
             // Reset does not need to use ConcurrencyBlock. It either no-ops, or creates an entirely new handle, exchanges
             // them, and disposes of the old handle. We don't need to block concurrency on the Dispose because SafeHandle
             // does that.
-            if (!_running)
+            if (_reusable && !_running)
             {
+                Debug.Assert(_hHash is not null);
                 return;
             }
 
-            const BCryptCreateHashFlags Flags = BCryptCreateHashFlags.BCRYPT_HASH_REUSABLE_FLAG;
+            BCryptCreateHashFlags flags = _reusable ?
+                BCryptCreateHashFlags.BCRYPT_HASH_REUSABLE_FLAG :
+                BCryptCreateHashFlags.None;
 
             SafeBCryptHashHandle hHash;
-            NTSTATUS ntStatus = Interop.BCrypt.BCryptCreateHash(_hAlgorithm, out hHash, IntPtr.Zero, 0, _key, _key == null ? 0 : _key.Length, Flags);
+            NTSTATUS ntStatus = Interop.BCrypt.BCryptCreateHash(_hAlgorithm, out hHash, IntPtr.Zero, 0, _key, _key == null ? 0 : _key.Length, flags);
 
             if (ntStatus != NTSTATUS.STATUS_SUCCESS)
             {
@@ -171,6 +195,7 @@ namespace System.Security.Cryptography
         private readonly SafeBCryptAlgorithmHandle _hAlgorithm;
         private SafeBCryptHashHandle _hHash;
         private byte[]? _key;
+        private readonly bool _reusable;
 
         private readonly int _hashSize;
         private bool _running;

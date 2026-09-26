@@ -540,7 +540,7 @@ namespace System.Data.Odbc
                 return false;
             }
 
-            if (_sqlstatement.AsSpan(tempidx).StartsWith(tokenString, StringComparison.OrdinalIgnoreCase))
+            if (0 == string.Compare(_sqlstatement, tempidx, tokenString, 0, tokenString.Length, StringComparison.OrdinalIgnoreCase))
             {
                 // Reset current position and token
                 _idx = 0;

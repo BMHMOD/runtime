@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 /*
-using TestLibrary;
 https://github.com/dotnet/runtime/issues/103365
 When using an interface with a generic out type, an explicit implementation, and a derived class, the base classes implementation is called instead of the derived class when running on Mono; CoreCLR has the expected behavior.
 */
@@ -12,7 +11,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 public interface IBaseInterface<out T>
 {
@@ -40,7 +38,6 @@ public class BasicDerivedClass : BasicBaseClass, IBaseInterface<BasicDerivedClas
 
 public static class Test_Issue103365
 {
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void Test()
     {

@@ -5,7 +5,6 @@
 using System;
 using System.Runtime.InteropServices;
 using Xunit;
-using TestLibrary;
 
 [ StructLayout( LayoutKind.Explicit )] public struct MyUnion1 {
     [ FieldOffset( 0 )] public int i;
@@ -14,7 +13,6 @@ using TestLibrary;
 
 public class Test{
 
-  [ActiveIssue("expected failure: overlapped structs fail at AOT compile time, not runtime", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoFULLAOT))]
   [Fact]
   public static int TestEntryPoint(){
       bool caught=false;

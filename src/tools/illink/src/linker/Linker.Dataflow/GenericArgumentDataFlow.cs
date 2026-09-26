@@ -13,10 +13,10 @@ namespace Mono.Linker.Dataflow
 {
     internal static class GenericArgumentDataFlow
     {
-        public static void ProcessGenericArgumentDataFlow(in MessageOrigin origin, MarkStep markStep, LinkContext context, TypeReference type, bool suppressTrimAnalysisWarnings = false)
+        public static void ProcessGenericArgumentDataFlow(in MessageOrigin origin, MarkStep markStep, LinkContext context, TypeReference type)
         {
-            var diagnosticContext = new DiagnosticContext(origin, !suppressTrimAnalysisWarnings && !context.Annotations.ShouldSuppressAnalysisWarningsForRequiresUnreferencedCode(origin.Provider, out _), context);
-            var reflectionMarker = new ReflectionMarker(context, markStep, enabled: true, suppressTrimAnalysisWarnings: suppressTrimAnalysisWarnings);
+            var diagnosticContext = new DiagnosticContext(origin, !context.Annotations.ShouldSuppressAnalysisWarningsForRequiresUnreferencedCode(origin.Provider, out _), context);
+            var reflectionMarker = new ReflectionMarker(context, markStep, enabled: true);
             ProcessGenericArgumentDataFlow(in diagnosticContext, reflectionMarker, context, type);
         }
 
@@ -53,16 +53,7 @@ namespace Mono.Linker.Dataflow
                 var genericArgument = arguments[i];
                 var genericParameter = parameters[i];
 
-                var parameterRequirements = context.Annotations.FlowAnnotations.GetGenericParameterAnnotation(genericParameter);
-
-                if (genericParameter.HasDefaultConstructorConstraint)
-                {
-                    reflectionMarker.MarkTypeForDynamicallyAccessedMembers(diagnosticContext.Origin, genericArgument, DynamicallyAccessedMemberTypes.PublicParameterlessConstructor, DependencyKind.DefaultCtorForNewConstrainedGenericArgument);
-                    // Avoid duplicate warnings for new() and DAMT.PublicParameterlessConstructor
-                    parameterRequirements &= ~DynamicallyAccessedMemberTypes.PublicParameterlessConstructor;
-                }
-
-                var genericParameterValue = context.Annotations.FlowAnnotations.GetGenericParameterValue(genericParameter, parameterRequirements);
+                var genericParameterValue = context.Annotations.FlowAnnotations.GetGenericParameterValue(genericParameter);
                 if (genericParameterValue.DynamicallyAccessedMemberTypes != DynamicallyAccessedMemberTypes.None)
                 {
                     MultiValue genericArgumentValue = context.Annotations.FlowAnnotations.GetTypeValueFromGenericArgument(genericArgument);
@@ -91,9 +82,6 @@ namespace Mono.Linker.Dataflow
                 if (flowAnnotations.HasGenericParameterAnnotation(method))
                     return true;
 
-                if (flowAnnotations.HasGenericParameterNewConstraint(method))
-                    return true;
-
                 foreach (var genericArgument in genericInstanceMethod.GenericArguments)
                 {
                     if (RequiresGenericArgumentDataFlow(flowAnnotations, genericArgument))
@@ -112,11 +100,6 @@ namespace Mono.Linker.Dataflow
         internal static bool RequiresGenericArgumentDataFlow(FlowAnnotations flowAnnotations, TypeReference type)
         {
             if (flowAnnotations.HasGenericParameterAnnotation(type))
-            {
-                return true;
-            }
-
-            if (flowAnnotations.HasGenericParameterNewConstraint(type))
             {
                 return true;
             }

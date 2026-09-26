@@ -30,7 +30,5 @@ namespace System.Text.Json.Serialization.Converters
         }
 
         internal override JsonSchema? GetSchema(JsonNumberHandling _) => new JsonSchema { Type = JsonSchemaType.String, Format = "date-time" };
-
-        internal override JsonValueType GetSupportedJsonValueTypes(JsonNumberHandling _) => JsonValueType.String;
     }
 }

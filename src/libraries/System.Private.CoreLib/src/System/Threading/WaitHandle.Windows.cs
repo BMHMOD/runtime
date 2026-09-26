@@ -26,7 +26,7 @@ namespace System.Threading
             if (numHandles == 1)
                 waitAll = false;
 
-#if !MONO // TODO: reentrant wait support in Mono https://github.com/dotnet/runtime/issues/49518
+#if NATIVEAOT // TODO: reentrant wait support in Mono https://github.com/dotnet/runtime/issues/49518
             // Trivial waits don't allow reentrance
             bool reentrantWait = !useTrivialWaits && Thread.ReentrantWaitsEnabled;
 
@@ -61,11 +61,11 @@ namespace System.Threading
 
             while (true)
             {
-#if !MONO
+#if NATIVEAOT
                 if (reentrantWait)
                 {
                     Debug.Assert(!waitAll);
-                    result = Thread.ReentrantWaitAny(true, millisecondsTimeout, numHandles, pHandles);
+                    result = RuntimeImports.RhCompatibleReentrantWaitAny(true, millisecondsTimeout, numHandles, pHandles);
                 }
                 else
                 {

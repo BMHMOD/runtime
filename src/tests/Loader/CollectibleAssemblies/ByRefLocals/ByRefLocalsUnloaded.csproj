@@ -7,7 +7,4 @@
     <ProjectReference Include="SpanAccessor.csproj" />
     <Compile Include="ByRefLocalsUnloaded.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

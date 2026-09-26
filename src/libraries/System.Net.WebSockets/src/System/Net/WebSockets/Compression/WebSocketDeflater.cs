@@ -206,17 +206,33 @@ namespace System.Net.WebSockets.Compression
 
         private ZLibStreamHandle CreateDeflater()
         {
+            ZLibStreamHandle? stream = null;
+            ErrorCode errorCode;
             try
             {
-                return ZLibStreamHandle.CreateForDeflate(level: CompressionLevel.DefaultCompression,
+                errorCode = CreateZLibStreamForDeflate(out stream,
+                    level: CompressionLevel.DefaultCompression,
                     windowBits: _windowBits,
                     memLevel: Deflate_DefaultMemLevel,
                     strategy: CompressionStrategy.DefaultStrategy);
             }
-            catch (Exception ex)
+            catch (Exception cause)
             {
-                throw new WebSocketException(ex.Message, ex.InnerException);
+                stream?.Dispose();
+                throw new WebSocketException(SR.ZLibErrorDLLLoadError, cause);
             }
+
+            if (errorCode == ErrorCode.Ok)
+            {
+                return stream;
+            }
+
+            stream.Dispose();
+
+            string message = errorCode == ErrorCode.MemError
+                ? SR.ZLibErrorNotEnoughMemory
+                : SR.Format(SR.ZLibErrorUnexpected, (int)errorCode);
+            throw new WebSocketException(message);
         }
     }
 }

@@ -11,7 +11,4 @@
 
     <CLRTestEnvironmentVariable Include="DOTNET_JitStressModeNames" Value="STRESS_RANDOM_INLINE STRESS_DBL_ALN" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

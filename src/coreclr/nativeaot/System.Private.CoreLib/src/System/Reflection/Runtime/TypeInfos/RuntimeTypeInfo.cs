@@ -104,22 +104,6 @@ namespace System.Reflection.Runtime.TypeInfos
 
         public abstract IEnumerable<CustomAttributeData> CustomAttributes { get; }
 
-        public object[] GetCustomAttributes(bool inherit) => RuntimeCustomAttribute.GetCustomAttributes(ToType(), typeof(object), inherit);
-
-        public object[] GetCustomAttributes(Type attributeType, bool inherit)
-        {
-            ArgumentNullException.ThrowIfNull(attributeType);
-            return RuntimeCustomAttribute.GetCustomAttributes(ToType(), attributeType, inherit);
-        }
-
-        public IList<CustomAttributeData> GetCustomAttributesData() => CustomAttributes.ToReadOnlyCollection();
-
-        public bool IsDefined(Type attributeType, bool inherit)
-        {
-            ArgumentNullException.ThrowIfNull(attributeType);
-            return RuntimeCustomAttribute.IsDefined(ToType(), attributeType, inherit);
-        }
-
         //
         // Left unsealed as generic parameter types must override.
         //
@@ -415,13 +399,6 @@ namespace System.Reflection.Runtime.TypeInfos
             throw new InvalidOperationException(SR.InvalidOperation_NotGenericType);
         }
 
-        public virtual Type? GetNullableUnderlyingType() => null;
-
-        internal virtual void GetEnumValuesAndNames(out string[] unsortedNames, out object[] unsortedValues, out bool isFlags)
-        {
-            throw new NotSupportedException();
-        }
-
         public Type MakeArrayType()
         {
             // Do not implement this as a call to MakeArrayType(1) - they are not interchangeable. MakeArrayType() returns a
@@ -435,31 +412,6 @@ namespace System.Reflection.Runtime.TypeInfos
             if (rank <= 0)
                 throw new IndexOutOfRangeException();
             return this.GetMultiDimArrayType(rank).ToType();
-        }
-
-        public Type MakeFunctionPointerType(Type[]? parameterTypes, bool isUnmanaged = false)
-        {
-            if (this.IsGenericTypeDefinition)
-                throw new InvalidOperationException(SR.Format(SR.FunctionPointer_ReturnTypeInvalid, this));
-
-            parameterTypes ??= [];
-            RuntimeTypeInfo[] runtimeParameterTypes = new RuntimeTypeInfo[parameterTypes.Length];
-
-            for (int i = 0; i < parameterTypes.Length; i++)
-            {
-                Type? paramType = parameterTypes[i];
-                ArgumentNullException.ThrowIfNull(paramType, nameof(parameterTypes));
-
-                if (paramType is not RuntimeType rtType)
-                    return Type.MakeFunctionPointerSignatureType(this.ToType(), parameterTypes, isUnmanaged);
-
-                if (rtType == typeof(void) || rtType.IsGenericTypeDefinition)
-                    throw new ArgumentException(SR.Format(SR.FunctionPointer_ParameterInvalid, rtType), nameof(parameterTypes));
-
-                runtimeParameterTypes[i] = rtType.GetRuntimeTypeInfo();
-            }
-
-            return this.GetFunctionPointerType(runtimeParameterTypes, isUnmanaged).ToType();
         }
 
         public Type MakePointerType()

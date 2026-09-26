@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
 using System.Text;
 
 namespace System.Speech.Internal
@@ -72,7 +71,7 @@ namespace System.Speech.Internal
             int iPos = 0, iPosNext;
             int cLen = sPhone.Length;
             StringBuilder pidArray = new(cLen);
-            PhoneId phoneIdRef = new(null!, null!); // phone and cp are not necessary, PhoneId is begin used here as a sorting helper
+            PhoneId phoneIdRef = new();
 
             while (iPos < cLen)
             {
@@ -144,14 +143,15 @@ namespace System.Speech.Internal
             for (int i = 0; i < pmComps.Length; i++)
             {
                 PhoneMapCompressed pmCompressed = pmComps[i];
-                PhoneMap pm = phoneMaps[i] = new PhoneMap(
-                    lcid: pmCompressed._lcid,
-                    phoneIds: new PhoneId[pmCompressed._count]
-                );
+                PhoneMap pm = phoneMaps[i] = new PhoneMap();
+                pm._lcid = pmCompressed._lcid;
+                pm._phoneIds = new PhoneId[pmCompressed._count];
+
                 int posPhone = 0;
                 int posCp = 0;
                 for (int j = 0; j < pm._phoneIds.Length; j++)
                 {
+                    pm._phoneIds[j] = new PhoneId();
                     // Count the number of chars in the phoneme string
                     int lastPhone;
                     int multi_phones = 0;
@@ -177,16 +177,12 @@ namespace System.Speech.Internal
                     posPhone += multi_phones + 1;
 
                     // Copy the code points for this phoneme
-                    PhoneId newPhoneId = new PhoneId(
-                        phone: new string(phone),
-                        cp: new char[multi_phones + 1]);
-
-                    for (int l = 0; l < newPhoneId._cp.Length; l++)
+                    pm._phoneIds[j]._phone = new string(phone);
+                    pm._phoneIds[j]._cp = new char[multi_phones + 1];
+                    for (int l = 0; l < pm._phoneIds[j]._cp.Length; l++)
                     {
-                        newPhoneId._cp[l] = pmCompressed._cps[posCp++];
+                        pm._phoneIds[j]._cp[l] = pmCompressed._cps[posCp++];
                     }
-                    pm._phoneIds[j] = newPhoneId;
-
                 }
 
                 // Ensure that the table is built properly
@@ -228,11 +224,7 @@ namespace System.Speech.Internal
 
         private sealed class PhoneMap
         {
-            internal PhoneMap(int lcid, PhoneId[] phoneIds)
-            {
-                _lcid = lcid;
-                _phoneIds = phoneIds;
-            }
+            internal PhoneMap() { }
 
             internal int _lcid;
             internal PhoneId[] _phoneIds;
@@ -240,18 +232,14 @@ namespace System.Speech.Internal
 
         private sealed class PhoneId : IComparer<PhoneId>
         {
-            internal PhoneId(string phone, char[] cp)
-            {
-                _phone = phone;
-                _cp = cp;
-            }
+            internal PhoneId() { }
 
             internal string _phone;
             internal char[] _cp;
 
-            int IComparer<PhoneId>.Compare(PhoneId? x, PhoneId? y)
+            int IComparer<PhoneId>.Compare(PhoneId x, PhoneId y)
             {
-                return string.Compare(x?._phone, y?._phone, StringComparison.CurrentCulture);
+                return string.Compare(x._phone, y._phone, StringComparison.CurrentCulture);
             }
         }
 
@@ -264,6 +252,8 @@ namespace System.Speech.Internal
         /// </summary>
         private sealed class PhoneMapCompressed
         {
+            internal PhoneMapCompressed() { }
+
             internal PhoneMapCompressed(int lcid, int count, byte[] phoneIds, char[] cps)
             {
                 _lcid = lcid;

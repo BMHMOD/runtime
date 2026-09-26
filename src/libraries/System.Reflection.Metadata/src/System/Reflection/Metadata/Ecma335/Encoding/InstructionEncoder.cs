@@ -211,7 +211,7 @@ namespace System.Reflection.Metadata.Ecma335
         /// Encodes local variable load instruction.
         /// </summary>
         /// <param name="slotIndex">Index of the local variable slot.</param>
-        /// <exception cref="ArgumentOutOfRangeException"><paramref name="slotIndex"/> is negative or greater than <see cref="ushort.MaxValue"/>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="slotIndex"/> is negative.</exception>
         public void LoadLocal(int slotIndex)
         {
             switch (slotIndex)
@@ -227,10 +227,10 @@ namespace System.Reflection.Metadata.Ecma335
                         OpCode(ILOpCode.Ldloc_s);
                         CodeBuilder.WriteByte((byte)slotIndex);
                     }
-                    else if (unchecked((uint)slotIndex) <= ushort.MaxValue)
+                    else if (slotIndex > 0)
                     {
                         OpCode(ILOpCode.Ldloc);
-                        CodeBuilder.WriteUInt16((ushort)slotIndex);
+                        CodeBuilder.WriteInt32(slotIndex);
                     }
                     else
                     {
@@ -245,7 +245,7 @@ namespace System.Reflection.Metadata.Ecma335
         /// Encodes local variable store instruction.
         /// </summary>
         /// <param name="slotIndex">Index of the local variable slot.</param>
-        /// <exception cref="ArgumentOutOfRangeException"><paramref name="slotIndex"/> is negative or greater than <see cref="ushort.MaxValue"/>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="slotIndex"/> is negative.</exception>
         public void StoreLocal(int slotIndex)
         {
             switch (slotIndex)
@@ -261,10 +261,10 @@ namespace System.Reflection.Metadata.Ecma335
                         OpCode(ILOpCode.Stloc_s);
                         CodeBuilder.WriteByte((byte)slotIndex);
                     }
-                    else if (unchecked((uint)slotIndex) <= ushort.MaxValue)
+                    else if (slotIndex > 0)
                     {
                         OpCode(ILOpCode.Stloc);
-                        CodeBuilder.WriteUInt16((ushort)slotIndex);
+                        CodeBuilder.WriteInt32(slotIndex);
                     }
                     else
                     {
@@ -279,7 +279,7 @@ namespace System.Reflection.Metadata.Ecma335
         /// Encodes local variable address load instruction.
         /// </summary>
         /// <param name="slotIndex">Index of the local variable slot.</param>
-        /// <exception cref="ArgumentOutOfRangeException"><paramref name="slotIndex"/> is negative or greater than <see cref="ushort.MaxValue"/>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="slotIndex"/> is negative.</exception>
         public void LoadLocalAddress(int slotIndex)
         {
             if (unchecked((uint)slotIndex) <= byte.MaxValue)
@@ -287,10 +287,10 @@ namespace System.Reflection.Metadata.Ecma335
                 OpCode(ILOpCode.Ldloca_s);
                 CodeBuilder.WriteByte((byte)slotIndex);
             }
-            else if (unchecked((uint)slotIndex) <= ushort.MaxValue)
+            else if (slotIndex > 0)
             {
                 OpCode(ILOpCode.Ldloca);
-                CodeBuilder.WriteUInt16((ushort)slotIndex);
+                CodeBuilder.WriteInt32(slotIndex);
             }
             else
             {
@@ -302,7 +302,7 @@ namespace System.Reflection.Metadata.Ecma335
         /// Encodes argument load instruction.
         /// </summary>
         /// <param name="argumentIndex">Index of the argument.</param>
-        /// <exception cref="ArgumentOutOfRangeException"><paramref name="argumentIndex"/> is negative or greater than <see cref="ushort.MaxValue"/>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="argumentIndex"/> is negative.</exception>
         public void LoadArgument(int argumentIndex)
         {
             switch (argumentIndex)
@@ -318,10 +318,10 @@ namespace System.Reflection.Metadata.Ecma335
                         OpCode(ILOpCode.Ldarg_s);
                         CodeBuilder.WriteByte((byte)argumentIndex);
                     }
-                    else if (unchecked((uint)argumentIndex) <= ushort.MaxValue)
+                    else if (argumentIndex > 0)
                     {
                         OpCode(ILOpCode.Ldarg);
-                        CodeBuilder.WriteUInt16((ushort)argumentIndex);
+                        CodeBuilder.WriteInt32(argumentIndex);
                     }
                     else
                     {
@@ -336,7 +336,7 @@ namespace System.Reflection.Metadata.Ecma335
         /// Encodes argument address load instruction.
         /// </summary>
         /// <param name="argumentIndex">Index of the argument.</param>
-        /// <exception cref="ArgumentOutOfRangeException"><paramref name="argumentIndex"/> is negative or greater than <see cref="ushort.MaxValue"/>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="argumentIndex"/> is negative.</exception>
         public void LoadArgumentAddress(int argumentIndex)
         {
             if (unchecked((uint)argumentIndex) <= byte.MaxValue)
@@ -344,10 +344,10 @@ namespace System.Reflection.Metadata.Ecma335
                 OpCode(ILOpCode.Ldarga_s);
                 CodeBuilder.WriteByte((byte)argumentIndex);
             }
-            else if (unchecked((uint)argumentIndex) <= ushort.MaxValue)
+            else if (argumentIndex > 0)
             {
                 OpCode(ILOpCode.Ldarga);
-                CodeBuilder.WriteUInt16((ushort)argumentIndex);
+                CodeBuilder.WriteInt32(argumentIndex);
             }
             else
             {
@@ -359,7 +359,7 @@ namespace System.Reflection.Metadata.Ecma335
         /// Encodes argument store instruction.
         /// </summary>
         /// <param name="argumentIndex">Index of the argument.</param>
-        /// <exception cref="ArgumentOutOfRangeException"><paramref name="argumentIndex"/> is negative or greater than <see cref="ushort.MaxValue"/>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="argumentIndex"/> is negative.</exception>
         public void StoreArgument(int argumentIndex)
         {
             if (unchecked((uint)argumentIndex) <= byte.MaxValue)
@@ -367,10 +367,10 @@ namespace System.Reflection.Metadata.Ecma335
                 OpCode(ILOpCode.Starg_s);
                 CodeBuilder.WriteByte((byte)argumentIndex);
             }
-            else if (unchecked((uint)argumentIndex) <= ushort.MaxValue)
+            else if (argumentIndex > 0)
             {
                 OpCode(ILOpCode.Starg);
-                CodeBuilder.WriteUInt16((ushort)argumentIndex);
+                CodeBuilder.WriteInt32(argumentIndex);
             }
             else
             {

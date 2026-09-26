@@ -187,7 +187,6 @@ public class EnumIConvertibleToSingle
     #endregion
     #endregion
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

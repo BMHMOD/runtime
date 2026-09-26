@@ -1733,7 +1733,7 @@ namespace System.Text
                 else
                     return [0xff, 0xfe];
             }
-            return [];
+            return Array.Empty<byte>();
         }
 
         public override ReadOnlySpan<byte> Preamble =>

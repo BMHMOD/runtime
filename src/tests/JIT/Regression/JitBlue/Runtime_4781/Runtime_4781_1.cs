@@ -42,7 +42,6 @@ public class Runtime_4781_1
 {
     static Bar s_bar = new Bar();
 
-    [SkipOnCoreClr("This test is not compatible with GC stress.", RuntimeTestModes.AnyGCStress)]
     [Fact]
     public static int TestEntryPoint()
     {

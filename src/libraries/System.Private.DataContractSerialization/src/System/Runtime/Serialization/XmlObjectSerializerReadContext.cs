@@ -722,7 +722,6 @@ namespace System.Runtime.Serialization
             switch (xmlReader.NodeType)
             {
                 case XmlNodeType.Text:
-                case XmlNodeType.CDATA:
                     return ReadPrimitiveExtensionDataValue(xmlReader, dataContractName, dataContractNamespace);
                 case XmlNodeType.Element:
                     if (xmlReader.NamespaceURI.StartsWith(Globals.DataContractXsdBaseNamespace, StringComparison.Ordinal))
@@ -906,7 +905,7 @@ namespace System.Runtime.Serialization
             List<XmlNode>? xmlChildNodes = null;
 
             XmlNodeType nodeType = xmlReader.MoveToContent();
-            if (nodeType != XmlNodeType.Text && nodeType != XmlNodeType.CDATA)
+            if (nodeType != XmlNodeType.Text)
             {
                 while (xmlReader.MoveToNextAttribute())
                 {

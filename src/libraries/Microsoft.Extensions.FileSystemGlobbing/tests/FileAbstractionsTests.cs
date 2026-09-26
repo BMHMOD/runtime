@@ -7,8 +7,6 @@ using Microsoft.Extensions.FileSystemGlobbing.Abstractions;
 using Microsoft.Extensions.FileSystemGlobbing.Tests.TestUtility;
 using Xunit;
 
-#nullable enable
-
 namespace Microsoft.Extensions.FileSystemGlobbing.Tests
 {
     public class FileAbstractionsTests
@@ -18,7 +16,7 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Tests
         {
             using (var scenario = new DisposableFileSystem())
             {
-                var contents = scenario.DirectoryInfo!.EnumerateFileSystemInfos();
+                var contents = scenario.DirectoryInfo.EnumerateFileSystemInfos();
 
                 Assert.Equal(Path.GetFileName(scenario.RootPath), scenario.DirectoryInfo.Name);
                 Assert.Equal(scenario.RootPath, scenario.DirectoryInfo.FullName);
@@ -26,15 +24,13 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Tests
             }
         }
 
-        [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public void FilesAreEnumerated(bool useInMemory)
+        [Fact]
+        public void FilesAreEnumerated()
         {
-            using (var scenario = new DisposableFileSystem(useInMemory)
+            using (var scenario = new DisposableFileSystem()
                 .CreateFile("alpha.txt"))
             {
-                var contents = scenario.GetDirectoryInfoBase().EnumerateFileSystemInfos();
+                var contents = new DirectoryInfoWrapper(scenario.DirectoryInfo).EnumerateFileSystemInfos();
                 var alphaTxt = contents.OfType<FileInfoBase>().Single();
 
                 Assert.Single(contents);
@@ -48,7 +44,7 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Tests
             using (var scenario = new DisposableFileSystem()
                 .CreateFolder("beta"))
             {
-                var contents1 = scenario.GetDirectoryInfoBase().EnumerateFileSystemInfos();
+                var contents1 = new DirectoryInfoWrapper(scenario.DirectoryInfo).EnumerateFileSystemInfos();
                 var beta = contents1.OfType<DirectoryInfoBase>().Single();
                 var contents2 = beta.EnumerateFileSystemInfos();
 
@@ -58,16 +54,14 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Tests
             }
         }
 
-        [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public void SubFoldersAreEnumerated(bool useInMemory)
+        [Fact]
+        public void SubFoldersAreEnumerated()
         {
-            using (var scenario = new DisposableFileSystem(useInMemory)
+            using (var scenario = new DisposableFileSystem()
                 .CreateFolder("beta")
                 .CreateFile(Path.Combine("beta", "alpha.txt")))
             {
-                var contents1 = scenario.GetDirectoryInfoBase().EnumerateFileSystemInfos();
+                var contents1 = new DirectoryInfoWrapper(scenario.DirectoryInfo).EnumerateFileSystemInfos();
                 var beta = contents1.OfType<DirectoryInfoBase>().Single();
                 var contents2 = beta.EnumerateFileSystemInfos();
                 var alphaTxt = contents2.OfType<FileInfoBase>().Single();
@@ -79,33 +73,27 @@ namespace Microsoft.Extensions.FileSystemGlobbing.Tests
             }
         }
 
-        [Theory]
-        [InlineData(false)]
-        [InlineData(true)]
-        public void GetDirectoryCanTakeDotDot(bool useInMemory)
+        [Fact]
+        public void GetDirectoryCanTakeDotDot()
         {
-            using (var scenario = new DisposableFileSystem(useInMemory)
+            using (var scenario = new DisposableFileSystem()
                 .CreateFolder("gamma")
-                .CreateFile(Path.Combine("gamma", "delta.txt"))
                 .CreateFolder("beta")
                 .CreateFile(Path.Combine("beta", "alpha.txt")))
             {
-                var directoryInfoBase = scenario.GetDirectoryInfoBase();
-
+                var directoryInfoBase = new DirectoryInfoWrapper(scenario.DirectoryInfo);
                 var gamma = directoryInfoBase.GetDirectory("gamma");
-                var dotdot = gamma!.GetDirectory("..");
-                var contents1 = dotdot!.EnumerateFileSystemInfos();
+                var dotdot = gamma.GetDirectory("..");
+                var contents1 = dotdot.EnumerateFileSystemInfos();
                 var beta = dotdot.GetDirectory("beta");
-                var contents2 = beta!.EnumerateFileSystemInfos();
+                var contents2 = beta.EnumerateFileSystemInfos();
                 var alphaTxt = contents2.OfType<FileInfoBase>().Single();
-                var beta2 = directoryInfoBase.GetDirectory("beta");
 
                 Assert.Equal("..", dotdot.Name);
                 Assert.Equal(2, contents1.Count());
                 Assert.Equal("beta", beta.Name);
                 Assert.Single(contents2);
                 Assert.Equal("alpha.txt", alphaTxt.Name);
-                Assert.Equal(beta.FullName, beta2!.FullName);
             }
         }
     }

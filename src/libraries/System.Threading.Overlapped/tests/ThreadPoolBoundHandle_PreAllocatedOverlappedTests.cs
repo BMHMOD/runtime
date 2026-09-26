@@ -9,6 +9,7 @@ using Xunit;
 public partial class ThreadPoolBoundHandleTests
 {
     [Fact]
+    [ActiveIssue("https://github.com/mono/mono/issues/15313", TestRuntimes.Mono)]
     public unsafe void PreAllocatedOverlapped_NullAsCallback_ThrowsArgumentNullException()
     {
         AssertExtensions.Throws<ArgumentNullException>("callback", () => new PreAllocatedOverlapped(null, new object(), new byte[256]));
@@ -20,7 +21,6 @@ public partial class ThreadPoolBoundHandleTests
     }
 
     [Fact]
-    [PlatformSpecific(TestPlatforms.Windows)] // PreAllocatedOverlapped is not supported on non-Windows
     public unsafe void PreAllocatedOverlapped_NullAsContext_DoesNotThrow()
     {
         using (new PreAllocatedOverlapped((_, __, ___) => { }, (object)null, new byte[256])) { }
@@ -28,7 +28,6 @@ public partial class ThreadPoolBoundHandleTests
     }
 
     [Fact]
-    [PlatformSpecific(TestPlatforms.Windows)] // PreAllocatedOverlapped is not supported on non-Windows
     public unsafe void PreAllocatedOverlapped_NullAsPinData_DoesNotThrow()
     {
         using (new PreAllocatedOverlapped((_, __, ___) => { }, new object(), (byte[])null)) { }
@@ -36,7 +35,6 @@ public partial class ThreadPoolBoundHandleTests
     }
 
     [Fact]
-    [PlatformSpecific(TestPlatforms.Windows)] // PreAllocatedOverlapped is not supported on non-Windows
     public unsafe void PreAllocatedOverlapped_EmptyArrayAsPinData_DoesNotThrow()
     {
         using (new PreAllocatedOverlapped((_, __, ___) => { }, new object(), new byte[0])) { }
@@ -44,7 +42,6 @@ public partial class ThreadPoolBoundHandleTests
     }
 
     [Fact]
-    [PlatformSpecific(TestPlatforms.Windows)] // PreAllocatedOverlapped is not supported on non-Windows
     [ActiveIssue("https://github.com/mono/mono/issues/15313", TestRuntimes.Mono)]
     public unsafe void PreAllocatedOverlapped_NonBlittableTypeAsPinData_Throws()
     {
@@ -57,7 +54,6 @@ public partial class ThreadPoolBoundHandleTests
     }
 
     [Fact]
-    [PlatformSpecific(TestPlatforms.Windows)] // PreAllocatedOverlapped is not supported on non-Windows
     public unsafe void PreAllocatedOverlapped_BlittableTypeAsPinData_DoesNotThrow()
     {
         using (new PreAllocatedOverlapped((_, __, ___) => { }, new object(), new BlittableType() { i = 42 })) { }
@@ -65,7 +61,6 @@ public partial class ThreadPoolBoundHandleTests
     }
 
     [Fact]
-    [PlatformSpecific(TestPlatforms.Windows)] // PreAllocatedOverlapped is not supported on non-Windows
     public unsafe void PreAllocatedOverlapped_ObjectArrayAsPinData_DoesNotThrow()
     {
         var array = new object[]
@@ -79,7 +74,6 @@ public partial class ThreadPoolBoundHandleTests
     }
 
     [Fact]
-    [PlatformSpecific(TestPlatforms.Windows)] // PreAllocatedOverlapped is not supported on non-Windows
     [ActiveIssue("https://github.com/mono/mono/issues/15313", TestRuntimes.Mono)]
     public unsafe void PreAllocatedOverlapped_ObjectArrayWithNonBlittableTypeAsPinData_Throws()
     {
@@ -98,7 +92,6 @@ public partial class ThreadPoolBoundHandleTests
     }
 
     [Fact]
-    [PlatformSpecific(TestPlatforms.Windows)] // PreAllocatedOverlapped is not supported on non-Windows
     public unsafe void PreAllocatedOverlapped_ReturnedNativeOverlapped_InternalLowAndInternalHighSetToZero()
     {
         using (new PreAllocatedOverlapped((_, __, ___) => { }, new object(), new byte[256])) { }
@@ -106,7 +99,6 @@ public partial class ThreadPoolBoundHandleTests
     }
 
     [Fact]
-    [PlatformSpecific(TestPlatforms.Windows)] // PreAllocatedOverlapped is not supported on non-Windows
     public unsafe void PreAllocatedOverlapped_ReturnedNativeOverlapped_OffsetLowAndOffsetHighSetToZero()
     {
         using (new PreAllocatedOverlapped((_, __, ___) => { }, new object(), new byte[256])) { }

@@ -3,7 +3,6 @@
 using System;
 using System.Threading;
 using Xunit;
-using TestLibrary;
 
 struct Gen
 {
@@ -55,7 +54,7 @@ public class Test_thread30
 	
 	}
 	
-	[ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+	[Fact]
 	public static int TestEntryPoint()
 	{
 		Gen.ThreadPoolTest<object>();

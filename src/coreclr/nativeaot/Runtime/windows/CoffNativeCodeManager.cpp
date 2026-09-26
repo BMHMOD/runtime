@@ -22,22 +22,8 @@
 
 #include "eventtracebase.h"
 
-#if defined(TARGET_ARM64)
-extern "C" void* PacStripPtr(void* ptr);
-EXTERN_C PEXCEPTION_ROUTINE NTAPI RtlVirtualUnwindWithSpForPacSign(
-    IN ULONG HandlerType,
-    IN ULONG64 ImageBase,
-    IN ULONG64 ControlPc,
-    IN PRUNTIME_FUNCTION FunctionEntry,
-    IN OUT PCONTEXT ContextRecord,
-    OUT PVOID *HandlerData,
-    OUT PULONG64 EstablisherFrame,
-    IN OUT PKNONVOLATILE_CONTEXT_POINTERS ContextPointers OPTIONAL,
-    OUT PULONG64 SpForPacSign OPTIONAL
-    );
-#endif // TARGET_ARM64
-
 #ifdef TARGET_X86
+#define FEATURE_EH_FUNCLETS
 
 // Disable contracts
 #define LIMITED_METHOD_CONTRACT
@@ -393,16 +379,7 @@ uint32_t CoffNativeCodeManager::GetCodeOffset(MethodInfo* pMethodInfo, PTR_VOID 
 {
     CoffNativeMethodInfo * pNativeMethodInfo = (CoffNativeMethodInfo *)pMethodInfo;
 
-#ifdef _DEBUG
-    MethodInfo methodInfo;
-    bool foundMethodInfo = FindMethodInfo(address, &methodInfo);
-    _ASSERTE(foundMethodInfo);
-    if (foundMethodInfo)
-    {
-        CoffNativeMethodInfo * pDebugNativeMethodInfo = (CoffNativeMethodInfo *)&methodInfo;
-        _ASSERTE(pDebugNativeMethodInfo->mainRuntimeFunction == pNativeMethodInfo->mainRuntimeFunction);
-    }
-#endif
+    _ASSERTE(FindMethodInfo(address, pMethodInfo) && (MethodInfo*)pNativeMethodInfo == pMethodInfo);
 
     size_t unwindDataBlobSize;
     PTR_VOID pUnwindDataBlob = GetUnwindDataBlob(m_moduleBase, pNativeMethodInfo->mainRuntimeFunction, &unwindDataBlobSize);
@@ -827,7 +804,7 @@ bool CoffNativeCodeManager::UnwindStackFrame(MethodInfo *    pMethodInfo,
                     &contextPointers);
 
     pRegisterSet->SP = context.Sp;
-    pRegisterSet->IP = (PCODE)PacStripPtr((void*)context.Pc);
+    pRegisterSet->IP = context.Pc;
 
     if (!(flags & USFF_GcUnwind))
     {
@@ -856,11 +833,8 @@ bool CoffNativeCodeManager::IsUnwindable(PTR_VOID pvAddress)
 
 bool CoffNativeCodeManager::GetReturnAddressHijackInfo(MethodInfo *    pMethodInfo,
                                                 REGDISPLAY *    pRegisterSet,       // in
-                                                PTR_PTR_VOID *  ppvRetAddrLocation, // out
-                                                uintptr_t *     pSpForArm64PacSign) // out
+                                                PTR_PTR_VOID *  ppvRetAddrLocation) // out
 {
-    *pSpForArm64PacSign = 0;
-
     CoffNativeMethodInfo * pNativeMethodInfo = (CoffNativeMethodInfo *)pMethodInfo;
 
     size_t unwindDataBlobSize;
@@ -906,6 +880,7 @@ bool CoffNativeCodeManager::GetReturnAddressHijackInfo(MethodInfo *    pMethodIn
     *ppvRetAddrLocation = (PTR_PTR_VOID)(context.Rsp - sizeof (PVOID));
     return true;
 #elif defined(TARGET_ARM64)
+
     if ((unwindBlockFlags & UBF_FUNC_HAS_ASSOCIATED_DATA) != 0)
         p += sizeof(int32_t);
 
@@ -940,20 +915,14 @@ bool CoffNativeCodeManager::GetReturnAddressHijackInfo(MethodInfo *    pMethodIn
 #endif
     contextPointers.Lr = pRegisterSet->pLR;
 
-    RtlVirtualUnwindWithSpForPacSign(NULL,
+    RtlVirtualUnwind(NULL,
         dac_cast<TADDR>(m_moduleBase),
         pRegisterSet->IP,
         (PRUNTIME_FUNCTION)pNativeMethodInfo->runtimeFunction,
         &context,
         &HandlerData,
         &EstablisherFrame,
-        &contextPointers,
-        (PULONG64)pSpForArm64PacSign);
-
-    if (context.Pc == 0)
-    {
-        return false;
-    }
+        &contextPointers);
 
     if (contextPointers.Lr == pRegisterSet->pLR)
     {
@@ -1004,7 +973,7 @@ bool CoffNativeCodeManager::GetReturnAddressHijackInfo(MethodInfo *    pMethodIn
 }
 
 #ifdef TARGET_X86
-GCRefKind CoffNativeCodeManager::GetReturnValueKind(MethodInfo *   pMethodInfo, REGDISPLAY *   pRegisterSet, bool* isAsync)
+GCRefKind CoffNativeCodeManager::GetReturnValueKind(MethodInfo *   pMethodInfo, REGDISPLAY *   pRegisterSet)
 {
     PTR_uint8_t gcInfo;
     uint32_t codeOffset = GetCodeOffset(pMethodInfo, (PTR_VOID)pRegisterSet->IP, &gcInfo);
@@ -1012,7 +981,6 @@ GCRefKind CoffNativeCodeManager::GetReturnValueKind(MethodInfo *   pMethodInfo, 
     size_t infoSize = DecodeGCHdrInfo(GCInfoToken(gcInfo), codeOffset, &infoBuf);
 
     ASSERT(infoBuf.returnKind != RT_Float); // See TODO above
-    *isAsync = infoBuf.isAsync;
     return (GCRefKind)infoBuf.returnKind;
 }
 #endif
@@ -1213,9 +1181,7 @@ bool RhRegisterOSModule(void * pModule,
 
     pCoffNativeCodeManager.SuppressRelease();
 
-#ifdef FEATURE_EVENT_TRACE
     ETW::LoaderLog::ModuleLoad(pModule);
-#endif // FEATURE_EVENT_TRACE
 
     return true;
 }

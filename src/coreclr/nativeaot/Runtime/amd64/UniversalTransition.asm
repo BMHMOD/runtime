@@ -3,6 +3,8 @@
 
 include AsmMacros.inc
 
+ifdef FEATURE_DYNAMIC_CODE
+
 ifdef _DEBUG
 TRASH_SAVED_ARGUMENT_REGISTERS equ 1
 else
@@ -82,9 +84,7 @@ DISTANCE_FROM_CHILDSP_TO_CALLERSP               equ DISTANCE_FROM_CHILDSP_TO_RET
 ; everything between the base of the ReturnBlock and the top of the StackPassedArgs.
 ;
 
-EXTERN __guard_check_icall_fptr : QWORD
-
-UNIVERSAL_TRANSITION macro FunctionName, ValidateTarget
+UNIVERSAL_TRANSITION macro FunctionName
 
 NESTED_ENTRY Rhp&FunctionName, _TEXT
 
@@ -128,14 +128,6 @@ endif ; TRASH_SAVED_ARGUMENT_REGISTERS
 
 ALTERNATE_ENTRY ReturnFrom&FunctionName
 
-if ValidateTarget ne 0
-        ; Validate the target address using Control Flow Guard before tail-calling it.
-        ; The validator takes the target in rcx and preserves rcx, r10, and all float registers.
-        mov             rcx, rax
-        call            [__guard_check_icall_fptr]
-        mov             rax, rcx
-endif ; ValidateTarget
-
         ; restore fp argument registers
         movdqa          xmm0, [rsp + DISTANCE_FROM_CHILDSP_TO_FP_REGS      ]
         movdqa          xmm1, [rsp + DISTANCE_FROM_CHILDSP_TO_FP_REGS + 10h]
@@ -160,7 +152,12 @@ NESTED_END Rhp&FunctionName, _TEXT
 
         endm
 
-        UNIVERSAL_TRANSITION UniversalTransitionTailCall, 0
-        UNIVERSAL_TRANSITION UniversalTransitionGuardedTailCall, 1
+        ; To enable proper step-in behavior in the debugger, we need to have two instances
+        ; of the thunk. For the first one, the debugger steps into the call in the function,
+        ; for the other, it steps over it.
+        UNIVERSAL_TRANSITION UniversalTransition
+        UNIVERSAL_TRANSITION UniversalTransition_DebugStepTailCall
+
+endif
 
 end

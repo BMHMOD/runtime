@@ -2,8 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.Runtime.InteropServices;
+using System.Reflection;
 using System.Threading;
-using TestLibrary;
+using Xunit;
 
 /*
  * Issue description:
@@ -13,17 +15,12 @@ using TestLibrary;
 
 public class Test_foreground_shutdown
 {
-    public static int Main()
+    [Fact]
+    public static int TestEntryPoint()
     {
-        if (!PlatformDetection.IsMultithreadingSupported)
-        {
-            Console.WriteLine("Multithreading is not supported, skipping test.");
-            return 100;
-        }
-
         new Thread(() =>
         {
-            Thread.Sleep(TimeSpan.FromSeconds(2));
+            Thread.Sleep(TimeSpan.FromSeconds(1));
             Environment.Exit(100);
         }).Start();
 

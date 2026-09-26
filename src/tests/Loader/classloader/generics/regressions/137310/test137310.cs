@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 // test for classes
 public class A<T> {}
@@ -31,7 +30,6 @@ public class Test_test137310
 		IA<D> d = new D();		
 	}
 
- [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
 	[Fact]
 	public static int TestEntryPoint()
     	{

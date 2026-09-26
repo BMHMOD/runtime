@@ -127,6 +127,9 @@ namespace System.IO.Hashing
 
             return stream.CopyToAsync(
                 new CopyToDestinationStream(this),
+#if !NET
+                81_920, // default size used by Stream.CopyTo{Async}
+#endif
                 cancellationToken);
         }
 

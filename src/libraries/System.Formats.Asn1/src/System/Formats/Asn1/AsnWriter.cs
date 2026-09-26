@@ -20,7 +20,7 @@ namespace System.Formats.Asn1
         private byte[] _buffer = null!;
         private int _offset;
         private Stack<StackFrame>? _nestingStack;
-#if NET
+#if NET9_0_OR_GREATER
         private int _encodeDepth;
 #endif
 
@@ -81,7 +81,7 @@ namespace System.Formats.Asn1
         /// </summary>
         public void Reset()
         {
-#if NET
+#if NET9_0_OR_GREATER
             if (_encodeDepth != 0)
             {
                 throw new InvalidOperationException(SR.AsnWriter_ModifyingWhileEncoding);
@@ -209,7 +209,7 @@ namespace System.Formats.Asn1
             return _buffer.AsSpan(0, _offset).ToArray();
         }
 
-#if NET
+#if NET9_0_OR_GREATER
         /// <summary>
         ///   Provides the encoded representation of the data to the specified callback.
         /// </summary>
@@ -390,7 +390,7 @@ namespace System.Formats.Asn1
                 throw new OverflowException();
             }
 
-#if NET
+#if NET9_0_OR_GREATER
             if (_encodeDepth != 0)
             {
                 throw new InvalidOperationException(SR.AsnWriter_ModifyingWhileEncoding);

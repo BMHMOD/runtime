@@ -37,6 +37,14 @@ public static class Program
     {
         SetText("OnButtonClick! #" + counter++);
     }
+#if CORECLR_TEST
+    public static int Main(string[] args)
+    {
+        Console.WriteLine("Done!");
+        Thread.Sleep(Timeout.Infinite);
+        return 42;
+    }
+#else
 #if CI_TEST
     public static async Task<int> Main(string[] args)
 #else
@@ -64,4 +72,5 @@ public static class Program
         await Task.Delay(-1);
 #endif
     }
+#endif
 }

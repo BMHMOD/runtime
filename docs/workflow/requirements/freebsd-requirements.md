@@ -56,7 +56,7 @@ Install the following packages:
 * openssl (optional)
 * python39
 * libinotify
-* ninja
+* ninja (optional, enables building native code with ninja instead of make)
 
 ```sh
 sudo pkg install --yes libunwind icu libinotify lttng-ust krb5 cmake openssl ninja

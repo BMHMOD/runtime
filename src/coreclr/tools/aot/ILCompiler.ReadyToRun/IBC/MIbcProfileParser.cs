@@ -7,11 +7,10 @@ using System.IO.Compression;
 using System.Reflection.Metadata;
 using System.Text;
 
-using Internal.IL;
-using Internal.Pgo;
-using Internal.Text;
 using Internal.TypeSystem;
 using Internal.TypeSystem.Ecma;
+using Internal.IL;
+using Internal.Pgo;
 
 using System.Linq;
 using System.IO;
@@ -622,7 +621,7 @@ namespace ILCompiler.IBC
         {
             private sealed class CanonModule : ModuleDesc, IAssemblyDesc
             {
-                public Utf8Span Name => "System.Private.Canon"u8;
+                public ReadOnlySpan<byte> Name => "System.Private.Canon"u8;
 
                 public CanonModule(TypeSystemContext wrappedContext) : base(wrappedContext, null)
                 {
@@ -638,19 +637,19 @@ namespace ILCompiler.IBC
                     throw new NotImplementedException();
                 }
 
-                public override object GetType(Utf8Span nameSpace, Utf8Span name, NotFoundBehavior notFoundBehavior)
+                public override object GetType(ReadOnlySpan<byte> nameSpace, ReadOnlySpan<byte> name, NotFoundBehavior notFoundBehavior)
                 {
                     TypeSystemContext context = Context;
 
-                    if (context.SupportsCanon && nameSpace == context.CanonType.Namespace && name == context.CanonType.Name)
+                    if (context.SupportsCanon && nameSpace.SequenceEqual(context.CanonType.Namespace) && name.SequenceEqual(context.CanonType.Name))
                         return Context.CanonType;
-                    if (context.SupportsUniversalCanon && nameSpace == context.UniversalCanonType.Namespace && name == context.UniversalCanonType.Name)
+                    if (context.SupportsUniversalCanon && nameSpace.SequenceEqual(context.UniversalCanonType.Namespace) && name.SequenceEqual(context.UniversalCanonType.Name))
                         return Context.UniversalCanonType;
                     else
                     {
                         if (notFoundBehavior != NotFoundBehavior.ReturnNull)
                         {
-                            var failure = ResolutionFailure.GetTypeLoadResolutionFailure(Encoding.UTF8.GetString(nameSpace.AsSpan()), Encoding.UTF8.GetString(name.AsSpan()), "System.Private.Canon");
+                            var failure = ResolutionFailure.GetTypeLoadResolutionFailure(Encoding.UTF8.GetString(nameSpace), Encoding.UTF8.GetString(name), "System.Private.Canon");
                             if (notFoundBehavior == NotFoundBehavior.Throw)
                                 failure.Throw();
 

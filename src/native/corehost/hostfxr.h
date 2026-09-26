@@ -331,11 +331,15 @@ typedef void(HOSTFXR_CALLTYPE* hostfxr_get_dotnet_environment_info_result_fn)(
 // Returns available SDKs and frameworks.
 //
 // Resolves the existing SDKs and frameworks from a dotnet root directory (if
-// any), or the global default location.
+// any), or the global default location. If multi-level lookup is enabled and
+// the dotnet root location is different than the global location, the SDKs and
+// frameworks will be enumerated from both locations.
 //
-// The SDKs are sorted in ascending order by version.
+// The SDKs are sorted in ascending order by version, multi-level lookup
+// locations are put before private ones.
 //
-// The frameworks are sorted in ascending order by name followed by version.
+// The frameworks are sorted in ascending order by name followed by version,
+// multi-level lookup locations are put before private ones.
 //
 // Parameters:
 //    dotnet_root

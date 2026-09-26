@@ -14,23 +14,17 @@ set "__repoRoot=%~dp0..\.."
 for %%i in ("%__repoRoot%") do set "__repoRoot=%%~fi"
 
 :: Set up the EMSDK environment before setlocal so that it propagates to the caller.
-:: Written without a parenthesized block so that %WASM_TOOL_CACHE_RESULT% expands without
-:: delayed expansion, which cannot be enabled here without discarding emsdk_env's variables.
-if /i not "%__Os%" == "browser" goto :AfterEmsdkEnv
-if not "%EMSDK_PATH%" == "" goto :CallEmsdkEnv
-
-call "%__repoRoot%\eng\wasm\wasm-tool-cache.cmd" emscripten "%__repoRoot%\src\mono\browser\emscripten-version.txt" "%__repoRoot%"
-if "%WASM_TOOL_CACHE_RESULT%" == "" (
-    echo Error: Should set EMSDK_PATH environment variable pointing to emsdk root.
-    exit /B 1
+if /i "%__Os%" == "browser" (
+    if "%EMSDK_PATH%" == "" (
+        if not exist "%__repoRoot%\src\mono\browser\emsdk" (
+            echo Error: Should set EMSDK_PATH environment variable pointing to emsdk root.
+            exit /B 1
+        )
+        set EMSDK_QUIET=1 && call "%__repoRoot%\src\mono\browser\emsdk\emsdk_env"
+    ) else (
+        set EMSDK_QUIET=1 && call "%EMSDK_PATH%\emsdk_env"
+    )
 )
-set "EMSDK_PATH=%WASM_TOOL_CACHE_RESULT%"
-
-:CallEmsdkEnv
-set "EMSDK_QUIET=1"
-call "%EMSDK_PATH%\emsdk_env.cmd"
-
-:AfterEmsdkEnv
 
 setlocal enabledelayedexpansion
 
@@ -63,20 +57,18 @@ if /i "%__Arch%" == "wasm" (
     )
     if /i "%__Os%" == "browser" (
         set CMakeToolPrefix=emcmake
-        rem Use WASM-specific tryrun cache to speed up CMake configure
-        set __ExtraCmakeParams="-C %__repoRoot%/eng/native/tryrun.browser.cmake" !__ExtraCmakeParams!
     )
     if /i "%__Os%" == "wasi" (
         if "%WASI_SDK_PATH%" == "" (
-            call "%__repoRoot%\eng\wasm\wasm-tool-cache.cmd" wasi-sdk "%__repoRoot%\eng\wasm\wasi-sdk-version.txt" "%__repoRoot%"
-            if "!WASM_TOOL_CACHE_RESULT!" == "" (
+            if not exist "%__repoRoot%\artifacts\wasi-sdk" (
                 echo Error: Should set WASI_SDK_PATH environment variable pointing to WASI SDK root.
                 exit /B 1
             )
-            set "WASI_SDK_PATH=!WASM_TOOL_CACHE_RESULT!"
+
+            set "WASI_SDK_PATH=%__repoRoot%\artifacts\wasi-sdk"
         )
         set __CmakeGenerator=Ninja
-        set __ExtraCmakeParams=%__ExtraCmakeParams% -DCLR_CMAKE_TARGET_OS=wasi "-DCMAKE_TOOLCHAIN_FILE=!WASI_SDK_PATH!/share/cmake/wasi-sdk-p2.cmake"
+        set __ExtraCmakeParams=%__ExtraCmakeParams% -DCLR_CMAKE_TARGET_OS=wasi "-DCMAKE_TOOLCHAIN_FILE=!WASI_SDK_PATH!/share/cmake/wasi-sdk-p2.cmake" "-DCMAKE_CROSSCOMPILING_EMULATOR=node --experimental-wasm-bigint --experimental-wasi-unstable-preview1"
     )
 ) else (
     set __ExtraCmakeParams=%__ExtraCmakeParams%  "-DCMAKE_SYSTEM_VERSION=10.0"
@@ -84,7 +76,7 @@ if /i "%__Arch%" == "wasm" (
 
 if /i "%__Os%" == "android" (
     :: Keep in sync with $(AndroidApiLevelMin) in Directory.Build.props in the repository rooot
-    set __ANDROID_API_LEVEL=24
+    set __ANDROID_API_LEVEL=21
     if "%ANDROID_NDK_ROOT%" == "" (
         echo Error: You need to set the ANDROID_NDK_ROOT environment variable pointing to the Android NDK root.
         exit /B 1

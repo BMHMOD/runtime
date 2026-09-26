@@ -35,46 +35,71 @@ struct EventMethodInfo
 // Structure passed out as a cookie when Advise is called.
 struct ConnectionCookie
 {
-    ConnectionCookie(OBJECTHANDLEHolder hndEventProvObj) : m_pNext(NULL), m_hndEventProvObj(std::move(hndEventProvObj))
+    ConnectionCookie(OBJECTHANDLE hndEventProvObj) : m_hndEventProvObj(hndEventProvObj)
     {
         CONTRACTL
         {
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
-            PRECONDITION(NULL != m_hndEventProvObj);
+            PRECONDITION(NULL != hndEventProvObj);
         }
         CONTRACTL_END;
     }
 
-public:
-    ~ConnectionCookie() = default;
+    ~ConnectionCookie()
+    {
+        WRAPPER_NO_CONTRACT;
+        DestroyHandle(m_hndEventProvObj);
+    }
 
     // Currently called only from Cooperative mode.
-    static ConnectionCookie* CreateConnectionCookie(OBJECTHANDLEHolder hndEventProvObj)
+    static ConnectionCookie* CreateConnectionCookie(OBJECTHANDLE hndEventProvObj)
     {
-        CONTRACTL
+        CONTRACT (ConnectionCookie*)
         {
             THROWS;
             GC_NOTRIGGER;
             MODE_ANY;
+            INJECT_FAULT(COMPlusThrowOM());
             PRECONDITION(NULL != hndEventProvObj);
         }
-        CONTRACTL_END;
+        CONTRACT_END;
 
-        return new ConnectionCookie(std::move(hndEventProvObj));
+        RETURN (new ConnectionCookie(hndEventProvObj));
     }
-    // Next pointer for SList linkage.
-    DPTR(ConnectionCookie)   m_pNext;
-    OBJECTHANDLEHolder  m_hndEventProvObj;
-    DWORD               m_id;
+
+    SLink           m_Link;
+    OBJECTHANDLE    m_hndEventProvObj;
+    DWORD           m_id;
 };
 
+FORCEINLINE void ConnectionCookieRelease(ConnectionCookie* p)
+{
+    WRAPPER_NO_CONTRACT;
+
+    delete p;
+}
+
 // Connection cookie holder used to ensure the cookies are deleted when required.
-using ConnectionCookieHolder = NewHolder<ConnectionCookie>;
+class ConnectionCookieHolder : public Wrapper<ConnectionCookie*, ConnectionCookieDoNothing, ConnectionCookieRelease, 0>
+{
+public:
+    ConnectionCookieHolder(ConnectionCookie* p = NULL)
+        : Wrapper<ConnectionCookie*, ConnectionCookieDoNothing, ConnectionCookieRelease, 0>(p)
+    {
+        WRAPPER_NO_CONTRACT;
+    }
+
+    FORCEINLINE void operator=(ConnectionCookie* p)
+    {
+        WRAPPER_NO_CONTRACT;
+        Wrapper<ConnectionCookie*, ConnectionCookieDoNothing, ConnectionCookieRelease, 0>::operator=(p);
+    }
+};
 
 // List of connection cookies.
-typedef SList<ConnectionCookie> CONNECTIONCOOKIELIST;
+typedef SList<ConnectionCookie, true> CONNECTIONCOOKIELIST;
 
 // ConnectionPoint class. This class implements IConnectionPoint and does the mapping
 // from a CP handler to a TCE provider.

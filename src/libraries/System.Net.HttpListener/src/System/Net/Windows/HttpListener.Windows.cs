@@ -31,13 +31,6 @@ namespace System.Net
         // flag is only used on Win8 and later.
         internal static readonly bool SkipIOCPCallbackOnSuccess = Environment.OSVersion.Version >= new Version(6, 2);
 
-        // Enable buffering of response data in the Kernel. The default value is false.
-        // It should be used by an application doing synchronous I/O or by an application doing asynchronous I/O with
-        // no more than one outstanding write at a time, and can significantly improve throughput over high-latency connections.
-        // Applications that use asynchronous I/O and that may have more than one send outstanding at a time should not use this flag.
-        // Enabling this can result in higher CPU and memory usage by Http.sys.
-        internal static bool EnableKernelResponseBuffering => LocalAppContextSwitches.EnableKernelResponseBuffering;
-
         // Mitigate potential DOS attacks by limiting the number of unknown headers we accept.  Numerous header names
         // with hash collisions will cause the server to consume excess CPU.  1000 headers limits CPU time to under
         // 0.5 seconds per request.  Respond with a 400 Bad Request.
@@ -813,17 +806,17 @@ namespace System.Net
                     if (index < authorizationHeader.Length)
                     {
                         if ((authenticationScheme & AuthenticationSchemes.Negotiate) != AuthenticationSchemes.None &&
-                            authorizationHeader.AsSpan(0, index).Equals(AuthenticationTypes.Negotiate, StringComparison.OrdinalIgnoreCase))
+                            string.Compare(authorizationHeader, 0, AuthenticationTypes.Negotiate, 0, index, StringComparison.OrdinalIgnoreCase) == 0)
                         {
                             headerScheme = AuthenticationSchemes.Negotiate;
                         }
                         else if ((authenticationScheme & AuthenticationSchemes.Ntlm) != AuthenticationSchemes.None &&
-                            authorizationHeader.AsSpan(0, index).Equals(AuthenticationTypes.NTLM, StringComparison.OrdinalIgnoreCase))
+                            string.Compare(authorizationHeader, 0, AuthenticationTypes.NTLM, 0, index, StringComparison.OrdinalIgnoreCase) == 0)
                         {
                             headerScheme = AuthenticationSchemes.Ntlm;
                         }
                         else if ((authenticationScheme & AuthenticationSchemes.Basic) != AuthenticationSchemes.None &&
-                            authorizationHeader.AsSpan(0, index).Equals(AuthenticationTypes.Basic, StringComparison.OrdinalIgnoreCase))
+                            string.Compare(authorizationHeader, 0, AuthenticationTypes.Basic, 0, index, StringComparison.OrdinalIgnoreCase) == 0)
                         {
                             headerScheme = AuthenticationSchemes.Basic;
                         }
@@ -1011,7 +1004,7 @@ namespace System.Net
                             {
                                 bytes = Convert.FromBase64String(inBlob);
 
-                                inBlob = Encoding.Latin1.GetString(bytes);
+                                inBlob = WebHeaderEncoding.GetString(bytes, 0, bytes.Length);
                                 index = inBlob.IndexOf(':');
 
                                 if (index != -1)

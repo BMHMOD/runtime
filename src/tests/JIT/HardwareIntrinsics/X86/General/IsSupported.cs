@@ -5,14 +5,12 @@ using System;
 using System.Runtime.Intrinsics.X86;
 using System.Numerics;
 using Xunit;
-using TestLibrary;
 
 namespace IntelHardwareIntrinsicTest.General
 {
     public partial class Program
     {
         [Xunit.ActiveIssue("https://github.com/dotnet/runtime/issues/91392", typeof(TestLibrary.PlatformDetection), nameof(TestLibrary.PlatformDetection.IsMonoLLVMAOT))]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/75767", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoLLVMAOT))]
         [Fact]
         public static void IsSupported()
         {

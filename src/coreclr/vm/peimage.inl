@@ -14,15 +14,15 @@
 
 inline ULONG PEImage::AddRef()
 {
-    CONTRACTL
+    CONTRACT(ULONG)
     {
         PRECONDITION(m_refCount>0 && m_refCount < COUNT_T_MAX);
         NOTHROW;
         GC_NOTRIGGER;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
-    return static_cast<ULONG>(InterlockedIncrement(&m_refCount));
+    RETURN (static_cast<ULONG>(InterlockedIncrement(&m_refCount)));
 }
 
 inline const SString &PEImage::GetPath()
@@ -222,12 +222,6 @@ inline BOOL PEImage::IsReferenceAssembly()
 }
 
 
-inline BOOL PEImage::HasHeaders()
-{
-    WRAPPER_NO_CONTRACT;
-    return GetOrCreateLayout(PEImageLayout::LAYOUT_ANY)->HasHeaders();
-}
-
 inline BOOL PEImage::HasNTHeaders()
 {
     WRAPPER_NO_CONTRACT;
@@ -356,7 +350,7 @@ inline PTR_PEImage PEImage::OpenImage(LPCWSTR pPath, MDInternalImportFlags flags
     {
         PEImageHolder pImage(new PEImage{pPath});
         pImage->Init(probeExtensionResult);
-        return dac_cast<PTR_PEImage>(pImage.Detach());
+        return dac_cast<PTR_PEImage>(pImage.Extract());
     }
 
     CrstHolder holder(&s_hashLock);
@@ -374,7 +368,7 @@ inline PTR_PEImage PEImage::OpenImage(LPCWSTR pPath, MDInternalImportFlags flags
         pImage->Init(probeExtensionResult);
 
         pImage->AddToHashMap();
-        return dac_cast<PTR_PEImage>(pImage.Detach());
+        return dac_cast<PTR_PEImage>(pImage.Extract());
     }
 
     found->AddRef();

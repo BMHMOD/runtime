@@ -128,19 +128,24 @@ namespace System
         internal bool NotAny(UriSyntaxFlags flags)
         {
             // Return true if none of the flags specified in 'flags' are set.
-            return (_flags & flags) == 0;
+            return IsFullMatch(flags, UriSyntaxFlags.None);
         }
 
         internal bool InFact(UriSyntaxFlags flags)
         {
             // Return true if at least one of the flags in 'flags' is set.
-            return (_flags & flags) != 0;
+            return !IsFullMatch(flags, UriSyntaxFlags.None);
         }
 
         internal bool IsAllSet(UriSyntaxFlags flags)
         {
             // Return true if all flags in 'flags' are set.
-            return (_flags & flags) == flags;
+            return IsFullMatch(flags, flags);
+        }
+
+        private bool IsFullMatch(UriSyntaxFlags flags, UriSyntaxFlags expected)
+        {
+            return (_flags & flags) == expected;
         }
 
         //

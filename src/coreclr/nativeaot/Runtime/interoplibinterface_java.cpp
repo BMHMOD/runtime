@@ -45,11 +45,6 @@ namespace
     }
 }
 
-bool JavaMarshalNative::IsGCBridgeActive()
-{
-    return g_GCBridgeActive;
-}
-
 void JavaMarshalNative::TriggerClientBridgeProcessing(
     _In_ MarkCrossReferencesArgs* args)
 {

@@ -3,9 +3,24 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.DynamicILBlobTable))]
-internal sealed partial class DynamicILBlobEntry : IData<DynamicILBlobEntry>
+internal sealed class DynamicILBlobEntry : IData<DynamicILBlobEntry>
 {
-    [Field] public partial uint EntryMethodToken { get; }
-    [Field] public partial TargetPointer EntryIL { get; }
+    static DynamicILBlobEntry IData<DynamicILBlobEntry>.Create(Target target, TargetPointer address)
+        => new DynamicILBlobEntry(target, address);
+
+    public DynamicILBlobEntry(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.DynamicILBlobTable);
+        EntryMethodToken = target.Read<uint>(address + (ulong)type.Fields[nameof(EntryMethodToken)].Offset);
+        EntryIL = target.ReadPointer(address + (ulong)type.Fields[nameof(EntryIL)].Offset);
+    }
+
+    public DynamicILBlobEntry(uint entryMethodToken, TargetPointer entryIL)
+    {
+        EntryMethodToken = entryMethodToken;
+        EntryIL = entryIL;
+    }
+
+    public uint EntryMethodToken { get; }
+    public TargetPointer EntryIL { get; }
 }

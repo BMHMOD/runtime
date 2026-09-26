@@ -62,6 +62,7 @@ namespace Mono.Linker.Tests.Cases.DataFlow
                 : BaseWithPublicMethods<TAllMethods>
             { }
 
+            [ExpectedWarning("IL2091")]
             class DerivedWithNoAnnotations<TUnknown>
                 : BaseWithPublicMethods<TUnknown>
             {
@@ -69,14 +70,12 @@ namespace Mono.Linker.Tests.Cases.DataFlow
                 public DerivedWithNoAnnotations() { }
             }
 
-            [ExpectedWarning("IL2091", Tool.Analyzer, "")]
-            [ExpectedWarning("IL2091", Tool.Trimmer | Tool.NativeAot, "", CompilerGeneratedCode = true)]
+            [ExpectedWarning("IL2091")]
             class DerivedWithMismatchAnnotation<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TPublicFields>
                 : BaseWithPublicMethods<TPublicFields>
             { }
 
-            [ExpectedWarning("IL2091", nameof(DynamicallyAccessedMemberTypes.PublicMethods), Tool.Analyzer, "")]
-            [ExpectedWarning("IL2091", Tool.Trimmer | Tool.NativeAot, "", CompilerGeneratedCode = true)]
+            [ExpectedWarning("IL2091", nameof(DynamicallyAccessedMemberTypes.PublicMethods))]
             class DerivedWithOneMismatch<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicFields)] TPublicFields>
                 : BaseWithTwo<TPublicFields, TPublicFields>
             { }
@@ -87,7 +86,7 @@ namespace Mono.Linker.Tests.Cases.DataFlow
                 : BaseWithTwo<TPublicMethods, TPublicFields>
             { }
 
-            [ExpectedWarning("IL2091", Tool.Analyzer, "Analyzer warns on declaration for implicit constructor")]
+            [ExpectedWarning("IL2091")]
             class DerivedWithOnlyStaticMethodReference<TUnknown> : BaseWithPublicMethods<TUnknown>
             {
                 // The method body in this case looks like:
@@ -114,9 +113,7 @@ namespace Mono.Linker.Tests.Cases.DataFlow
                 t = typeof(DerivedWithMatchingAnnotation<>);
                 t = typeof(DerivedWithNoAnnotations<>);
                 t = typeof(DerivedWithMismatchAnnotation<>);
-                new DerivedWithMismatchAnnotation<int>();
                 t = typeof(DerivedWithOneMismatch<>);
-                new DerivedWithOneMismatch<int>();
                 t = typeof(DerivedWithTwoMatching<,>);
 
                 // Also try exact instantiations
@@ -1553,8 +1550,7 @@ namespace Mono.Linker.Tests.Cases.DataFlow
                     : Base<RequiresMethods<RequiresNothing<TUnknown>>>
                 { }
 
-                [ExpectedWarning("IL2091", ["TUnknown", "RequiresFields", nameof(DynamicallyAccessedMemberTypes.PublicFields)], Tool.Analyzer, "")]
-                [ExpectedWarning("IL2091", ["TUnknown", "RequiresFields", nameof(DynamicallyAccessedMemberTypes.PublicFields)], Tool.Trimmer | Tool.NativeAot, "", CompilerGeneratedCode = true)]
+                [ExpectedWarning("IL2091", "TUnknown", "RequiresFields", nameof(DynamicallyAccessedMemberTypes.PublicFields))]
                 class DerivedWithFields<TUnknown>
                     : Base<RequiresMethods<RequiresNothing<RequiresFields<TUnknown>>>>
                 {
@@ -1563,17 +1559,17 @@ namespace Mono.Linker.Tests.Cases.DataFlow
                     }
                 }
 
-                [ExpectedWarning("IL2026", "--RUCMethod--", Tool.Analyzer, "")]
-                [ExpectedWarning("IL2026", "--RUCMethod--", Tool.Trimmer | Tool.NativeAot, "", CompilerGeneratedCode = true)]
+                [ExpectedWarning("IL2026", "--RUCMethod--")]
                 class DerivedWithRUC
                     : Base<RequiresMethods<RequiresNothing<RequiresMethods<TypeWithRUCMethod>>>>
                 { }
 
                 public static void Test()
                 {
-                    new DerivedWithNothing<TestType>();
-                    new DerivedWithFields<TestType>();
-                    new DerivedWithRUC();
+                    Type a;
+                    a = typeof(DerivedWithNothing<TestType>);
+                    a = typeof(DerivedWithFields<TestType>);
+                    a = typeof(DerivedWithRUC);
                 }
             }
 

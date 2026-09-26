@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
@@ -96,10 +96,9 @@ namespace System
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         [CompExactlyDependsOn(typeof(Ssse3))]
         [CompExactlyDependsOn(typeof(AdvSimd.Arm64))]
-        [CompExactlyDependsOn(typeof(PackedSimd))]
         internal static (Vector128<byte>, Vector128<byte>) AsciiToHexVector128(Vector128<byte> src, Vector128<byte> hexMap)
         {
-            Debug.Assert(Ssse3.IsSupported || AdvSimd.Arm64.IsSupported || PackedSimd.IsSupported);
+            Debug.Assert(Ssse3.IsSupported || AdvSimd.Arm64.IsSupported);
 
             // The algorithm is simple: a single srcVec (contains the whole 16b Guid) is converted
             // into nibbles and then, via hexMap, converted into a HEX representation via
@@ -116,7 +115,6 @@ namespace System
 
         [CompExactlyDependsOn(typeof(Ssse3))]
         [CompExactlyDependsOn(typeof(AdvSimd.Arm64))]
-        [CompExactlyDependsOn(typeof(PackedSimd))]
         private static void EncodeTo_Vector128<TChar>(ReadOnlySpan<byte> source, Span<TChar> destination, Casing casing)
         {
             Debug.Assert(source.Length >= (Vector128<TChar>.Count / 2));
@@ -189,7 +187,7 @@ namespace System
             Debug.Assert(utf8Destination.Length >= (source.Length * 2));
 
 #if SYSTEM_PRIVATE_CORELIB
-            if ((AdvSimd.Arm64.IsSupported || Ssse3.IsSupported || PackedSimd.IsSupported) && (source.Length >= (Vector128<byte>.Count / 2)))
+            if ((AdvSimd.Arm64.IsSupported || Ssse3.IsSupported) && (source.Length >= (Vector128<byte>.Count / 2)))
             {
                 EncodeTo_Vector128(source, utf8Destination, casing);
                 return;
@@ -206,7 +204,7 @@ namespace System
             Debug.Assert(destination.Length >= (source.Length * 2));
 
 #if SYSTEM_PRIVATE_CORELIB
-            if ((AdvSimd.Arm64.IsSupported || Ssse3.IsSupported || PackedSimd.IsSupported) && (source.Length >= (Vector128<ushort>.Count / 2)))
+            if ((AdvSimd.Arm64.IsSupported || Ssse3.IsSupported) && (source.Length >= (Vector128<ushort>.Count / 2)))
             {
                 EncodeTo_Vector128(source, Unsafe.BitCast<Span<char>, Span<ushort>>(destination), casing);
                 return;
@@ -218,13 +216,9 @@ namespace System
             }
         }
 
-        public static unsafe string ToString(ReadOnlySpan<byte> bytes, Casing casing = Casing.Upper)
+        public static string ToString(ReadOnlySpan<byte> bytes, Casing casing = Casing.Upper)
         {
-#if NET
-            SpanCasingPair args = new() { Bytes = bytes, Casing = casing };
-            return string.Create(bytes.Length * 2, args, static (chars, args) =>
-                EncodeToUtf16(args.Bytes, chars, args.Casing));
-#else
+#if NETFRAMEWORK || NETSTANDARD2_0
             Span<char> result = (bytes.Length > 16) ?
                 new char[bytes.Length * 2].AsSpan() :
                 stackalloc char[bytes.Length * 2];
@@ -236,6 +230,17 @@ namespace System
                 pos += 2;
             }
             return result.ToString();
+#elif NET9_0_OR_GREATER
+            SpanCasingPair args = new() { Bytes = bytes, Casing = casing };
+            return string.Create(bytes.Length * 2, args, static (chars, args) =>
+                EncodeToUtf16(args.Bytes, chars, args.Casing));
+#else
+            // .NET 8.0 path (doesn't support 'allow ref struct' feature)
+            unsafe
+            {
+                return string.Create(bytes.Length * 2, (RosPtr: (IntPtr)(&bytes), casing), static (chars, args) =>
+                    EncodeToUtf16(*(ReadOnlySpan<byte>*)args.RosPtr, chars, args.casing));
+            }
 #endif
         }
 

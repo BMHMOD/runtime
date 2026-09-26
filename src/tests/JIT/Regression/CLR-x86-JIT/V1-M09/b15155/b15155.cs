@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b15155
+namespace DefaultNamespace
 {
     //@BEGINRENAME; Verify this renames
     //@ENDRENAME; Verify this renames
@@ -43,7 +43,6 @@ namespace b15155
 
     public class bug
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

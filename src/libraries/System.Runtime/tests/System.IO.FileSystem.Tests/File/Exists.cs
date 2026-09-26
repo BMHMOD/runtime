@@ -206,7 +206,7 @@ namespace System.IO.Tests
             Assert.False(Exists(component));
         }
 
-        [ConditionalTheory(typeof(File_Exists), nameof(ReservedDeviceNamesAreBlocked))] // device names
+        [ConditionalTheory(nameof(ReservedDeviceNamesAreBlocked))] // device names
         [MemberData(nameof(PathsWithReservedDeviceNames))]
         [OuterLoop]
         public void PathWithReservedDeviceNameAsPath_ReturnsFalse(string component)
@@ -214,6 +214,7 @@ namespace System.IO.Tests
             Assert.False(Exists(component));
         }
 
+        [ActiveIssue("https://github.com/dotnet/runtimelab/issues/901", typeof(PlatformDetection), nameof(PlatformDetection.IsNativeAot))]
         [Theory,
             MemberData(nameof(UncPathsWithoutShareName))]
         public void UncPathWithoutShareNameAsPath_ReturnsFalse(string component)

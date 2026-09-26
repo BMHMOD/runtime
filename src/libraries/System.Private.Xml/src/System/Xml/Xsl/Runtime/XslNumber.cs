@@ -333,30 +333,36 @@ namespace System.Xml.Xsl.Runtime
             }
 
             // Add both grouping separators and zero padding to the string representation of a number
-            char separator = groupSeparator.Length > 0 ? groupSeparator[0] : ' ';
-            return string.Create(newLen, (str, shift, zero, separator, groupSize), static (result, state) =>
+            unsafe
             {
-                var (str, shift, zero, separator, groupSize) = state;
-                int cnt = groupSize;
-                int oldPos = str.Length - 1;
+                char* result = stackalloc char[newLen];
+                char separator = (groupSeparator.Length > 0) ? groupSeparator[0] : ' ';
 
-                for (int newPos = result.Length - 1; newPos >= 0; newPos--)
+                fixed (char* pin = str)
                 {
-                    if (groupSize != 0 && cnt == 0)
-                    {
-                        // Every groupSize digits insert the separator
-                        result[newPos] = separator;
-                        cnt = groupSize;
-                        Debug.Assert(newPos > 0, "Separator cannot be the first character");
-                    }
-                    else
+                    char* pOldEnd = pin + oldLen - 1;
+                    char* pNewEnd = result + newLen - 1;
+                    int cnt = groupSize;
+
+                    while (true)
                     {
                         // Move digit to its new location (zero if we've run out of digits)
-                        result[newPos] = oldPos >= 0 ? (char)(str[oldPos--] + shift) : zero;
-                        cnt--;
+                        *pNewEnd-- = (pOldEnd >= pin) ? (char)(*pOldEnd-- + shift) : zero;
+                        if (pNewEnd < result)
+                        {
+                            break;
+                        }
+                        if (/*groupSize > 0 && */--cnt == 0)
+                        {
+                            // Every groupSize digits insert the separator
+                            *pNewEnd-- = separator;
+                            cnt = groupSize;
+                            Debug.Assert(pNewEnd >= result, "Separator cannot be the first character");
+                        }
                     }
                 }
-            });
+                return new string(result, 0, newLen);
+            }
         }
     }
 }

@@ -14,7 +14,7 @@
 class MethodTable;
 
 
-PCODE GenerateArrayOpStub(ArrayMethodDesc* pMD);
+Stub *GenerateArrayOpStub(ArrayMethodDesc* pMD);
 
 
 

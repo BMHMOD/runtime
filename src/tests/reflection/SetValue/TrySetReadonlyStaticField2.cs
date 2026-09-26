@@ -4,7 +4,6 @@
 using System;
 using System.Reflection;
 using Xunit;
-using TestLibrary;
 
 public class SetValueScenario
 {
@@ -20,7 +19,6 @@ public class SetValueDirectScenario
 // by the reflection SetValue operation itself.
 public class TrySetReadonlyStaticField2
 {
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/97829", TestRuntimes.Mono)]
     [Fact]
     public static void TestSetValue()
     {
@@ -30,7 +28,6 @@ public class TrySetReadonlyStaticField2
         });
     }
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/97829", TestRuntimes.Mono)]
     [Fact]
     public static void TestSetValueDirect()
     {

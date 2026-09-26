@@ -33,7 +33,9 @@ namespace System.ComponentModel.Composition
             return types;
         }
 
-        public static bool ComImportAvailable => PlatformDetection.IsWindows && PlatformDetection.IsNotWindowsNanoServer && !PlatformDetection.IsInAppContainer;
+        public const string ComImportAvailable = nameof(Helpers) + "." + nameof(CheckComImportAvailable);
+
+        private static bool CheckComImportAvailable() => PlatformDetection.IsWindows && PlatformDetection.IsNotWindowsNanoServer && !PlatformDetection.IsInAppContainer;
     }
 
     public class ComposablePartDefinitionTests

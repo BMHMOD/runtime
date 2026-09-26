@@ -45,13 +45,10 @@ namespace System.Text.RegularExpressions.Generator
         public void Initialize(IncrementalGeneratorInitializationContext context)
         {
             // Produces one entry per generated regex.  This may be:
-            // - Diagnostic in the case of a failure that should end the compilation
+            // - DiagnosticData in the case of a failure that should end the compilation
             // - (RegexMethod regexMethod, string runnerFactoryImplementation, Dictionary<string, string[]> requiredHelpers) in the case of valid regex
-            // - (RegexMethod regexMethod, string reason, Diagnostic diagnostic) in the case of a limited-support regex
-            //
-            // Location is threaded separately from the records so that it doesn't participate in
-            // record equality — this allows the incremental pipeline to cache results by value.
-            IncrementalValueProvider<(ImmutableArray<object> Results, ImmutableArray<Diagnostic> Diagnostics)> collected =
+            // - (RegexMethod regexMethod, string reason, DiagnosticData diagnostic) in the case of a limited-support regex
+            IncrementalValueProvider<ImmutableArray<object>> results =
                 context.SyntaxProvider
 
                 // Find all MethodDeclarationSyntax nodes attributed with GeneratedRegex and gather the required information.
@@ -70,10 +67,8 @@ namespace System.Text.RegularExpressions.Generator
                 // Filter out any parsing errors that resulted in null objects being returned.
                 .Where(static m => m is not null)
 
-                // The input here will either be a Diagnostic (in the case of something erroneous detected in GetRegexMethodDataOrFailureDiagnostic)
+                // The input here will either be a DiagnosticData (in the case of something erroneous detected in GetRegexMethodDataOrFailureDiagnostic)
                 // or it will be a RegexPatternAndSyntax containing all of the successfully parsed data from the attribute/method.
-                // This step parses the regex tree and checks whether full code generation is supported.
-                // The DiagnosticLocation is consumed here for diagnostic creation and not propagated further.
                 .Select((methodOrDiagnostic, _) =>
                 {
                     if (methodOrDiagnostic is RegexPatternAndSyntax method)
@@ -82,20 +77,11 @@ namespace System.Text.RegularExpressions.Generator
                         {
                             RegexTree regexTree = RegexParser.Parse(method.Pattern, method.Options | RegexOptions.Compiled, method.Culture); // make sure Compiled is included to get all optimizations applied to it
                             AnalysisResults analysis = RegexTreeAnalyzer.Analyze(regexTree);
-                            RegexMethod regexMethod = new(method.DeclaringType, method.IsProperty, method.MemberName, method.Modifiers, method.NullableRegex, method.Pattern, method.Options, method.MatchTimeout, regexTree, analysis, method.CompilationData);
-
-                            // If we're unable to generate a full implementation for this regex, report a diagnostic.
-                            // We'll still output a limited implementation that just caches a new Regex(...).
-                            if (!SupportsCodeGeneration(regexMethod, regexMethod.CompilationData.LanguageVersion, out string? reason))
-                            {
-                                return (object)(regexMethod, reason, Diagnostic.Create(DiagnosticDescriptors.LimitedSourceGeneration, method.DiagnosticLocation), regexMethod.CompilationData);
-                            }
-
-                            return regexMethod;
+                            return new RegexMethod(method.DeclaringType, method.IsProperty, method.DiagnosticLocation, method.MemberName, method.Modifiers, method.NullableRegex, method.Pattern, method.Options, method.MatchTimeout, regexTree, analysis, method.CompilationData);
                         }
                         catch (Exception e)
                         {
-                            return Diagnostic.Create(DiagnosticDescriptors.InvalidRegexArguments, method.DiagnosticLocation, e.Message);
+                            return new DiagnosticData(DiagnosticDescriptors.InvalidRegexArguments, method.DiagnosticLocation, e.Message);
                         }
                     }
 
@@ -107,8 +93,15 @@ namespace System.Text.RegularExpressions.Generator
                 {
                     if (state is not RegexMethod regexMethod)
                     {
-                        Debug.Assert(state is Diagnostic or ValueTuple<RegexMethod, string, Diagnostic, CompilationData>);
+                        Debug.Assert(state is DiagnosticData);
                         return state;
+                    }
+
+                    // If we're unable to generate a full implementation for this regex, report a diagnostic.
+                    // We'll still output a limited implementation that just caches a new Regex(...).
+                    if (!SupportsCodeGeneration(regexMethod, regexMethod.CompilationData.LanguageVersion, out string? reason))
+                    {
+                        return (regexMethod, reason, new DiagnosticData(DiagnosticDescriptors.LimitedSourceGeneration, regexMethod.DiagnosticLocation), regexMethod.CompilationData);
                     }
 
                     // Generate the core logic for the regex.
@@ -122,47 +115,30 @@ namespace System.Text.RegularExpressions.Generator
                     return (regexMethod, sw.ToString(), requiredHelpers, regexMethod.CompilationData);
                 })
 
-                // Combine all of the generated text outputs into a single batch, then split
-                // the source model from diagnostics so they can be emitted independently.
+                // Combine all of the generated text outputs into a single batch. We then generate a single source output from that batch.
                 .Collect()
-                .Select(static (results, _) =>
-                {
-                    ImmutableArray<Diagnostic>.Builder? diagnostics = null;
-                    ImmutableArray<object>.Builder? filteredResults = null;
 
-                    foreach (object result in results)
-                    {
-                        if (result is Diagnostic d)
-                        {
-                            (diagnostics ??= ImmutableArray.CreateBuilder<Diagnostic>()).Add(d);
-                        }
-                        else if (result is ValueTuple<RegexMethod, string, Diagnostic, CompilationData> limitedSupportResult)
-                        {
-                            (diagnostics ??= ImmutableArray.CreateBuilder<Diagnostic>()).Add(limitedSupportResult.Item3);
-                            (filteredResults ??= ImmutableArray.CreateBuilder<object>()).Add(
-                                (limitedSupportResult.Item1, limitedSupportResult.Item2, limitedSupportResult.Item4));
-                        }
-                        else
-                        {
-                            (filteredResults ??= ImmutableArray.CreateBuilder<object>()).Add(result);
-                        }
-                    }
+                // Apply sequence equality comparison on the result array for incremental caching.
+                .WithComparer(new ObjectImmutableArraySequenceEqualityComparer());
 
-                    return (
-                        Results: filteredResults?.ToImmutable() ?? ImmutableArray<object>.Empty,
-                        Diagnostics: diagnostics?.ToImmutable() ?? ImmutableArray<Diagnostic>.Empty);
-                });
-
-            // Project to just the source model, discarding diagnostics.
-            // ObjectImmutableArraySequenceEqualityComparer applies element-wise equality over
-            // the heterogeneous result array, enabling Roslyn's incremental pipeline to skip
-            // re-emitting source when the model has not changed.
-            IncrementalValueProvider<ImmutableArray<object>> sourceModel =
-                collected.Select(static (t, _) => t.Results).WithComparer(new ObjectImmutableArraySequenceEqualityComparer());
-
-            context.RegisterSourceOutput(sourceModel, static (context, results) =>
+            // When there something to output, take all the generated strings and concatenate them to output,
+            // and raise all of the created diagnostics.
+            context.RegisterSourceOutput(results, static (context, results) =>
             {
-                if (results.IsEmpty)
+                // Report any top-level diagnostics.
+                bool allFailures = true;
+                foreach (object result in results)
+                {
+                    if (result is DiagnosticData d)
+                    {
+                        context.ReportDiagnostic(d.ToDiagnostic());
+                    }
+                    else
+                    {
+                        allFailures = false;
+                    }
+                }
+                if (allFailures)
                 {
                     return;
                 }
@@ -192,16 +168,17 @@ namespace System.Text.RegularExpressions.Generator
                 // pair is the implementation used for the key.
                 var emittedExpressions = new Dictionary<(string Pattern, RegexOptions Options, int? Timeout), RegexMethod>();
 
-                // If we have any (RegexMethod regexMethod, string reason, CompilationData compilationData), these are regexes for which we have
-                // limited support and need to simply output boilerplate.
-                // If we have any (RegexMethod regexMethod, string runnerFactoryImplementation, Dictionary<string, string[]> requiredHelpers, CompilationData compilationData),
+                // If we have any (RegexMethod regexMethod, string generatedName, string reason, DiagnosticData diagnostic), these are regexes for which we have
+                // limited support and need to simply output boilerplate.  We need to emit their diagnostics.
+                // If we have any (RegexMethod regexMethod, string generatedName, string runnerFactoryImplementation, Dictionary<string, string[]> requiredHelpers),
                 // those are generated implementations to be emitted.  We need to gather up their required helpers.
                 Dictionary<string, string[]> requiredHelpers = new();
                 foreach (object? result in results)
                 {
                     RegexMethod? regexMethod = null;
-                    if (result is ValueTuple<RegexMethod, string, CompilationData> limitedSupportResult)
+                    if (result is ValueTuple<RegexMethod, string, DiagnosticData, CompilationData> limitedSupportResult)
                     {
+                        context.ReportDiagnostic(limitedSupportResult.Item3.ToDiagnostic());
                         regexMethod = limitedSupportResult.Item1;
                     }
                     else if (result is ValueTuple<RegexMethod, string, Dictionary<string, string[]>, CompilationData> regexImpl)
@@ -261,11 +238,11 @@ namespace System.Text.RegularExpressions.Generator
                 writer.Indent++;
                 foreach (object? result in results)
                 {
-                    if (result is ValueTuple<RegexMethod, string, CompilationData> limitedSupportResult)
+                    if (result is ValueTuple<RegexMethod, string, DiagnosticData, CompilationData> limitedSupportResult)
                     {
                         if (!limitedSupportResult.Item1.IsDuplicate)
                         {
-                            EmitRegexLimitedBoilerplate(writer, limitedSupportResult.Item1, limitedSupportResult.Item2, limitedSupportResult.Item3.LanguageVersion);
+                            EmitRegexLimitedBoilerplate(writer, limitedSupportResult.Item1, limitedSupportResult.Item2, limitedSupportResult.Item4.LanguageVersion);
                             writer.WriteLine();
                         }
                     }
@@ -312,22 +289,6 @@ namespace System.Text.RegularExpressions.Generator
 
                 // Save out the source
                 context.AddSource("RegexGenerator.g.cs", sw.ToString());
-            });
-
-            // Project to just the diagnostics, discarding the model. ImmutableArray<Diagnostic> does not
-            // implement value equality, so Roslyn's incremental pipeline uses reference equality —
-            // the callback fires on every compilation change. This is by design: diagnostic emission
-            // is cheap, and we need fresh SourceLocation instances that are pragma-suppressible
-            // (cf. https://github.com/dotnet/runtime/issues/92509).
-            IncrementalValueProvider<ImmutableArray<Diagnostic>> diagnosticResults =
-                collected.Select(static (t, _) => t.Diagnostics);
-
-            context.RegisterSourceOutput(diagnosticResults, static (context, diagnostics) =>
-            {
-                foreach (Diagnostic diagnostic in diagnostics)
-                {
-                    context.ReportDiagnostic(diagnostic);
-                }
             });
         }
 
@@ -388,6 +349,17 @@ namespace System.Text.RegularExpressions.Generator
 
                 return false;
             }
+        }
+
+        /// <summary>Stores the data necessary to create a Diagnostic.</summary>
+        /// <remarks>
+        /// Diagnostics do not have value equality semantics.  Storing them in an object model
+        /// used in the pipeline can result in unnecessary recompilation.
+        /// </remarks>
+        private sealed record class DiagnosticData(DiagnosticDescriptor descriptor, Location location, object? arg = null)
+        {
+            /// <summary>Create a <see cref="Diagnostic"/> from the data.</summary>
+            public Diagnostic ToDiagnostic() => Diagnostic.Create(descriptor, location, arg is null ? [] : [arg]);
         }
 
         private sealed class ObjectImmutableArraySequenceEqualityComparer : IEqualityComparer<ImmutableArray<object>>

@@ -157,13 +157,19 @@ namespace System
         public static bool TryParse([NotNullWhen(true)] string? s, NumberStyles style, IFormatProvider? provider, out short result)
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(s.AsSpan(), style, NumberFormatInfo.GetInstance(provider), out result, out _) == Number.ParsingStatus.OK;
+
+            if (s is null)
+            {
+                result = 0;
+                return false;
+            }
+            return Number.TryParseBinaryInteger(s.AsSpan(), style, NumberFormatInfo.GetInstance(provider), out result) == Number.ParsingStatus.OK;
         }
 
         public static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider? provider, out short result)
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(s, style, NumberFormatInfo.GetInstance(provider), out result, out _) == Number.ParsingStatus.OK;
+            return Number.TryParseBinaryInteger(s, style, NumberFormatInfo.GetInstance(provider), out result) == Number.ParsingStatus.OK;
         }
 
         //
@@ -278,16 +284,6 @@ namespace System
         /// <inheritdoc cref="IBinaryInteger{TSelf}.LeadingZeroCount(TSelf)" />
         public static short LeadingZeroCount(short value) => (short)(BitOperations.LeadingZeroCount((ushort)value) - 16);
 
-        /// <inheritdoc cref="IBinaryInteger{TSelf}.Log10(TSelf)" />
-        public static short Log10(short value)
-        {
-            if (value < 0)
-            {
-                ThrowHelper.ThrowValueArgumentOutOfRange_NeedNonNegNumException();
-            }
-            return (short)uint.Log10((uint)value);
-        }
-
         /// <inheritdoc cref="IBinaryInteger{TSelf}.PopCount(TSelf)" />
         public static short PopCount(short value) => (short)BitOperations.PopCount((ushort)value);
 
@@ -345,20 +341,29 @@ namespace System
                     }
                 }
 
+                ref byte sourceRef = ref MemoryMarshal.GetReference(source);
+
                 if (source.Length >= sizeof(short))
                 {
+                    sourceRef = ref Unsafe.Add(ref sourceRef, source.Length - sizeof(short));
+
                     // We have at least 2 bytes, so just read the ones we need directly
-                    result = BinaryPrimitives.ReadInt16BigEndian(source.Slice(source.Length - sizeof(short)));
+                    result = Unsafe.ReadUnaligned<short>(ref sourceRef);
+
+                    if (BitConverter.IsLittleEndian)
+                    {
+                        result = BinaryPrimitives.ReverseEndianness(result);
+                    }
                 }
                 else if (isUnsigned)
                 {
                     // We only have 1-byte so read it directly
-                    result = source[0];
+                    result = sourceRef;
                 }
                 else
                 {
                     // We only have 1-byte so read it directly with sign extension
-                    result = (sbyte)source[0];
+                    result = (sbyte)sourceRef;
                 }
             }
 
@@ -411,20 +416,27 @@ namespace System
                     }
                 }
 
+                ref byte sourceRef = ref MemoryMarshal.GetReference(source);
+
                 if (source.Length >= sizeof(short))
                 {
                     // We have at least 2 bytes, so just read the ones we need directly
-                    result = BinaryPrimitives.ReadInt16LittleEndian(source);
+                    result = Unsafe.ReadUnaligned<short>(ref sourceRef);
+
+                    if (!BitConverter.IsLittleEndian)
+                    {
+                        result = BinaryPrimitives.ReverseEndianness(result);
+                    }
                 }
                 else if (isUnsigned)
                 {
                     // We only have 1-byte so read it directly
-                    result = source[0];
+                    result = sourceRef;
                 }
                 else
                 {
                     // We only have 1-byte so read it directly with sign extension
-                    result = (sbyte)source[0];
+                    result = (sbyte)sourceRef;
                 }
             }
 
@@ -609,17 +621,24 @@ namespace System
         /// <inheritdoc cref="INumber{TSelf}.CopySign(TSelf, TSelf)" />
         public static short CopySign(short value, short sign)
         {
-            // signMask is all-bits-set when value and sign differ in sign, in which case value needs to be negated.
-            int signMask = (value ^ sign) >> 31;
-            short result = (short)((value ^ signMask) - signMask);
+            short absValue = value;
 
-            if ((sign >= 0) && (result < 0))
+            if (absValue < 0)
             {
-                // value was short.MinValue and a non-negative result was requested, which is unrepresentable.
-                Math.ThrowNegateTwosCompOverflow();
+                absValue = (short)(-absValue);
             }
 
-            return result;
+            if (sign >= 0)
+            {
+                if (absValue < 0)
+                {
+                    Math.ThrowNegateTwosCompOverflow();
+                }
+
+                return absValue;
+            }
+
+            return (short)(-absValue);
         }
 
         /// <inheritdoc cref="INumber{TSelf}.Max(TSelf, TSelf)" />
@@ -942,12 +961,8 @@ namespace System
             if (typeof(TOther) == typeof(double))
             {
                 double actualValue = (double)(object)value;
-#if MONO
                 result = (actualValue >= MaxValue) ? MaxValue :
                          (actualValue <= MinValue) ? MinValue : (short)actualValue;
-#else
-                result = (short)actualValue;
-#endif
                 return true;
             }
             else if (typeof(TOther) == typeof(Half))
@@ -994,12 +1009,8 @@ namespace System
             else if (typeof(TOther) == typeof(float))
             {
                 float actualValue = (float)(object)value;
-#if MONO
                 result = (actualValue >= MaxValue) ? MaxValue :
                          (actualValue <= MinValue) ? MinValue : (short)actualValue;
-#else
-                result = (short)actualValue;
-#endif
                 return true;
             }
             else
@@ -1029,12 +1040,8 @@ namespace System
             if (typeof(TOther) == typeof(double))
             {
                 double actualValue = (double)(object)value;
-#if MONO
                 result = (actualValue >= MaxValue) ? MaxValue :
                          (actualValue <= MinValue) ? MinValue : (short)actualValue;
-#else
-                result = (short)actualValue;
-#endif
                 return true;
             }
             else if (typeof(TOther) == typeof(Half))
@@ -1077,12 +1084,8 @@ namespace System
             else if (typeof(TOther) == typeof(float))
             {
                 float actualValue = (float)(object)value;
-#if MONO
                 result = (actualValue >= MaxValue) ? MaxValue :
                          (actualValue <= MinValue) ? MinValue : (short)actualValue;
-#else
-                result = (short)actualValue;
-#endif
                 return true;
             }
             else
@@ -1297,27 +1300,6 @@ namespace System
             }
         }
 
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(string, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial([NotNullWhen(true)] string? s, NumberStyles style, IFormatProvider? provider, out short result, out int charsConsumed)
-        {
-            NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(s.AsSpan(), style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out result, out charsConsumed) == Number.ParsingStatus.OK;
-        }
-
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(ReadOnlySpan{char}, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider? provider, out short result, out int charsConsumed)
-        {
-            NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(s, style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out result, out charsConsumed) == Number.ParsingStatus.OK;
-        }
-
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(ReadOnlySpan{byte}, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial(ReadOnlySpan<byte> utf8Text, NumberStyles style, IFormatProvider? provider, out short result, out int bytesConsumed)
-        {
-            NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(utf8Text, style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out result, out bytesConsumed) == Number.ParsingStatus.OK;
-        }
-
         //
         // IParsable
         //
@@ -1397,7 +1379,7 @@ namespace System
         public static bool TryParse(ReadOnlySpan<byte> utf8Text, NumberStyles style, IFormatProvider? provider, out short result)
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(utf8Text, style, NumberFormatInfo.GetInstance(provider), out result, out _) == Number.ParsingStatus.OK;
+            return Number.TryParseBinaryInteger(utf8Text, style, NumberFormatInfo.GetInstance(provider), out result) == Number.ParsingStatus.OK;
         }
 
         /// <inheritdoc cref="IUtf8SpanParsable{TSelf}.Parse(ReadOnlySpan{byte}, IFormatProvider?)" />

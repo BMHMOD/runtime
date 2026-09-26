@@ -12,7 +12,7 @@
 #include "ex.h"
 #include "corexcep.h"
 #include <time.h>
-#if defined(HOST_IOS) || defined(HOST_TVOS) || defined(HOST_MACCATALYST) || defined(HOST_ANDROID)
+#if defined(HOST_IOS) || defined(HOST_TVOS) || defined(HOST_MACCATALYST)
 #include <sys/time.h>
 #endif
 
@@ -65,7 +65,6 @@ static void DECLSPEC_NORETURN FailFastOnAssert()
     CreateCrashDumpIfEnabled();
 #endif
     RaiseFailFastException(NULL, NULL, 0);
-    UNREACHABLE();
 }
 
 #ifdef _DEBUG
@@ -88,6 +87,7 @@ void DoRaiseExceptionOnAssert(DWORD chance)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_DEBUG_ONLY;
+    STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_SUPPORTS_DAC;
 
 #if !defined(DACCESS_COMPILE)
@@ -117,6 +117,7 @@ BOOL RaiseExceptionOnAssert(RaiseOnAssertOptions option = rTestAndRaise)
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
     STATIC_CONTRACT_DEBUG_ONLY;
+    STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_SUPPORTS_DAC;
 
     // ok for debug-only code to take locks
@@ -162,8 +163,8 @@ VOID LogAssert(
     STRESS_LOG2(LF_ASSERT, LL_ALWAYS, "ASSERT:%s:%d\n", szFile, iLine);
 
     struct timespec ts;
-#if defined(HOST_ANDROID)
-    // timespec_get is not supported on Android API levels we target, use gettimeofday instead
+#if defined(HOST_IOS) || defined(HOST_TVOS) || defined(HOST_MACCATALYST)
+    // timespec_get is only available on iOS 13.0+, use gettimeofday instead
     struct timeval tv;
     gettimeofday(&tv, nullptr);
     ts.tv_sec = tv.tv_sec;
@@ -233,9 +234,10 @@ bool _DbgBreakCheck(
 {
     STATIC_CONTRACT_THROWS;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_DEBUG_ONLY;
 
-    CONTRACT_VIOLATION(GCViolation | TakesLockViolation);
+    CONTRACT_VIOLATION(FaultNotFatal | GCViolation | TakesLockViolation);
 
     char formatBuffer[4096];
 
@@ -308,6 +310,7 @@ bool _DbgBreakCheckNoThrow(
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_DEBUG_ONLY;
 
     bool failed = false;
@@ -360,6 +363,7 @@ VOID DbgAssertDialog(const char *szFile, int iLine, const char *szExpr)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
     STATIC_CONTRACT_SUPPORTS_DAC_HOST_ONLY;
 
     DEBUG_ONLY_FUNCTION;
@@ -418,6 +422,7 @@ VOID DbgAssertDialog(const char *szFile, int iLine, const char *szExpr)
 #ifndef DACCESS_COMPILE
         EX_TRY
         {
+            FAULT_NOT_FATAL();
             szExprToDisplay = &g_szExprWithStack2[0];
             strcpy(szExprToDisplay, szExpr);
             strcat_s(szExprToDisplay, ARRAY_SIZE(g_szExprWithStack2), "\n\n");
@@ -455,6 +460,7 @@ bool GetStackTraceAtContext(SString & s, CONTEXT * pContext)
      // NULL means use the current context.
     bool fSuccess = false;
 
+    FAULT_NOT_FATAL();
 
 #ifndef TARGET_UNIX
     EX_TRY

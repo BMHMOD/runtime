@@ -4,14 +4,13 @@
 using System;
 using System.Reflection;
 using System.Reflection.Emit;
-using TestLibrary;
 using Xunit;
 
 namespace GitHub_25020
 {
     public class Program
     {    
-        [ConditionalFact(typeof(Utilities), nameof(Utilities.IsReflectionEmitSupported))]
+        [Fact]
         public static void TestEntryPoint()
         {
             DynamicMethod dm = new DynamicMethod("MyMethod", typeof(string), new Type[] { typeof(string), typeof(string) });

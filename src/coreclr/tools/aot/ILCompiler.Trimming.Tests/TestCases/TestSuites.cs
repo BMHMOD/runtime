@@ -109,7 +109,6 @@ namespace Mono.Linker.Tests.TestCases
         {
             switch (t)
             {
-                case "EnumSubstitutions":
                 case "FeatureGuardSubstitutions":
                     Run(t);
                     break;

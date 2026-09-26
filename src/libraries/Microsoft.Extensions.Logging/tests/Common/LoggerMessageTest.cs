@@ -455,7 +455,7 @@ namespace Microsoft.Extensions.Logging.Test
 
             if (expected == null || actual == null)
             {
-                throw EqualException.ForMismatchedValues(expected?.ToString(), actual?.ToString());
+                throw EqualException.ForMismatchedValues(expected, actual);
             }
 
             if (ReferenceEquals(expected, actual))

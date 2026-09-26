@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-namespace Runtime_106610;
-
 using System;
 using System.Runtime.CompilerServices;
 using System.Numerics;
@@ -30,14 +27,17 @@ public class C1
 
 public class Runtime_106610
 {
-    [ConditionalFact(typeof(Avx512DQ.VL), nameof(Avx512DQ.VL.IsSupported))]
+    [Fact]
     public static void TestEntryPoint()
     {
-        var vr4 = Vector256.Create<float>(0);
-        var vr5 = Vector256.CreateScalar(1f);
-        var vr6 = Vector256.CreateScalar(-10f);
-        var vr7 = Avx.Or(vr5, vr6);
-        C1 vr8 = new C1(Avx512DQ.VL.Range(vr4, vr7, 0));
-        Assert.Equal(Vector256.CreateScalar<uint>(4292870144), vr8.F5.AsUInt32());
+        if (Avx512DQ.VL.IsSupported)
+        {
+            var vr4 = Vector256.Create<float>(0);
+            var vr5 = Vector256.CreateScalar(1f);
+            var vr6 = Vector256.CreateScalar(-10f);
+            var vr7 = Avx.Or(vr5, vr6);
+            C1 vr8 = new C1(Avx512DQ.VL.Range(vr4, vr7, 0));
+            Assert.Equal(Vector256.CreateScalar<uint>(4292870144), vr8.F5.AsUInt32());
+        }
     }
 }

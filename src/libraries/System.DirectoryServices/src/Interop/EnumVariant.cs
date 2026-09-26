@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.Marshalling;
 using System.Security;
 using System.Text;
 
@@ -62,22 +61,30 @@ namespace System.DirectoryServices
             private unsafe void Advance()
             {
                 _currentValue = s_noMoreValues;
-                ComVariant variant = default;
-                int[] numRead = new int[] { 0 };
-                _enumerator.Next(1, (IntPtr)(&variant), numRead);
-
+                IntPtr addr = Marshal.AllocCoTaskMem(sizeof(Variant));
                 try
                 {
-                    if (numRead[0] > 0)
+                    int[] numRead = new int[] { 0 };
+                    global::Interop.OleAut32.VariantInit(addr);
+                    _enumerator.Next(1, addr, numRead);
+
+                    try
                     {
+                        if (numRead[0] > 0)
+                        {
 #pragma warning disable 612, 618
-                        _currentValue = Marshal.GetObjectForNativeVariant((IntPtr)(&variant))!;
+                            _currentValue = Marshal.GetObjectForNativeVariant(addr)!;
 #pragma warning restore 612, 618
+                        }
+                    }
+                    finally
+                    {
+                        global::Interop.OleAut32.VariantClear(addr);
                     }
                 }
                 finally
                 {
-                    variant.Dispose();
+                    Marshal.FreeCoTaskMem(addr);
                 }
             }
         }

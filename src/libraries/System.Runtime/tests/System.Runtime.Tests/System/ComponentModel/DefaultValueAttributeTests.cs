@@ -41,7 +41,7 @@ namespace System.ComponentModel.Tests
             Assert.Equal("test", new DefaultValueAttribute((object)"test").Value);
         }
 
-        [ConditionalFact(typeof(DefaultValueAttributeTests), nameof(DefaultValueAttributeIsSupported))]
+        [ConditionalFact(nameof(DefaultValueAttributeIsSupported))]
         public static void Ctor_type_string()
         {
             Assert.Equal(DayOfWeek.Monday, new DefaultValueAttribute(typeof(DayOfWeek), "Monday").Value);
@@ -69,7 +69,7 @@ namespace System.ComponentModel.Tests
             public int Value { get; set; }
         }
 
-        [ConditionalFact(typeof(DefaultValueAttributeTests), nameof(DefaultValueAttributeIsSupported))]
+        [ConditionalFact(nameof(DefaultValueAttributeIsSupported))]
         public static void Ctor_CustomTypeConverter()
         {
             TypeDescriptor.AddAttributes(typeof(CustomType), new TypeConverterAttribute(typeof(CustomConverter)));
@@ -77,7 +77,7 @@ namespace System.ComponentModel.Tests
             Assert.Equal(42, ((CustomType)attr.Value).Value);
         }
 
-        [ConditionalTheory(typeof(DefaultValueAttributeTests), nameof(DefaultValueAttributeIsSupported))]
+        [ConditionalTheory(nameof(DefaultValueAttributeIsSupported))]
         [InlineData(typeof(CustomType2))]
         [InlineData(typeof(DefaultValueAttribute))]
         public static void Ctor_DefaultTypeConverter_Null(Type type)

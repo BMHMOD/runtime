@@ -9,7 +9,7 @@ using System.Linq;
 
 #nullable enable
 
-// TODO: this fixture could be shared more broadly with other wasm build test infrastructure
+// ToDo: should be common with Wasi.Build.Tests, copied here after Wasm.Build.Tests refactoring
 namespace Wasm.Build.Tests
 {
     public class SharedBuildPerTestClassFixture : IDisposable

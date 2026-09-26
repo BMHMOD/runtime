@@ -30,19 +30,11 @@ namespace System.Threading
 
         // Indicates whether the thread pool should yield the thread from the dispatch loop to the runtime periodically so that
         // the runtime may use the thread for processing other work.
-        internal static bool YieldFromDispatchLoop(int currentTickCount)
-        {
-            if (UseWindowsThreadPool)
-            {
-                // Windows thread pool threads need to yield back to the thread pool periodically, otherwise those threads may be
-                // considered to be doing long-running work and change thread pool heuristics, such as slowing or halting thread
-                // injection.
-                return true;
-            }
-
-            PortableThreadPool.ThreadPoolInstance.NotifyDispatchProgress(currentTickCount);
-            return false;
-        }
+        //
+        // Windows thread pool threads need to yield back to the thread pool periodically, otherwise those threads may be
+        // considered to be doing long-running work and change thread pool heuristics, such as slowing or halting thread
+        // injection.
+        internal static bool YieldFromDispatchLoop => UseWindowsThreadPool;
 
         [CLSCompliant(false)]
         [SupportedOSPlatform("windows")]
@@ -75,10 +67,10 @@ namespace System.Threading
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static void IncrementCompletedWorkItemCount() => WindowsThreadPool.IncrementCompletedWorkItemCount();
 
-        internal static ThreadInt64PersistentCounter.ThreadLocalNode GetOrCreateThreadLocalCompletionCountNode() =>
+        internal static object GetOrCreateThreadLocalCompletionCountObject() =>
             ThreadPool.UseWindowsThreadPool ?
-            WindowsThreadPool.GetOrCreateThreadLocalCompletionCountNode() :
-            PortableThreadPool.ThreadPoolInstance.GetOrCreateThreadLocalCompletionCountNode();
+            WindowsThreadPool.GetOrCreateThreadLocalCompletionCountObject() :
+            PortableThreadPool.ThreadPoolInstance.GetOrCreateThreadLocalCompletionCountObject();
 
         public static bool SetMaxThreads(int workerThreads, int completionPortThreads) =>
             ThreadPool.UseWindowsThreadPool ?
@@ -140,10 +132,10 @@ namespace System.Threading
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool NotifyWorkItemComplete(ThreadInt64PersistentCounter.ThreadLocalNode threadLocalCompletionCountNode, int currentTimeMs) =>
+        internal static bool NotifyWorkItemComplete(object threadLocalCompletionCountObject, int currentTimeMs) =>
             ThreadPool.UseWindowsThreadPool ?
-            WindowsThreadPool.NotifyWorkItemComplete(threadLocalCompletionCountNode, currentTimeMs) :
-            PortableThreadPool.ThreadPoolInstance.NotifyWorkItemComplete(threadLocalCompletionCountNode, currentTimeMs);
+            WindowsThreadPool.NotifyWorkItemComplete(threadLocalCompletionCountObject, currentTimeMs) :
+            PortableThreadPool.ThreadPoolInstance.NotifyWorkItemComplete(threadLocalCompletionCountObject, currentTimeMs);
 
         internal static bool NotifyThreadBlocked() =>
             ThreadPool.UseWindowsThreadPool ?
@@ -163,24 +155,17 @@ namespace System.Threading
         }
 
         /// <summary>
-        /// This method is called to notify the thread pool about pending work.
-        /// It will start with an ordinary read to check if a request is already pending as we
-        /// optimize for a case when queues already have items and this flag is already set.
-        /// Make sure that the presence of the item that is being added to the queue is visible
-        /// before calling this.
-        /// Typically this is not a problem when enqueing uses an interlocked update of the queue
-        /// index to establish the presence of the new item. More care may be needed when an item
-        /// is inserted via ordinary or volatile writes.
+        /// This method is called to request a new thread pool worker to handle pending work.
         /// </summary>
-        internal static void EnsureWorkerRequested()
+        internal static void RequestWorkerThread()
         {
             if (ThreadPool.UseWindowsThreadPool)
             {
-                WindowsThreadPool.EnsureWorkerRequested();
+                WindowsThreadPool.RequestWorkerThread();
             }
             else
             {
-                PortableThreadPool.ThreadPoolInstance.EnsureWorkerRequested();
+                PortableThreadPool.ThreadPoolInstance.RequestWorker();
             }
         }
 

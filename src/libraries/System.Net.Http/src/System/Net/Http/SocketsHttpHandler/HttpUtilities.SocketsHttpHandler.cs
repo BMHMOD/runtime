@@ -26,7 +26,6 @@ namespace System.Net.Http
 
         internal static bool IsSocksScheme(string scheme) =>
             string.Equals(scheme, "socks5", StringComparison.OrdinalIgnoreCase) ||
-            string.Equals(scheme, "socks5h", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(scheme, "socks4a", StringComparison.OrdinalIgnoreCase) ||
             string.Equals(scheme, "socks4", StringComparison.OrdinalIgnoreCase);
     }

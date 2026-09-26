@@ -3,7 +3,6 @@
 using System;
 using System.Security;
 using Xunit;
-using TestLibrary;
 
 [SecuritySafeCritical]
 public class TestApp {
@@ -313,7 +312,6 @@ public class TestApp {
     }
 
     //***** MAIN CODE *****
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static unsafe int TestEntryPoint() {
         AA.reset();

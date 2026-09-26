@@ -131,7 +131,7 @@ function sourcemapPathTransform (relativeSourcePath, sourcemapPath) {
             res = `file:///${sourcePath.replace(/\\/g, "/")}`;
         } else {
             relativeSourcePath = relativeSourcePath.substring(12);
-            res = `https://raw.githubusercontent.com/dotnet/dotnet/${gitHash}/src/runtime/${relativeSourcePath}`;
+            res = `https://raw.githubusercontent.com/dotnet/runtime/${gitHash}/${relativeSourcePath}`;
         }
         locationCache[relativeSourcePath] = res;
     }

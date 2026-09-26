@@ -32,17 +32,27 @@ namespace Microsoft.Extensions.Hosting.Internal
             _logger = logger;
         }
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Gets a cancellation token. Triggered when the application host has fully started and is about to wait
+        /// for a graceful shutdown.
+        /// </summary>
         public CancellationToken ApplicationStarted => _startedSource.Token;
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Gets a cancellation token. Triggered when the application host is performing a graceful shutdown.
+        /// Request might still be in flight. Shutdown will block until this event completes.
+        /// </summary>
         public CancellationToken ApplicationStopping => _stoppingSource.Token;
 
-        /// <inheritdoc />
+        /// <summary>
+        /// Gets a cancellation token. Triggered when the application host is performing a graceful shutdown.
+        /// All requests should be complete at this point. Shutdown will block
+        /// until this event completes.
+        /// </summary>
         public CancellationToken ApplicationStopped => _stoppedSource.Token;
 
         /// <summary>
-        /// Triggers <see cref="ApplicationStopping" /> and blocks until it completes.
+        /// Signals the ApplicationStopping event and blocks until it completes.
         /// </summary>
         public void StopApplication()
         {
@@ -65,7 +75,7 @@ namespace Microsoft.Extensions.Hosting.Internal
         }
 
         /// <summary>
-        /// Triggers <see cref="ApplicationStarted" /> and blocks until it completes.
+        /// Signals the ApplicationStarted event and blocks until it completes.
         /// </summary>
         public void NotifyStarted()
         {
@@ -82,7 +92,7 @@ namespace Microsoft.Extensions.Hosting.Internal
         }
 
         /// <summary>
-        /// Triggers <see cref="ApplicationStopped" /> and blocks until it completes.
+        /// Signals the ApplicationStopped event and blocks until it completes.
         /// </summary>
         public void NotifyStopped()
         {

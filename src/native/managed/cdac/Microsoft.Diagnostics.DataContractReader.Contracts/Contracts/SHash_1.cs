@@ -15,7 +15,7 @@ internal readonly partial struct SHash_1 : ISHash
         _target = target;
     }
 
-    private class SHash<TKey, TEntry> : ISHash<TKey, TEntry> where TEntry : class, IData<TEntry>
+    private class SHash<TKey, TEntry> : ISHash<TKey, TEntry> where TEntry : IData<TEntry>
     {
         public TargetPointer Table { get; set; }
         public uint TableSize { get; set; }
@@ -24,7 +24,7 @@ internal readonly partial struct SHash_1 : ISHash
         public ITraits<TKey, TEntry>? Traits { get; set; }
     }
 
-    public ISHash<TKey, TEntry> CreateSHash<TKey, TEntry>(Target target, TargetPointer address, Target.TypeInfo type, ITraits<TKey, TEntry> traits) where TEntry : class, IData<TEntry>
+    ISHash<TKey, TEntry> ISHash.CreateSHash<TKey, TEntry>(Target target, TargetPointer address, Target.TypeInfo type, ITraits<TKey, TEntry> traits)
     {
         TargetPointer table = target.ReadPointer(address + (ulong)type.Fields[nameof(SHash<TKey, TEntry>.Table)].Offset);
         uint tableSize = target.Read<uint>(address + (ulong)type.Fields[nameof(SHash<TKey, TEntry>.TableSize)].Offset);
@@ -45,11 +45,11 @@ internal readonly partial struct SHash_1 : ISHash
             Entries = entries
         };
     }
-    public TEntry? LookupSHash<TKey, TEntry>(ISHash<TKey, TEntry> hashTable, TKey key) where TEntry : class, IData<TEntry>
+    TEntry ISHash.LookupSHash<TKey, TEntry>(ISHash<TKey, TEntry> hashTable, TKey key)
     {
         SHash<TKey, TEntry> shashTable = (SHash<TKey, TEntry>)hashTable;
         if (shashTable.TableSize == 0)
-            return null;
+            return shashTable.Traits!.Null();
 
         uint hash = shashTable.Traits!.Hash(key);
         uint index = hash % shashTable.TableSize;
@@ -58,7 +58,7 @@ internal readonly partial struct SHash_1 : ISHash
         {
             TEntry current = shashTable.Entries![(int)index];
             if (shashTable.Traits.IsNull(current))
-                return null;
+                return shashTable.Traits.Null();
             // we don't support the removal of entries
             if (!shashTable.Traits.IsDeleted(current) && shashTable.Traits.Equals(key, shashTable.Traits.GetKey(current)))
                 return current;

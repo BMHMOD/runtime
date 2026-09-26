@@ -10,9 +10,6 @@
 // 
 //     File: /__w/1/s/src/coreclr/jit/codegencommon.cpp Line: 3225
 // 
-
-namespace Runtime_113486;
-
 using System;
 using Xunit;
 

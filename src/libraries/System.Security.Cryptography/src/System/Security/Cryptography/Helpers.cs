@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -273,84 +272,54 @@ namespace Internal.Cryptography
             }
         }
 
-        internal static unsafe void ValidateDer(ReadOnlySpan<byte> encodedValue)
+        internal static void ValidateDer(ReadOnlySpan<byte> encodedValue)
         {
             try
             {
-                const int StackQueueSize = 16;
-                Span<(int Offset, int Length)> stack = stackalloc (int, int)[StackQueueSize];
-                int stackCount = 0;
+                Asn1Tag tag;
+                AsnValueReader reader = new AsnValueReader(encodedValue, AsnEncodingRules.DER);
 
-                stack[stackCount++] = (0, encodedValue.Length);
-
-                do
+                while (reader.HasData)
                 {
-                    (int offset, int length) = stack[--stackCount];
+                    tag = reader.PeekTag();
 
-                    ValueAsnReader reader = new ValueAsnReader(
-                        encodedValue.Slice(offset, length),
-                        AsnEncodingRules.DER);
-
-                    while (reader.HasData)
+                    // If the tag is in the UNIVERSAL class
+                    //
+                    // DER limits the constructed encoding to SEQUENCE and SET, as well as anything which gets
+                    // a defined encoding as being an IMPLICIT SEQUENCE.
+                    if (tag.TagClass == TagClass.Universal)
                     {
-                        Asn1Tag tag = reader.PeekTag();
-
-                        // If the tag is in the UNIVERSAL class
-                        //
-                        // DER limits the constructed encoding to SEQUENCE and SET, as well as anything which gets
-                        // a defined encoding as being an IMPLICIT SEQUENCE.
-                        if (tag.TagClass == TagClass.Universal)
+                        switch ((UniversalTagNumber)tag.TagValue)
                         {
-                            switch ((UniversalTagNumber)tag.TagValue)
-                            {
-                                case UniversalTagNumber.External:
-                                case UniversalTagNumber.Embedded:
-                                case UniversalTagNumber.Sequence:
-                                case UniversalTagNumber.Set:
-                                case UniversalTagNumber.UnrestrictedCharacterString:
-                                    if (!tag.IsConstructed)
-                                    {
-                                        throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding);
-                                    }
-
-                                    break;
-                                default:
-                                    if (tag.IsConstructed)
-                                    {
-                                        throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding);
-                                    }
-
-                                    break;
-                            }
-                        }
-
-                        if (tag.IsConstructed)
-                        {
-                            ReadOnlySpan<byte> content = reader.PeekContentBytes();
-
-                            if (content.Length > 0)
-                            {
-                                if (!encodedValue.Overlaps(content, out int contentOffset))
+                            case UniversalTagNumber.External:
+                            case UniversalTagNumber.Embedded:
+                            case UniversalTagNumber.Sequence:
+                            case UniversalTagNumber.Set:
+                            case UniversalTagNumber.UnrestrictedCharacterString:
+                                if (!tag.IsConstructed)
                                 {
-                                    Debug.Fail("Contents do not overlap original span");
-                                    throw new CryptographicException();
+                                    throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding);
                                 }
 
-                                if (stackCount == stack.Length)
+                                break;
+                            default:
+                                if (tag.IsConstructed)
                                 {
-                                    Span<(int, int)> nextStack = new (int, int)[stack.Length * 2];
-                                    stack.CopyTo(nextStack);
-                                    stack = nextStack;
+                                    throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding);
                                 }
 
-                                stack[stackCount++] = (contentOffset, content.Length);
-                            }
+                                break;
                         }
-
-                        // Skip past the current value.
-                        reader.ReadEncodedValue();
                     }
-                } while (stackCount > 0);
+
+                    if (tag.IsConstructed)
+                    {
+                        ValidateDer(reader.PeekContentBytes());
+                    }
+
+                    // Skip past the current value.
+                    reader.ReadEncodedValue();
+                }
             }
             catch (AsnContentException e)
             {

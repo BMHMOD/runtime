@@ -2,6 +2,7 @@
   <PropertyGroup>
     <!-- Needed for GC.WaitForPendingFinalizers -->
     <RequiresProcessIsolation>true</RequiresProcessIsolation>
+    <GCStressIncompatible>true</GCStressIncompatible>
     <UnloadabilityIncompatible>true</UnloadabilityIncompatible>
     <!-- Collectible ALCs are not supported -->
     <NativeAotIncompatible>true</NativeAotIncompatible>
@@ -9,8 +10,5 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Program.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
   </ItemGroup>
 </Project>

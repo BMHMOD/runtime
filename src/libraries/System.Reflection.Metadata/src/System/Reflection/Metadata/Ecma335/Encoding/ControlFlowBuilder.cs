@@ -292,7 +292,10 @@ namespace System.Reflection.Metadata.Ecma335
 
             foreach (Blob srcBlob in srcBuilder.GetBlobs())
             {
-                Debug.Assert(srcBlobOffset == 0);
+                Debug.Assert(
+                    srcBlobOffset == 0 ||
+                    srcBlobOffset == 1 && srcBlob.Buffer[0] == 0xff ||
+                    srcBlobOffset == 4 && srcBlob.Buffer[0] == 0xff && srcBlob.Buffer[1] == 0xff && srcBlob.Buffer[2] == 0xff && srcBlob.Buffer[3] == 0xff);
 
                 while (true)
                 {
@@ -345,6 +348,13 @@ namespace System.Reflection.Metadata.Ecma335
                     else
                     {
                         branch = _branches[branchIndex];
+                    }
+
+                    // the branch starts at the very end and its operand is in the next blob:
+                    if (srcBlobOffset == srcBlob.Length - 1)
+                    {
+                        srcBlobOffset = operandSize;
+                        break;
                     }
 
                     // skip fake branch operand:

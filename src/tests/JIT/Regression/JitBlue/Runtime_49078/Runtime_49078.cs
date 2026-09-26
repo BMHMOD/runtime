@@ -85,7 +85,6 @@ namespace GitHub_49078
 
     public class Program
     {
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

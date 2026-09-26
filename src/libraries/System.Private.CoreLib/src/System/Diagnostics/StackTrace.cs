@@ -18,10 +18,10 @@ namespace System.Diagnostics
     public partial class StackTrace
     {
         [FeatureSwitchDefinition("System.Diagnostics.StackTrace.IsSupported")]
-        internal static bool IsSupported { get; } = AppContext.TryGetSwitch("System.Diagnostics.StackTrace.IsSupported", out bool isSupported) ? isSupported : true;
+        internal static bool IsSupported { get; } = InitializeIsSupported();
 
-        [FeatureSwitchDefinition("System.Diagnostics.StackTrace.IsLineNumberSupported")]
-        internal static bool IsLineNumberSupported { get; } = AppContext.TryGetSwitch("System.Diagnostics.StackTrace.IsLineNumberSupported", out bool isSupported) ? isSupported : true;
+        private static bool InitializeIsSupported() =>
+            AppContext.TryGetSwitch("System.Diagnostics.StackTrace.IsSupported", out bool isSupported) ? isSupported : true;
 
         public const int METHODS_TO_SKIP = 0;
 
@@ -171,7 +171,7 @@ namespace System.Diagnostics
         public virtual StackFrame[] GetFrames()
         {
             if (_stackFrames == null || _numOfFrames <= 0)
-                return [];
+                return Array.Empty<StackFrame>();
 
             // We have to return a subset of the array. Unfortunately this
             // means we have to allocate a new array and copy over.
@@ -237,11 +237,11 @@ namespace System.Diagnostics
 
                     sb.Append("   ").Append(word_At).Append(' ');
 
-                    bool isAsync = (mb.MethodImplementationFlags & MethodImplAttributes.Async) != 0;
+                    bool isAsync = false;
                     Type? declaringType = mb.DeclaringType;
                     string methodName = mb.Name;
                     bool methodChanged = false;
-                    if (!isAsync && declaringType != null && IsDefinedSafe(declaringType, typeof(CompilerGeneratedAttribute), inherit: false))
+                    if (declaringType != null && IsDefinedSafe(declaringType, typeof(CompilerGeneratedAttribute), inherit: false))
                     {
                         isAsync = declaringType.IsAssignableTo(typeof(IAsyncStateMachine));
                         if (isAsync || declaringType.IsAssignableTo(typeof(IEnumerator)))

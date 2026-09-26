@@ -26,11 +26,16 @@ namespace System.Security.Cryptography.Tests
         {
             get
             {
-                foreach (CurveDef cd in TestCurvesRaw)
+                var curveDefs =
+                    from curveDef in TestCurvesRaw
+                    where curveDef.IsCurveValidOnPlatform == true
+                    select curveDef;
+
+                foreach (CurveDef cd in curveDefs)
                     yield return new[] { cd };
 
                 // return again with IncludePrivate = true
-                foreach (CurveDef cd in TestCurvesRaw)
+                foreach (CurveDef cd in curveDefs)
                 {
                     cd.IncludePrivate = true;
                     yield return new[] { cd };
@@ -42,8 +47,43 @@ namespace System.Security.Cryptography.Tests
         {
             get
             {
-                foreach (CurveDef cd in TestCurvesRaw)
-                    yield return new[] { cd };
+                var curveDefs =
+                    from curveDef in TestCurvesRaw
+                    where curveDef.IsCurveValidOnPlatform == true
+                    select curveDef;
+
+                foreach (CurveDef curveDef in curveDefs)
+                    yield return new[] { curveDef };
+            }
+        }
+
+        public static IEnumerable<object[]> TestInvalidCurves
+        {
+            get
+            {
+                var curveDefs =
+                    from curveDef in TestCurvesRaw
+                    where curveDef.IsCurveValidOnPlatform == false
+                    select curveDef;
+
+                foreach (CurveDef curveDef in curveDefs)
+                    yield return new[] { curveDef };
+            }
+        }
+
+        public static IEnumerable<object[]> TestNewCurves
+        {
+            get
+            {
+                var curveDefs =
+                    from curveDef in TestCurvesRaw
+                    where
+                        curveDef.IsCurveValidOnPlatform == true &&
+                        curveDef.RequiredOnPlatform == false
+                    select curveDef;
+
+                foreach (CurveDef curveDef in curveDefs)
+                    yield return new[] { curveDef };
             }
         }
 

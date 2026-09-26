@@ -637,7 +637,7 @@ namespace System.Data.Common
 
             foreach (char currentChar in unescapedString)
             {
-                if (specialCharacters.Contains(currentChar))
+                if (specialCharacters.IndexOf(currentChar) >= 0)
                 {
                     escapedString.Append('\\');
                 }

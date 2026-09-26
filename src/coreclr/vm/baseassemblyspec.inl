@@ -71,6 +71,7 @@ inline VOID BaseAssemblySpec::CloneFields()
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        INJECT_FAULT(ThrowOutOfMemory(););
     }
     CONTRACTL_END
 
@@ -115,6 +116,7 @@ inline VOID BaseAssemblySpec::CloneFieldsToLoaderHeap(LoaderHeap *pHeap, AllocMe
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(ThrowOutOfMemory(););
     }
     CONTRACTL_END
 
@@ -157,6 +159,7 @@ inline void BaseAssemblySpec::CopyFrom(const BaseAssemblySpec *pSpec)
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        INJECT_FAULT(ThrowOutOfMemory(););
     }
     CONTRACTL_END
 

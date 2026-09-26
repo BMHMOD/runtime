@@ -10,7 +10,7 @@ using Microsoft.Interop;
 using Xunit;
 
 using VerifyCS = Microsoft.Interop.UnitTests.Verifiers.CSharpCodeFixVerifier<
-       Microsoft.Interop.Analyzers.ComInterfaceGeneratorDiagnosticsAnalyzer,
+       Microsoft.CodeAnalysis.Testing.EmptyDiagnosticAnalyzer,
        Microsoft.Interop.Analyzers.AddMarshalAsToElementFixer>;
 
 namespace ComInterfaceGenerator.Unit.Tests

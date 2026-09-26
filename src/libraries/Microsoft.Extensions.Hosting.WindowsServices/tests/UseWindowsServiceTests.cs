@@ -32,7 +32,7 @@ namespace Microsoft.Extensions.Hosting
             Assert.IsType<ConsoleLifetime>(lifetime);
         }
 
-        [ConditionalFact(typeof(UseWindowsServiceTests), nameof(IsRemoteExecutorSupportedAndPrivilegedProcess))]
+        [ConditionalFact(nameof(IsRemoteExecutorSupportedAndPrivilegedProcess))]
         public void CanCreateService()
         {
             using var serviceTester = WindowsServiceTester.Create(() =>

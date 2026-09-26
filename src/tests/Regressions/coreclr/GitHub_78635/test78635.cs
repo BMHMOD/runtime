@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 public abstract class BaseProp
 {
@@ -104,7 +103,6 @@ public class Program {
         TestInstance (new DerivedVirtual32 ());
     }
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint()
     {

@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b74182;
-
 using System;
 using Xunit;
 public class bug1
@@ -23,7 +20,6 @@ public class bug1
 
     public static VT vtstatic = new VT();
 
-    [OuterLoop]
     [Fact]
     public static void TestEntryPoint()
     {

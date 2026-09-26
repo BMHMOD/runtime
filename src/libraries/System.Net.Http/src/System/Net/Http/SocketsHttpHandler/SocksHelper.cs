@@ -37,8 +37,7 @@ namespace System.Net.Http
                 {
                     NetworkCredential? credentials = proxyCredentials?.GetCredential(proxyUri, proxyUri.Scheme);
 
-                    if (string.Equals(proxyUri.Scheme, "socks5", StringComparison.OrdinalIgnoreCase) ||
-                        string.Equals(proxyUri.Scheme, "socks5h", StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(proxyUri.Scheme, "socks5", StringComparison.OrdinalIgnoreCase))
                     {
                         await EstablishSocks5TunnelAsync(stream, host, port, credentials, async).ConfigureAwait(false);
                     }

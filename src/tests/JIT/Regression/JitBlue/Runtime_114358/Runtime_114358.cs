@@ -5,9 +5,6 @@
 // Reduced from 206.63 KB to 1.9 KB.
 
 
-
-namespace Runtime_114358;
-
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -44,10 +41,13 @@ public class TestClass_114358
         }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void Repro()
     {
-        new TestClass_114358().Method0();
+        if (AdvSimd.IsSupported)
+        {
+            new TestClass_114358().Method0();
+        }
     }
 }
 /*

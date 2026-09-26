@@ -4,8 +4,6 @@
 
 //Similar to StrAccess1, but instead of using constants, different expression is used as the index to access the string
 
-namespace JitTest_Directed_StrAccess_straccess2;
-
 using System;
 using Xunit;
 
@@ -240,6 +238,7 @@ public unsafe class StrAccess2
         }
     }
 }
+
 
 
 

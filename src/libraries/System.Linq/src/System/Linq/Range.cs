@@ -4,6 +4,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace System.Linq
 {
@@ -77,26 +79,33 @@ namespace System.Linq
         /// <summary>Fills the <paramref name="destination"/> with incrementing numbers, starting from <paramref name="value"/>.</summary>
         private static void FillIncrementing<T>(Span<T> destination, T value) where T : INumber<T>
         {
+            ref T pos = ref MemoryMarshal.GetReference(destination);
+            ref T end = ref Unsafe.Add(ref pos, destination.Length);
+
             if (Vector.IsHardwareAccelerated &&
                 Vector<T>.IsSupported &&
                 destination.Length >= Vector<T>.Count)
             {
-                Vector<T> current = new Vector<T>(value) + Vector<T>.Indices;
+                Vector<T> init = Vector<T>.Indices;
+                Vector<T> current = new Vector<T>(value) + init;
                 Vector<T> increment = new Vector<T>(T.CreateTruncating(Vector<T>.Count));
 
-                while (destination.Length >= Vector<T>.Count)
+                ref T oneVectorFromEnd = ref Unsafe.Subtract(ref end, Vector<T>.Count);
+                do
                 {
-                    current.CopyTo(destination);
+                    current.StoreUnsafe(ref pos);
                     current += increment;
-                    destination = destination.Slice(Vector<T>.Count);
+                    pos = ref Unsafe.Add(ref pos, Vector<T>.Count);
                 }
+                while (Unsafe.IsAddressLessThanOrEqualTo(ref pos, ref oneVectorFromEnd));
 
                 value = current[0];
             }
 
-            foreach (ref T slot in destination)
+            while (Unsafe.IsAddressLessThan(ref pos, ref end))
             {
-                slot = value++;
+                pos = value++;
+                pos = ref Unsafe.Add(ref pos, 1);
             }
         }
     }

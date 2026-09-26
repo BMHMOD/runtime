@@ -2,8 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 
-#if defined(__clang__)
+#ifdef __GNUC__
+#ifdef __clang__
 #pragma clang attribute pop
-#elif defined(__GNUC__)
+#else
 #pragma GCC pop_options
+#endif
 #endif

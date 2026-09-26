@@ -8,7 +8,6 @@
 // that each of these derive from a different class, it can't be helped.
 //
 
-using System.Diagnostics;
 using System.Runtime.Versioning;
 using Internal.Cryptography;
 using Internal.NativeCrypto;
@@ -18,11 +17,6 @@ namespace System.Security.Cryptography
     public sealed class AesCng : Aes, ICngSymmetricAlgorithm
     {
         private CngKey? _key;
-        private ILiteSymmetricCipher? _encryptEcbCipher;
-        private ILiteSymmetricCipher? _decryptEcbCipher;
-        private ILiteSymmetricCipher? _encryptCbcCipher;
-        private ILiteSymmetricCipher? _decryptCbcCipher;
-        private ConcurrencyBlock _block;
 
         [SupportedOSPlatform("windows")]
         public AesCng()
@@ -87,11 +81,7 @@ namespace System.Security.Cryptography
             }
             set
             {
-                using (ConcurrencyBlock.Enter(ref _block))
-                {
-                    _core.SetKey(value);
-                    ClearCachedCiphers();
-                }
+                _core.SetKey(value);
             }
         }
 
@@ -104,11 +94,7 @@ namespace System.Security.Cryptography
 
             set
             {
-                using (ConcurrencyBlock.Enter(ref _block))
-                {
-                    _core.SetKeySize(value, this);
-                    ClearCachedCiphers();
-                }
+                _core.SetKeySize(value, this);
             }
         }
 
@@ -136,11 +122,7 @@ namespace System.Security.Cryptography
 
         public override void GenerateKey()
         {
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                _core.GenerateKey();
-                ClearCachedCiphers();
-            }
+            _core.GenerateKey();
         }
 
         public override void GenerateIV()
@@ -154,14 +136,14 @@ namespace System.Security.Cryptography
             PaddingMode paddingMode,
             out int bytesWritten)
         {
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                ILiteSymmetricCipher cipher = GetOrCreateCachedLiteCipher(
-                    ref _decryptEcbCipher,
-                    CipherMode.ECB,
-                    iv: default,
-                    encrypting: false);
+            ILiteSymmetricCipher cipher = _core.CreateLiteSymmetricCipher(
+                iv: default,
+                encrypting: false,
+                CipherMode.ECB,
+                feedbackSizeInBits: 0);
 
+            using (cipher)
+            {
                 return UniversalCryptoOneShot.OneShotDecrypt(cipher, paddingMode, ciphertext, destination, out bytesWritten);
             }
         }
@@ -172,14 +154,14 @@ namespace System.Security.Cryptography
             PaddingMode paddingMode,
             out int bytesWritten)
         {
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                ILiteSymmetricCipher cipher = GetOrCreateCachedLiteCipher(
-                    ref _encryptEcbCipher,
-                    CipherMode.ECB,
-                    iv: default,
-                    encrypting: true);
+            ILiteSymmetricCipher cipher = _core.CreateLiteSymmetricCipher(
+                iv: default,
+                encrypting: true,
+                CipherMode.ECB,
+                feedbackSizeInBits: 0);
 
+            using (cipher)
+            {
                 return UniversalCryptoOneShot.OneShotEncrypt(cipher, paddingMode, plaintext, destination, out bytesWritten);
             }
         }
@@ -191,14 +173,14 @@ namespace System.Security.Cryptography
             PaddingMode paddingMode,
             out int bytesWritten)
         {
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                ILiteSymmetricCipher cipher = GetOrCreateCachedLiteCipher(
-                    ref _encryptCbcCipher,
-                    CipherMode.CBC,
-                    iv,
-                    encrypting: true);
+            ILiteSymmetricCipher cipher = _core.CreateLiteSymmetricCipher(
+                iv,
+                encrypting: true,
+                CipherMode.CBC,
+                feedbackSizeInBits: 0);
 
+            using (cipher)
+            {
                 return UniversalCryptoOneShot.OneShotEncrypt(cipher, paddingMode, plaintext, destination, out bytesWritten);
             }
         }
@@ -210,14 +192,14 @@ namespace System.Security.Cryptography
             PaddingMode paddingMode,
             out int bytesWritten)
         {
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                ILiteSymmetricCipher cipher = GetOrCreateCachedLiteCipher(
-                    ref _decryptCbcCipher,
-                    CipherMode.CBC,
-                    iv,
-                    encrypting: false);
+            ILiteSymmetricCipher cipher = _core.CreateLiteSymmetricCipher(
+                iv,
+                encrypting: false,
+                CipherMode.CBC,
+                feedbackSizeInBits: 0);
 
+            using (cipher)
+            {
                 return UniversalCryptoOneShot.OneShotDecrypt(cipher, paddingMode, ciphertext, destination, out bytesWritten);
             }
         }
@@ -230,18 +212,15 @@ namespace System.Security.Cryptography
             int feedbackSizeInBits,
             out int bytesWritten)
         {
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                ILiteSymmetricCipher cipher = _core.CreateLiteSymmetricCipher(
-                    iv,
-                    encrypting: false,
-                    CipherMode.CFB,
-                    feedbackSizeInBits);
+            ILiteSymmetricCipher cipher = _core.CreateLiteSymmetricCipher(
+                iv,
+                encrypting: false,
+                CipherMode.CFB,
+                feedbackSizeInBits);
 
-                using (cipher)
-                {
-                    return UniversalCryptoOneShot.OneShotDecrypt(cipher, paddingMode, ciphertext, destination, out bytesWritten);
-                }
+            using (cipher)
+            {
+                return UniversalCryptoOneShot.OneShotDecrypt(cipher, paddingMode, ciphertext, destination, out bytesWritten);
             }
         }
 
@@ -253,60 +232,30 @@ namespace System.Security.Cryptography
             int feedbackSizeInBits,
             out int bytesWritten)
         {
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                ILiteSymmetricCipher cipher = _core.CreateLiteSymmetricCipher(
-                    iv,
-                    encrypting: true,
-                    CipherMode.CFB,
-                    feedbackSizeInBits);
+            ILiteSymmetricCipher cipher = _core.CreateLiteSymmetricCipher(
+                iv,
+                encrypting: true,
+                CipherMode.CFB,
+                feedbackSizeInBits);
 
-                using (cipher)
-                {
-                    return UniversalCryptoOneShot.OneShotEncrypt(cipher, paddingMode, plaintext, destination, out bytesWritten);
-                }
+            using (cipher)
+            {
+                return UniversalCryptoOneShot.OneShotEncrypt(cipher, paddingMode, plaintext, destination, out bytesWritten);
             }
         }
 
         protected override void Dispose(bool disposing)
         {
-            if (disposing)
+            if (disposing && _key is not null)
             {
-                ClearCachedCiphers();
-
-                if (_key is not null)
-                {
-                    _key.Dispose();
-                    _key = null;
-                }
+                _key.Dispose();
+                _key = null;
             }
 
             base.Dispose(disposing);
         }
 
-        byte[] ICngSymmetricAlgorithm.BaseKey
-        {
-            get
-            {
-                KeyValue ??= RandomNumberGenerator.GetBytes(AsymmetricAlgorithmHelpers.BitsToBytes(KeySizeValue));
-                return KeyValue.CloneByteArray()!;
-            }
-            set
-            {
-                ArgumentNullException.ThrowIfNull(value);
-
-                long bitLength = value.Length;
-                bitLength *= 8;
-                if (bitLength > int.MaxValue || !ValidKeySize((int)bitLength))
-                {
-                    throw new CryptographicException(SR.Cryptography_InvalidKeySize);
-                }
-
-                KeySizeValue = (int)bitLength;
-                KeyValue = value.CloneByteArray();
-            }
-        }
-
+        byte[] ICngSymmetricAlgorithm.BaseKey { get { return base.Key; } set { base.Key = value; } }
         int ICngSymmetricAlgorithm.BaseKeySize { get { return base.KeySize; } set { base.KeySize = value; } }
 
         bool ICngSymmetricAlgorithm.IsWeakKey(byte[] key)
@@ -347,49 +296,5 @@ namespace System.Security.Cryptography
         }
 
         private CngSymmetricAlgorithmCore _core;
-
-        private ILiteSymmetricCipher GetOrCreateCachedLiteCipher(
-            ref ILiteSymmetricCipher? cipher,
-            CipherMode cipherMode,
-            ReadOnlySpan<byte> iv,
-            bool encrypting)
-        {
-            Debug.Assert(cipherMode is CipherMode.ECB or CipherMode.CBC);
-
-            if (cipher is not null)
-            {
-                try
-                {
-                    cipher.Reset(iv);
-                    return cipher;
-                }
-                catch
-                {
-                    cipher.Dispose();
-                    cipher = null; // Null-out the cipher field passed by reference.
-                    throw;
-                }
-            }
-
-            cipher = _core.CreateLiteSymmetricCipher(
-                iv,
-                encrypting,
-                cipherMode,
-                feedbackSizeInBits: 0);
-
-            return cipher;
-        }
-
-        private void ClearCachedCiphers()
-        {
-            _encryptEcbCipher?.Dispose();
-            _encryptEcbCipher = null;
-            _decryptEcbCipher?.Dispose();
-            _decryptEcbCipher = null;
-            _encryptCbcCipher?.Dispose();
-            _encryptCbcCipher = null;
-            _decryptCbcCipher?.Dispose();
-            _decryptCbcCipher = null;
-        }
     }
 }

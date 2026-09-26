@@ -85,7 +85,7 @@ extern "C" mdTypeRef QCALLTYPE ModuleBuilder_GetTypeRef(QCall::ModuleHandle pMod
         {
             // reference to top level type
 
-            ReleaseHolder<IMetaDataAssemblyEmit> pAssemblyEmit;
+            SafeComHolderPreemp<IMetaDataAssemblyEmit> pAssemblyEmit;
 
             // Generate AssemblyRef
             IfFailThrow( pEmit->QueryInterface(IID_IMetaDataAssemblyEmit, (void **) &pAssemblyEmit) );
@@ -181,7 +181,7 @@ namespace
         mdToken             rs;             // resolution scope
         DWORD               dwFlags;
 
-        ReleaseHolderAnyMode<IMetaDataImport> pImport;
+        SafeComHolder<IMetaDataImport> pImport;
         IfFailThrow( pEmit->QueryInterface(IID_IMetaDataImport, (void **)&pImport) );
         IfFailThrow( pImport->GetTypeDefProps(td, szTypeDef, MAX_CLASSNAME_LENGTH, NULL, &dwFlags, NULL) );
         if ( IsTdNested(dwFlags) )
@@ -244,7 +244,7 @@ extern "C" INT32 QCALLTYPE ModuleBuilder_GetMemberRef(QCall::ModuleHandle pModul
             COMPlusThrow(kNotSupportedException, W("NotSupported_CollectibleBoundNonCollectible"));
     }
 
-    ReleaseHolder<IMetaDataAssemblyEmit> pAssemblyEmit;
+    SafeComHolderPreemp<IMetaDataAssemblyEmit> pAssemblyEmit;
     IfFailThrow( pRefingAssembly->GetModule()->GetEmitter()->QueryInterface(IID_IMetaDataAssemblyEmit, (void **) &pAssemblyEmit) );
 
     CQuickBytes             qbNewSig;
@@ -295,10 +295,19 @@ extern "C" INT32 QCALLTYPE ModuleBuilder_GetMemberRefOfMethodInfo(QCall::ModuleH
     if (!pMeth)
         COMPlusThrow(kArgumentNullException);
 
-    // Should not have come here.
-    _ASSERTE(!pMeth->IsArray());
-    // Async variants should be hidden from reflection.
-    _ASSERTE(!pMeth->IsAsyncVariantMethod());
+    // Otherwise, we want to return memberref token.
+    if (pMeth->IsArray())
+    {
+        _ASSERTE(!"Should not have come here!");
+        COMPlusThrow(kNotSupportedException);
+    }
+
+    // TODO: (async) revisit and examine if this needs to be supported somehow
+    if (pMeth->IsAsyncVariantMethod())
+    {
+        _ASSERTE(!"Async variants should be hidden from reflection.");
+        COMPlusThrow(kNotSupportedException);
+    }
 
     if ((pMeth->GetMethodTable()->GetModule() == pModule))
     {
@@ -321,7 +330,7 @@ extern "C" INT32 QCALLTYPE ModuleBuilder_GetMemberRefOfMethodInfo(QCall::ModuleH
         Assembly * pRefedAssembly = pMeth->GetModule()->GetAssembly();
         Assembly * pRefingAssembly = pModule->GetAssembly();
 
-        ReleaseHolder<IMetaDataAssemblyEmit> pAssemblyEmit;
+        SafeComHolderPreemp<IMetaDataAssemblyEmit> pAssemblyEmit;
         IfFailThrow( pRefingAssembly->GetModule()->GetEmitter()->QueryInterface(IID_IMetaDataAssemblyEmit, (void **) &pAssemblyEmit) );
 
         CQuickBytes     qbNewSig;
@@ -407,7 +416,7 @@ extern "C" mdMemberRef QCALLTYPE ModuleBuilder_GetMemberRefOfFieldInfo(QCall::Mo
             else
                 COMPlusThrow(kNotSupportedException, W("NotSupported_CollectibleBoundNonCollectible"));
         }
-        ReleaseHolder<IMetaDataAssemblyEmit> pAssemblyEmit;
+        SafeComHolderPreemp<IMetaDataAssemblyEmit> pAssemblyEmit;
         IfFailThrow( pRefingAssembly->GetModule()->GetEmitter()->QueryInterface(IID_IMetaDataAssemblyEmit, (void **) &pAssemblyEmit) );
 
         // Translate the field signature this scope
@@ -678,7 +687,7 @@ extern "C" HINSTANCE QCALLTYPE MarshalNative_GetHINSTANCE(QCall::ModuleHandle pM
 
 // Get class will return an array contain all of the classes
 //  that are defined within this Module.
-extern "C" void QCALLTYPE RuntimeModule_GetTypes(QCall::ModuleHandle pModule, QCall::ObjectHandleOnStack retTypes, QCall::ObjectHandleOnStack retExceptions)
+extern "C" void QCALLTYPE RuntimeModule_GetTypes(QCall::ModuleHandle pModule, QCall::ObjectHandleOnStack retTypes)
 {
     QCALL_CONTRACT;
 
@@ -751,20 +760,19 @@ extern "C" void QCALLTYPE RuntimeModule_GetTypes(QCall::ModuleHandle pModule, QC
         gc.refArrClasses->SetAt(curPos++, refCurClass);
     }
 
-    // Return exceptions to managed side for throwing
-    if (cXcept > 0)
-    {
+    // check if there were exceptions thrown
+    if (cXcept > 0) {
+
         gc.xceptRet = (PTRARRAYREF) AllocateObjectArray(cXcept,g_pExceptionClass);
         for (DWORD i=0;i<cXcept;i++) {
             gc.xceptRet->SetAt(i, gc.xcept->GetAt(i));
         }
-        retExceptions.Set(gc.xceptRet);
+        OBJECTREF except = InvokeUtil::CreateClassLoadExcept((OBJECTREF*) &gc.refArrClasses,(OBJECTREF*) &gc.xceptRet);
+        COMPlusThrow(except);
     }
-    else
-    {
-        // We should have filled the array exactly.
-        _ASSERTE(curPos == dwNumTypeDefs);
-    }
+
+    // We should have filled the array exactly.
+    _ASSERTE(curPos == dwNumTypeDefs);
 
     // Assign the return value to the CLR array
     retTypes.Set(gc.refArrClasses);

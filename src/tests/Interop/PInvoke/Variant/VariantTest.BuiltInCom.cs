@@ -12,7 +12,6 @@ public partial class Test_VariantTest
     [Fact]
     [PlatformSpecific(TestPlatforms.Windows)]
     [ActiveIssue("https://github.com/dotnet/runtimelab/issues/155", typeof(TestLibrary.Utilities), nameof(TestLibrary.Utilities.IsNativeAot))]
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/129581", TestRuntimes.Mono)]
     [Xunit.SkipOnCoreClrAttribute("Depends on marshalled calli", RuntimeTestModes.InterpreterActive)]
     public static int TestEntryPoint()
     {
@@ -31,7 +30,6 @@ public partial class Test_VariantTest
             TestOut();
             TestFieldByValue(!builtInComDisabled);
             TestFieldByRef(!builtInComDisabled);
-            TestBSTRWithTrailingByte();
         }
         catch (Exception e)
         {

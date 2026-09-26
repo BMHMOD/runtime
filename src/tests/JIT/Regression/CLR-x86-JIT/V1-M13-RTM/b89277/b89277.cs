@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b89277;
-
 using System;
 using Xunit;
 public class A

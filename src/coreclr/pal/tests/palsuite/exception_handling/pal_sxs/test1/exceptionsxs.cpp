@@ -18,7 +18,7 @@
 #include <sys/utsname.h>
 #include <unistd.h>
 
-#if !defined(__HAIKU__) && !defined(__OpenBSD__)
+#ifndef __HAIKU__
 #include <sys/ucontext.h>
 #endif
 

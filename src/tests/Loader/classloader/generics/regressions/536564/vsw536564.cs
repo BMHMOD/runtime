@@ -6,7 +6,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 public interface I1 
 {
@@ -22,7 +21,6 @@ public class Class1 : I1
 
 public class Test_vsw536564
 {
- [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
 	[Fact]
 	public static int TestEntryPoint()
 	{

@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Globalization;
 using System.Threading;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
@@ -44,58 +43,45 @@ namespace System.Text.Json.SourceGeneration
         /// <param name="executionContext"></param>
         public void Execute(GeneratorExecutionContext executionContext)
         {
-            // Ensure the source generator parses and emits using invariant culture.
-            // This prevents issues such as locale-specific negative signs (e.g., U+2212 in fi-FI)
-            // from being written to generated source files.
-            // Note: RS1035 is already disabled at the file level for this Roslyn version.
-            CultureInfo originalCulture = CultureInfo.CurrentCulture;
-            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
-            try
+            if (executionContext.SyntaxContextReceiver is not SyntaxContextReceiver receiver || receiver.ContextClassDeclarations == null)
             {
-                if (executionContext.SyntaxContextReceiver is not SyntaxContextReceiver receiver || receiver.ContextClassDeclarations == null)
-                {
-                    // nothing to do yet
-                    return;
-                }
-
-                // Stage 1. Parse the identified JsonSerializerContext classes and store the model types.
-                KnownTypeSymbols knownSymbols = new(executionContext.Compilation);
-                Parser parser = new(knownSymbols);
-
-                List<ContextGenerationSpec>? contextGenerationSpecs = null;
-                foreach ((ClassDeclarationSyntax? contextClassDeclaration, SemanticModel semanticModel) in receiver.ContextClassDeclarations)
-                {
-                    ContextGenerationSpec? contextGenerationSpec = parser.ParseContextGenerationSpec(contextClassDeclaration, semanticModel, executionContext.CancellationToken);
-                    if (contextGenerationSpec is null)
-                    {
-                        continue;
-                    }
-
-                    (contextGenerationSpecs ??= new()).Add(contextGenerationSpec);
-                }
-
-                // Stage 2. Report any diagnostics gathered by the parser.
-                foreach (Diagnostic diagnostic in parser.Diagnostics)
-                {
-                    executionContext.ReportDiagnostic(diagnostic);
-                }
-
-                if (contextGenerationSpecs is null)
-                {
-                    return;
-                }
-
-                // Stage 3. Emit source code from the spec models.
-                OnSourceEmitting?.Invoke(contextGenerationSpecs.ToImmutableArray());
-                Emitter emitter = new(executionContext);
-                foreach (ContextGenerationSpec contextGenerationSpec in contextGenerationSpecs)
-                {
-                    emitter.Emit(contextGenerationSpec);
-                }
+                // nothing to do yet
+                return;
             }
-            finally
+
+            // Stage 1. Parse the identified JsonSerializerContext classes and store the model types.
+            KnownTypeSymbols knownSymbols = new(executionContext.Compilation);
+            Parser parser = new(knownSymbols);
+
+            List<ContextGenerationSpec>? contextGenerationSpecs = null;
+            foreach ((ClassDeclarationSyntax? contextClassDeclaration, SemanticModel semanticModel) in receiver.ContextClassDeclarations)
             {
-                CultureInfo.CurrentCulture = originalCulture;
+                ContextGenerationSpec? contextGenerationSpec = parser.ParseContextGenerationSpec(contextClassDeclaration, semanticModel, executionContext.CancellationToken);
+                if (contextGenerationSpec is null)
+                {
+                    continue;
+                }
+
+                (contextGenerationSpecs ??= new()).Add(contextGenerationSpec);
+            }
+
+            // Stage 2. Report any diagnostics gathered by the parser.
+            foreach (DiagnosticInfo diagnosticInfo in parser.Diagnostics)
+            {
+                executionContext.ReportDiagnostic(diagnosticInfo.CreateDiagnostic());
+            }
+
+            if (contextGenerationSpecs is null)
+            {
+                return;
+            }
+
+            // Stage 3. Emit source code from the spec models.
+            OnSourceEmitting?.Invoke(contextGenerationSpecs.ToImmutableArray());
+            Emitter emitter = new(executionContext);
+            foreach (ContextGenerationSpec contextGenerationSpec in contextGenerationSpecs)
+            {
+                emitter.Emit(contextGenerationSpec);
             }
         }
 

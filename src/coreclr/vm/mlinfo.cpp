@@ -15,10 +15,9 @@
 #include "../dlls/mscorrc/resource.h"
 #include "typeparse.h"
 #include "comdelegate.h"
-#include "fieldmarshaler.h"
+#include "olevariant.h"
 #include "ilmarshalers.h"
 #include "interoputil.h"
-#include "mdfileformat.h"  // For CPackedLen
 
 #ifdef FEATURE_COMINTEROP
 #include "comcallablewrapper.h"
@@ -26,6 +25,7 @@
 #include "dispparammarshaler.h"
 #endif // FEATURE_COMINTEROP
 
+#define INITIAL_NUM_STRUCT_ILSTUB_HASHTABLE_BUCKETS 32
 #define INITIAL_NUM_CMHELPER_HASHTABLE_BUCKETS 32
 #define INITIAL_NUM_CMINFO_HASHTABLE_BUCKETS 32
 #define DEBUG_CONTEXT_STR_LEN 2000
@@ -37,12 +37,13 @@ namespace
     //==========================================================================
     CustomMarshalerInfo *SetupCustomMarshalerInfo(LPCUTF8 strMarshalerTypeName, DWORD cMarshalerTypeNameBytes, LPCUTF8 strCookie, DWORD cCookieStrBytes, Assembly *pAssembly, TypeHandle hndManagedType)
     {
-        CONTRACTL
+        CONTRACT (CustomMarshalerInfo*)
         {
             STANDARD_VM_CHECK;
             PRECONDITION(CheckPointer(pAssembly));
+            POSTCONDITION(CheckPointer(RETVAL));
         }
-        CONTRACTL_END;
+        CONTRACT_END;
 
         EEMarshalingData *pMarshalingData = NULL;
 
@@ -50,18 +51,19 @@ namespace
         pMarshalingData = pAssembly->GetLoaderAllocator()->GetMarshalingData();
 
         // Retrieve the custom marshaler helper from the EE marshaling data.
-        return pMarshalingData->GetCustomMarshalerInfo(pAssembly, hndManagedType, strMarshalerTypeName, cMarshalerTypeNameBytes, strCookie, cCookieStrBytes);
+        RETURN pMarshalingData->GetCustomMarshalerInfo(pAssembly, hndManagedType, strMarshalerTypeName, cMarshalerTypeNameBytes, strCookie, cCookieStrBytes);
     }
 
 #ifdef FEATURE_COMINTEROP
     CustomMarshalerInfo *GetIEnumeratorCustomMarshalerInfo(Assembly *pAssembly)
     {
-        CONTRACTL
+        CONTRACT (CustomMarshalerInfo*)
         {
             STANDARD_VM_CHECK;
             PRECONDITION(CheckPointer(pAssembly));
+            POSTCONDITION(CheckPointer(RETVAL));
         }
-        CONTRACTL_END;
+        CONTRACT_END;
 
         EEMarshalingData *pMarshalingData = NULL;
 
@@ -69,7 +71,7 @@ namespace
         pMarshalingData = pAssembly->GetLoaderAllocator()->GetMarshalingData();
 
         // Retrieve the custom marshaler helper from the EE marshaling data.
-        return pMarshalingData->GetIEnumeratorMarshalerInfo();
+        RETURN pMarshalingData->GetIEnumeratorMarshalerInfo();
     }
 #endif // FEATURE_COMINTEROP
 
@@ -204,6 +206,7 @@ BOOL ParseNativeTypeInfo(NativeTypeParamInfo* pParamInfo,
 
                 pParamInfo->m_strSafeArrayUserDefTypeName = (LPUTF8)pvNativeType;
                 pParamInfo->m_cSafeArrayUserDefTypeNameBytes = strLen;
+                _ASSERTE((ULONG)(pvNativeType + strLen - pvNativeTypeStart) == cbNativeType);
             }
             break;
 
@@ -301,6 +304,7 @@ BOOL ParseNativeTypeInfo(NativeTypeParamInfo* pParamInfo,
 
             pParamInfo->m_strCMCookie = (LPUTF8)pvNativeType;
             pParamInfo->m_cCMCookieStrBytes = strLen;
+            _ASSERTE((ULONG)(pvNativeType + strLen - pvNativeTypeStart) == cbNativeType);
             break;
 
         default:
@@ -327,7 +331,7 @@ VOID ThrowInteropParamException(UINT resID, UINT paramIdx)
         paramString.Printf("parameter #%u", paramIdx);
 
     SString errorString(W("Unknown error."));
-    errorString.LoadResource(resID);
+    errorString.LoadResource(CCompRC::Error, resID);
 
     COMPlusThrow(kMarshalDirectiveException, IDS_EE_BADMARSHAL_ERROR_MSG, paramString.GetUnicode(), errorString.GetUnicode());
 }
@@ -420,6 +424,7 @@ EEMarshalingData::EEMarshalingData(LoaderAllocator* pAllocator, CrstBase *pCrst)
     CONTRACTL_END;
 
     LockOwner lock = {pCrst, IsOwnerOfCrst};
+    m_structILStubCache.Init(INITIAL_NUM_STRUCT_ILSTUB_HASHTABLE_BUCKETS, &lock);
     m_CMInfoHashTable.Init(INITIAL_NUM_CMHELPER_HASHTABLE_BUCKETS, &lock);
 }
 
@@ -440,18 +445,20 @@ EEMarshalingData::~EEMarshalingData()
 
 void *EEMarshalingData::operator new(size_t size, LoaderHeap *pHeap)
 {
-    CONTRACTL
+    CONTRACT (void*)
     {
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(CheckPointer(pHeap));
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     void* mem = pHeap->AllocMem(S_SIZE_T(sizeof(EEMarshalingData)));
 
-    return mem;
+    RETURN mem;
 }
 
 
@@ -462,14 +469,34 @@ void EEMarshalingData::operator delete(void *pMem)
     // the delete operator has nothing to do.
 }
 
+
+void EEMarshalingData::CacheStructILStub(MethodTable* pMT, MethodDesc* pStubMD)
+{
+    STANDARD_VM_CONTRACT;
+
+    CrstHolder lock(m_lock);
+
+    // Verify that the stub has not already been added by another thread.
+    HashDatum res = 0;
+    if (m_structILStubCache.GetValue(pMT, &res))
+    {
+        return;
+    }
+
+    m_structILStubCache.InsertValue(pMT, pStubMD);
+}
+
+
 CustomMarshalerInfo *EEMarshalingData::GetCustomMarshalerInfo(Assembly *pAssembly, TypeHandle hndManagedType, LPCUTF8 strMarshalerTypeName, DWORD cMarshalerTypeNameBytes, LPCUTF8 strCookie, DWORD cCookieStrBytes)
 {
-    CONTRACTL
+    CONTRACT (CustomMarshalerInfo*)
     {
         STANDARD_VM_CHECK;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(CheckPointer(pAssembly));
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     CustomMarshalerInfo *pCMInfo = NULL;
     NewHolder<CustomMarshalerInfo> pNewCMInfo(NULL);
@@ -481,9 +508,7 @@ CustomMarshalerInfo *EEMarshalingData::GetCustomMarshalerInfo(Assembly *pAssembl
 
     // Lookup the custom marshaler helper in the hashtable.
     if (m_CMInfoHashTable.GetValue(&Key, (HashDatum*)&pCMInfo))
-        {
-            return pCMInfo;
-        }
+        RETURN pCMInfo;
 
     {
         GCX_COOP();
@@ -513,7 +538,7 @@ CustomMarshalerInfo *EEMarshalingData::GetCustomMarshalerInfo(Assembly *pAssembl
         // Verify that the custom marshaler helper has not already been added by another thread.
         if (m_CMInfoHashTable.GetValue(&Key, (HashDatum*)&pCMInfo))
         {
-            return pCMInfo;
+            RETURN pCMInfo;
         }
 
         // Add the custom marshaler helper to the hash table.
@@ -525,17 +550,19 @@ CustomMarshalerInfo *EEMarshalingData::GetCustomMarshalerInfo(Assembly *pAssembl
         // Release the lock and return the custom marshaler info.
     }
 
-    return pNewCMInfo;
+    RETURN pNewCMInfo;
 }
 
 #ifdef FEATURE_COMINTEROP
 CustomMarshalerInfo *EEMarshalingData::GetIEnumeratorMarshalerInfo()
 {
-    CONTRACTL
+    CONTRACT (CustomMarshalerInfo*)
     {
         STANDARD_VM_CHECK;
+        INJECT_FAULT(COMPlusThrowOM());
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (m_pIEnumeratorMarshalerInfo == NULL)
     {
@@ -550,7 +577,7 @@ CustomMarshalerInfo *EEMarshalingData::GetIEnumeratorMarshalerInfo()
         }
     }
 
-    return m_pIEnumeratorMarshalerInfo;
+    RETURN m_pIEnumeratorMarshalerInfo;
 }
 #endif // FEATURE_COMINTEROP
 
@@ -682,11 +709,6 @@ namespace
                 if (pMT->IsInt128OrHasInt128Fields())
                 {
                     *errorResIDOut = IDS_EE_BADMARSHAL_INT128_RESTRICTION;
-                    return MarshalInfo::MARSHAL_TYPE_UNKNOWN;
-                }
-                if (pMT->IsDecimalFloatingPointOrHasDecimalFloatingPointFields())
-                {
-                    *errorResIDOut = IDS_EE_BADMARSHAL_DECIMAL_RESTRICTION;
                     return MarshalInfo::MARSHAL_TYPE_UNKNOWN;
                 }
                 *pMTOut = pMT;
@@ -1755,7 +1777,6 @@ MarshalInfo::MarshalInfo(Module* pModule,
                 }
                 m_type = MARSHAL_TYPE_HANDLEREF;
             }
-#ifdef FEATURE_VARARGS
             else if (sig.IsClassThrowing(pModule, "System.ArgIterator", pTypeContext))
             {
                 if (m_ms == MARSHAL_SCENARIO_FIELD)
@@ -1768,7 +1789,6 @@ MarshalInfo::MarshalInfo(Module* pModule,
                 }
                 m_type = MARSHAL_TYPE_ARGITERATOR;
             }
-#endif // FEATURE_VARARGS
 #ifdef FEATURE_COMINTEROP
             else if (sig.IsClassThrowing(pModule, g_ColorClassName, pTypeContext))
             {
@@ -1835,18 +1855,12 @@ MarshalInfo::MarshalInfo(Module* pModule,
 
                 // * Int128: Represents the 128 bit integer ABI primitive type which requires currently unimplemented handling
                 // * UInt128: Represents the 128 bit integer ABI primitive type which requires currently unimplemented handling
-                // * Decimal32/Decimal64/Decimal128: IEEE 754 decimal floating-point ABI primitives which require currently unimplemented handling
                 // The field layout is correct, so field scenarios work, but these should not be passed by value as parameters
                 if (!IsFieldScenario() && !m_byref)
                 {
                     if (m_pMT->IsInt128OrHasInt128Fields())
                     {
                         m_resID = IDS_EE_BADMARSHAL_INT128_RESTRICTION;
-                        IfFailGoto(E_FAIL, lFail);
-                    }
-                    if (m_pMT->IsDecimalFloatingPointOrHasDecimalFloatingPointFields())
-                    {
-                        m_resID = IDS_EE_BADMARSHAL_DECIMAL_RESTRICTION;
                         IfFailGoto(E_FAIL, lFail);
                     }
                 }
@@ -2083,14 +2097,6 @@ VOID MarshalInfo::EmitOrThrowInteropParamException(PInvokeStubLinker* psl, BOOL 
     }
 #endif // FEATURE_COMINTEROP
 
-    // An unmanaged CALLI stub is created while the calli's caller is being jitted, so its failures
-    // have to be reported when the stub is called rather than failing that compilation.
-    if (SF_IsCALLIStub(psl->GetStubFlags()))
-    {
-        psl->SetInteropParamExceptionInfo(resID, paramIdx);
-        return;
-    }
-
     ThrowInteropParamException(resID, paramIdx);
 }
 
@@ -2101,7 +2107,7 @@ void MarshalInfo::ThrowTypeLoadExceptionForInvalidFieldMarshal(FieldDesc* pField
     StackSString ssFieldName(SString::Utf8, pFieldDesc->GetName());
 
     StackSString errorString(W("Unknown error."));
-    errorString.LoadResource(resID);
+    errorString.LoadResource(CCompRC::Error, resID);
 
     COMPlusThrow(kTypeLoadException, IDS_EE_BADMARSHALFIELD_ERROR_MSG,
         GetFullyQualifiedNameForClassW(pFieldDesc->GetEnclosingMethodTable()),
@@ -2114,6 +2120,7 @@ HRESULT MarshalInfo::HandleArrayElemType(NativeTypeParamInfo *pParamInfo, TypeHa
     CONTRACTL
     {
         STANDARD_VM_CHECK;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(CheckPointer(pParamInfo));
     }
     CONTRACTL_END;
@@ -2204,7 +2211,6 @@ HRESULT MarshalInfo::HandleArrayElemType(NativeTypeParamInfo *pParamInfo, TypeHa
     // Set the array type handle and VARTYPE to use for marshalling.
     m_hndArrayElemType = arrayMarshalInfo.GetElementTypeHandle();
     m_arrayElementType = arrayMarshalInfo.GetElementVT();
-    m_arrayElementNativeType = arrayMarshalInfo.GetElementNativeType();
 
     if (m_type == MARSHAL_TYPE_NATIVEARRAY || m_type == MARSHAL_TYPE_FIXED_ARRAY)
     {
@@ -2486,8 +2492,7 @@ void MarshalInfo::GenerateReturnIL(PInvokeStubLinker* psl,
 void MarshalInfo::GenerateFieldIL(PInvokeStubLinker* psl,
     UINT32 managedOffset,
     UINT32 nativeOffset,
-    FieldDesc* pFieldDesc,
-    DWORD dwMarshalFlags)
+    FieldDesc* pFieldDesc)
 {
     CONTRACTL
     {
@@ -2515,31 +2520,15 @@ void MarshalInfo::GenerateFieldIL(PInvokeStubLinker* psl,
     ILCodeStream* pcsMarshal = psl->GetMarshalCodeStream();
     ILCodeStream* pcsUnmarshal = psl->GetUnmarshalCodeStream();
 
-    // We can't just emit NOPs always because our struct marshalling methods
-    // do only one operation (marshal/unmarshal/cleanup) based on flags,
-    // and an IL body can't end with NOPs without RET instructions afterwards.
-    if (dwMarshalFlags & MARSHAL_FLAG_IN)
-    {
-        pcsMarshal->EmitNOP("// field { ");
-    }
+    pcsMarshal->EmitNOP("// field { ");
+    pcsUnmarshal->EmitNOP("// field { ");
 
-    if (dwMarshalFlags & MARSHAL_FLAG_OUT)
-    {
-        pcsUnmarshal->EmitNOP("// field { ");
-    }
+    pMarshaler->EmitMarshalField(pcsMarshal, pcsUnmarshal, m_paramidx, managedOffset, nativeOffset, &m_args);
 
-    pMarshaler->EmitMarshalField(pcsMarshal, pcsUnmarshal, m_paramidx, managedOffset, nativeOffset, MARSHAL_FLAG_FIELD | dwMarshalFlags, &m_args);
+    pcsMarshal->EmitNOP("// } field");
+    pcsUnmarshal->EmitNOP("// } field");
 
-
-    if (dwMarshalFlags & MARSHAL_FLAG_IN)
-    {
-        pcsMarshal->EmitNOP("// } field");
-    }
-
-    if (dwMarshalFlags & MARSHAL_FLAG_OUT)
-    {
-        pcsUnmarshal->EmitNOP("// } field");
-    }
+    return;
 }
 
 void MarshalInfo::SetupArgumentSizes()
@@ -2838,7 +2827,7 @@ VOID MarshalInfo::DumpMarshalInfo(Module* pModule, SigPointer sig, const SigType
         IMDInternalImport *pInternalImport = pModule->GetMDImport();
 
         logbuf.AppendASCII("------------------------------------------------------------\n");
-        LOG((LF_MARSHALER, LL_INFO10, "%s", logbuf.GetUTF8()));
+        LOG((LF_MARSHALER, LL_INFO10, logbuf.GetUTF8()));
         logbuf.Clear();
 
         logbuf.AppendASCII("Managed type: ");
@@ -2856,7 +2845,7 @@ VOID MarshalInfo::DumpMarshalInfo(Module* pModule, SigPointer sig, const SigType
         }
 
         logbuf.AppendASCII("\n");
-        LOG((LF_MARSHALER, LL_INFO10, "%s", logbuf.GetUTF8()));
+        LOG((LF_MARSHALER, LL_INFO10, logbuf.GetUTF8()));
         logbuf.Clear();
 
         logbuf.AppendASCII("NativeType  : ");
@@ -3011,7 +3000,7 @@ VOID MarshalInfo::DumpMarshalInfo(Module* pModule, SigPointer sig, const SigType
             }
         }
         logbuf.AppendASCII("\n");
-        LOG((LF_MARSHALER, LL_INFO10, "%s", logbuf.GetUTF8()));
+        LOG((LF_MARSHALER, LL_INFO10, logbuf.GetUTF8()));
         logbuf.Clear();
 
         logbuf.AppendASCII("MarshalType : ");
@@ -3071,7 +3060,7 @@ VOID MarshalInfo::DumpMarshalInfo(Module* pModule, SigPointer sig, const SigType
 
         logbuf.AppendASCII("\n");
 
-        LOG((LF_MARSHALER, LL_INFO10, "%s", logbuf.GetUTF8()));
+        LOG((LF_MARSHALER, LL_INFO10, logbuf.GetUTF8()));
         logbuf.Clear();
     }
 } // MarshalInfo::DumpMarshalInfo
@@ -3080,13 +3069,15 @@ VOID MarshalInfo::DumpMarshalInfo(Module* pModule, SigPointer sig, const SigType
 #if defined(FEATURE_COMINTEROP)
 DispParamMarshaler *MarshalInfo::GenerateDispParamMarshaler()
 {
-    CONTRACTL
+    CONTRACT (DispParamMarshaler*)
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     NewHolder<DispParamMarshaler> pDispParamMarshaler = NULL;
 
@@ -3141,7 +3132,7 @@ DispParamMarshaler *MarshalInfo::GenerateDispParamMarshaler()
     }
 
     pDispParamMarshaler.SuppressRelease();
-    return pDispParamMarshaler;
+    RETURN pDispParamMarshaler;
 }
 
 DispatchWrapperType MarshalInfo::GetDispWrapperType()
@@ -3290,12 +3281,14 @@ void ArrayMarshalInfo::InitForSafeArray(MarshalInfo::MarshalScenario ms, TypeHan
 
 void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInfo::MarshalScenario ms, TypeHandle thElement, CorNativeType ntElement, BOOL isAnsi)
 {
-    CONTRACTL
+    CONTRACT_VOID
     {
         STANDARD_VM_CHECK;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(!thElement.IsNull());
+        POSTCONDITION(!IsValid() || !m_thElement.IsNull());
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     CorElementType etElement = ELEMENT_TYPE_END;
 
@@ -3330,7 +3323,7 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
         {
             case NATIVE_TYPE_I1: //fallthru
             case NATIVE_TYPE_U1:
-                m_ntElement = NATIVE_TYPE_U1;
+                m_vtElement = VTHACK_ANSICHAR;
                 break;
 
             case NATIVE_TYPE_I2: //fallthru
@@ -3346,10 +3339,7 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
                     m_vtElement = VT_UI2;
                 else
 #endif // FEATURE_COMINTEROP
-                    if (isAnsi)
-                        m_ntElement = NATIVE_TYPE_U1;
-                    else
-                        m_vtElement = VT_UI2;
+                    m_vtElement = isAnsi ? VTHACK_ANSICHAR : VT_UI2;
         }
     }
     else if (etElement == ELEMENT_TYPE_BOOLEAN)
@@ -3357,7 +3347,7 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
         switch (ntElement)
         {
             case NATIVE_TYPE_BOOLEAN:
-                m_ntElement = NATIVE_TYPE_BOOLEAN;
+                m_vtElement = VTHACK_WINBOOL;
                 break;
 
 #ifdef FEATURE_COMINTEROP
@@ -3368,7 +3358,7 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
 
             case NATIVE_TYPE_I1 :
             case NATIVE_TYPE_U1 :
-                m_ntElement = NATIVE_TYPE_I1;
+                m_vtElement = VTHACK_CBOOL;
                 break;
 
             // Compat: if the native type doesn't make sense, we need to ignore it and not report an error.
@@ -3383,7 +3373,7 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
                 else
 #endif // FEATURE_COMINTEROP
                 {
-                    m_ntElement = NATIVE_TYPE_BOOLEAN;
+                    m_vtElement = VTHACK_WINBOOL;
                 }
                 break;
         }
@@ -3541,7 +3531,7 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
             }
             else
             {
-                m_vtElement = GetVarTypeForTypeHandle(m_thElement);
+                m_vtElement = OleVariant::GetVarTypeForTypeHandle(m_thElement);
             }
         }
 #ifdef FEATURE_COMINTEROP
@@ -3576,7 +3566,7 @@ void ArrayMarshalInfo::InitElementInfo(CorNativeType arrayNativeType, MarshalInf
 
 LExit:;
 
-    _ASSERTE(!IsValid() || !m_thElement.IsNull());
+    RETURN;
 }
 
 bool IsUnsupportedTypedrefReturn(MetaSig& msig)
@@ -3637,3 +3627,4 @@ extern "C" void QCALLTYPE StubHelpers_CreateCustomMarshaler(MethodDesc* pMD, mdT
 
     END_QCALL;
 }
+

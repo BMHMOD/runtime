@@ -147,14 +147,13 @@ namespace System.Reflection.Tests
         }
 
         [Fact]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/121209", typeof(PlatformDetection), nameof(PlatformDetection.IsNativeAot), nameof(PlatformDetection.IsAndroid))]
         public void GetEntryAssembly()
         {
             Assert.NotNull(Assembly.GetEntryAssembly());
             string assembly = Assembly.GetEntryAssembly().ToString();
 
             bool correct;
-            if (PlatformDetection.IsNativeAot || PlatformDetection.IsReadyToRunCompiled)
+            if (PlatformDetection.IsNativeAot)
             {
                 // The single file test runner is not 'xunit.console'.
                 correct = assembly.IndexOf("System.Reflection.Tests", StringComparison.OrdinalIgnoreCase) != -1;
@@ -726,6 +725,7 @@ namespace System.Reflection.Tests
 
         [Theory]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/51673", typeof(PlatformDetection), nameof(PlatformDetection.IsBrowser), nameof(PlatformDetection.IsMonoAOT))]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/69919", typeof(PlatformDetection), nameof(PlatformDetection.IsNativeAot))]
         [MemberData(nameof(GetCallingAssembly_TestData))]
         public void GetCallingAssembly(Assembly assembly1, Assembly assembly2, bool expected)
         {
@@ -734,15 +734,7 @@ namespace System.Reflection.Tests
 
         [Fact]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/51673", typeof(PlatformDetection), nameof(PlatformDetection.IsBrowser), nameof(PlatformDetection.IsMonoAOT))]
-        public void GetCallingAssemblyThroughDelegate()
-        {
-            Func<Assembly> del = static () => Assembly.GetCallingAssembly();
-            Assert.Equal(Assembly.GetExecutingAssembly(), del());
-            Assert.Equal(typeof(System.Reflection.TestAssembly.ClassToInvoke).Assembly, System.Reflection.TestAssembly.ClassToInvoke.InvokeDelegate(del));
-        }
-
-        [Fact]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/51673", typeof(PlatformDetection), nameof(PlatformDetection.IsBrowser), nameof(PlatformDetection.IsMonoAOT))]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/69919", typeof(PlatformDetection), nameof(PlatformDetection.IsNativeAot))]
         public void GetCallingAssemblyInCctor()
         {
             TestGetCallingAssemblyInCctor.Run();
@@ -848,9 +840,7 @@ namespace System.Reflection.Tests
         public void AssemblyLoadFromBytesNeg()
         {
             Assert.Throws<ArgumentNullException>(() => Assembly.Load((byte[])null));
-            
-            BadImageFormatException ex = Assert.Throws<BadImageFormatException>(() => Assembly.Load(new byte[0]));
-            Assert.Contains("empty", ex.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Throws<BadImageFormatException>(() => Assembly.Load(new byte[0]));
         }
 
         [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsAssemblyLoadingSupported), nameof(PlatformDetection.HasAssemblyFiles))]
@@ -955,7 +945,6 @@ namespace System.Reflection.Tests
         [Fact]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/69919", typeof(PlatformDetection), nameof(PlatformDetection.IsNativeAot))]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/77821", TestPlatforms.Android)]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/124344", typeof(PlatformDetection), nameof(PlatformDetection.IsAppleMobile), nameof(PlatformDetection.IsCoreCLR))]
         public static void AssemblyGetForwardedTypesLoadFailure()
         {
             Assembly a = typeof(TypeInForwardedAssembly).Assembly;

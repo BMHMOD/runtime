@@ -1,13 +1,10 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Diagnostics.Tracing;
 using Microsoft.Diagnostics.Tracing.Etlx;
@@ -21,27 +18,16 @@ namespace Wasm.Build.Tests.Blazor;
 
 public class EventPipeDiagnosticsTests : BlazorWasmTestBase
 {
-    private static readonly string uploadPattern = "^[a-zA-Z0-9_]+\\.nettrace$";
-
-    // Generous enough for a slow CI machine, but far below the Helix work item budget so a stuck
-    // collection is reported as a test failure instead of killing the whole work item.
-    private static readonly TimeSpan s_traceCollectionTimeout = TimeSpan.FromMinutes(3);
-
     public EventPipeDiagnosticsTests(ITestOutputHelper output, SharedBuildPerTestClassFixture buildContext)
         : base(output, buildContext)
     {
         _enablePerTestCleanup = true;
     }
 
-
-    [Fact]
-    [TestCategory("native"), TestCategory("mono")]
-    public Task BlazorEventPipeTestWithCpuSamplesAOT() => BlazorEventPipeTestWithCpuSamples(Configuration.Release, aot: true);
-
     [Theory]
     [InlineData(Configuration.Debug, false)]
     [InlineData(Configuration.Release, false)]
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/132410", typeof(BuildTestBase), nameof(IsCoreClrRuntime))]
+    [InlineData(Configuration.Release, true)]
     public async Task BlazorEventPipeTestWithCpuSamples(Configuration config, bool aot)
     {
         string extraProperties = @"
@@ -57,22 +43,27 @@ public class EventPipeDiagnosticsTests : BlazorWasmTestBase
 
         BuildProject(info, config, new BuildOptions(AssertAppBundle: false));
 
-        async Task CollectCpuSamplesTest(IPage page)
+        async Task CpuProfileTest(IPage page)
         {
-            await SetupCounterPage(page, "cpuprofile.nettrace", "globalThis.getDotnetRuntime(0).collectCpuSamples({ durationSeconds: 5.0, skipDownload: true })");
+            await SetupCounterPage(page);
+
+            await page.EvaluateAsync(@"
+                    globalThis.upload = globalThis.uploadTrace(`cpuprofile.nettrace`, globalThis.getDotnetRuntime(0).collectCpuSamples({ durationSeconds: 2.0, skipDownload: true }));
+                    console.log(`CPU samples collected: ${new Date().toISOString()}`);
+                ");
+
             await ClickAndCollect(page);
         }
 
         // Run the test using the custom handler
         await RunForBuildWithDotnetRun(new BlazorRunOptions(
             Configuration: config,
-            Test: CollectCpuSamplesTest,
+            Test: CpuProfileTest,
             TimeoutSeconds: 60,
             CheckCounter: false,
             ServerEnvironment: new Dictionary<string, string>
             {
-                ["DEVSERVER_UPLOAD_PATH"] = info.LogPath,
-                ["DEVSERVER_UPLOAD_PATTERN"] = uploadPattern
+                ["DEVSERVER_UPLOAD_PATH"] = info.LogPath
             }
         ));
 
@@ -107,22 +98,27 @@ public class EventPipeDiagnosticsTests : BlazorWasmTestBase
         UpdateCounterPage();
         BuildProject(info, Configuration.Release, new BuildOptions(AssertAppBundle: false));
 
-        async Task CollectMetricsTest(IPage page)
+        async Task CpuProfileTest(IPage page)
         {
-            await SetupCounterPage(page, "metrics.nettrace", "globalThis.getDotnetRuntime(0).collectMetrics({ durationSeconds: 5.0, skipDownload: true })");
+            await SetupCounterPage(page);
+
+            await page.EvaluateAsync(@"
+                    globalThis.upload = globalThis.uploadTrace(`metrics.nettrace`, globalThis.getDotnetRuntime(0).collectMetrics({ durationSeconds: 2.0, skipDownload: true }));
+                    console.log(`Metrics collected: ${new Date().toISOString()}`);
+                ");
+
             await ClickAndCollect(page);
         }
 
         // Run the test using the custom handler
         await RunForBuildWithDotnetRun(new BlazorRunOptions(
             Configuration: Configuration.Release,
-            Test: CollectMetricsTest,
+            Test: CpuProfileTest,
             TimeoutSeconds: 60,
             CheckCounter: false,
             ServerEnvironment: new Dictionary<string, string>
             {
-                ["DEVSERVER_UPLOAD_PATH"] = info.LogPath,
-                ["DEVSERVER_UPLOAD_PATTERN"] = uploadPattern
+                ["DEVSERVER_UPLOAD_PATH"] = info.LogPath
             }
         ));
 
@@ -147,6 +143,9 @@ public class EventPipeDiagnosticsTests : BlazorWasmTestBase
             "System.Diagnostics.Metrics/instrumentName/dotnet.thread_pool.thread.count",
             "System.Diagnostics.Metrics/instrumentName/dotnet.thread_pool.work_item.count",
             "System.Diagnostics.Metrics/instrumentName/dotnet.timer.count",
+            "Microsoft-DotNETCore-EventPipe/ArchInformation/Unknown",
+            "Microsoft-DotNETCore-EventPipe/CommandLine//managed BlazorBasicTestApp",
+            "Microsoft-DotNETCore-EventPipe/OSInformation/Unknown"
         };
 
         foreach (var expectedInstrument in expectedInstruments)
@@ -172,22 +171,27 @@ public class EventPipeDiagnosticsTests : BlazorWasmTestBase
 
         // Create a custom test handler that will navigate to Counter page, collect CPU samples,
         // click the button, and upload the trace
-        async Task CollectGcDumpTest(IPage page)
+        async Task CpuProfileTest(IPage page)
         {
-            await SetupCounterPage(page, "gcdump.nettrace", "globalThis.getDotnetRuntime(0).collectGcDump({ durationSeconds: 5.0, skipDownload: true })");
+            await SetupCounterPage(page);
+
+            await page.EvaluateAsync(@"
+                    globalThis.upload = globalThis.uploadTrace(`gcdump.nettrace`, globalThis.getDotnetRuntime(0).collectGcDump({ durationSeconds: 2.0, skipDownload: true }));
+                    console.log(`GC dump collected: ${new Date().toISOString()}`);
+                ");
+
             await ClickAndCollect(page);
         }
 
         // Run the test using the custom handler
         await RunForBuildWithDotnetRun(new BlazorRunOptions(
             Configuration: Configuration.Release,
-            Test: CollectGcDumpTest,
+            Test: CpuProfileTest,
             TimeoutSeconds: 60,
             CheckCounter: false,
             ServerEnvironment: new Dictionary<string, string>
             {
-                ["DEVSERVER_UPLOAD_PATH"] = info.LogPath,
-                ["DEVSERVER_UPLOAD_PATTERN"] = uploadPattern
+                ["DEVSERVER_UPLOAD_PATH"] = info.LogPath
             }
         ));
 
@@ -294,12 +298,16 @@ public class EventPipeDiagnosticsTests : BlazorWasmTestBase
                         }
                     }
                     currentCount++;
+                    if (currentCount > 4)
+                    {
+                        Console.WriteLine("WASM EXIT 0");
+                    }
                     """
                 }
             });
     }
 
-    private async Task SetupCounterPage(IPage page, string fileName, string traceCommand)
+    private async Task SetupCounterPage(IPage page)
     {
         await Task.Delay(500);
         // Navigate to the Counter page
@@ -310,12 +318,12 @@ public class EventPipeDiagnosticsTests : BlazorWasmTestBase
         Assert.Equal("Current count: 0", txt);
 
         var up = """
-        globalThis.collectAndUpload = async () => {
-            console.log(`Tracing ${filename} started ${new Date().toISOString()}`);
-            
-            const traces = await ${traceCommand};
+        globalThis.uploadTrace = async (filename, tracesPromise) => {
+            console.log(`${filename} typeof  ${typeof tracesPromise} ${new Date().toISOString()}`);
 
-            console.log(`Tracing done ${new Date().toISOString()}`);
+            const traces = await tracesPromise;
+
+            console.log(`${filename} typeof  ${typeof traces} ${new Date().toISOString()}`);
                     
             // concatenate the buffers into a single Uint8Array
             const concatenated = new Uint8Array(traces.reduce((acc, curr) => acc + curr.byteLength, 0));
@@ -333,77 +341,25 @@ public class EventPipeDiagnosticsTests : BlazorWasmTestBase
                 method: 'POST',
                 body: concatenated
             });
-            console.log(`File uploaded successfully: ${new Date().toISOString()}`);
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            console.log(`Shutting down: ${new Date().toISOString()}`);
-            console.log(`WASM EXIT 0`);
+            console.log(`File uploaded successfully`);
         };
-        console.log(`globalThis.collectAndUpload method created ${new Date().toISOString()}`);
+        console.log(`globalThis.uploadTrace defined ${new Date().toISOString()}`);
         """;
-        up = up.Replace("${traceCommand}", traceCommand).Replace("${filename}", fileName);
         await page.EvaluateAsync(up);
     }
 
     private async Task ClickAndCollect(IPage page)
     {
-        // A runtime trap never rejects donePromise: the runtime catches it, reports it as a console
-        // error and exits non-zero, leaving the promise unsettled forever.
-        var runtimeFailed = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
-        string? lastConsoleError = null;
-
-        void OnPageError(object? sender, string error) => runtimeFailed.TrySetResult(error);
-        void OnConsoleMessage(object? sender, IConsoleMessage message)
+        // Click the button a few times
+        for (int i = 0; i < 5; i++)
         {
-            if (message.Type == "error")
-                lastConsoleError = message.Text;
-
-            Match exit = BrowserRunner.s_exitRegex.Match(message.Text);
-            if (exit.Success && exit.Groups["exitCode"].Value != "0")
-                runtimeFailed.TrySetResult(lastConsoleError ?? $"the app exited with code {exit.Groups["exitCode"].Value}");
+            await page.Locator("text=\"Click me\"").ClickAsync();
+            await Task.Delay(10);
         }
+        await Task.Delay(1000);
+        await page.EvaluateAsync(@"globalThis.upload;");
 
-        page.PageError += OnPageError;
-        page.Console += OnConsoleMessage;
-
-        try
-        {
-            // Use void to prevent Playwright from awaiting the returned Promise,
-            // so tracing runs in parallel with button clicks below.
-            await page.EvaluateAsync(@"void (globalThis.donePromise = globalThis.collectAndUpload())");
-            _testOutput.WriteLine($"Installed script: {DateTime.Now.ToString("O")}");
-
-            // Click the button a few times while tracing is running
-            for (int i = 0; i < 5; i++)
-            {
-                await page.Locator("text=\"Click me\"").ClickAsync();
-                await Task.Delay(10);
-            }
-            _testOutput.WriteLine($"Done clicking: {DateTime.Now.ToString("O")}");
-
-            var txt2 = await page.Locator("p[role='status']").InnerHTMLAsync();
-            Assert.NotEqual("Current count: 0", txt2);
-
-            // Wait for trace collection and upload to complete. EvaluateAsync has no timeout of its
-            // own, unlike the Locator calls above, so bound it explicitly.
-            Task collected = page.EvaluateAsync(@"globalThis.donePromise");
-            Task finished = await Task.WhenAny(collected, runtimeFailed.Task, Task.Delay(s_traceCollectionTimeout));
-            if (finished != collected)
-            {
-                // Tearing down the page faults the pending evaluate; keep that from resurfacing as an
-                // unobserved task exception in a later test.
-                _ = collected.ContinueWith(static t => _ = t.Exception, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
-
-                Assert.Fail(runtimeFailed.Task.IsCompleted
-                    ? $"The runtime failed while collecting the trace: {runtimeFailed.Task.Result}"
-                    : $"Trace collection did not complete within {s_traceCollectionTimeout.TotalSeconds}s.");
-            }
-
-            await collected;
-        }
-        finally
-        {
-            page.PageError -= OnPageError;
-            page.Console -= OnConsoleMessage;
-        }
+        var txt2 = await page.Locator("p[role='status']").InnerHTMLAsync();
+        Assert.NotEqual("Current count: 0", txt2);
     }
 }

@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-namespace Runtime_92349;
-
 using System;
 using System.Runtime.Intrinsics.X86;
 using System.Runtime.Intrinsics;
@@ -19,11 +16,14 @@ public static class Runtime_92349
         *pValue = (byte)Sse2.ConvertToInt32(Vector128.Create(-10, 0, 0, 0));
     }
 
-    [ConditionalFact(typeof(Sse2), nameof(Sse2.IsSupported))]
+    [Fact]
     public unsafe static void EntryPoint()
     {
-        ulong value = 0;
-        Test((byte*)&value);
-        Assert.True(value == 246);
+        if (Sse2.IsSupported)
+        {
+            ulong value = 0;
+            Test((byte*)&value);
+            Assert.True(value == 246);
+        }
     }
 }

@@ -7,12 +7,10 @@ using Microsoft.Diagnostics.DataContractReader.Data;
 
 namespace Microsoft.Diagnostics.DataContractReader.Contracts;
 
-internal readonly struct ReJIT_1 : IReJIT
+internal readonly partial struct ReJIT_1 : IReJIT
 {
     internal readonly Target _target;
-    private readonly TargetPointer _profControlBlockAddress;
-    private Data.ProfControlBlock _profControlBlock
-        => _target.ProcessedData.GetOrAdd<Data.ProfControlBlock>(_profControlBlockAddress);
+    private readonly Data.ProfControlBlock _profControlBlock;
 
     // see src/coreclr/inc/corprof.idl
     [Flags]
@@ -27,21 +25,29 @@ internal readonly struct ReJIT_1 : IReJIT
     {
         kStateRequested = 0x00000000,
 
+        kStateGettingReJITParameters = 0x00000001,
+
         kStateActive = 0x00000002,
 
-        kStateMask = 0x0000000F
+        kStateMask = 0x0000000F,
+
+        kSuppressParams = 0x80000000
     }
 
-    public ReJIT_1(Target target)
+    public ReJIT_1(Target target, Data.ProfControlBlock profControlBlock)
     {
         _target = target;
-        _profControlBlockAddress = target.ReadGlobalPointer(Constants.Globals.ProfilerControlBlock);
+        _profControlBlock = profControlBlock;
     }
 
     bool IReJIT.IsEnabled()
     {
         bool profEnabledReJIT = (_profControlBlock.GlobalEventMask & (ulong)COR_PRF_MONITOR.COR_PRF_ENABLE_REJIT) != 0;
-        return profEnabledReJIT || _profControlBlock.RejitOnAttachEnabled;
+        // FIXME: it is very likely this is always true in the DAC
+        // Most people don't set DOTNET_ProfAPI_RejitOnAttach = 0
+        // See https://github.com/dotnet/runtime/issues/106148
+        bool clrConfigEnabledReJIT = true;
+        return profEnabledReJIT || clrConfigEnabledReJIT;
     }
 
     RejitState IReJIT.GetRejitState(ILCodeVersionHandle ilCodeVersionHandle)
@@ -58,16 +64,6 @@ internal readonly struct ReJIT_1 : IReJIT
             RejitFlags.kStateActive => RejitState.Active,
             _ => throw new InvalidOperationException($"Unknown ReJIT state: {ilCodeVersionNode.RejitState}"),
         };
-    }
-
-    bool IReJIT.IsDeoptimized(ILCodeVersionHandle ilCodeVersionHandle)
-    {
-        if (!ilCodeVersionHandle.IsExplicit)
-        {
-            return false;
-        }
-        ILCodeVersionNode ilCodeVersionNode = AsNode(ilCodeVersionHandle);
-        return ilCodeVersionNode.Deoptimized != 0;
     }
 
     TargetNUInt IReJIT.GetRejitId(ILCodeVersionHandle ilCodeVersionHandle)

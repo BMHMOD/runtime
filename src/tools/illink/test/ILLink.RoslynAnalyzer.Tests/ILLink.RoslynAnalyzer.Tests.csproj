@@ -14,7 +14,6 @@
 
   <ItemGroup>
     <Compile Include="$(LibrariesProjectRoot)Common\tests\SourceGenerators\LiveReferencePack.cs" />
-    <Compile Include="$(LibrariesProjectRoot)Common\tests\SourceGenerators\GlobalOptionsOnlyProvider.cs" />
     <Compile Remove="$(CompilerGeneratedFilesOutputPath)/**/*" />
   </ItemGroup>
 

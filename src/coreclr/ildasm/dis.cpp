@@ -2530,7 +2530,7 @@ void PrettyPrintToken(__inout __nullterminated char* szString, mdToken tk, IMDIn
             ULONG        cbString = 0;
             if (pImport->IsValidToken(tk))
             {
-                if (FAILED(pImport->GetUserString(tk, &cbString, &pszString)))
+                if (FAILED(pImport->GetUserString(tk, &cbString, NULL, &pszString)))
                 {
                     pszString = NULL;
                 }

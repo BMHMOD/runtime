@@ -205,8 +205,7 @@ namespace ILCompiler
 
         public void EnsureLoadableMethod(MethodDesc method)
         {
-            TypeDesc owningType = method.OwningType;
-            EnsureLoadableType(owningType);
+            EnsureLoadableType(method.OwningType);
 
             // If this is an instantiated generic method, check the instantiation.
             MethodDesc methodDef = method.GetMethodDefinition();
@@ -214,21 +213,6 @@ namespace ILCompiler
             {
                 foreach (var instType in method.Instantiation)
                     EnsureLoadableType(instType);
-            }
-
-            // In rare situations (ldtoken of an uninstantiated method)
-            // we might end up seeing uninstantiated methods here. Don't try
-            // to drill into it, it would introduce instantiations over signature variables
-            // that are difficult to deal with without spending cycles on it.
-            // Many type system APIs don't deal with them and they're expensive to test for
-            // ("Is there a signature variable somewhere in type construction?" is expensive.)
-            if (!method.IsGenericMethodDefinition && !owningType.IsGenericDefinition)
-            {
-                MethodSignature sig = method.Signature;
-                EnsureLoadableType(sig.ReturnType);
-
-                foreach (TypeDesc p in sig)
-                    EnsureLoadableType(p);
             }
         }
 
@@ -282,7 +266,7 @@ namespace ILCompiler
                 if (parameterizedType.IsArray)
                 {
                     LayoutInt elementSize = parameterType.GetElementSize();
-                    if (!elementSize.IsIndeterminate && elementSize.AsInt > ushort.MaxValue)
+                    if (!elementSize.IsIndeterminate && elementSize.AsInt >= ushort.MaxValue)
                     {
                         // Element size over 64k can't be encoded in the GCDesc
                         ThrowHelper.ThrowTypeLoadException(ExceptionStringID.ClassLoadValueClassTooLarge, parameterType);

@@ -340,3 +340,4 @@ interface ICLRDataEnumMemoryRegions : IUnknown
                               [in] ULONG32 miniDumpFlags,
                               [in] CLRDataEnumMemoryFlags clrFlags);
 }
+

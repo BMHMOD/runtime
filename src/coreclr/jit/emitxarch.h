@@ -99,6 +99,7 @@ unsigned emitGetEvexPrefixSize(instrDesc* id) const;
 unsigned emitGetPrefixSize(instrDesc* id, code_t code, bool includeRexPrefixSize);
 unsigned emitGetAdjustedSize(instrDesc* id, code_t code) const;
 
+code_t emitExtractRex2Prefix(instruction ins, code_t& code) const;
 code_t emitExtractVexPrefix(instruction ins, code_t& code) const;
 code_t emitExtractEvexPrefix(instruction ins, code_t& code) const;
 
@@ -117,6 +118,7 @@ unsigned insSSval(unsigned scale);
 
 static bool IsSSEInstruction(instruction ins);
 static bool IsSSEOrAVXInstruction(instruction ins);
+static bool IsAVXOnlyInstruction(instruction ins);
 static bool IsAvx512OnlyInstruction(instruction ins);
 static bool IsKMOVInstruction(instruction ins);
 static bool IsAVXVNNIFamilyInstruction(instruction ins);
@@ -135,20 +137,19 @@ static bool      IsApxNfCompatibleInstruction(instruction ins);
 static bool      IsApxZuCompatibleInstruction(instruction ins);
 bool             IsVexEncodableInstruction(instruction ins) const;
 bool             IsEvexEncodableInstruction(instruction ins) const;
-bool             IsSimdEvexEncodableInstruction(instruction ins) const;
 bool             IsRex2EncodableInstruction(instruction ins) const;
 bool             IsApxNddEncodableInstruction(instruction ins) const;
 bool             IsApxNfEncodableInstruction(instruction ins) const;
 bool             IsApxExtendedEvexInstruction(instruction ins) const;
 bool             IsShiftInstruction(instruction ins) const;
-static bool      IsBitTestInstruction(instruction ins);
 bool             IsLegacyMap1(code_t code) const;
-bool             IsSimdVexOrEvexEncodableInstruction(instruction ins) const;
+bool             IsVexOrEvexEncodableInstruction(instruction ins) const;
 bool             DoJitUseApxNDD(instruction ins) const;
 
 code_t insEncodeMIreg(const instrDesc* id, regNumber reg, emitAttr size, code_t code);
 
 code_t AddRexWPrefix(const instrDesc* id, code_t code);
+code_t AddRex2WPrefix(const instrDesc* id, code_t code);
 code_t AddRexRPrefix(const instrDesc* id, code_t code);
 code_t AddRexXPrefix(const instrDesc* id, code_t code);
 code_t AddRexBPrefix(const instrDesc* id, code_t code);
@@ -209,8 +210,25 @@ bool hasVexPrefix(code_t code)
     return (code & VEX_PREFIX_MASK_3BYTE) == VEX_PREFIX_CODE_3BYTE;
 }
 code_t AddVexPrefix(instruction ins, code_t code, emitAttr attr);
+code_t AddVexPrefixIfNeeded(instruction ins, code_t code, emitAttr size)
+{
+    if (TakesVexPrefix(ins))
+    {
+        code = AddVexPrefix(ins, code, size);
+    }
+    return code;
+}
+code_t AddVexPrefixIfNeededAndNotPresent(instruction ins, code_t code, emitAttr size)
+{
+    if (TakesVexPrefix(ins) && !hasVexPrefix(code))
+    {
+        code = AddVexPrefix(ins, code, size);
+    }
+    return code;
+}
 
 static insTupleType insTupleTypeInfo(instruction ins);
+static unsigned     insKMaskBaseSize(instruction ins);
 
 // 2-byte REX2 prefix starts with byte 0xD5
 #define REX2_PREFIX_MASK_2BYTE 0xFF0000000000ULL
@@ -236,9 +254,7 @@ bool hasRex2Prefix(code_t code)
 #endif
 }
 
-static bool IsExtendedReg(regNumber reg);
-static bool IsExtendedReg(regNumber reg, emitAttr attr);
-bool        IsExtendedGPReg(regNumber reg) const;
+bool IsExtendedGPReg(regNumber reg) const;
 
 //------------------------------------------------------------------------
 // HasKMaskRegisterDest: Temporary check to identify instructions that can
@@ -359,6 +375,7 @@ bool UseSimdEncoding() const
 #define EVEX_PREFIX_CODE 0x6200000000000000ULL
 
 bool TakesEvexPrefix(const instrDesc* id) const;
+bool TakesApxExtendedEvexPrefix(const instrDesc* id) const;
 
 //------------------------------------------------------------------------
 // hasEvexPrefix: Returns true if the instruction encoding already
@@ -415,7 +432,7 @@ code_t AddSimdPrefixIfNeeded(const instrDesc* id, code_t code, emitAttr size)
 //
 code_t AddX86PrefixIfNeeded(const instrDesc* id, code_t code, emitAttr size)
 {
-    if (TakesEvexPrefix(id))
+    if (TakesEvexPrefix(id) || TakesApxExtendedEvexPrefix(id))
     {
         return AddEvexPrefix(id, code, size);
     }
@@ -451,7 +468,7 @@ code_t AddX86PrefixIfNeededAndNotPresent(const instrDesc* id, code_t code, emitA
     // consider refactor this part with AddSimdPrefixIfNeeded as a lot of functionality
     // of these functions are overlapping.
 
-    if (TakesEvexPrefix(id))
+    if (TakesEvexPrefix(id) || TakesApxExtendedEvexPrefix(id))
     {
         return !hasEvexPrefix(code) ? AddEvexPrefix(id, code, size) : code;
     }
@@ -642,10 +659,40 @@ void SetEvexDFVIfNeeded(instrDesc* id, insOpts instOptions)
     if ((instOptions & INS_OPTS_EVEX_dfv_MASK) != 0)
     {
         assert(UsePromotedEVEXEncoding());
-        assert(IsCCMP(id->idIns()) || IsCTEST(id->idIns()));
+        assert(IsCCMP(id->idIns()));
         id->idSetEvexDFV(instOptions);
     }
 #endif
+}
+
+//------------------------------------------------------------------------
+// AddSimdPrefixIfNeeded: Add the correct SIMD prefix.
+// Check if the prefix already exists befpre adding.
+//
+// Arguments:
+//    ins - the instruction being encoded.
+//    code - opcode + prefixes bits at some stage of encoding.
+//    size - operand size
+//
+// Returns:
+//    TRUE if code has an Evex prefix.
+// TODO-XARCH-AVX512 come back and check whether we can id `id` directly (no need)
+// to pass emitAttr size
+code_t AddSimdPrefixIfNeededAndNotPresent(const instrDesc* id, code_t code, emitAttr size)
+{
+    if (TakesEvexPrefix(id))
+    {
+        return !hasEvexPrefix(code) ? AddEvexPrefix(id, code, size) : code;
+    }
+
+    instruction ins = id->idIns();
+
+    if (TakesVexPrefix(ins))
+    {
+        return !hasVexPrefix(code) ? AddVexPrefix(ins, code, size) : code;
+    }
+
+    return code;
 }
 
 bool TakesSimdPrefix(const instrDesc* id) const;
@@ -718,7 +765,6 @@ void SetContainsCallNeedingVzeroupper(bool value)
 bool        IsDstDstSrcAVXInstruction(instruction ins) const;
 bool        IsDstSrcSrcAVXInstruction(instruction ins) const;
 bool        IsThreeOperandAVXInstruction(instruction ins) const;
-bool        IsAvxCommutative(instruction ins) const;
 static bool HasRegularWideForm(instruction ins);
 static bool HasRegularWideImmediateForm(instruction ins);
 static bool DoesWriteZeroFlag(instruction ins);
@@ -731,12 +777,8 @@ static bool IsRexW1Instruction(instruction ins);
 static bool IsRexWXInstruction(instruction ins);
 static bool IsRexW1EvexInstruction(instruction ins);
 
-static bool  IsApxConditionalInstruction(instruction ins);
 static bool  IsCCMP(instruction ins);
-static bool  IsCTEST(instruction ins);
-static bool  IsCFCMOV(instruction ins);
-static bool  ImmCanUseSByteEncoding(instruction ins, ssize_t val);
-static insCC GetCCFromCCMPOrCTEST(instruction ins);
+static insCC GetCCFromCCMP(instruction ins);
 
 bool isAvx512Blendv(instruction ins)
 {
@@ -762,7 +804,7 @@ bool isPrefetch(instruction ins)
 
 void emitDispMask(const instrDesc* id, regNumber reg) const;
 void emitDispReloc(ssize_t value) const;
-void emitDispAddrMode(instrDesc* id) const;
+void emitDispAddrMode(instrDesc* id, bool noDetail = false) const;
 void emitDispShift(instruction ins, int cnt = 0) const;
 
 const char* emitXMMregName(unsigned reg) const;
@@ -849,7 +891,7 @@ inline emitAttr emitDecodeScale(unsigned ensz) const
 /*                   Output target-independent instructions             */
 /************************************************************************/
 
-void emitIns_J(instruction ins, BasicBlock* dst, bool keepShort = false, bool isRemovableJmpCandidate = false);
+void emitIns_J(instruction ins, BasicBlock* dst, int instrCount = 0, bool isRemovableJmpCandidate = false);
 
 /************************************************************************/
 /*           The public entry points to output instructions             */
@@ -925,13 +967,7 @@ void emitIns_R_R_A(instruction   ins,
                    GenTreeIndir* indir,
                    insOpts       instOptions = INS_OPTS_NONE);
 
-void emitIns_R_R_AR(instruction ins,
-                    emitAttr    attr,
-                    regNumber   reg1,
-                    regNumber   reg2,
-                    regNumber   base,
-                    int         offs,
-                    insOpts     instOptions = INS_OPTS_NONE);
+void emitIns_R_R_AR(instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, regNumber base, int offs);
 
 void emitIns_R_AR_R(instruction ins,
                     emitAttr    attr,
@@ -973,6 +1009,8 @@ void emitIns_R_R_A_I(instruction   ins,
                      int           ival,
                      insFormat     fmt,
                      insOpts       instOptions = INS_OPTS_NONE);
+void emitIns_R_R_AR_I(
+    instruction ins, emitAttr attr, regNumber reg1, regNumber reg2, regNumber base, int offs, int ival);
 
 void emitIns_C_R_I(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE fldHnd, int offs, regNumber reg, int ival);
 void emitIns_S_R_I(instruction ins, emitAttr attr, int varNum, int offs, regNumber reg, int ival);
@@ -1057,20 +1095,20 @@ void emitIns_R_C(instruction          ins,
 
 void emitIns_C_R(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE fldHnd, regNumber reg, int offs);
 
-void emitIns_C_I(instruction          ins,
-                 emitAttr             attr,
-                 CORINFO_FIELD_HANDLE fldHnd,
-                 int                  offs,
-                 int                  val,
-                 insOpts              instOptions = INS_OPTS_NONE);
+void emitIns_C_I(instruction ins, emitAttr attr, CORINFO_FIELD_HANDLE fdlHnd, int offs, int val);
+
+void emitIns_IJ(emitAttr attr, regNumber reg, unsigned base);
+
+void emitIns_J_S(instruction ins, emitAttr attr, BasicBlock* dst, int varx, int offs);
 
 void emitIns_R_L(instruction ins, emitAttr attr, BasicBlock* dst, regNumber reg);
-void emitIns_R_L(instruction ins, emitAttr attr, insGroup* dst, regNumber reg);
 
 void emitIns_R_D(instruction ins, emitAttr attr, unsigned offs, regNumber reg);
 
 void emitIns_I_AR(
     instruction ins, emitAttr attr, int val, regNumber reg, int offs, insOpts instOptions = INS_OPTS_NONE);
+
+void emitIns_I_AI(instruction ins, emitAttr attr, int val, ssize_t disp);
 
 void emitIns_R_AR(instruction ins, emitAttr attr, regNumber reg, regNumber base, int disp);
 
@@ -1086,9 +1124,15 @@ void emitIns_AR_R(instruction    ins,
                   cnsval_ssize_t disp,
                   insOpts        instOptions = INS_OPTS_NONE);
 
+void emitIns_AI_R(instruction ins, emitAttr attr, regNumber ireg, ssize_t disp);
+
+void emitIns_I_ARR(instruction ins, emitAttr attr, int val, regNumber reg, regNumber rg2, int disp);
+
 void emitIns_R_ARR(instruction ins, emitAttr attr, regNumber reg, regNumber base, regNumber index, int disp);
 
 void emitIns_ARR_R(instruction ins, emitAttr attr, regNumber reg, regNumber base, regNumber index, int disp);
+
+void emitIns_I_ARX(instruction ins, emitAttr attr, int val, regNumber reg, regNumber rg2, unsigned mul, int disp);
 
 void emitIns_R_ARX(
     instruction ins, emitAttr attr, regNumber reg, regNumber base, regNumber index, unsigned scale, int disp);
@@ -1101,6 +1145,12 @@ void emitIns_ARX_R(instruction    ins,
                    unsigned       scale,
                    cnsval_ssize_t disp,
                    insOpts        instOptions = INS_OPTS_NONE);
+
+void emitIns_I_AX(instruction ins, emitAttr attr, int val, regNumber reg, unsigned mul, int disp);
+
+void emitIns_R_AX(instruction ins, emitAttr attr, regNumber ireg, regNumber reg, unsigned mul, int disp);
+
+void emitIns_AX_R(instruction ins, emitAttr attr, regNumber ireg, regNumber reg, unsigned mul, int disp);
 
 void emitIns_SIMD_R_R_I(
     instruction ins, emitAttr attr, regNumber targetReg, regNumber op1Reg, int ival, insOpts instOptions);

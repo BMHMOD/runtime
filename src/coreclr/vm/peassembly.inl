@@ -61,21 +61,21 @@ inline ULONG PEAssembly::AddRef()
 
 inline ULONG PEAssembly::Release()
 {
-    CONTRACTL
+    CONTRACT(COUNT_T)
     {
         DESTRUCTOR_CHECK;
         NOTHROW;
         GC_TRIGGERS;
         MODE_ANY;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     LONG result = InterlockedDecrement(&m_refCount);
     _ASSERTE(result >= 0);
     if (result == 0)
         delete this;
 
-    return result;
+    RETURN result;
 }
 
 inline void PEAssembly::ValidateForExecution()
@@ -115,7 +115,7 @@ inline void PEAssembly::ValidateForExecution()
 inline BOOL PEAssembly::IsMarkedAsNoPlatform()
 {
     WRAPPER_NO_CONTRACT;
-    return IsAfPA_NoPlatform(GetFlags());
+    return (IsAfPA_NoPlatform(GetFlags()));
 }
 
 
@@ -125,6 +125,7 @@ inline void PEAssembly::GetMVID(GUID *pMvid)
     {
         THROWS;
         GC_NOTRIGGER;
+        FORBID_FAULT;
         MODE_ANY;
     }
     CONTRACTL_END;
@@ -220,12 +221,12 @@ inline LPCUTF8 PEAssembly::GetDebugName()
 // Classification
 // ------------------------------------------------------------
 
-inline bool PEAssembly::IsSystem() const
+inline BOOL PEAssembly::IsSystem() const
 {
     LIMITED_METHOD_CONTRACT;
     SUPPORTS_DAC;
 
-    return this == SystemDomain::SystemPEAssembly();
+    return m_isSystem;
 }
 
 inline BOOL PEAssembly::IsReflectionEmit() const
@@ -257,36 +258,38 @@ inline IMDInternalImport* PEAssembly::GetMDImport()
 
 inline IMetaDataImport2 *PEAssembly::GetRWImporter()
 {
-    CONTRACTL
+    CONTRACT(IMetaDataImport2 *)
     {
         INSTANCE_CHECK;
+        POSTCONDITION(CheckPointer(RETVAL));
         GC_NOTRIGGER;
         THROWS;
         MODE_ANY;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (m_pImporter == NULL)
         OpenImporter();
 
-    return m_pImporter;
+    RETURN m_pImporter;
 }
 
 inline IMetaDataEmit *PEAssembly::GetEmitter()
 {
-    CONTRACTL
+    CONTRACT(IMetaDataEmit *)
     {
         INSTANCE_CHECK;
         MODE_ANY;
         GC_NOTRIGGER;
+        POSTCONDITION(CheckPointer(RETVAL));
         THROWS;
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (m_pEmitter == NULL)
         OpenEmitter();
 
-    return m_pEmitter;
+    RETURN m_pEmitter;
 }
 
 
@@ -351,7 +354,7 @@ inline BOOL PEAssembly::IsILOnly()
     WRAPPER_NO_CONTRACT;
     SUPPORTS_DAC;
 
-    CONTRACT_VIOLATION(ThrowsViolation|GCViolation);
+    CONTRACT_VIOLATION(ThrowsViolation|GCViolation|FaultViolation);
 
     if (IsReflectionEmit())
         return FALSE;
@@ -361,7 +364,7 @@ inline BOOL PEAssembly::IsILOnly()
 
 inline PTR_VOID PEAssembly::GetRvaField(RVA field)
 {
-    CONTRACTL
+    CONTRACT(void *)
     {
         INSTANCE_CHECK;
         PRECONDITION(!IsReflectionEmit());
@@ -371,13 +374,14 @@ inline PTR_VOID PEAssembly::GetRvaField(RVA field)
         GC_NOTRIGGER;
         MODE_ANY;
         SUPPORTS_DAC;
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // Note that the native image Rva fields are currently cut off before
     // this point.  We should not get here for an IL only native image.
 
-    return dac_cast<PTR_VOID>(GetLoadedLayout()->GetRvaData(field,NULL_OK));
+    RETURN dac_cast<PTR_VOID>(GetLoadedLayout()->GetRvaData(field,NULL_OK));
 }
 
 inline CHECK PEAssembly::CheckRvaField(RVA field)
@@ -502,7 +506,7 @@ inline UINT32 PEAssembly::GetTlsIndex()
 
 inline const void *PEAssembly::GetInternalPInvokeTarget(RVA target)
 {
-    CONTRACTL
+    CONTRACT(void *)
     {
         INSTANCE_CHECK;
         PRECONDITION(!IsReflectionEmit());
@@ -511,10 +515,11 @@ inline const void *PEAssembly::GetInternalPInvokeTarget(RVA target)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
-    return (void*)GetLoadedLayout()->GetRvaData(target);
+    RETURN (void*)GetLoadedLayout()->GetRvaData(target);
 }
 
 inline CHECK PEAssembly::CheckInternalPInvokeTarget(RVA target)
@@ -538,29 +543,30 @@ inline CHECK PEAssembly::CheckInternalPInvokeTarget(RVA target)
 
 inline IMAGE_COR_VTABLEFIXUP *PEAssembly::GetVTableFixups(COUNT_T *pCount/*=NULL*/)
 {
-    CONTRACTL
+    CONTRACT(IMAGE_COR_VTABLEFIXUP *)
     {
         PRECONDITION(HasLoadedPEImage());
         INSTANCE_CHECK;
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     if (IsReflectionEmit() || IsILOnly())
     {
         if (pCount != NULL)
             *pCount = 0;
-        return NULL;
+        RETURN NULL;
     }
     else
-        return GetLoadedLayout()->GetVTableFixups(pCount);
+        RETURN GetLoadedLayout()->GetVTableFixups(pCount);
 }
 
 inline void *PEAssembly::GetVTable(RVA rva)
 {
-    CONTRACTL
+    CONTRACT(void *)
     {
         INSTANCE_CHECK;
         PRECONDITION(!IsReflectionEmit());
@@ -570,10 +576,11 @@ inline void *PEAssembly::GetVTable(RVA rva)
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
-    return (void *)GetLoadedLayout()->GetRvaData(rva);
+    RETURN (void *)GetLoadedLayout()->GetRvaData(rva);
 }
 
 // @todo: this is bad to expose. But it is needed to support current IJW thunks
@@ -596,15 +603,16 @@ inline HMODULE PEAssembly::GetIJWBase()
 
 inline PTR_VOID PEAssembly::GetDebuggerContents(COUNT_T *pSize/*=NULL*/)
 {
-    CONTRACTL
+    CONTRACT(PTR_VOID)
     {
         INSTANCE_CHECK;
         PRECONDITION(CheckPointer(pSize, NULL_OK));
         WRAPPER(THROWS);
         WRAPPER(GC_TRIGGERS);
         MODE_ANY;
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // We cannot in general force a LoadLibrary; we might be in the
     // helper thread.  The debugger will have to expect a zero base
@@ -615,14 +623,14 @@ inline PTR_VOID PEAssembly::GetDebuggerContents(COUNT_T *pSize/*=NULL*/)
         if (pSize != NULL)
             *pSize = GetLoadedLayout()->GetSize();
 
-        return GetLoadedLayout()->GetBase();
+        RETURN GetLoadedLayout()->GetBase();
     }
     else
     {
         if (pSize != NULL)
             *pSize = 0;
 
-        return NULL;
+        RETURN NULL;
     }
 }
 
@@ -659,15 +667,16 @@ inline PTR_CVOID PEAssembly::GetLoadedImageContents(COUNT_T *pSize/*=NULL*/)
 #ifndef DACCESS_COMPILE
 inline const void *PEAssembly::GetManagedFileContents(COUNT_T *pSize/*=NULL*/)
 {
-    CONTRACTL
+    CONTRACT(const void *)
     {
         INSTANCE_CHECK;
         PRECONDITION(HasLoadedPEImage());
         WRAPPER(THROWS);
         WRAPPER(GC_TRIGGERS);
         MODE_ANY;
+        POSTCONDITION((!GetLoadedLayout()->GetSize()) || CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // Right now, we will trigger a LoadLibrary for the caller's sake,
     // even if we are in a scenario where we could normally avoid it.
@@ -677,7 +686,7 @@ inline const void *PEAssembly::GetManagedFileContents(COUNT_T *pSize/*=NULL*/)
         *pSize = GetLoadedLayout()->GetSize();
 
 
-    return GetLoadedLayout()->GetBase();
+    RETURN GetLoadedLayout()->GetBase();
 }
 #endif // DACCESS_COMPILE
 
@@ -688,6 +697,7 @@ inline BOOL PEAssembly::IsPtrInPEImage(PTR_CVOID data)
         INSTANCE_CHECK;
         NOTHROW;
         GC_NOTRIGGER;
+        FORBID_FAULT;
         SUPPORTS_DAC;
     }
     CONTRACTL_END;
@@ -749,6 +759,22 @@ inline LPCSTR PEAssembly::GetSimpleName()
     return name;
 }
 
+inline BOOL PEAssembly::IsStrongNamed()
+{
+    CONTRACTL
+    {
+        THROWS;
+        WRAPPER(GC_NOTRIGGER);
+        MODE_ANY;
+    }
+    CONTRACTL_END;
+
+    DWORD flags = 0;
+    IfFailThrow(GetMDImport()->GetAssemblyProps(TokenFromRid(1, mdtAssembly), NULL, NULL, NULL, NULL, NULL, &flags));
+    return (flags & afPublicKey) != 0;
+}
+
+
 //---------------------------------------------------------------------------------------
 //
 // Check to see if this assembly has had its strong name signature verified yet.
@@ -807,6 +833,7 @@ inline DWORD PEAssembly::GetFlags()
         INSTANCE_CHECK;
         if (FORBIDGC_LOADER_USE_ENABLED()) NOTHROW; else THROWS;
         if (FORBIDGC_LOADER_USE_ENABLED()) GC_NOTRIGGER; else GC_TRIGGERS;
+        if (FORBIDGC_LOADER_USE_ENABLED()) FORBID_FAULT; else { INJECT_FAULT(COMPlusThrowOM()); }
         MODE_ANY;
     }
     CONTRACTL_END;

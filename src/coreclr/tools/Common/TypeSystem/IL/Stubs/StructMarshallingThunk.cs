@@ -4,13 +4,9 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
-
 using ILCompiler;
-
-using Internal.Text;
 using Internal.TypeSystem;
 using Internal.TypeSystem.Interop;
-
 using Debug = System.Diagnostics.Debug;
 
 namespace Internal.IL.Stubs
@@ -106,7 +102,7 @@ namespace Internal.IL.Stubs
             }
         }
 
-        private Utf8Span NamePrefix
+        private ReadOnlySpan<byte> NamePrefix
         {
             get
             {
@@ -120,12 +116,12 @@ namespace Internal.IL.Stubs
                         return "Cleanup"u8;
                     default:
                         Debug.Fail("Unexpected Struct marshalling thunk type");
-                        return Array.Empty<byte>();
+                        return [];
                 }
             }
         }
 
-        public override Utf8Span Name
+        public override ReadOnlySpan<byte> Name
         {
             get
             {

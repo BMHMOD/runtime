@@ -3,29 +3,20 @@
 
 using System;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
 namespace System.Runtime.InteropServices
 {
-    internal readonly unsafe struct ReferenceTrackerHost
+    internal static class ReferenceTrackerHost
     {
         [FixedAddressValueType]
-        private static readonly ReferenceTrackerHost s_instance =
-            new((IReferenceTrackerHostVftbl*)Unsafe.AsPointer(in HostServices.Vftbl));
-
-        private readonly IReferenceTrackerHostVftbl* _vftbl;
-
-        private ReferenceTrackerHost(IReferenceTrackerHostVftbl* vftbl)
-        {
-            _vftbl = vftbl;
-        }
+        private static readonly unsafe IntPtr s_globalHostServices = (IntPtr)Unsafe.AsPointer(in HostServices.Vftbl);
 
         // Called when an IReferenceTracker instance is found.
-        public static void SetReferenceTrackerHost(IntPtr trackerManager)
+        public static unsafe void SetReferenceTrackerHost(IntPtr trackerManager)
         {
-            IReferenceTrackerManager.SetReferenceTrackerHost(trackerManager, (IntPtr)Unsafe.AsPointer(in s_instance));
+            IReferenceTrackerManager.SetReferenceTrackerHost(trackerManager, (IntPtr)Unsafe.AsPointer(in s_globalHostServices));
         }
 
 #pragma warning disable IDE0060, CS3016

@@ -10,7 +10,6 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Xunit;
-using TestLibrary;
 
 public class Program
 {
@@ -42,7 +41,6 @@ public class Program
         return extendedSocketException.EndPointEquals(endPoint);
     }
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static int TestEntryPoint()
     {

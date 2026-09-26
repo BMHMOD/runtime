@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 class C1
 {
@@ -25,7 +24,6 @@ struct S1
 
 public class Runtime_111922
 {
-   [ActiveIssue("needs triage", TestRuntimes.Mono)]
    [Fact]
    public static int Problem()
    {
@@ -44,7 +42,6 @@ public class Runtime_111922
        return v.a;
    }
 
-   [ActiveIssue("needs triage", TestRuntimes.Mono)]
    [Fact]
    public static int Problem1()
    {
@@ -63,7 +60,6 @@ public class Runtime_111922
        return v.a;
    }
 
-   [ActiveIssue("needs triage", TestRuntimes.Mono)]
    [Fact]
    public static int Problem2()
    {
@@ -85,7 +81,6 @@ public class Runtime_111922
        return v.a;
    }
 
-   [ActiveIssue("needs triage", TestRuntimes.Mono)]
    [Fact]
    public static int Problem3()
    {

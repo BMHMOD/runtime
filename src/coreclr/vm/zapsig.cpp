@@ -270,8 +270,6 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
         elemType = ELEMENT_TYPE_OBJECT;
     else if (pMT == g_pStringClass)
         elemType = ELEMENT_TYPE_STRING;
-    else if (pMT == g_TypedReferenceMT)
-        elemType = ELEMENT_TYPE_TYPEDBYREF;
     else if (pMT == g_pCanonMethodTableClass)
         elemType = (CorElementType) ELEMENT_TYPE_CANON_ZAPSIG;
     else if (pMT->IsArray())
@@ -292,11 +290,12 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
                                                      TypeHandle               handle,
                                                      const ZapSig::Context *  pZapSigContext)
 {
-    CONTRACTL
+    CONTRACT(BOOL)
     {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        FORBID_FAULT;
         PRECONDITION(CheckPointer(pModule));
         PRECONDITION(CheckPointer(pZapSigContext));
         PRECONDITION(CheckPointer(pZapSigContext->pModuleContext));
@@ -304,7 +303,7 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
         PRECONDITION(CheckPointer(handle));
         PRECONDITION(CheckPointer(pSig));
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     mdToken      tk;
 
@@ -321,7 +320,7 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
         {
             // Unknown type!
             _ASSERTE(!"Unknown type in ZapSig::CompareSignatureToTypeHandle");
-            return FALSE;
+            RETURN(FALSE);
         }
 
         case ELEMENT_TYPE_MODULE_ZAPSIG:
@@ -330,9 +329,9 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
             CONTRACT_VIOLATION(ThrowsViolation|GCViolation);
             pModule = pZapSigContext->GetZapSigModule()->GetModuleFromIndexIfLoaded(ix);
             if (pModule == NULL)
-                return FALSE;
+                RETURN FALSE;
             else
-                return CompareSignatureToTypeHandle(pSig, pModule, handle, pZapSigContext);
+                RETURN(CompareSignatureToTypeHandle(pSig, pModule, handle, pZapSigContext));
         }
 
         case ELEMENT_TYPE_U:
@@ -350,39 +349,37 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
         case ELEMENT_TYPE_R8:
         case ELEMENT_TYPE_BOOLEAN:
         case ELEMENT_TYPE_CHAR:
-            return sigType == handleType;
-
         case ELEMENT_TYPE_TYPEDBYREF:
-            return handle == TypeHandle(g_TypedReferenceMT);
+            RETURN(sigType == handleType);
 
         case ELEMENT_TYPE_STRING:
-            return handle == TypeHandle(g_pStringClass);
+            RETURN(handle == TypeHandle(g_pStringClass));
 
         case ELEMENT_TYPE_OBJECT:
-            return handle == TypeHandle(g_pObjectClass);
+            RETURN(handle == TypeHandle(g_pObjectClass));
 
         case ELEMENT_TYPE_CANON_ZAPSIG:
-            return handle == TypeHandle(g_pCanonMethodTableClass);
+            RETURN(handle == TypeHandle(g_pCanonMethodTableClass));
 
         case ELEMENT_TYPE_VAR:
         case ELEMENT_TYPE_MVAR:
         {
             if (sigType != handleType)
-                return FALSE;
+                RETURN(FALSE);
 
             unsigned varNum = CorSigUncompressData(pSig);
-            return varNum == (dac_cast<PTR_TypeVarTypeDesc>(handle.AsTypeDesc())->GetIndex());
+            RETURN(varNum == (dac_cast<PTR_TypeVarTypeDesc>(handle.AsTypeDesc())->GetIndex()));
         }
 
         case ELEMENT_TYPE_VAR_ZAPSIG:
         {
             if (!handle.IsGenericVariable())
-                return FALSE;
+                RETURN(FALSE);
 
             TypeVarTypeDesc *pTypeVarTypeDesc = handle.AsGenericVariable();
 
             unsigned rid = CorSigUncompressData(pSig);
-            return TokenFromRid(rid, mdtGenericParam) == pTypeVarTypeDesc->GetToken() && pModule == pTypeVarTypeDesc->GetModule();
+            RETURN(TokenFromRid(rid, mdtGenericParam) == pTypeVarTypeDesc->GetToken() && pModule == pTypeVarTypeDesc->GetModule());
         }
 
         // These take an additional argument, which is the element type
@@ -391,9 +388,9 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
         case ELEMENT_TYPE_BYREF:
         {
             if (sigType != handleType)
-                return FALSE;
+                RETURN(FALSE);
 
-            return CompareSignatureToTypeHandle(pSig, pModule, handle.GetTypeParam(), pZapSigContext);
+            RETURN (CompareSignatureToTypeHandle(pSig, pModule, handle.GetTypeParam(), pZapSigContext));
         }
 
         case ELEMENT_TYPE_NATIVE_VALUETYPE_ZAPSIG:
@@ -401,7 +398,7 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
             sigType = CorSigUncompressElementType(pSig);
             _ASSERTE(sigType == ELEMENT_TYPE_VALUETYPE);
 
-            if (!handle.IsNativeValueType()) return(FALSE);
+            if (!handle.IsNativeValueType()) RETURN(FALSE);
             FALLTHROUGH;
         } // fall-through
 
@@ -424,25 +421,25 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
                 }
                 EX_END_CATCH
                 if (!resolved)
-                    return FALSE;
+                    RETURN(FALSE);
             }
             _ASSERTE(TypeFromToken(tk) == mdtTypeDef);
-            return sigType == handleType && !handle.HasInstantiation() && pModule == handle.GetModule() && handle.GetCl() == tk;
+            RETURN (sigType == handleType && !handle.HasInstantiation() && pModule == handle.GetModule() && handle.GetCl() == tk);
         }
 
         case ELEMENT_TYPE_FNPTR:
         {
             if (sigType != handleType)
-                return FALSE;
+                RETURN(FALSE);
 
             FnPtrTypeDesc *pTD = handle.AsFnPtrType();
             DWORD callConv = CorSigUncompressData(pSig);
             if (callConv != pTD->GetCallConv())
-                return FALSE;
+                RETURN(FALSE);
 
             DWORD numArgs = CorSigUncompressData(pSig);
             if (numArgs != pTD->GetNumArgs())
-                return FALSE;
+                RETURN(FALSE);
 
             {
                 CONTRACT_VIOLATION(ThrowsViolation|GCViolation);
@@ -451,10 +448,10 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
                 {
                     SigPointer sp(pSig);
                     if (!CompareSignatureToTypeHandle(pSig, pOrigModule, pTD->GetRetAndArgTypes()[i], pZapSigContext))
-                        return FALSE;
+                        RETURN(FALSE);
                     if (FAILED(sp.SkipExactlyOne()))
                     {
-                        return FALSE;
+                        RETURN(FALSE);
                     }
                     pSig = sp.GetPtr();
                 }
@@ -465,11 +462,11 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
         case ELEMENT_TYPE_GENERICINST:
         {
             if (!handle.HasInstantiation())
-                return FALSE;
+                RETURN(FALSE);
 
             sigType = CorSigUncompressElementType(pSig);
             if (sigType != handleType)
-                return FALSE;
+                RETURN(FALSE);
 
             pSig += CorSigUncompressToken(pSig, &tk);
             if (TypeFromToken(tk) == mdtTypeRef)
@@ -487,26 +484,26 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
                 }
                 EX_END_CATCH
                 if (!resolved)
-                    return FALSE;
+                    RETURN(FALSE);
             }
             _ASSERTE(TypeFromToken(tk) == mdtTypeDef);
             if (pModule != handle.GetModule() || tk != handle.GetCl())
-                return FALSE;
+                RETURN(FALSE);
 
             DWORD numGenericArgs = CorSigUncompressData(pSig);
 
             if (numGenericArgs != handle.GetNumGenericArgs())
-                return FALSE;
+                RETURN(FALSE);
 
             Instantiation inst = handle.GetInstantiation();
             for (DWORD i = 0; i < inst.GetNumArgs(); i++)
             {
                 SigPointer sp(pSig);
                 if (!CompareSignatureToTypeHandle(pSig, pOrigModule, inst[i], pZapSigContext))
-                    return FALSE;
+                    RETURN(FALSE);
                 if (FAILED(sp.SkipExactlyOne()))
                 {
-                    return FALSE;
+                    RETURN(FALSE);
                 }
                 pSig = sp.GetPtr();
             }
@@ -516,26 +513,26 @@ BOOL ZapSig::GetSignatureForTypeHandle(TypeHandle      handle,
         case ELEMENT_TYPE_ARRAY:
         {
             if (sigType != handleType)
-                return FALSE;
+                RETURN(FALSE);
 
             if (!CompareSignatureToTypeHandle(pSig, pModule, handle.GetArrayElementTypeHandle(), pZapSigContext))
-                return FALSE;
+                RETURN(FALSE);
             SigPointer sp(pSig);
             if (FAILED(sp.SkipExactlyOne()))
-                return FALSE;
+                RETURN(FALSE);
 
             uint32_t rank;
             if (FAILED(sp.GetData(&rank)))
-                return FALSE;
+                RETURN(FALSE);
 
             if (rank != handle.GetRank())
-                return FALSE;
+                RETURN(FALSE);
 
             break;
         }
     }
 
-    return TRUE;
+    RETURN(TRUE);
 }
 
 /*static*/
@@ -546,6 +543,7 @@ BOOL ZapSig::CompareTypeHandleFieldToTypeHandle(TypeHandle *pTypeHnd, TypeHandle
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        FORBID_FAULT;
         PRECONDITION(CheckPointer(pTypeHnd));
         PRECONDITION(CheckPointer(typeHnd2));
     }
@@ -628,6 +626,7 @@ ModuleBase *ZapSig::DecodeModuleFromIndexIfLoaded(Module *fromModule,
     {
         NOTHROW;
         GC_NOTRIGGER;
+        FORBID_FAULT;
     }
     CONTRACTL_END;
 
@@ -918,7 +917,7 @@ MethodDesc *ZapSig::DecodeMethod(ModuleBase *pInfoModule,
 
 
     // This must be called even if nargs == 0, in order to create an instantiating
-    // stub for static methods in generic classes if needed, also for BoxedEntryPointStubs
+    // stub for static methods in generic classees if needed, also for BoxedEntryPointStubs
     // in non-generic structs.
     BOOL isInstantiatingStub = (methodFlags & ENCODE_METHOD_SIG_InstantiatingStub);
     BOOL isUnboxingStub = (methodFlags & ENCODE_METHOD_SIG_UnboxingStub);
@@ -928,9 +927,9 @@ MethodDesc *ZapSig::DecodeMethod(ModuleBase *pInfoModule,
                                                             isUnboxingStub,
                                                             inst,
                                                             !(isInstantiatingStub || isUnboxingStub) && !actualOwnerRequired,
-                                                            isAsyncVariant ? AsyncVariantLookup::Async : AsyncVariantLookup::Ordinary,
                                                             actualOwnerRequired,
-                                                            TRUE);
+                                                            TRUE,
+                                                            isAsyncVariant == pMethod->IsAsyncVariantMethod() ? AsyncVariantLookup::MatchingAsyncVariant : AsyncVariantLookup::AsyncOtherVariant);
 
     if (methodFlags & ENCODE_METHOD_SIG_Constrained)
     {

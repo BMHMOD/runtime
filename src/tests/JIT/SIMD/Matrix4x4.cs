@@ -4,8 +4,6 @@ using System;
 using System.Numerics;
 using Xunit;
 
-namespace SIMDTests.Matrix4x4Tests;
-
 public class Matrix4x4Test
 {
     private const int Pass = 100;

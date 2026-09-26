@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Threading;
@@ -15,9 +14,8 @@ using Microsoft.CodeAnalysis.Testing;
 
 namespace Microsoft.Interop.UnitTests.Verifiers
 {
-    public static class CSharpSourceGeneratorVerifier<TSourceGenerator, TAnalyzer>
+    public static class CSharpSourceGeneratorVerifier<TSourceGenerator>
         where TSourceGenerator : new()
-        where TAnalyzer : DiagnosticAnalyzer, new()
     {
         public static DiagnosticResult Diagnostic(string diagnosticId)
             => new DiagnosticResult(diagnosticId, DiagnosticSeverity.Error);
@@ -108,9 +106,6 @@ namespace Microsoft.Interop.UnitTests.Verifiers
 
                 SolutionTransforms.Add(CSharpVerifierHelper.GetAllDiagnosticsEnabledTransform(GetDiagnosticAnalyzers()));
             }
-
-            protected override IEnumerable<DiagnosticAnalyzer> GetDiagnosticAnalyzers()
-                => [..base.GetDiagnosticAnalyzers(), new TAnalyzer()];
 
             protected override CompilationWithAnalyzers CreateCompilationWithAnalyzers(Compilation compilation, ImmutableArray<DiagnosticAnalyzer> analyzers, AnalyzerOptions options, CancellationToken cancellationToken)
             {

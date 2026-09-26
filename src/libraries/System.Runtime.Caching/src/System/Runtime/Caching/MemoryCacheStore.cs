@@ -147,6 +147,8 @@ namespace System.Runtime.Caching
                 if (updatePerfCounters && _perfCounters != null && _countersSupported)
                 {
                     _perfCounters.Increment(CounterName.Hits);
+                    _perfCounters.Increment(CounterName.HitRatio);
+                    _perfCounters.Increment(CounterName.HitRatioBase);
                 }
             }
             else
@@ -154,6 +156,7 @@ namespace System.Runtime.Caching
                 if (updatePerfCounters && _perfCounters != null && _countersSupported)
                 {
                     _perfCounters.Increment(CounterName.Misses);
+                    _perfCounters.Increment(CounterName.HitRatioBase);
                 }
             }
         }

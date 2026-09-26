@@ -42,10 +42,6 @@ function print_usage {
     echo '  --tieringtest                    : Run each test to encourage tier1 rejitting'
     echo '  --runnativeaottests              : Run NativeAOT compiled tests'
     echo '  --interpreter                    : Runs the tests with the interpreter enabled'
-    echo '  --node                           : Runs the tests with NodeJS (wasm only)'
-    echo '  --runner-filter=<pattern>        : Only run merged runners whose name contains <pattern>'
-    echo '  --active-issue-details           : Show per-issue breakdown of ActiveIssue-skipped tests'
-    echo '  --tree=<path>                    : Only run tests under the specified subtree (e.g. JIT/Regression)'
     echo '  --limitedDumpGeneration          : '
 }
 
@@ -76,18 +72,9 @@ runSequential=0
 runincontext=0
 tieringtest=0
 nativeaottest=0
-runnerFilter=
-activeIssueDetails=
-treeSubtree=
 
 for i in "$@"
 do
-    if [[ "$__nextTreeArg" == "1" ]]; then
-        treeSubtree="$i"
-        __nextTreeArg=
-        continue
-    fi
-
     case $i in
         -h|--help)
             print_usage
@@ -147,6 +134,10 @@ do
         --jitforcerelocs)
             export DOTNET_ForceRelocs=1
             ;;
+        --link=*)
+            export ILLINK=${i#*=}
+            export DoLink=true
+            ;;
         --ilasmroundtrip)
             ((ilasmroundtrip = 1))
             ;;
@@ -201,26 +192,8 @@ do
         --runnativeaottests)
             nativeaottest=1
             ;;
-        --tree=*|-tree=*)
-            treeSubtree=${i#*=}
-            ;;
-        --tree:*|-tree:*)
-            treeSubtree=${i#*:}
-            ;;
-        --tree|-tree)
-            __nextTreeArg=1
-            ;;
         --interpreter)
             export RunInterpreter=1
-            ;;
-        --node)
-            export RunWithNodeJS=1
-            ;;
-        --runner-filter=*)
-            runnerFilter=${i#*=}
-            ;;
-        --active-issue-details)
-            activeIssueDetails=1
             ;;
         *)
             echo "Unknown switch: $i"
@@ -229,11 +202,6 @@ do
             ;;
     esac
 done
-
-# Set default for RunWithNodeJS when using wasm architecture
-if [ "$buildArch" = "wasm" ] && [ -z "$RunWithNodeJS" ]; then
-    export RunWithNodeJS=1
-fi
 
 ################################################################################
 # Call run.py to run tests.
@@ -336,25 +304,6 @@ fi
 if [[ -n "$RunInterpreter" ]]; then
     echo "Running tests with the interpreter"
     runtestPyArguments+=("--interpreter")
-fi
-
-if [[ -n "$RunWithNodeJS" ]]; then
-    echo "Running tests with NodeJS"
-    runtestPyArguments+=("--node")
-fi
-
-if [[ -n "$runnerFilter" ]]; then
-    echo "Runner filter                 : ${runnerFilter}"
-    runtestPyArguments+=("--runner_filter" "$runnerFilter")
-fi
-
-if [[ -n "$activeIssueDetails" ]]; then
-    runtestPyArguments+=("--active_issue_details")
-fi
-
-if [[ -n "$treeSubtree" ]]; then
-    echo "Running tests under subtree   : ${treeSubtree}"
-    runtestPyArguments+=("--tree" "$treeSubtree")
 fi
 
 # Default to python3 if it is installed

@@ -2,16 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b405223;
-
 using System;
 using Xunit;
 
 public class Class1
 {
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

@@ -7,7 +7,6 @@ using System;
 using System.IO;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 public class Test_finalizeio {
 
@@ -53,8 +52,6 @@ public class Test_finalizeio {
         }
     }
 
-    [ActiveIssue("PlatformDetection.IsPreciseGcSupported false on mono", TestRuntimes.Mono)]
-    [SkipOnCoreClr("This test is not compatible with GC stress.", RuntimeTestModes.AnyGCStress)]
     [Fact]
     public static int TestEntryPoint() {
         CreateObj temp = new CreateObj();

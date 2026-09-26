@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b16238
+namespace DefaultNamespace
 {
     using System;
 
@@ -51,7 +51,6 @@ namespace b16238
             return 49548;
             /* 6 operator(s) emitted */
         }
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

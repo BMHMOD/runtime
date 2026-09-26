@@ -6,92 +6,15 @@ using System.Buffers.Text;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace System.Text.Json
 {
     internal static partial class JsonReaderHelper
     {
-        // Characters that require the bracketed property name syntax in JSON Path.
-        private static readonly SearchValues<char> s_specialCharacters = SearchValues.Create("$. '/\"[]()\t\n\r\f\b\\\u0085\u2028\u2029");
-
-        // Characters that need to be escaped in the single-quoted bracket notation.
-        private static readonly SearchValues<char> s_charactersToEscape = SearchValues.Create("'\\");
+        private static readonly SearchValues<char> s_specialCharacters = SearchValues.Create(". '/\"[]()\t\n\r\f\b\\\u0085\u2028\u2029");
 
         public static bool ContainsSpecialCharacters(this ReadOnlySpan<char> text) =>
             text.ContainsAny(s_specialCharacters);
-
-        /// <summary>
-        /// Appends a property name escaped for use in JSON Path single-quoted bracket notation.
-        /// Escapes single quotes as \' and backslashes as \\.
-        /// </summary>
-        public static void AppendEscapedPropertyName(this ref ValueStringBuilder builder, string propertyName)
-        {
-            ReadOnlySpan<char> span = propertyName.AsSpan();
-
-            int i = span.IndexOfAny(s_charactersToEscape);
-
-            // Fast path: if no characters need escaping, append directly.
-            if (i < 0)
-            {
-                builder.Append(propertyName);
-                return;
-            }
-
-            // Append the portion before the first character needing escaping.
-            if (i > 0)
-            {
-                builder.Append(span.Slice(0, i));
-            }
-
-            // Escape characters from position i onward.
-            for (; i < span.Length; i++)
-            {
-                char c = span[i];
-                if (c is '\\' or '\'')
-                {
-                    builder.Append('\\');
-                }
-
-                builder.Append(c);
-            }
-        }
-
-        /// <summary>
-        /// Appends a property name escaped for use in JSON Path single-quoted bracket notation.
-        /// Escapes single quotes as \' and backslashes as \\.
-        /// </summary>
-        public static void AppendEscapedPropertyName(this StringBuilder builder, string propertyName)
-        {
-            ReadOnlySpan<char> span = propertyName.AsSpan();
-
-            int i = span.IndexOfAny(s_charactersToEscape);
-
-            // Fast path: if no characters need escaping, append directly.
-            if (i < 0)
-            {
-                builder.Append(propertyName);
-                return;
-            }
-
-            // Append the portion before the first character needing escaping.
-            if (i > 0)
-            {
-                builder.Append(span.Slice(0, i));
-            }
-
-            // Escape characters from position i onward.
-            for (; i < span.Length; i++)
-            {
-                char c = span[i];
-                if (c is '\\' or '\'')
-                {
-                    builder.Append('\\');
-                }
-
-                builder.Append(c);
-            }
-        }
 
         public static (int, int) CountNewLines(ReadOnlySpan<byte> data)
         {
@@ -176,7 +99,7 @@ namespace System.Text.Json
             return false;
         }
 
-        public static unsafe bool TryGetEscapedDateTime(ReadOnlySpan<byte> source, out DateTime value)
+        public static bool TryGetEscapedDateTime(ReadOnlySpan<byte> source, out DateTime value)
         {
             Debug.Assert(source.Length <= JsonConstants.MaximumEscapedDateTimeOffsetParseLength);
             Span<byte> sourceUnescaped = stackalloc byte[JsonConstants.MaximumEscapedDateTimeOffsetParseLength];
@@ -224,7 +147,7 @@ namespace System.Text.Json
             return false;
         }
 
-        public static unsafe bool TryGetEscapedDateTimeOffset(ReadOnlySpan<byte> source, out DateTimeOffset value)
+        public static bool TryGetEscapedDateTimeOffset(ReadOnlySpan<byte> source, out DateTimeOffset value)
         {
             Debug.Assert(source.Length <= JsonConstants.MaximumEscapedDateTimeOffsetParseLength);
             Span<byte> sourceUnescaped = stackalloc byte[JsonConstants.MaximumEscapedDateTimeOffsetParseLength];
@@ -273,7 +196,7 @@ namespace System.Text.Json
             return false;
         }
 
-        public static unsafe bool TryGetEscapedGuid(ReadOnlySpan<byte> source, out Guid value)
+        public static bool TryGetEscapedGuid(ReadOnlySpan<byte> source, out Guid value)
         {
             Debug.Assert(source.Length <= JsonConstants.MaximumEscapedGuidLength);
 

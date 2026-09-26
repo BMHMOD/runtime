@@ -19,7 +19,9 @@
 #include "stubgen.h"
 #include "appdomain.inl"
 
+#ifdef FEATURE_PERFMAP
 #include "perfmap.h"
+#endif
 
 class UMEntryThunkFreeList
 {
@@ -94,6 +96,13 @@ private:
 
 static UMEntryThunkFreeList s_thunkFreeList(DEFAULT_THUNK_FREE_LIST_THRESHOLD);
 
+PCODE UMThunkMarshInfo::GetExecStubEntryPoint()
+{
+    LIMITED_METHOD_CONTRACT;
+
+    return m_pILStub;
+}
+
 UMEntryThunkCache::UMEntryThunkCache(AppDomain *pDomain) :
     m_crst(CrstUMEntryThunkCache),
     m_pDomain(pDomain)
@@ -116,14 +125,15 @@ UMEntryThunkCache::~UMEntryThunkCache()
 
 UMEntryThunkData *UMEntryThunkCache::GetUMEntryThunk(MethodDesc *pMD)
 {
-    CONTRACTL
+    CONTRACT (UMEntryThunkData *)
     {
         THROWS;
         GC_TRIGGERS;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
         PRECONDITION(CheckPointer(pMD));
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     CrstHolder ch(&m_crst);
 
@@ -135,11 +145,11 @@ UMEntryThunkData *UMEntryThunkCache::GetUMEntryThunk(MethodDesc *pMD)
         Holder<UMEntryThunkData *, DoNothing, UMEntryThunkData::FreeUMEntryThunk> umHolder;
         umHolder.Assign(pThunk);
 
-        UMThunkMarshInfo *pMarshInfo = (UMThunkMarshInfo *)(void *)(m_pDomain->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(DelegateUMThunkMarshInfo))));
+        UMThunkMarshInfo *pMarshInfo = (UMThunkMarshInfo *)(void *)(m_pDomain->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(UMThunkMarshInfo))));
         Holder<UMThunkMarshInfo *, DoNothing, UMEntryThunkCache::DestroyMarshInfo> miHolder;
         miHolder.Assign(pMarshInfo);
 
-        new (pMarshInfo) DelegateUMThunkMarshInfo(pMD);
+        pMarshInfo->LoadTimeInit(pMD);
 
         pThunk->LoadTimeInit((PCODE)NULL, NULL, pMarshInfo, pMD);
 
@@ -150,7 +160,7 @@ UMEntryThunkData *UMEntryThunkCache::GetUMEntryThunk(MethodDesc *pMD)
         umHolder.SuppressRelease();
     }
 
-    return pThunk;
+    RETURN pThunk;
 }
 
 //-------------------------------------------------------------------------
@@ -187,14 +197,6 @@ VOID CallbackOnCollectedDelegate(UMEntryThunkData* pEntryThunkData)
 
 #if defined(FEATURE_INTERPRETER)
 PLATFORM_THREAD_LOCAL UMEntryThunkData * t_MostRecentUMEntryThunkData;
-
-UMEntryThunkData* GetMostRecentUMEntryThunkDataNonDestructive()
-{
-    LIMITED_METHOD_CONTRACT;
-
-    UMEntryThunkData* result = t_MostRecentUMEntryThunkData;
-    return result;
-}
 
 UMEntryThunkData* GetMostRecentUMEntryThunkData()
 {
@@ -234,42 +236,31 @@ PCODE TheUMEntryPrestubWorker(UMEntryThunkData* pUMEntryThunkData)
     if (pUMEntryThunkData->IsCollectedDelegate())
         CallbackOnCollectedDelegate(pUMEntryThunkData);
 
-    PCODE entryPoint = (PCODE)NULL;
-
     INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     // this method is called by stubs which are called by managed code,
     // so we need an unwind and continue handler so that our internal
     // exceptions don't leak out into managed code.
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
-    bool canSkipPreStub;
-    entryPoint = pUMEntryThunkData->RunTimeInit(&canSkipPreStub);
-
-#ifdef FEATURE_INTERPRETER
-    if (!canSkipPreStub)
-    {
-        _ASSERTE(pUMEntryThunkData->GetInterpreterTarget() != (PCODE)0);
-        t_MostRecentUMEntryThunkData = pUMEntryThunkData;
-    }
-#else
-    _ASSERTE(canSkipPreStub);
-#endif
+    pUMEntryThunkData->RunTimeInit();
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
     UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
 
-    return entryPoint;
+    return (PCODE)pUMEntryThunkData->GetCode();
 }
 
 UMEntryThunkData* UMEntryThunkData::CreateUMEntryThunk()
 {
-    CONTRACTL
+    CONTRACT (UMEntryThunkData*)
     {
         THROWS;
         GC_NOTRIGGER;
-        MODE_PREEMPTIVE;
+        MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     UMEntryThunkData * pData = s_thunkFreeList.GetUMEntryThunk();
 
@@ -288,33 +279,15 @@ UMEntryThunkData* UMEntryThunkData::CreateUMEntryThunk()
 #else // !FEATURE_PORTABLE_ENTRYPOINTS
         pThunk = (UMEntryThunk*)pamTracker->Track(pLoaderAllocator->GetNewStubPrecodeHeap()->AllocStub());
 #endif // FEATURE_PORTABLE_ENTRYPOINTS
+#ifdef FEATURE_PERFMAP
         PerfMap::LogStubs(__FUNCTION__, "UMEntryThunk", (PCODE)pThunk, sizeof(UMEntryThunk), PerfMapStubType::IndividualWithinBlock);
+#endif
         pData->m_pUMEntryThunk = pThunk;
         pThunk->Init(pThunk, dac_cast<TADDR>(pData), NULL, dac_cast<TADDR>(PRECODE_UMENTRY_THUNK));
         pamTracker->SuppressRelease();
     }
 
-    return pData;
-}
-
-UMEntryThunkData* UMEntryThunkData::CreateUMEntryThunk(LoaderAllocator* pLoaderAllocator, AllocMemTracker* pamTracker)
-{
-    CONTRACTL
-    {
-        THROWS;
-        GC_NOTRIGGER;
-        MODE_ANY;
-        PRECONDITION(CheckPointer(pLoaderAllocator));
-        PRECONDITION(CheckPointer(pamTracker));
-    }
-    CONTRACTL_END;
-
-    UMEntryThunkData* pData = (UMEntryThunkData*)pamTracker->Track(pLoaderAllocator->GetLowFrequencyHeap()->AllocMem(S_SIZE_T(sizeof(UMEntryThunkData))));
-    UMEntryThunk* pThunk = (UMEntryThunk*)pamTracker->Track(pLoaderAllocator->GetNewStubPrecodeHeap()->AllocStub());
-    pData->m_pUMEntryThunk = pThunk;
-    pThunk->Init(pThunk, dac_cast<TADDR>(pData), NULL, dac_cast<TADDR>(PRECODE_UMENTRY_THUNK));
-
-    return pData;
+    RETURN pData;
 }
 
 void UMEntryThunkData::Terminate()
@@ -369,11 +342,11 @@ UMThunkMarshInfo::~UMThunkMarshInfo()
     CONTRACTL_END;
 
 #ifdef _DEBUG
-    FillMemory((void*)this, sizeof(*this), 0xcc);
+    FillMemory(this, sizeof(*this), 0xcc);
 #endif
 }
 
-MethodDesc* DelegateUMThunkMarshInfo::GetILStubMethodDesc(MethodDesc* pInvokeMD, PInvokeStaticSigInfo* pSigInfo, DWORD dwStubFlags)
+MethodDesc* UMThunkMarshInfo::GetILStubMethodDesc(MethodDesc* pInvokeMD, PInvokeStaticSigInfo* pSigInfo, DWORD dwStubFlags)
 {
     STANDARD_VM_CONTRACT;
 
@@ -404,14 +377,22 @@ MethodDesc* DelegateUMThunkMarshInfo::GetILStubMethodDesc(MethodDesc* pInvokeMD,
 // The RunTimeInit() must be called subsequently to fully
 // UMThunkMarshInfo.
 //----------------------------------------------------------
-DelegateUMThunkMarshInfo::DelegateUMThunkMarshInfo(MethodDesc* pMD)
-    : DelegateUMThunkMarshInfo(pMD->GetSignature(), pMD->GetModule(), pMD)
-{
-}
-
-DelegateUMThunkMarshInfo::DelegateUMThunkMarshInfo(Signature sig, Module * pModule, MethodDesc * pMD)
+VOID UMThunkMarshInfo::LoadTimeInit(MethodDesc* pMD)
 {
     LIMITED_METHOD_CONTRACT;
+    PRECONDITION(pMD != NULL);
+
+    LoadTimeInit(pMD->GetSignature(), pMD->GetModule(), pMD);
+}
+
+VOID UMThunkMarshInfo::LoadTimeInit(Signature sig, Module * pModule, MethodDesc * pMD)
+{
+    LIMITED_METHOD_CONTRACT;
+
+    FillMemory(this, sizeof(UMThunkMarshInfo), 0); // Prevent problems with partial deletes
+
+    // This will be overwritten by the actual code pointer (or NULL) at the end of UMThunkMarshInfo::RunTimeInit()
+    m_pILStub = (PCODE)1;
 
     m_pMD = pMD;
     m_pModule = pModule;
@@ -425,25 +406,22 @@ DelegateUMThunkMarshInfo::DelegateUMThunkMarshInfo(Signature sig, Module * pModu
 // It can safely be called multiple times and by concurrent
 // threads.
 //----------------------------------------------------------
-PCODE DelegateUMThunkMarshInfo::RunTimeInit(bool *pCanSkipPreStub)
+VOID UMThunkMarshInfo::RunTimeInit()
 {
     STANDARD_VM_CONTRACT;
 
-    // If we successfully complete, we can always skip the prestub worker.
-    *pCanSkipPreStub = TRUE;
-
     // Nothing to do if already inited
     if (IsCompletelyInited())
-        return GetILStubEntry();
+        return;
 
-    MethodDesc * pMD = m_pMD;
+    MethodDesc * pMD = GetMethod();
 
     PInvokeStaticSigInfo sigInfo;
 
     if (pMD != NULL)
         new (&sigInfo) PInvokeStaticSigInfo(pMD);
     else
-        new (&sigInfo) PInvokeStaticSigInfo(m_sig, m_pModule);
+        new (&sigInfo) PInvokeStaticSigInfo(GetSignature(), GetModule());
 
     DWORD dwStubFlags = 0;
 
@@ -453,6 +431,7 @@ PCODE DelegateUMThunkMarshInfo::RunTimeInit(bool *pCanSkipPreStub)
     MethodDesc* pStubMD = GetILStubMethodDesc(pMD, &sigInfo, dwStubFlags);
     PCODE pFinalILStub = JitILStub(pStubMD);
 
-    return SetILStubEntry(pFinalILStub);
+    // Must be the last thing we set!
+    InterlockedCompareExchangeT<PCODE>(&m_pILStub, pFinalILStub, (PCODE)1);
 }
 #endif // !FEATURE_PORTABLE_ENTRYPOINTS

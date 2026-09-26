@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <cassert>
+#define __STDC_FORMAT_MACROS
 #include <cinttypes>
 #include <memory>
 #include <pthread.h>
@@ -25,7 +26,6 @@
 #include <minipal/memorybarrierprocesswide.h>
 #include <minipal/thread.h>
 #include <minipal/time.h>
-#include <minipal/cpucount.h>
 
 #if HAVE_SWAPCTL
 #include <sys/swap.h>
@@ -108,11 +108,13 @@ typedef cpuset_t cpu_set_t;
 #define SYSCONF_GET_NUMPROCS _SC_NPROCESSORS_ONLN
 #endif
 
-// The cached total number of CPUs that can be used in the OS.
-uint32_t g_totalCpuCount = 0;
+#ifdef __EMSCRIPTEN__
+#include <emscripten/heap.h>
+#endif // __EMSCRIPTEN__
 
-// The number of CPUs that are configured in the OS.
-uint32_t g_configuredCpuCount = 0;
+
+// The cached total number of CPUs that can be used in the OS.
+static uint32_t g_totalCpuCount = 0;
 
 size_t GetRestrictedPhysicalMemoryLimit();
 bool GetPhysicalMemoryUsed(size_t* val);
@@ -142,36 +144,14 @@ bool GCToOSInterface::Initialize()
 
     g_pageSizeUnixInl = uint32_t((pageSize > 0) ? pageSize : 0x1000);
 
-#ifdef TARGET_ANDROID
-    // Android tries really hard to save power by powering off CPUs on SMP phones which
-    // means the normal way to query cpu count can underestimate the number of available CPUs.
-    int cpuCount = minipal_get_cpu_present_count();
-    if (cpuCount == -1)
-    {
-        cpuCount = sysconf(SYSCONF_GET_NUMPROCS);
-    }
-#else
+    // Calculate and cache the number of processors on this machine
     int cpuCount = sysconf(SYSCONF_GET_NUMPROCS);
-#endif
-
     if (cpuCount == -1)
-    {
-        return false;
-    }
-
-    int configuredCpuCount = minipal_get_cpu_max_possible_count();
-    if (configuredCpuCount == -1)
     {
         return false;
     }
 
     g_totalCpuCount = cpuCount;
-    g_configuredCpuCount = configuredCpuCount;
-
-    if (!g_processAffinitySet.Initialize(configuredCpuCount))
-    {
-        return false;
-    }
 
     if (!minipal_initialize_memory_barrier_process_wide())
     {
@@ -182,42 +162,29 @@ bool GCToOSInterface::Initialize()
 
 #if HAVE_SCHED_GETAFFINITY
 
+    cpu_set_t cpuSet;
+    int st = sched_getaffinity(getpid(), sizeof(cpu_set_t), &cpuSet);
+
+    if (st == 0)
     {
-        // Use a dynamically allocated cpu_set_t to support systems with more than CPU_SETSIZE (typically 1024) CPUs.
-        cpu_set_t* pCpuSet = CPU_ALLOC(configuredCpuCount);
-        if (pCpuSet == nullptr)
+        for (size_t i = 0; i < CPU_SETSIZE; i++)
         {
-            return false;
-        }
-
-        size_t cpuSetSize = CPU_ALLOC_SIZE(configuredCpuCount);
-        CPU_ZERO_S(cpuSetSize, pCpuSet);
-
-        int st = sched_getaffinity(getpid(), cpuSetSize, pCpuSet);
-
-        if (st == 0)
-        {
-            for (size_t i = 0; i < (size_t)configuredCpuCount; i++)
+            if (CPU_ISSET(i, &cpuSet))
             {
-                if (CPU_ISSET_S(i, cpuSetSize, pCpuSet))
-                {
-                    g_processAffinitySet.Add(i);
-                }
+                g_processAffinitySet.Add(i);
             }
         }
-        else
-        {
-            // We should not get any of the errors that the sched_getaffinity can return since none
-            // of them applies for the current thread, so this is an unexpected kind of failure.
-            assert(false);
-        }
-
-        CPU_FREE(pCpuSet);
+    }
+    else
+    {
+        // We should not get any of the errors that the sched_getaffinity can return since none
+        // of them applies for the current thread, so this is an unexpected kind of failure.
+        assert(false);
     }
 
 #else // HAVE_SCHED_GETAFFINITY
 
-    for (int i = 0; i < configuredCpuCount; i++)
+    for (size_t i = 0; i < g_totalCpuCount; i++)
     {
         g_processAffinitySet.Add(i);
     }
@@ -356,7 +323,7 @@ void GCToOSInterface::Sleep(uint32_t sleepMSec)
     requested.tv_nsec = (sleepMSec - requested.tv_sec * tccSecondsToMilliSeconds) * tccMilliSecondsToNanoSeconds;
 
     timespec remaining;
-    while (nanosleep(&requested, &remaining) == -1 && errno == EINTR)
+    while (nanosleep(&requested, &remaining) == EINTR)
     {
         requested = remaining;
     }
@@ -391,6 +358,9 @@ static void* VirtualReserveInner(size_t size, size_t alignment, uint32_t flags, 
 
     size_t alignedSize = size + (alignment - OS_PAGE_SIZE);
     int mmapFlags = MAP_ANON | MAP_PRIVATE | hugePagesFlag;
+#ifdef __HAIKU__
+    mmapFlags |= MAP_NORESERVE;
+#endif
     void * pRetVal = mmap(nullptr, alignedSize, PROT_NONE, mmapFlags, -1, 0);
 
     if (pRetVal != MAP_FAILED)
@@ -411,7 +381,7 @@ static void* VirtualReserveInner(size_t size, size_t alignment, uint32_t flags, 
         }
 
         pRetVal = pAlignedRetVal;
-#if defined(MADV_DONTDUMP)
+#if defined(MADV_DONTDUMP) && !defined(TARGET_WASM)
         // Do not include reserved uncommitted memory in coredump.
         if (!committing)
         {
@@ -459,9 +429,13 @@ bool GCToOSInterface::VirtualRelease(void* address, size_t size)
 //  true if it has succeeded, false if it has failed
 static bool VirtualCommitInner(void* address, size_t size, uint16_t node, bool newMemory)
 {
+#ifndef TARGET_WASM
     bool success = mprotect(address, size, PROT_WRITE | PROT_READ) == 0;
+#else
+    bool success = true;
+#endif // !TARGET_WASM
 
-#if defined(MADV_DONTDUMP)
+#if defined(MADV_DONTDUMP) && !defined(TARGET_WASM)
     if (success && !newMemory)
     {
         // Include committed memory in coredump. New memory is included by default.
@@ -469,7 +443,7 @@ static bool VirtualCommitInner(void* address, size_t size, uint16_t node, bool n
     }
 #endif
 
-#if defined(TARGET_LINUX) && !defined(TARGET_ANDROID)
+#ifdef TARGET_LINUX
     if (success && g_numaAvailable && (node != NUMA_NODE_UNDEFINED))
     {
         if ((int)node <= g_highestNumaNode)
@@ -487,7 +461,7 @@ static bool VirtualCommitInner(void* address, size_t size, uint16_t node, bool n
             // If the mbind fails, we still return the allocated memory since the node is just a hint
         }
     }
-#endif // TARGET_LINUX && !TARGET_ANDROID
+#endif // TARGET_LINUX
 
     return success;
 }
@@ -541,15 +515,18 @@ bool GCToOSInterface::VirtualDecommit(void* address, size_t size)
     // longer need these pages. Also, GC depends on re-committed pages to
     // be zeroed-out.
     int mmapFlags = MAP_FIXED | MAP_ANON | MAP_PRIVATE;
+#ifdef TARGET_HAIKU
+    mmapFlags |= MAP_NORESERVE;
+#endif
     bool bRetVal = mmap(address, size, PROT_NONE, mmapFlags, -1, 0) != MAP_FAILED;
 
-#if defined(MADV_DONTDUMP)
+#ifdef MADV_DONTDUMP
     if (bRetVal)
     {
         // Do not include freed memory in coredump.
         madvise(address, size, MADV_DONTDUMP);
     }
-#endif // defined(MADV_DONTDUMP)
+#endif
 
     return  bRetVal;
 }
@@ -566,20 +543,31 @@ bool GCToOSInterface::VirtualReset(void * address, size_t size, bool unlock)
 {
     int st = EINVAL;
 
+#if defined(MADV_DONTDUMP) || defined(HAVE_MADV_FREE)
+
+    int madviseFlags = 0;
+
 #ifdef MADV_DONTDUMP
     // Do not include reset memory in coredump.
-    st = madvise(address, size, MADV_DONTDUMP);
+    madviseFlags |= MADV_DONTDUMP;
 #endif
 
-#if defined(MADV_FREE) && !defined(TARGET_SUNOS)
+#ifdef HAVE_MADV_FREE
     // Tell the kernel that the application doesn't need the pages in the range.
     // Freeing the pages can be delayed until a memory pressure occurs.
-    st = madvise(address, size, MADV_FREE);
-#elif defined(HAVE_POSIX_MADVISE)
+    madviseFlags |= MADV_FREE;
+#endif
+
+    st = madvise(address, size, madviseFlags);
+
+#endif //defined(MADV_DONTDUMP) || defined(HAVE_MADV_FREE)
+
+#if defined(HAVE_POSIX_MADVISE) && !defined(MADV_DONTDUMP)
     // DONTNEED is the nearest posix equivalent of FREE.
     // Prefer FREE as, since glibc2.6 DONTNEED is a nop.
     st = posix_madvise(address, size, POSIX_MADV_DONTNEED);
-#endif // MADV_FREE
+
+#endif //defined(HAVE_POSIX_MADVISE) && !defined(MADV_DONTDUMP)
 
     return (st == 0);
 }
@@ -831,7 +819,7 @@ static uint64_t GetMemorySizeMultiplier(char units)
     return 1;
 }
 
-#if !defined(__APPLE__) && !defined(__HAIKU__)
+#if !defined(__APPLE__) && !defined(__HAIKU__) && !defined(__EMSCRIPTEN__)
 // Try to read the MemAvailable entry from /proc/meminfo.
 // Return true if the /proc/meminfo existed, the entry was present and we were able to parse it.
 static bool ReadMemAvailable(uint64_t* memAvailable)
@@ -899,16 +887,9 @@ size_t GCToOSInterface::GetCacheSizePerLogicalCpu(bool trueSize)
 bool GCToOSInterface::SetThreadAffinity(uint16_t procNo)
 {
 #if HAVE_SCHED_SETAFFINITY || HAVE_PTHREAD_SETAFFINITY_NP
-
-    size_t cpuSetSize = CPU_ALLOC_SIZE(g_configuredCpuCount);
-    cpu_set_t* pCpuSet = CPU_ALLOC(g_configuredCpuCount);
-    if (pCpuSet == nullptr)
-    {
-        return false;
-    }
-
-    CPU_ZERO_S(cpuSetSize, pCpuSet);
-    CPU_SET_S((int)procNo, cpuSetSize, pCpuSet);
+    cpu_set_t cpuSet;
+    CPU_ZERO(&cpuSet);
+    CPU_SET((int)procNo, &cpuSet);
 
     // Snap's default strict confinement does not allow sched_setaffinity(<nonzeroPid>, ...) without manually connecting the
     // process-control plug. sched_setaffinity(<currentThreadPid>, ...) is also currently not allowed, only
@@ -920,12 +901,10 @@ bool GCToOSInterface::SetThreadAffinity(uint16_t procNo)
     // - https://github.com/dotnet/runtime/issues/1634
     // - https://forum.snapcraft.io/t/requesting-autoconnect-for-interfaces-in-pigmeat-process-control-home/17987/13
 #if HAVE_SCHED_SETAFFINITY
-    int st = sched_setaffinity(0, cpuSetSize, pCpuSet);
+    int st = sched_setaffinity(0, sizeof(cpu_set_t), &cpuSet);
 #else
-    int st = pthread_setaffinity_np(pthread_self(), cpuSetSize, pCpuSet);
+    int st = pthread_setaffinity_np(pthread_self(), sizeof(cpu_set_t), &cpuSet);
 #endif
-
-    CPU_FREE(pCpuSet);
 
     return (st == 0);
 
@@ -958,7 +937,7 @@ const AffinitySet* GCToOSInterface::SetGCThreadsAffinitySet(uintptr_t configAffi
     if (!configAffinitySet->IsEmpty())
     {
         // Update the process affinity set using the configured set
-        for (size_t i = 0; i < g_totalCpuCount; i++)
+        for (size_t i = 0; i < MAX_SUPPORTED_CPUS; i++)
         {
             if (g_processAffinitySet.Contains(i) && !configAffinitySet->Contains(i))
             {
@@ -1016,13 +995,11 @@ static size_t GetCurrentVirtualMemorySize()
 //  non zero if it has succeeded, GetVirtualMemoryMaxAddress() if not available
 size_t GCToOSInterface::GetVirtualMemoryLimit()
 {
-#ifdef RLIMIT_AS
     rlimit addressSpaceLimit;
     if ((getrlimit(RLIMIT_AS, &addressSpaceLimit) == 0) && (addressSpaceLimit.rlim_cur != RLIM_INFINITY))
     {
         return addressSpaceLimit.rlim_cur;
     }
-#endif // RLIMIT_AS
 
     // No virtual memory limit
     return GetVirtualMemoryMaxAddress();
@@ -1103,13 +1080,15 @@ uint64_t GetAvailablePhysicalMemory()
     sz = sizeof(free_count);
     sysctlbyname("vm.stats.vm.v_free_count", &free_count, &sz, NULL, 0);
 
-    available = (inactive_count + laundry_count + free_count) * minipal_getpagesize();
+    available = (inactive_count + laundry_count + free_count) * sysconf(_SC_PAGESIZE);
 #elif defined(__HAIKU__)
     system_info info;
     if (get_system_info(&info) == B_OK)
     {
         available = info.free_memory;
     }
+#elif defined(__EMSCRIPTEN__)
+    available = emscripten_get_heap_max() - emscripten_get_heap_size();
 #else // Linux
     static volatile bool tryReadMemInfo = true;
 
@@ -1159,7 +1138,7 @@ uint64_t GetAvailablePageFile()
     rc = sysctlnametomib("vm.swap_info", mib, &length);
     if (rc == 0)
     {
-        uint32_t pagesize = minipal_getpagesize();
+        int pagesize = getpagesize();
         // Aggregate the information for all swap files on the system
         for (mib[2] = 0; ; mib[2]++)
         {
@@ -1180,7 +1159,7 @@ uint64_t GetAvailablePageFile()
     struct anoninfo ai;
     if (swapctl(SC_AINFO, &ai) != -1)
     {
-        uint32_t pagesize = minipal_getpagesize();
+        int pagesize = getpagesize();
         available = ai.ani_free * pagesize;
     }
 #elif HAVE_SYSINFO
@@ -1277,6 +1256,31 @@ void GCToOSInterface::GetMemoryStatus(uint64_t restricted_limit, uint32_t* memor
         *available_page_file = GetAvailablePageFile();
 }
 
+// Get a high precision performance counter
+// Return:
+//  The counter value
+int64_t GCToOSInterface::QueryPerformanceCounter()
+{
+    return minipal_hires_ticks();
+}
+
+// Get a frequency of the high precision performance counter
+// Return:
+//  The counter frequency
+int64_t GCToOSInterface::QueryPerformanceFrequency()
+{
+    // The counter frequency of gettimeofday is in microseconds.
+    return minipal_hires_tick_frequency();
+}
+
+// Get a time stamp with a low precision
+// Return:
+//  Time stamp in milliseconds
+uint64_t GCToOSInterface::GetLowPrecisionTimeStamp()
+{
+    return (uint64_t)minipal_lowres_ticks();
+}
+
 // Gets the total number of processors on the machine, not taking
 // into account current process affinity.
 // Return:
@@ -1286,11 +1290,6 @@ uint32_t GCToOSInterface::GetTotalProcessorCount()
     // Calculated in GCToOSInterface::Initialize using
     // sysconf(_SC_NPROCESSORS_ONLN)
     return g_totalCpuCount;
-}
-
-uint32_t GCToOSInterface::GetMaxProcessorCount()
-{
-    return (uint32_t)g_processAffinitySet.MaxCpuCount();
 }
 
 bool GCToOSInterface::CanEnableGCNumaAware()
@@ -1315,23 +1314,21 @@ bool GCToOSInterface::GetProcessorForHeap(uint16_t heap_number, uint16_t* proc_n
     bool success = false;
 
     uint16_t availableProcNumber = 0;
-
-    size_t maxCpuCount = g_processAffinitySet.MaxCpuCount();
-    for (size_t procNumber = 0; procNumber < maxCpuCount; procNumber++)
+    for (size_t procNumber = 0; procNumber < MAX_SUPPORTED_CPUS; procNumber++)
     {
         if (g_processAffinitySet.Contains(procNumber))
         {
             if (availableProcNumber == heap_number)
             {
                 *proc_no = procNumber;
-#if defined(TARGET_LINUX) && !defined(TARGET_ANDROID)
+#ifdef TARGET_LINUX
                 if (GCToOSInterface::CanEnableGCNumaAware())
                 {
                     int result = GetNumaNodeNumByCpu(procNumber);
                     *node_no = (result >= 0) ? (uint16_t)result : NUMA_NODE_UNDEFINED;
                 }
                 else
-#endif // TARGET_LINUX && !TARGET_ANDROID
+#endif // TARGET_LINUX
                 {
                     *node_no = NUMA_NODE_UNDEFINED;
                 }

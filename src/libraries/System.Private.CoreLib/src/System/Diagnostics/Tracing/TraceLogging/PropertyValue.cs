@@ -21,65 +21,44 @@ namespace System.Diagnostics.Tracing
         [StructLayout(LayoutKind.Explicit)]
         public struct Scalar
         {
-            /// <safety>Should be normalized to 0/1</safety>
             [FieldOffset(0)]
-            public unsafe bool AsBoolean;
-
+            public bool AsBoolean;
             [FieldOffset(0)]
-            public safe byte AsByte;
-
+            public byte AsByte;
             [FieldOffset(0)]
-            public safe sbyte AsSByte;
-
+            public sbyte AsSByte;
             [FieldOffset(0)]
-            public safe char AsChar;
-
+            public char AsChar;
             [FieldOffset(0)]
-            public safe short AsInt16;
-
+            public short AsInt16;
             [FieldOffset(0)]
-            public safe ushort AsUInt16;
-
+            public ushort AsUInt16;
             [FieldOffset(0)]
-            public safe int AsInt32;
-
+            public int AsInt32;
             [FieldOffset(0)]
-            public safe uint AsUInt32;
-
+            public uint AsUInt32;
             [FieldOffset(0)]
-            public safe long AsInt64;
-
+            public long AsInt64;
             [FieldOffset(0)]
-            public safe ulong AsUInt64;
-
+            public ulong AsUInt64;
             [FieldOffset(0)]
-            public safe IntPtr AsIntPtr;
-
+            public IntPtr AsIntPtr;
             [FieldOffset(0)]
-            public safe UIntPtr AsUIntPtr;
-
+            public UIntPtr AsUIntPtr;
             [FieldOffset(0)]
-            public safe float AsSingle;
-
+            public float AsSingle;
             [FieldOffset(0)]
-            public safe double AsDouble;
-
+            public double AsDouble;
             [FieldOffset(0)]
-            public safe Guid AsGuid;
-
+            public Guid AsGuid;
             [FieldOffset(0)]
-            public safe DateTime AsDateTime;
-
-            /// <safety>DateTimeOffset may expose its paddings via other union members</safety>
+            public DateTime AsDateTime;
             [FieldOffset(0)]
-            public unsafe DateTimeOffset AsDateTimeOffset;
-
+            public DateTimeOffset AsDateTimeOffset;
             [FieldOffset(0)]
-            public safe TimeSpan AsTimeSpan;
-
-            /// <safety>Should not be initialized via other union members</safety>
+            public TimeSpan AsTimeSpan;
             [FieldOffset(0)]
-            public unsafe decimal AsDecimal;
+            public decimal AsDecimal;
         }
 
         // Anything not covered by the Scalar union gets stored in this reference.

@@ -267,8 +267,10 @@ private:
 
         SegmentList segments(dstLayout->GetNonPadding(m_compiler));
 
-        for (const Entry& entry : m_entries.BottomUpOrder())
+        for (int i = 0; i < m_entries.Height(); i++)
         {
+            const Entry& entry = m_entries.BottomRef(i);
+
             segments.Subtract(SegmentList::Segment(entry.Offset, entry.Offset + genTypeSize(entry.Type)));
         }
 
@@ -424,8 +426,10 @@ private:
         assert((agg != nullptr) && (agg->Replacements.size() > 0));
         Replacement* firstRep = agg->Replacements.data();
 
-        for (const Entry& entry : m_entries.BottomUpOrder())
+        for (int i = 0; i < m_entries.Height(); i++)
         {
+            const Entry& entry = m_entries.BottomRef(i);
+
             assert(entry.ToReplacement != nullptr);
             assert((entry.ToReplacement >= firstRep) && (entry.ToReplacement < firstRep + agg->Replacements.size()));
             size_t replacementIndex = entry.ToReplacement - firstRep;
@@ -513,8 +517,9 @@ private:
         if ((remainderStrategy.Type == RemainderStrategy::FullBlock) && m_store->OperIs(GT_STORE_BLK) &&
             m_store->AsBlk()->GetLayout()->HasGCPtr())
         {
-            for (const Entry& entry : m_entries.BottomUpOrder())
+            for (int i = 0; i < m_entries.Height(); i++)
             {
+                const Entry& entry = m_entries.BottomRef(i);
                 if ((entry.FromReplacement != nullptr) && (entry.Type == TYP_REF))
                 {
                     Replacement* rep = entry.FromReplacement;
@@ -568,9 +573,9 @@ private:
 
         if (addr != nullptr)
         {
-            for (const Entry& entry : m_entries.BottomUpOrder())
+            for (int i = 0; i < m_entries.Height(); i++)
             {
-                if (!CanSkipEntry(entry, dstDeaths, remainderStrategy))
+                if (!CanSkipEntry(m_entries.BottomRef(i), dstDeaths, remainderStrategy))
                 {
                     numAddrUses++;
                 }
@@ -591,12 +596,13 @@ private:
                 {
                     needsNullCheck = true;
                     // See if our first indirection will subsume the null check (usual case).
-                    for (const Entry& entry : m_entries.BottomUpOrder())
+                    for (int i = 0; i < m_entries.Height(); i++)
                     {
-                        if (CanSkipEntry(entry, dstDeaths, remainderStrategy))
+                        if (CanSkipEntry(m_entries.BottomRef(i), dstDeaths, remainderStrategy))
                         {
                             continue;
                         }
+                        const Entry& entry = m_entries.BottomRef(i);
                         assert((entry.FromReplacement == nullptr) || (entry.ToReplacement == nullptr));
                         needsNullCheck = m_compiler->fgIsBigOffset(entry.Offset);
                         break;
@@ -693,8 +699,10 @@ private:
             srcDeaths = m_liveness->GetDeathsForStructLocal(m_src->AsLclVarCommon());
         }
 
-        for (const Entry& entry : m_entries.BottomUpOrder())
+        for (int i = 0; i < m_entries.Height(); i++)
         {
+            const Entry& entry = m_entries.BottomRef(i);
+
             if (entry.ToReplacement != nullptr)
             {
                 m_replacer->ClearNeedsReadBack(*entry.ToReplacement);
@@ -871,8 +879,9 @@ private:
             }
 
             // It could also be one of the replacement locals we're going to write.
-            for (const Entry& entry : m_entries.BottomUpOrder())
+            for (int i = 0; i < m_entries.Height(); i++)
             {
+                const Entry& entry = m_entries.BottomRef(i);
                 if ((entry.ToReplacement != nullptr) && (entry.ToReplacement->LclNum == lclNum))
                 {
                     return false;
@@ -919,8 +928,9 @@ private:
             case RemainderStrategy::FullBlock:
                 return true;
             case RemainderStrategy::Primitive:
-                for (const Entry& entry : m_entries.BottomUpOrder())
+                for (int i = 0; i < m_entries.Height(); i++)
                 {
+                    const Entry& entry = m_entries.BottomRef(i);
                     if (entry.Offset + genTypeSize(entry.Type) <= remainderStrategy.PrimitiveOffset)
                     {
                         // Entry ends before remainder starts
@@ -1125,7 +1135,7 @@ private:
             if ((fullOffs != 0) || (m_addrBaseOffsFldSeq != nullptr))
             {
                 GenTreeIntCon* offsetNode = comp->gtNewIconNode(fullOffs, TYP_I_IMPL);
-                offsetNode->SetFieldSeq(m_addrBaseOffsFldSeq);
+                offsetNode->gtFieldSeq    = m_addrBaseOffsFldSeq;
 
                 var_types addrType = varTypeIsGC(addrUse) ? TYP_BYREF : TYP_I_IMPL;
                 addrUse            = comp->gtNewOperNode(GT_ADD, addrType, addrUse, offsetNode);
@@ -1159,19 +1169,12 @@ private:
         //
         GenTreeFlags GetIndirFlags(var_types type)
         {
-            GenTreeFlags flags = m_indirFlags;
-            if (!varTypeIsGC(type))
-            {
-                // These accesses are pieces of a whole struct copy, so they do not need to be atomic.
-                flags |= GTF_IND_ALLOW_NON_ATOMIC;
-            }
-
             if (genTypeSize(type) == 1)
             {
-                flags &= ~GTF_IND_UNALIGNED;
+                return m_indirFlags & ~GTF_IND_UNALIGNED;
             }
 
-            return flags;
+            return m_indirFlags;
         }
     };
 
@@ -1264,7 +1267,7 @@ void Compiler::gtPeelOffsets(GenTree** addr, target_ssize_t* offset, FieldSeq** 
 
                 if (fldSeq != nullptr)
                 {
-                    *fldSeq = m_fieldSeqStore->Append(*fldSeq, intCon->GetFieldSeq());
+                    *fldSeq = m_fieldSeqStore->Append(*fldSeq, intCon->gtFieldSeq);
                 }
 
                 *addr = op1;
@@ -1276,7 +1279,7 @@ void Compiler::gtPeelOffsets(GenTree** addr, target_ssize_t* offset, FieldSeq** 
 
                 if (fldSeq != nullptr)
                 {
-                    *fldSeq = m_fieldSeqStore->Append(intCon->GetFieldSeq(), *fldSeq);
+                    *fldSeq = m_fieldSeqStore->Append(intCon->gtFieldSeq, *fldSeq);
                 }
 
                 *addr = op2;
@@ -1302,44 +1305,6 @@ void Compiler::gtPeelOffsets(GenTree** addr, target_ssize_t* offset, FieldSeq** 
             break;
         }
     }
-}
-
-//------------------------------------------------------------------------
-// gtPeelFieldAddrs: Peel any chain of instance GT_FIELD_ADDR nodes off the
-// specified address and return the underlying base node.
-//
-// Arguments:
-//   addr - The address node.
-//
-// Returns:
-//   The first node along the chain that is not an instance GT_FIELD_ADDR.
-//   For example, given FIELD_ADDR(FIELD_ADDR(LCL_VAR this, a), b), returns
-//   the LCL_VAR.
-//
-// Remarks:
-//   Static field addresses (where `IsInstance()` is false) are not peeled,
-//   since they carry a runtime helper call rather than a simple
-//   constant-offset addend.
-//
-GenTree* Compiler::gtPeelFieldAddrs(GenTree* addr) const
-{
-    while (addr->OperIs(GT_FIELD_ADDR) && addr->AsFieldAddr()->IsInstance())
-    {
-        addr = addr->AsFieldAddr()->GetFldObj();
-    }
-    return addr;
-}
-
-//------------------------------------------------------------------------
-// gtPeelFieldAddrs (const overload): see the non-const variant above.
-//
-// GenTreeFieldAddr::GetFldObj() returns a mutable GenTree* even from a const
-// receiver, so we localize the const_cast here rather than asking every
-// const-correct caller to perform one at the use site.
-//
-const GenTree* Compiler::gtPeelFieldAddrs(const GenTree* addr) const
-{
-    return gtPeelFieldAddrs(const_cast<GenTree*>(addr));
 }
 
 // HandleStructStore:

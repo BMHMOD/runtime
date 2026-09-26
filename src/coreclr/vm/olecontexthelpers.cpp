@@ -30,13 +30,14 @@ HRESULT GetCurrentObjCtx(IUnknown **ppObjCtx)
 // LPVOID SetupOleContext()
 LPVOID SetupOleContext()
 {
-    CONTRACTL
+    CONTRACT (LPVOID)
     {
         NOTHROW;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     IUnknown* pObjCtx = NULL;
 
@@ -62,25 +63,26 @@ LPVOID SetupOleContext()
     }
 #endif // FEATURE_COMINTEROP
 
-    return pObjCtx;
+    RETURN pObjCtx;
 }
 
 //================================================================
 // LPVOID GetCurrentCtxCookie()
 LPVOID GetCurrentCtxCookie()
 {
-    CONTRACTL
+    CONTRACT (LPVOID)
     {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
 #ifdef FEATURE_COMINTEROP
     // check if com is started
     if (!g_fComStarted)
-        return NULL;
+        RETURN NULL;
 #endif // FEATURE_COMINTEROP
 
     ULONG_PTR ctxptr = 0;
@@ -88,7 +90,7 @@ LPVOID GetCurrentCtxCookie()
     if (CoGetContextToken(&ctxptr) != S_OK)
         ctxptr = 0;
 
-    return (LPVOID)ctxptr;
+    RETURN (LPVOID)ctxptr;
 }
 
 //+-------------------------------------------------------------------------
@@ -113,7 +115,7 @@ HRESULT GetCurrentThreadTypeNT5(THDTYPE* pType)
     {
         GCX_PREEMP();
 
-        ReleaseHolder<IComThreadingInfo> pThreadInfo;
+        SafeComHolderPreemp<IComThreadingInfo> pThreadInfo;
         hr = SafeQueryInterface(pObjCurrCtx, IID_IComThreadingInfo, (IUnknown **)&pThreadInfo);
         if(hr == S_OK)
         {
@@ -144,7 +146,7 @@ HRESULT GetCurrentApartmentTypeNT5(IObjectContext *pObjCurrCtx, APTTYPE* pType)
     {
         GCX_PREEMP();
 
-        ReleaseHolder<IComThreadingInfo> pThreadInfo;
+        SafeComHolderPreemp<IComThreadingInfo> pThreadInfo;
         hr = SafeQueryInterface(pObjCurrCtx, IID_IComThreadingInfo, (IUnknown **)&pThreadInfo);
         if(hr == S_OK)
         {
@@ -156,3 +158,4 @@ HRESULT GetCurrentApartmentTypeNT5(IObjectContext *pObjCurrCtx, APTTYPE* pType)
 }
 
 #endif // FEATURE_COMINTEROP_APARTMENT_SUPPORT
+

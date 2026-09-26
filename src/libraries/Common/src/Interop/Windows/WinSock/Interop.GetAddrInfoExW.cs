@@ -17,7 +17,6 @@ internal static partial class Interop
 
         internal const int NS_ALL = 0;
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Ws2_32, SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
         internal static unsafe partial int GetAddrInfoExW(
             string pName,
@@ -31,11 +30,9 @@ internal static partial class Interop
             delegate* unmanaged<int, int, NativeOverlapped*, void> lpCompletionRoutine,
             IntPtr* lpNameHandle);
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Ws2_32)]
         internal static unsafe partial int GetAddrInfoExCancel(IntPtr* lpHandle);
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Ws2_32)]
         internal static unsafe partial void FreeAddrInfoExW(AddressInfoEx* pAddrInfo);
 

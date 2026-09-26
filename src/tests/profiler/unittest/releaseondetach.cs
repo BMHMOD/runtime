@@ -23,13 +23,13 @@ namespace Profiler.Tests
             {
                 profilerName = "Profiler.dll";
             }
-            else if (TestLibrary.Utilities.IsMacOSX)
+            else if ((TestLibrary.Utilities.IsLinux) || (TestLibrary.Utilities.IsFreeBSD))
             {
-                profilerName = "libProfiler.dylib";
+                profilerName = "libProfiler.so";
             }
             else
             {
-                profilerName = "libProfiler.so";
+                profilerName = "libProfiler.dylib";
             }
 
             string rootPath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);

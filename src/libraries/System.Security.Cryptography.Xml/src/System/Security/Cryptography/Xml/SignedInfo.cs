@@ -255,7 +255,7 @@ namespace System.Security.Cryptography.Xml
             XmlNodeList? referenceNodes = signedInfoElement.SelectNodes("ds:Reference", nsm);
             if (referenceNodes != null)
             {
-                if (referenceNodes.Count > LocalAppContextSwitches.MaxReferencesPerSignedInfo)
+                if (referenceNodes.Count > Utils.MaxReferencesPerSignedInfo)
                 {
                     throw new CryptographicException(SR.Cryptography_Xml_InvalidElement, "SignedInfo/Reference");
                 }

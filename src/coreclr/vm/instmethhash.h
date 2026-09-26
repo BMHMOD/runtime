@@ -17,7 +17,7 @@
 #include "cdacdata.h"
 
 class AllocMemTracker;
-enum class AsyncVariantLookup;
+
 //========================================================================================
 // The hash table types defined in this header file are used by the loader to
 // look up instantiation-specific methods:
@@ -111,7 +111,7 @@ public:
                                BOOL unboxingStub,
                                Instantiation inst,
                                BOOL getSharedNotStub,
-                               AsyncVariantLookup variantLookup);
+                               bool isAsyncVariant);
 
     BOOL ContainsMethodDesc(MethodDesc* pMD);
 

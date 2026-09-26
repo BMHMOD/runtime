@@ -48,7 +48,7 @@ namespace SampleSynthesisTests
             return true;
         }
 
-        [ConditionalFact(typeof(SpeechRecognizerTests), nameof(RecognizerInstalledAndEnabled))]
+        [ConditionalFact(nameof(RecognizerInstalledAndEnabled))]
         [OuterLoop] // Pops UI
         public static void SpeechRecognizer()
         {

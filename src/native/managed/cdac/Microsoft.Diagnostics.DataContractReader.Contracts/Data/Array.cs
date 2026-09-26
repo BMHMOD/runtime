@@ -3,12 +3,17 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.Array))]
-internal sealed partial class Array : IData<Array>
+internal sealed class Array : IData<Array>
 {
-    [Field("m_NumComponents")]
-    public partial uint NumComponents { get; }
+    static Array IData<Array>.Create(Target target, TargetPointer address)
+        => new Array(target, address);
 
-    [InstanceDataStart]
-    public partial TargetPointer DataPointer { get; }
+    public Array(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.Array);
+
+        NumComponents = target.Read<uint>(address + (ulong)type.Fields[Constants.FieldNames.Array.NumComponents].Offset);
+    }
+
+    public uint NumComponents { get; init; }
 }

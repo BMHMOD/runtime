@@ -3,7 +3,6 @@
 
 using System.Buffers;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -436,7 +435,7 @@ namespace System.Text
 
             if (bytes.Length == 0)
             {
-                return [];
+                return Array.Empty<char>();
             }
 
             // Since we're going to fill the entire char[] buffer, we could consider GC.AllocateUninitializedArray.

@@ -68,7 +68,6 @@ namespace JitTest.HFA
         }
 
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

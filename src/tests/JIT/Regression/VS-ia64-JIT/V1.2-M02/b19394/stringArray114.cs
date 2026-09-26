@@ -5,13 +5,12 @@
 using System;
 using Xunit;
 
-namespace b19394
+namespace test
 {
 
     public class LargeArray114
     {
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

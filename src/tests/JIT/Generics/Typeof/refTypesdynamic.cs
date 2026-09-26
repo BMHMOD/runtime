@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-namespace JitTest_Generics_Typeof_refTypesdynamic;
-
 /* Cases for some shared generics (generics instantiated over reference types, both sealed and unsealed). 
  */
 
@@ -472,7 +470,6 @@ public class mainMethod
         Console.WriteLine("-----------{0}", i++);
     }
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

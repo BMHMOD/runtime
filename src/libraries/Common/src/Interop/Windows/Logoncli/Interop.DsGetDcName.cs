@@ -8,7 +8,6 @@ internal static partial class Interop
 {
     internal static partial class Logoncli
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Logoncli, EntryPoint = "DsGetDcNameW", StringMarshalling = StringMarshalling.Utf16)]
         internal static partial int DsGetDcName(
             string computerName,

@@ -6,7 +6,6 @@ using System;
 using System.IO;
 using System.Threading;
 using Xunit;
-using TestLibrary;
 
 // Test Description:
 // Just basic heavy reading and writing from ThreadStatic members in normal threads and threadpools threads as well.
@@ -48,7 +47,7 @@ public class Sensor
 	[ThreadStatic]
 	static String SSS = "Olden Polynice";
 
-	[ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+	[Fact]
 	public static int TestEntryPoint()
 	{
 		Console.WriteLine("Hello NBA Fans!!");

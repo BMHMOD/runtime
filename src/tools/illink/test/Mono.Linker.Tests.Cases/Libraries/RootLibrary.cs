@@ -15,7 +15,7 @@ namespace Mono.Linker.Tests.Cases.Libraries
     [KeptAttributeAttribute(typeof(IgnoreTestCaseAttribute), By = Tool.Trimmer)]
     [SetupCompileBefore("copylibrary.dll", new[] { "Dependencies/CopyLibrary.cs" })]
     [SetupLinkerAction("copy", "copylibrary")]
-    [SetupLinkerArgument("-a", "test", "library")]
+    [SetupLinkerArgument("-a", "test.exe", "library")]
     [SetupLinkerArgument("--enable-opt", "ipconstprop")]
     [VerifyMetadataNames]
     [SetupLinkerArgument("--feature", "Mono.Linker.Tests.Cases.Libraries.RootLibrary.FeatureGuardSubstitutionsTest.FeatureSwitch", "false")]

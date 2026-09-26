@@ -4,13 +4,11 @@
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 namespace GenericDimValuetypeBug
 {
     public class Program
     {
-        [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
         [Fact]
         public static int TestEntryPoint()
         {

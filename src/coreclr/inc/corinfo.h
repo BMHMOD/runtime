@@ -55,6 +55,13 @@ method or field of the class. 'beforeFieldInit' semantics guarantees only that t
 time before the first static field access (note that calling methods (static or instance) or accessing
 instance fields does not cause .cctors to be run).
 
+Next you need to know that there are two kinds of code generation that can happen in the JIT: appdomain
+neutral and appdomain specialized. The difference between these two kinds of code is how statics are handled.
+For appdomain specific code, the address of a particular static variable is embedded in the code. This makes
+it usable only for one appdomain (since every appdomain gets a own copy of its statics). Appdomain neutral
+code calls a helper that looks up static variables off of a thread local variable. Thus the same code can be
+used by multiple appdomains in the same process.
+
 Generics also introduce a similar issue. Code for generic classes might be specialized for a particular set
 of type arguments, or it could use helpers to access data that depends on type parameters and thus be shared
 across several instantiations of the generic type.
@@ -360,6 +367,8 @@ enum CorInfoHelpFunc
     CORINFO_HELP_NEWARR_1_VC,       // optimized 1-D value class arrays
     CORINFO_HELP_NEWARR_1_ALIGN8,   // like VC, but aligns the array start
 
+    CORINFO_HELP_STRCNS,            // create a new string literal
+
     /* Object model */
 
     CORINFO_HELP_INITCLASS,         // Initialize class if not already initialized
@@ -410,6 +419,8 @@ enum CorInfoHelpFunc
     CORINFO_HELP_FIELD_ACCESS_EXCEPTION,
     CORINFO_HELP_CLASS_ACCESS_EXCEPTION,
 
+    CORINFO_HELP_ENDCATCH,          // call back into the EE at the end of a catch block
+
     /* Synchronization */
 
     CORINFO_HELP_MON_ENTER,
@@ -429,7 +440,9 @@ enum CorInfoHelpFunc
 
     CORINFO_HELP_ASSIGN_REF,        // universal helpers with F_CALL_CONV calling convention
     CORINFO_HELP_CHECKED_ASSIGN_REF,
+    CORINFO_HELP_ASSIGN_REF_ENSURE_NONHEAP,  // Do the store, and ensure that the target was not in the heap.
 
+    CORINFO_HELP_ASSIGN_BYREF,
     CORINFO_HELP_BULK_WRITEBARRIER,
 
     /* Accessing fields */
@@ -468,7 +481,6 @@ enum CorInfoHelpFunc
     CORINFO_HELP_GETDYNAMIC_NONGCTHREADSTATIC_BASE_NOCTOR_OPTIMIZED,
     CORINFO_HELP_GETDYNAMIC_NONGCTHREADSTATIC_BASE_NOCTOR_OPTIMIZED2,
     CORINFO_HELP_GETDYNAMIC_NONGCTHREADSTATIC_BASE_NOCTOR_OPTIMIZED2_NOJITOPT,
-    CORINFO_HELP_GETDIRECTONTHREADLOCALDATA_NONGCTHREADSTATIC_BASE,
 
     /* Debugger */
 
@@ -481,6 +493,7 @@ enum CorInfoHelpFunc
 
     /* Miscellaneous */
 
+    CORINFO_HELP_PINVOKE_CALLI,         // Indirect pinvoke call
     CORINFO_HELP_TAILCALL,              // Perform a tail call
 
     CORINFO_HELP_GETCURRENTMANAGEDTHREADID,
@@ -497,9 +510,11 @@ enum CorInfoHelpFunc
     CORINFO_HELP_RUNTIMEHANDLE_CLASS,           // determine a type/field/method handle at run-time
 
     CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE, // Convert from a TypeHandle (native structure pointer) to RuntimeType at run-time
+    CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE_MAYBENULL, // Convert from a TypeHandle (native structure pointer) to RuntimeType at run-time, the type may be null
     CORINFO_HELP_METHODDESC_TO_STUBRUNTIMEMETHOD, // Convert from a MethodDesc (native structure pointer) to RuntimeMethodHandle at run-time
     CORINFO_HELP_FIELDDESC_TO_STUBRUNTIMEFIELD, // Convert from a FieldDesc (native structure pointer) to RuntimeFieldHandle at run-time
     CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE, // Convert from a TypeHandle (native structure pointer) to RuntimeTypeHandle at run-time
+    CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE_MAYBENULL, // Convert from a TypeHandle (native structure pointer) to RuntimeTypeHandle at run-time, handle might point to a null type
 
     CORINFO_HELP_VIRTUAL_FUNC_PTR,      // look up a virtual method at run-time
 
@@ -559,9 +574,7 @@ enum CorInfoHelpFunc
     CORINFO_HELP_JIT_REVERSE_PINVOKE_EXIT,  // Transition to preemptive mode in reverse P/Invoke epilog, frame is the first argument
     CORINFO_HELP_JIT_REVERSE_PINVOKE_EXIT_TRACK_TRANSITIONS, // Transition to preemptive mode and track transitions in reverse P/Invoke prolog.
 
-    CORINFO_HELP_GVMLOOKUP_FOR_SLOT,        // Resolve a generic virtual method target from this pointer and dispatch cell
-    CORINFO_HELP_INTERFACEDISPATCH_FOR_SLOT,  // Dispatch a non-generic interface method from this pointer and dispatch cell
-    CORINFO_HELP_INTERFACELOOKUP_FOR_SLOT,  // Resolve a non-generic interface method from this pointer and dispatch cell
+    CORINFO_HELP_GVMLOOKUP_FOR_SLOT,        // Resolve a generic virtual method target from this pointer and runtime method handle
 
     CORINFO_HELP_STACK_PROBE,               // Probes each page of the allocated stack frame
 
@@ -582,7 +595,6 @@ enum CorInfoHelpFunc
     CORINFO_HELP_VALIDATE_INDIRECT_CALL,    // CFG: Validate function pointer
     CORINFO_HELP_DISPATCH_INDIRECT_CALL,    // CFG: Validate and dispatch to pointer
 
-    // Helpers for runtime async (see System.Runtime.CompilerServices.AsyncHelpers)
     CORINFO_HELP_ALLOC_CONTINUATION,
     CORINFO_HELP_ALLOC_CONTINUATION_METHOD,
     CORINFO_HELP_ALLOC_CONTINUATION_CLASS,
@@ -609,31 +621,28 @@ enum CorInfoType
     CORINFO_TYPE_NATIVEUINT      = 0xd,
     CORINFO_TYPE_FLOAT           = 0xe,
     CORINFO_TYPE_DOUBLE          = 0xf,
-    CORINFO_TYPE_PTR             = 0x10,
-    CORINFO_TYPE_BYREF           = 0x11,
-    CORINFO_TYPE_VALUECLASS      = 0x12,
-    CORINFO_TYPE_CLASS           = 0x13,
+    CORINFO_TYPE_STRING          = 0x10,         // Not used, should remove
+    CORINFO_TYPE_PTR             = 0x11,
+    CORINFO_TYPE_BYREF           = 0x12,
+    CORINFO_TYPE_VALUECLASS      = 0x13,
+    CORINFO_TYPE_CLASS           = 0x14,
+    CORINFO_TYPE_REFANY          = 0x15,
 
+    // CORINFO_TYPE_VAR is for a generic type variable.
+    // Generic type variables only appear when the JIT is doing
+    // verification (not NOT compilation) of generic code
+    // for the EE, in which case we're running
+    // the JIT in "import only" mode.
+
+    CORINFO_TYPE_VAR             = 0x16,
     CORINFO_TYPE_COUNT,                         // number of jit types
-};
-
-// Used by Wasm RyuJIT to represent native WebAssembly types and exchanged via some JIT-EE APIs
-enum CorInfoWasmType
-{
-    CORINFO_WASM_TYPE_VOID = 0x40,
-    CORINFO_WASM_TYPE_V128 = 0x7B,
-    CORINFO_WASM_TYPE_F64  = 0x7C,
-    CORINFO_WASM_TYPE_F32  = 0x7D,
-    CORINFO_WASM_TYPE_I64  = 0x7E,
-    CORINFO_WASM_TYPE_I32  = 0x7F,
 };
 
 enum CorInfoTypeWithMod
 {
-    CORINFO_TYPE_MASK                     = 0x3F,  // lower 6 bits are type mask
-    CORINFO_TYPE_MOD_PINNED               = 0x40,  // can be applied to CLASS, or BYREF to indicate pinned
-    CORINFO_TYPE_MOD_COPY_WITH_HELPER     = 0x80,  // can be applied to VALUECLASS to indicate 'needs helper to copy'
-    CORINFO_TYPE_MOD_SECRET_STUB_ARGUMENT = 0x100, // can be applied to NATIVEINT to indicate the secret stub argument
+    CORINFO_TYPE_MASK            = 0x3F,        // lower 6 bits are type mask
+    CORINFO_TYPE_MOD_PINNED      = 0x40,        // can be applied to CLASS, or BYREF to indicate pinned
+    CORINFO_TYPE_MOD_COPY_WITH_HELPER = 0x80    // can be applied to VALUECLASS to indicate 'needs helper to copy'
 };
 
 inline CorInfoType strip(CorInfoTypeWithMod val) {
@@ -664,8 +673,7 @@ enum CorInfoCallConv
     CORINFO_CALLCONV_HASTHIS    = 0x20,
     CORINFO_CALLCONV_EXPLICITTHIS=0x40,
     CORINFO_CALLCONV_PARAMTYPE  = 0x80,     // Passed last. Same as CORINFO_GENERICS_CTXT_FROM_PARAMTYPEARG
-    CORINFO_CALLCONV_ASYNCCALL  = 0x100,    // Is this a call with async calling convention?
-
+    CORINFO_CALLCONV_ASYNCCALL  = 0x100,    // Is this a call to an async function?
 };
 
 // Represents the calling conventions supported with the extensible calling convention syntax
@@ -713,8 +721,6 @@ enum CorInfoOptions
                                                CORINFO_GENERICS_CTXT_FROM_METHODDESC |
                                                CORINFO_GENERICS_CTXT_FROM_METHODTABLE),
     CORINFO_GENERICS_CTXT_KEEP_ALIVE        = 0x00000100, // Keep the generics context alive throughout the method even if there is no explicit use, and report its location to the CLR
-    CORINFO_ASYNC_SAVE_CONTEXTS             = 0x00000200, // Runtime async method must save and restore contexts
-    CORINFO_ASYNC_VERSION                   = 0x00000400, // This is an async version whose IL belongs to a non-async method
 };
 
 //
@@ -801,7 +807,6 @@ enum CORINFO_ACCESS_FLAGS
     CORINFO_ACCESS_NONNULL    = 0x0004, // Instance is guaranteed non-null
 
     CORINFO_ACCESS_LDFTN      = 0x0010, // Accessed via ldftn
-    CORINFO_ACCESS_UNMANAGED_CALLER_MAYBE = 0x0020, // Method might be attributed with UnmanagedCallersOnlyAttribute.
 
     // Field access flags
     CORINFO_ACCESS_GET        = 0x0100, // Field get (ldfld)
@@ -844,80 +849,6 @@ enum InfoAccessType
     IAT_RELPVALUE   // The value needs to be accessed via a relative indirection
 };
 
-enum class CorInfoReloc
-{
-    NONE,
-
-    // General relocation types
-    DIRECT,                                // Direct/absolute pointer sized address
-    RELATIVE32,                            // 32-bit relative address from byte following reloc
-
-    // Arm64 relocs
-    ARM64_BRANCH26,                        // Arm64: B, BL
-    ARM64_PAGEBASE_REL21,                  // ADRP
-    ARM64_PAGEOFFSET_12A,                  // ADD/ADDS (immediate) with zero shift, for page offset
-    ARM64_PAGEOFFSET_12L,                  // LDR (indexed, unsigned immediate), for page offset
-    // Linux arm64
-    ARM64_LIN_TLSDESC_ADR_PAGE21,
-    ARM64_LIN_TLSDESC_LD64_LO12,
-    ARM64_LIN_TLSDESC_ADD_LO12,
-    ARM64_LIN_TLSDESC_CALL,
-    // Windows arm64
-    ARM64_WIN_TLS_SECREL_HIGH12A,          // ADD high 12-bit offset for tls
-    ARM64_WIN_TLS_SECREL_LOW12A,           // ADD low 12-bit offset for tls
-
-    // Windows x64
-    AMD64_WIN_SECREL,
-
-    // Linux x64
-    // GD model
-    AMD64_LIN_TLSGD,
-
-    // Arm32 relocs
-    ARM32_THUMB_BRANCH24,                  // Thumb2: B, BL
-    ARM32_THUMB_MOV32,                     // Thumb2: MOVW/MOVT
-    // The identifier for ARM32-specific PC-relative address
-    // computation corresponds to the following instruction
-    // sequence:
-    //  l0: movw rX, #imm_lo  // 4 byte
-    //  l4: movt rX, #imm_hi  // 4 byte
-    //  l8: add  rX, pc <- after this instruction rX = relocTarget
-    //
-    // Program counter at l8 is address of l8 + 4
-    // Address of relocated movw/movt is l0
-    // So, imm should be calculated as the following:
-    //  imm = relocTarget - (l8 + 4) = relocTarget - (l0 + 8 + 4) = relocTarget - (l_0 + 12)
-    // So, the value of offset correction is 12
-    ARM32_THUMB_MOV32_PCREL,               // Thumb2: MOVW/MOVT
-
-    // LoongArch64 relocs
-    LOONGARCH64_PC,                        // LoongArch64: pcalau12i+imm12
-    LOONGARCH64_JIR,                       // LoongArch64: pcaddu18i+jirl
-
-    // RISCV64 relocs
-    RISCV64_CALL_PLT,                      // RiscV64: auipc + jalr
-    RISCV64_PCREL_I,                       // RiscV64: auipc + I-type
-    RISCV64_PCREL_S,                       // RiscV64: auipc + S-type
-
-    // Wasm relocs
-    WASM_FUNCTION_INDEX_LEB,             // Wasm: a function index encoded as a 5-byte varuint32. Used for the immediate argument of a call instruction.
-    WASM_TABLE_INDEX_SLEB,               // Wasm: a function table index encoded as a 5-byte varint32. Used to refer to the immediate argument of a
-                                           //  i32.const instruction, e.g. taking the address of a function.
-    WASM_TABLE_INDEX_I32,                // Wasm: a function table index stored as a 4-byte little-endian uint32 in the data section,
-                                           //  e.g. recording a function reference in a JIT-emitted constant pool entry.
-    WASM_MEMORY_ADDR_LEB,                // Wasm: a linear memory index encoded as a 5-byte varuint32. Used for the immediate argument of a load or store instruction,
-                                           //  e.g. directly loading from or storing to a C++ global.
-    WASM_MEMORY_ADDR_SLEB,               // Wasm: a linear memory index encoded as a 5-byte varint32. Used for the immediate argument of a i32.const instruction,
-                                           //  e.g. taking the address of a C++ global.
-    WASM_MEMORY_ADDR_REL_SLEB,          // Wasm: a relative linear memory index encoded as a 5-byte varint32. Used as the immediate argument of an i32.const instruction,
-                                           // e.g. in R2R scenarios as an offset from __image_base
-    WASM_TYPE_INDEX_LEB,                 // Wasm: a type index encoded as a 5-byte varuint32, e.g. the type immediate in a call_indirect.
-    WASM_GLOBAL_INDEX_LEB,               // Wasm: a global index encoded as a 5-byte varuint32, e.g. the index immediate in a get_global.
-    WASM_MEMORY_ADDR_REL_LEB,            // Wasm: a relative linear memory index encoded as a 5-byte varuint32. Used as the immediate argument of a load or store instruction,
-                                           // e.g. in R2R scenarios as an offset from __image_base
-    WASM_CLR_RESTORE_CONTEXT_EXCEPTION_TAG_LEB, // Wasm: an exception tag index encoded as a 5-byte varuint32. Used to refer to the CoreCLR restore context exception tag.
-};
-
 enum CorInfoGCType
 {
     TYPE_GC_NONE,   // no embedded objectrefs
@@ -936,7 +867,6 @@ enum CorInfoClassId
     CLASSID_STRING,
     CLASSID_ARGUMENT_HANDLE,
     CLASSID_RUNTIME_TYPE,
-    CLASSID_NUMERICS_VECTORT,
 };
 
 enum CorInfoInline
@@ -997,8 +927,6 @@ typedef struct CORINFO_ARG_LIST_STRUCT_*    CORINFO_ARG_LIST_HANDLE;    // repre
 typedef struct CORINFO_JUST_MY_CODE_HANDLE_*CORINFO_JUST_MY_CODE_HANDLE;
 typedef struct CORINFO_PROFILING_STRUCT_*   CORINFO_PROFILING_HANDLE;   // a handle guaranteed to be unique per process
 typedef struct CORINFO_GENERIC_STRUCT_*     CORINFO_GENERIC_HANDLE;     // a generic handle (could be any of the above)
-typedef struct CORINFO_WASM_TYPE_SYMBOL_STRUCT_* CORINFO_WASM_TYPE_SYMBOL_HANDLE; // a handle for WASM type symbols
-typedef struct CORINFO_WASM_GLOBAL_SYMBOL_STRUCT_* CORINFO_WASM_GLOBAL_SYMBOL_HANDLE; // a handle for a WASM global symbol
 
 // what is actually passed on the varargs call
 typedef struct CORINFO_VarArgInfo *         CORINFO_VARARGS_HANDLE;
@@ -1146,6 +1074,7 @@ struct CORINFO_CONST_LOOKUP
     //     IAT_PVALUE    --> "addr" stores a pointer to a location which will hold the real handle
     //     IAT_RELPVALUE --> "addr" stores a relative pointer to a location which will hold the real handle
     //     IAT_PPVALUE   --> "addr" stores a double indirection to a location which will hold the real handle
+
     InfoAccessType              accessType;
     union
     {
@@ -1166,6 +1095,11 @@ struct CORINFO_LOOKUP_KIND
 {
     bool                        needsRuntimeLookup;
     CORINFO_RUNTIME_LOOKUP_KIND runtimeLookupKind;
+
+    // The 'runtimeLookupFlags' and 'runtimeLookupArgs' fields
+    // are just for internal VM / ZAP communication, not to be used by the JIT.
+    uint16_t                    runtimeLookupFlags;
+    void *                      runtimeLookupArgs;
 } ;
 
 
@@ -1186,12 +1120,11 @@ struct CORINFO_RUNTIME_LOOKUP
     // This is signature you must pass back to the runtime lookup helper
     void*                   signature;
 
-    // Here is the helper to call.
+    // Here is the helper you must call. It is one of CORINFO_HELP_RUNTIMEHANDLE_* helpers.
     CorInfoHelpFunc         helper;
 
     // Number of indirections to get there
-    // CORINFO_USEHELPER = don't know how to get it, so use helper function at run-time instead.
-    //                     For AOT the entry point of the helper is stored in helperEntryPoint.
+    // CORINFO_USEHELPER = don't know how to get it, so use helper function at run-time instead
     // CORINFO_USENULL = the context should be null because the callee doesn't actually use it
     // 0 = use the this pointer itself (e.g. token is C<!0> inside code in sealed class C)
     //     or method desc itself (e.g. token is method void M::mymeth<!!0>() inside code in M::mymeth)
@@ -1217,11 +1150,7 @@ struct CORINFO_RUNTIME_LOOKUP
     // 1 means that value stored at second offset (offsets[1]) from pointer is offset2, and the next pointer is
     // stored at pointer+offsets[1]+offset2.
     bool                indirectSecondOffset;
-
-    // Used for the helper call's entry point when indirections ==
-    // CORINFO_USEHELPER and this is an AOT compilation
-    CORINFO_CONST_LOOKUP helperEntryPoint;
-};
+} ;
 
 // Result of calling embedGenericHandle
 struct CORINFO_LOOKUP
@@ -1547,13 +1476,15 @@ struct CORINFO_CALL_INFO
     };
 
     CORINFO_CONST_LOOKUP    instParamLookup;
+
+    bool                    wrapperDelegateInvoke;
 };
 
 enum CORINFO_DEVIRTUALIZATION_DETAIL
 {
     CORINFO_DEVIRTUALIZATION_UNKNOWN,                              // no details available
     CORINFO_DEVIRTUALIZATION_SUCCESS,                              // devirtualization was successful
-    CORINFO_DEVIRTUALIZATION_FAILED_CANON,                         // object class or method was canonical
+    CORINFO_DEVIRTUALIZATION_FAILED_CANON,                         // object class was canonical
     CORINFO_DEVIRTUALIZATION_FAILED_COM,                           // object class was com
     CORINFO_DEVIRTUALIZATION_FAILED_CAST,                          // object class could not be cast to interface class
     CORINFO_DEVIRTUALIZATION_FAILED_LOOKUP,                        // interface method could not be found
@@ -1586,22 +1517,21 @@ struct CORINFO_DEVIRTUALIZATION_INFO
     // [Out] results of resolveVirtualMethod.
     // - devirtualizedMethod is set to MethodDesc of devirt'ed method iff we were able to devirtualize.
     //      invariant is `resolveVirtualMethod(...) == (devirtualizedMethod != nullptr)`.
-    // - tokenLookupContext is set to the wrapped context handle to use for token lookups and the instantiation
-    //   parameter after devirtualization.
+    // - exactContext is set to wrapped CORINFO_CLASS_HANDLE of devirt'ed method table.
     // - details on the computation done by the jit host
-    // - resolvedTokenDevirtualizedMethod is used as the parameter to getCallInfo when targeting an R2R image.
-    // - resolvedTokenDevirtualizedUnboxedMethod is set when devirtualizedMethod is an unboxing stub. Its hMethod
-    //   is the unboxed entry point, and the resolved token is used as the parameter to getCallInfo when targeting
-    //   an R2R image.
-    // - instParamLookup contains all the information necessary to pass the instantiation parameter for
-    //   the devirtualized method or its unboxed entry point.
+    // - If pResolvedTokenDevirtualizedMethod is not set to NULL and targeting an R2R image
+    //   use it as the parameter to getCallInfo
+    // - isInstantiatingStub is set to TRUE if the devirtualized method is a generic method instantiating stub
+    // - wasArrayInterfaceDevirt is set TRUE for array interface method devirtualization
+    //     (in which case the method handle and context will be a generic method)
     //
     CORINFO_METHOD_HANDLE           devirtualizedMethod;
-    CORINFO_CONTEXT_HANDLE          tokenLookupContext;
+    CORINFO_CONTEXT_HANDLE          exactContext;
     CORINFO_DEVIRTUALIZATION_DETAIL detail;
     CORINFO_RESOLVED_TOKEN          resolvedTokenDevirtualizedMethod;
     CORINFO_RESOLVED_TOKEN          resolvedTokenDevirtualizedUnboxedMethod;
-    CORINFO_LOOKUP                  instParamLookup;
+    bool                            isInstantiatingStub;
+    bool                            wasArrayInterfaceDevirt;
 };
 
 //----------------------------------------------------------------------------
@@ -1703,17 +1633,6 @@ struct CORINFO_EH_CLAUSE
     };
 };
 
-enum CorInfoArch
-{
-    CORINFO_ARCH_X86,
-    CORINFO_ARCH_X64,
-    CORINFO_ARCH_ARM,
-    CORINFO_ARCH_ARM64,
-    CORINFO_ARCH_LOONGARCH64,
-    CORINFO_ARCH_RISCV64,
-    CORINFO_ARCH_WASM32,
-};
-
 enum CORINFO_OS
 {
     CORINFO_WINNT,
@@ -1760,6 +1679,9 @@ struct CORINFO_EE_INFO
     unsigned    offsetOfDelegateInstance;
     unsigned    offsetOfDelegateFirstTarget;
 
+    // Wrapper delegate offsets
+    unsigned    offsetOfWrapperDelegateIndirectCell;
+
     // Reverse PInvoke offsets
     unsigned    sizeOfReversePInvokeFrame;
 
@@ -1779,38 +1701,31 @@ struct CORINFO_EE_INFO
 // Keep in sync with ContinuationFlags enum in BCL sources
 enum CorInfoContinuationFlags
 {
+    // Note: the following 'Has' members determine the members present at
+    // the beginning of the continuation's data chunk. Each field is
+    // pointer sized when present, apart from the result that has variable
+    // size.
+
+    // Whether or not the continuation starts with an OSR IL offset.
+    CORINFO_CONTINUATION_HAS_OSR_ILOFFSET = 1,
+    // If this bit is set the continuation resumes inside a try block and
+    // thus if an exception is being propagated, needs to be resumed.
+    CORINFO_CONTINUATION_HAS_EXCEPTION = 2,
+    // If this bit is set the continuation has space for a continuation
+    // context.
+    CORINFO_CONTINUATION_HAS_CONTINUATION_CONTEXT = 4,
+    // If this bit is set the continuation has space to store a result
+    // returned by the callee.
+    CORINFO_CONTINUATION_HAS_RESULT = 8,
     // If this bit is set the continuation should continue on the thread
     // pool.
-    CORINFO_CONTINUATION_CONTINUE_ON_THREAD_POOL = 1 << 0,
+    CORINFO_CONTINUATION_CONTINUE_ON_THREAD_POOL = 16,
     // If this bit is set the continuation context is a
     // SynchronizationContext that we should continue on.
-    CORINFO_CONTINUATION_CONTINUE_ON_CAPTURED_SYNCHRONIZATION_CONTEXT = 1 << 1,
+    CORINFO_CONTINUATION_CONTINUE_ON_CAPTURED_SYNCHRONIZATION_CONTEXT = 32,
     // If this bit is set the continuation context is a TaskScheduler that
     // we should continue on.
-    CORINFO_CONTINUATION_CONTINUE_ON_CAPTURED_TASK_SCHEDULER = 1 << 2,
-    // If this bit is set this is an await of valueTask.AsTask()
-    // (common pattern when returning a value-task in an async version)
-    CORINFO_CONTINUATION_VALUETASK_ADAPTED_TO_TASK = 1 << 3,
-
-    // The flags encode where in the continuation various members are stored.
-    // If the encoded index is 0, it means no such member is present.
-    // Otherwise the exact offset of the member is computed as
-    //   OFFSETOF__CORINFO_Continuation__data + (index - 1) * PointerSize
-
-    CORINFO_CONTINUATION_EXECUTION_CONTEXT_INDEX_FIRST_BIT = 4,
-    CORINFO_CONTINUATION_EXECUTION_CONTEXT_INDEX_NUM_BITS = 2,
-
-    CORINFO_CONTINUATION_CONTEXT_INDEX_FIRST_BIT = 6,
-    CORINFO_CONTINUATION_CONTEXT_INDEX_NUM_BITS = 2,
-
-    CORINFO_CONTINUATION_EXCEPTION_INDEX_FIRST_BIT = 8,
-    CORINFO_CONTINUATION_EXCEPTION_INDEX_NUM_BITS = 3,
-
-    // For JIT, the continuation stores space for every possible type of
-    // async callee's result. We need to represent the offset to each of
-    // these, so we allocate the rest of the bits for this.
-    CORINFO_CONTINUATION_RESULT_INDEX_FIRST_BIT = 11,
-    CORINFO_CONTINUATION_RESULT_INDEX_NUM_BITS = 21,
+    CORINFO_CONTINUATION_CONTINUE_ON_CAPTURED_TASK_SCHEDULER = 64,
 };
 
 struct CORINFO_ASYNC_INFO
@@ -1819,49 +1734,19 @@ struct CORINFO_ASYNC_INFO
     CORINFO_CLASS_HANDLE continuationClsHnd;
     // 'Next' field
     CORINFO_FIELD_HANDLE continuationNextFldHnd;
-    // 'ResumeInfo' field
-    CORINFO_FIELD_HANDLE continuationResumeInfoFldHnd;
+    // 'Resume' field
+    CORINFO_FIELD_HANDLE continuationResumeFldHnd;
     // 'State' field
     CORINFO_FIELD_HANDLE continuationStateFldHnd;
     // 'Flags' field
     CORINFO_FIELD_HANDLE continuationFlagsFldHnd;
-    // Method handle for AsyncHelpers.CaptureExecutionContext, used during suspension
+    // Method handle for AsyncHelpers.CaptureExecutionContext
     CORINFO_METHOD_HANDLE captureExecutionContextMethHnd;
-    // Method handle for AsyncHelpers.CaptureContinuationContext, used during suspension
+    // Method handle for AsyncHelpers.RestoreExecutionContext
+    CORINFO_METHOD_HANDLE restoreExecutionContextMethHnd;
     CORINFO_METHOD_HANDLE captureContinuationContextMethHnd;
-    // Method handle for AsyncHelpers.CaptureContexts, used at the beginning of async methods
     CORINFO_METHOD_HANDLE captureContextsMethHnd;
-    // Method handle for AsyncHelpers.RestoreContexts, used before normal returns from async methods
     CORINFO_METHOD_HANDLE restoreContextsMethHnd;
-    // Method handle for AsyncHelpers.RestoreContextsOnSuspension, used before suspending in async methods
-    CORINFO_METHOD_HANDLE restoreContextsOnSuspensionMethHnd;
-    // Method handle for AsyncHelpers.RestoreInlinedFrameContexts, used when an inlined
-    // async callee logically returns to its caller after having been resumed
-    CORINFO_METHOD_HANDLE restoreInlinedFrameContextsMethHnd;
-    // Method handles for AsyncHelpers.CaptureInlinedFrameTransition*, used on suspension to capture
-    // the contexts each inlined async frame hands to its caller
-    CORINFO_METHOD_HANDLE captureInlinedFrameTransitionWithContinuationContextMethHnd;
-    CORINFO_METHOD_HANDLE captureInlinedFrameTransitionNoContinuationContextMethHnd;
-    CORINFO_METHOD_HANDLE captureInlinedFrameTransitionContinueOnThreadPoolMethHnd;
-    // Finish suspension without saving continuation context (i.e. custom awaiter or ConfigureAwait(false))
-    CORINFO_METHOD_HANDLE finishSuspensionNoContinuationContextMethHnd;
-    // Finish suspension with saving continuation context (i.e. normal task await)
-    CORINFO_METHOD_HANDLE finishSuspensionWithContinuationContextMethHnd;
-};
-
-// The well-known wasm globals that JIT-generated code references via
-// WASM_GLOBAL_INDEX_LEB relocations. Each handle is the relocation target for the
-// corresponding well-known global; the object writer resolves it to the final wasm global index.
-struct CORINFO_WASM_WELLKNOWN_GLOBALS
-{
-    // Shadow stack pointer global (read at the root frame, then threaded through locals).
-    CORINFO_WASM_GLOBAL_SYMBOL_HANDLE stackPointer;
-    // Image base global (__memory_base), added to static data offsets.
-    CORINFO_WASM_GLOBAL_SYMBOL_HANDLE imageBase;
-    // Table base global (__table_base), added to funclet pointer offsets.
-    CORINFO_WASM_GLOBAL_SYMBOL_HANDLE tableBase;
-    // Runtime-async continuation return slot (Wasm analogue of REG_ASYNC_CONTINUATION_RET).
-    CORINFO_WASM_GLOBAL_SYMBOL_HANDLE asyncContinuation;
 };
 
 // Flags passed from JIT to runtime.
@@ -1897,13 +1782,7 @@ enum { LCL_FINALLY_MARK = 0xFC }; // FC = "Finally Call"
  * when it generates code
  **********************************************************************************/
 
-#ifdef TARGET_64BIT
-typedef uint64_t TARGET_SIZE_T;
-#else
-typedef uint32_t TARGET_SIZE_T;
-#endif
-
-typedef TARGET_SIZE_T CORINFO_MethodPtr;            // a generic method pointer
+typedef void* CORINFO_MethodPtr;            // a generic method pointer
 
 struct CORINFO_Object
 {
@@ -1976,24 +1855,17 @@ struct CORINFO_RefArray : public CORINFO_Object
     CORINFO_Object*         refElems[1];    // actually of variable size;
 };
 
+struct CORINFO_RefAny
+{
+    void                      * dataPtr;
+    CORINFO_CLASS_HANDLE        type;
+};
+
 // The jit assumes the CORINFO_VARARGS_HANDLE is a pointer to a subclass of this
 struct CORINFO_VarArgInfo
 {
     unsigned                argBytes;       // number of bytes the arguments take up.
                                             // (The CORINFO_VARARGS_HANDLE counts as an arg)
-};
-
-// Note: Keep synchronized with AsyncHelpers.ResumeInfo
-// Any changes to this are an R2R breaking change. Update the R2R verion as needed
-struct CORINFO_AsyncResumeInfo
-{
-    // delegate*<Continuation, ref byte, Continuation>
-    TARGET_SIZE_T Resume;
-    // Pointer in main code for diagnostics. See comments on
-    // ICorDebugInfo::AsyncSuspensionPoint::DiagnosticNativeOffset and
-    // ResumeInfo.DiagnosticIP in SPC.
-    // This can be null for handrolled continuations without diagnostics.
-    TARGET_SIZE_T DiagnosticIP;
 };
 
 struct CORINFO_TYPE_LAYOUT_NODE
@@ -2138,16 +2010,6 @@ public:
 
     // Quick check whether the method is a jit intrinsic. Returns the same value as getMethodAttribs(ftn) & CORINFO_FLG_INTRINSIC, except faster.
     virtual bool isIntrinsic(CORINFO_METHOD_HANDLE ftn) = 0;
-
-    // Check whether the value type instance pointer ('this') passed to a value
-    // type instance method 'ftn' could possibly escape the method when it is
-    // called.
-    //
-    // A 'false' result means the runtime can guarantee, based on the ECMA-335
-    // augment III.1.7.7, that the instance pointer does not escape 'ftn'. A
-    // 'true' (conservative) result means no such guarantee can be made.
-    //
-    virtual bool canValueClassInstancePointerEscape(CORINFO_METHOD_HANDLE ftn) = 0;
 
     // Notify EE about intent to rely on given MethodInfo in the current method
     // EE returns false if we're not allowed to do so and the methodinfo may change.
@@ -2304,14 +2166,18 @@ public:
     // Returns false if devirtualization is not possible.
     virtual bool resolveVirtualMethod(CORINFO_DEVIRTUALIZATION_INFO * info) = 0;
 
-    // Get the other variant of an async method, if possible.
-    // If this is a method with async calling convention: returns the corresponding task-returning method.
-    // If this is a task-returning method: returns the corresponding method with async calling convention.
-    // Otherwise returns null.
-    // variantIsThunk is set to true if the returned method is a thunk provided by the VM.
-    virtual CORINFO_METHOD_HANDLE getAsyncOtherVariant(
+    // Get the unboxed entry point for a method, if possible.
+    virtual CORINFO_METHOD_HANDLE getUnboxedEntry(
         CORINFO_METHOD_HANDLE ftn,
-        bool*                 variantIsThunk
+        bool*                 requiresInstMethodTableArg
+        ) = 0;
+
+    // Get the wrapped entry point for an instantiating stub, if possible.
+    // Sets methodArg for method instantiations, classArg for class instantiations.
+    virtual CORINFO_METHOD_HANDLE getInstantiatedEntry(
+        CORINFO_METHOD_HANDLE ftn,
+        CORINFO_METHOD_HANDLE* methodArg,
+        CORINFO_CLASS_HANDLE* classArg
         ) = 0;
 
     // Given T, return the type of the default Comparer<T>.
@@ -2427,10 +2293,7 @@ public:
             CORINFO_RESOLVED_TOKEN *    pResolvedToken /* IN  */) = 0;
 
     // Returns (sub)string length and content (can be null for dynamic context)
-    // for given metaTOK and module, length `-1` means input is incorrect.
-    //
-    // Return value: The actual length of the (sub)string. Note that this may be larger
-    // than bufferSize, in which case only bufferSize characters are copied to buffer.
+    // for given metaTOK and module, length `-1` means input is incorrect
     virtual int getStringLiteral (
             CORINFO_MODULE_HANDLE       module,     /* IN  */
             unsigned                    metaTOK,    /* IN  */
@@ -2754,6 +2617,7 @@ public:
 
     virtual bool getReadyToRunHelper(
             CORINFO_RESOLVED_TOKEN *        pResolvedToken,
+            CORINFO_LOOKUP_KIND *           pGenericLookupKind,
             CorInfoHelpFunc                 id,
             CORINFO_METHOD_HANDLE           callerHandle,
             CORINFO_CONST_LOOKUP *          pLookup
@@ -3048,16 +2912,6 @@ public:
             uint32_t                          numMappings         // [IN] Number of rich mappings
             ) = 0;
 
-    // Report async debug information to EE.
-    // The arrays are expected to be allocated with allocateArray
-    // and ownership is transferred to the EE with this call.
-    virtual void reportAsyncDebugInfo(
-            ICorDebugInfo::AsyncInfo*             asyncInfo,         // [IN] Async method information
-            ICorDebugInfo::AsyncSuspensionPoint*  suspensionPoints,  // [IN] Array of async suspension points, indexed by state number
-            ICorDebugInfo::AsyncContinuationVarInfo* vars,           // [IN] Array of async continuation variable info
-            uint32_t                              numVars            // [IN] Number of entries in the async vars array
-            ) = 0;
-
     // Report back some metadata about the compilation to the EE -- for
     // example, metrics about the compilation.
     virtual void reportMetadata(
@@ -3164,38 +3018,6 @@ public:
         CORINFO_ASYNC_INFO* pAsyncInfoOut
     ) = 0;
 
-    // Get information about which await call to use to await the return type
-    // of the non-async version of an async call.
-    //
-    // Returns the method handle of the await call to insert. 'contextHandle' is
-    // set to the context to use when inlining the await call, exactly as
-    // getCallInfo would report it for a direct call to it (it may be an
-    // approximate/shared instantiation when 'instArg' requires a runtime
-    // lookup). 'instArg' is filled with the (potentially runtime-looked-up)
-    // instantiation argument that must be passed to the await call.
-    virtual CORINFO_METHOD_HANDLE getAwaitReturnCall(CORINFO_METHOD_HANDLE callerHandle, CORINFO_CONTEXT_HANDLE* contextHandle, CORINFO_LOOKUP* instArg) = 0;
-
-    // Get the method to use to await a struct awaiter that is stored inside the
-    // continuation instead of being boxed. 'pResolvedToken' is the resolved
-    // token of the AsyncHelpers.AwaitAwaiter/UnsafeAwaitAwaiter call site that
-    // is being replaced, and 'isUnsafe' indicates whether the unsafe variant is
-    // being replaced.
-    //
-    // Returns the method handle of the call to insert, or NULL if the
-    // transformation cannot be performed. 'contextHandle' is set to the context
-    // to use when inlining the call, exactly as getCallInfo would report it for
-    // a direct call to it (it may be an approximate/shared instantiation when
-    // 'instArg' requires a runtime lookup). 'instArg' is filled with the
-    // (potentially runtime-looked-up) instantiation argument that must be
-    // passed to the call.
-    virtual CORINFO_METHOD_HANDLE getAwaitAwaiterInContinuationCall(
-        CORINFO_METHOD_HANDLE callerHandle,
-        CORINFO_RESOLVED_TOKEN* pResolvedToken,
-        bool isUnsafe,
-        CORINFO_CONTEXT_HANDLE* contextHandle,
-        CORINFO_LOOKUP* instArg
-    ) = 0;
-
     /*********************************************************************************/
     //
     // Diagnostic methods
@@ -3252,25 +3074,6 @@ public:
     // Returns lowering info for fields of a RISC-V/LoongArch struct passed in registers according to
     // hardware floating-point calling convention.
     virtual void getFpStructLowering(CORINFO_CLASS_HANDLE structHnd, CORINFO_FPSTRUCT_LOWERING* pLowering) = 0;
-
-    // Returns the primitive type for passing/returning a Wasm struct by value,
-    // or CORINFO_WASM_TYPE_VOID if passing/returning must be by reference.
-    virtual CorInfoWasmType getWasmLowering(CORINFO_CLASS_HANDLE structHnd) = 0;
-
-    // Returns the guaranteed alignment, in bytes, of the data referenced by 'address'.
-    // 'address' is a relocation target such as a static, RVA, or frozen-data blob. The JIT
-    // uses this to decide whether it can emit an alignment-sensitive relocation against the
-    // target (e.g. the Arm64 LDST64 ':lo12:' page-offset fold, which requires the target to
-    // be 8-byte aligned).
-    virtual uint32_t getAddressAlignment(
-            void* address
-            ) = 0;
-
-    // Get the well-known wasm global symbols (shadow stack pointer, image base, table base,
-    // async continuation) that JIT-generated wasm code references via WASM_GLOBAL_INDEX_LEB relocations.
-    virtual void getWasmWellKnownGlobals(
-        CORINFO_WASM_WELLKNOWN_GLOBALS* pWellKnownGlobalsOut
-    ) = 0;
 };
 
 /*****************************************************************************
@@ -3338,6 +3141,12 @@ public:
             CORINFO_CONST_LOOKUP *  pResult
             ) = 0;
 
+    // get slow lazy string literal helper to use (CORINFO_HELP_STRCNS*).
+    // Returns CORINFO_HELP_UNDEF if lazy string literal helper cannot be used.
+    virtual CorInfoHelpFunc getLazyStringLiteralHelper(
+            CORINFO_MODULE_HANDLE   handle
+            ) = 0;
+
     virtual CORINFO_MODULE_HANDLE embedModuleHandle(
             CORINFO_MODULE_HANDLE   handle,
             void                  **ppIndirection = NULL
@@ -3389,6 +3198,12 @@ public:
     virtual void getAddressOfPInvokeTarget(
             CORINFO_METHOD_HANDLE   method,
             CORINFO_CONST_LOOKUP *  pLookup
+            ) = 0;
+
+    // Generate a cookie based on the signature to pass to CORINFO_HELP_PINVOKE_CALLI
+    virtual void* GetCookieForPInvokeCalliSig(
+            CORINFO_SIG_INFO*   szMetaSig,
+            void**              ppIndirection = NULL
             ) = 0;
 
     // Generate a cookie based on the signature to pass to INTOP_CALLI in the interpreter.
@@ -3525,7 +3340,7 @@ public:
             CORINFO_TAILCALL_HELPERS* pResult
             ) = 0;
 
-    virtual CORINFO_METHOD_HANDLE getAsyncResumptionStub(void** entryPoint) = 0;
+    virtual CORINFO_METHOD_HANDLE getAsyncResumptionStub() = 0;
 
     virtual CORINFO_CLASS_HANDLE getContinuationType(
         size_t dataSize,
@@ -3534,8 +3349,6 @@ public:
         ) = 0;
 
     // Optionally, convert calli to regular method call. This is for PInvoke argument marshalling.
-    // On success, pResolvedToken->hMethod and pResolvedToken->hClass are set to the method
-    // and class that should be called instead.
     virtual bool convertPInvokeCalliToCall(
             CORINFO_RESOLVED_TOKEN *    pResolvedToken,
             bool                        fMustConvert
@@ -3554,13 +3367,52 @@ public:
     // a register during tailcall.
     virtual void updateEntryPointForTailCall(CORINFO_CONST_LOOKUP* entryPoint) = 0;
 
-    virtual CORINFO_WASM_TYPE_SYMBOL_HANDLE getWasmTypeSymbol(
-        CorInfoWasmType*          types,
-        size_t                    typesSize
-        ) = 0;
-
     virtual CORINFO_METHOD_HANDLE getSpecialCopyHelper(CORINFO_CLASS_HANDLE type) = 0;
 };
+
+/**********************************************************************************/
+
+// It would be nicer to use existing IMAGE_REL_XXX constants instead of defining our own here...
+#define IMAGE_REL_BASED_REL32           0x10
+#define IMAGE_REL_BASED_THUMB_BRANCH24  0x13
+#define IMAGE_REL_SECREL                0x104
+
+// Linux x64
+// GD model
+#define IMAGE_REL_TLSGD                 0x105
+
+// Linux arm64
+//    TLSDESC  (dynamic)
+#define IMAGE_REL_AARCH64_TLSDESC_ADR_PAGE21   0x107
+#define IMAGE_REL_AARCH64_TLSDESC_LD64_LO12    0x108
+#define IMAGE_REL_AARCH64_TLSDESC_ADD_LO12     0x109
+#define IMAGE_REL_AARCH64_TLSDESC_CALL         0x10A
+
+// The identifier for ARM32-specific PC-relative address
+// computation corresponds to the following instruction
+// sequence:
+//  l0: movw rX, #imm_lo  // 4 byte
+//  l4: movt rX, #imm_hi  // 4 byte
+//  l8: add  rX, pc <- after this instruction rX = relocTarget
+//
+// Program counter at l8 is address of l8 + 4
+// Address of relocated movw/movt is l0
+// So, imm should be calculated as the following:
+//  imm = relocTarget - (l8 + 4) = relocTarget - (l0 + 8 + 4) = relocTarget - (l_0 + 12)
+// So, the value of offset correction is 12
+//
+#define IMAGE_REL_BASED_REL_THUMB_MOV32_PCREL   0x14
+
+//
+// LOONGARCH64 relocation types
+//
+#define IMAGE_REL_LOONGARCH64_PC        0x0003
+#define IMAGE_REL_LOONGARCH64_JIR       0x0004
+
+//
+// RISCV64 relocation types
+//
+#define IMAGE_REL_RISCV64_PC            0x0003
 
 /**********************************************************************************/
 #ifdef TARGET_64BIT

@@ -34,7 +34,6 @@ namespace ILLink.RoslynAnalyzer.TrimAnalysis
                 SymbolKind.NamedType => new SystemTypeValue(new TypeProxy(type)),
                 // If the symbol is an Array type, the BaseType is System.Array
                 SymbolKind.ArrayType => new SystemTypeValue(new TypeProxy(type.BaseType!)),
-                SymbolKind.FunctionPointerType => new SystemTypeValue(new TypeProxy(type)),
                 SymbolKind.ErrorType => UnknownValue.Instance,
                 _ => null
             };

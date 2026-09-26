@@ -3,9 +3,7 @@
 
 /*****************************************************************************/
 
-#include <minipal/types.h>
-
-int jitprintf(const char* fmt, ...) MINIPAL_ATTR_FORMAT_PRINTF(1, 2);
+int jitprintf(const char* fmt, ...);
 
 #ifdef DEBUG
 
@@ -32,11 +30,11 @@ public:
 bool vlogf(unsigned level, const char* fmt, va_list args);
 int  vflogf(FILE* file, const char* fmt, va_list args);
 
-int  logf(const char* fmt, ...) MINIPAL_ATTR_FORMAT_PRINTF(1, 2);
-int  flogf(FILE* file, const char* fmt, ...) MINIPAL_ATTR_FORMAT_PRINTF(2, 3);
-void gcDump_logf(const char* fmt, ...) MINIPAL_ATTR_FORMAT_PRINTF(1, 2);
+int  logf(const char* fmt, ...);
+int  flogf(FILE* file, const char* fmt, ...);
+void gcDump_logf(const char* fmt, ...);
 
-void logf(unsigned level, const char* fmt, ...) MINIPAL_ATTR_FORMAT_PRINTF(2, 3);
+void logf(unsigned level, const char* fmt, ...);
 
 extern "C" void ANALYZER_NORETURN assertAbort(const char* why, const char* file, unsigned line);
 

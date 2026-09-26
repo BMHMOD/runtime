@@ -28,19 +28,12 @@ jobs:
   - job: evaluate_paths
     displayName: Evaluate Paths
     pool:
-      ${{ if eq(variables['System.TeamProject'], 'public') }}:
-          name:  $(DncEngPublicBuildPool)
-          demands: ImageOverride -equals build.azurelinux.3.amd64.open
-      ${{ else }}:
-          name: $(DncEngInternalBuildPool)
-          demands: ImageOverride -equals build.azurelinux.3.amd64
-          os: linux
+      vmImage: 'ubuntu-latest'
 
     steps:
     - checkout: self
       clean: true
       fetchDepth: 2
-      fetchTags: false
 
     - ${{ if ne(parameters.paths[0], '') }}:
       - ${{ each path in parameters.paths }}:

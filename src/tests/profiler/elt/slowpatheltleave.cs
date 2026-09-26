@@ -12,7 +12,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
-using TestLibrary;
 
 namespace SlowPathELTTests
 {
@@ -22,11 +21,6 @@ namespace SlowPathELTTests
 
         public static int Main(string[] args)
         {
-            if (!PlatformDetection.IsICorProfilerEnterLeaveHooksEnabled)
-            {
-                return 100;
-            }
-
             if (args.Length > 0 && args[0].Equals("RunTest", StringComparison.OrdinalIgnoreCase))
             {
                 return SlowPathELTHelpers.RunTest();

@@ -108,8 +108,7 @@ static pthread_mutex_t s_groupLock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
 #if !HAVE_GETGROUPLIST
-// Distinct name: avoids -Wmissing-prototypes (illumos) and clashing with grp.h's decl (Emscripten).
-static int pal_getgrouplist(const char *uname, gid_t agroup, gid_t *groups, int *groupCount)
+int getgrouplist(const char *uname, gid_t agroup, gid_t *groups, int *groupCount)
 {
     int ngroups = 1;
     int maxgroups = *groupCount;
@@ -205,10 +204,8 @@ int32_t SystemNative_GetGroupList(const char* name, uint32_t group, uint32_t* gr
 #ifdef __APPLE__
         // On OSX groups are passed as a signed int.
         rv = getgrouplist(name, (int)group, (int*)groups, &groupsAvailable);
-#elif HAVE_GETGROUPLIST
-        rv = getgrouplist(name, group, groups, &groupsAvailable);
 #else
-        rv = pal_getgrouplist(name, group, groups, &groupsAvailable);
+        rv = getgrouplist(name, group, groups, &groupsAvailable);
 #endif
 
 #ifdef USE_GROUPLIST_LOCK

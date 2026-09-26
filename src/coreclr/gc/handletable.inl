@@ -43,9 +43,8 @@ inline void HndAssignHandle(OBJECTHANDLE handle, OBJECTREF objref)
     if (value)
         HndWriteBarrier(handle, objref);
 
-    // Store the pointer with release semantics so object field writes are visible
-    // before the handle can publish the object to another thread.
-    VolatileStore((_UNCHECKED_OBJECTREF *)handle, value);
+    // store the pointer
+    *(_UNCHECKED_OBJECTREF *)handle = value;
 }
 
 // This is used by the GC before we actually construct the object so we cannot
@@ -70,9 +69,8 @@ inline void HndAssignHandleGC(OBJECTHANDLE handle, uint8_t* objref)
     if (value)
         HndWriteBarrierWorker(handle, value);
 
-    // Store the pointer with release semantics so object field writes are visible
-    // before the handle can publish the object to another thread.
-    VolatileStore((_UNCHECKED_OBJECTREF *)handle, value);
+    // store the pointer
+    *(_UNCHECKED_OBJECTREF *)handle = value;
 }
 
 inline void* HndInterlockedCompareExchangeHandle(OBJECTHANDLE handle, OBJECTREF objref, OBJECTREF oldObjref)

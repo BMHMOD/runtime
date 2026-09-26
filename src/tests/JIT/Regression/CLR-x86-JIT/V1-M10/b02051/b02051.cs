@@ -3,12 +3,11 @@
 //
 
 using Xunit;
-namespace b02051
+namespace DefaultNamespace
 {
     using System;
     public class JITcrash
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

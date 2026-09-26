@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using Point = System.Numerics.Vector2;
 using Xunit;
 
-namespace SIMDTests.AddingSequenceTests
+namespace VectorMathTests
 {
     public class Program
     {

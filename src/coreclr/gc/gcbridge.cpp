@@ -44,7 +44,7 @@ static void DynPtrArrayUninit(DynPtrArray* da)
     if (da->capacity == 0)
         return;
 
-    delete[] reinterpret_cast<void**>(da->data);
+    free(da->data);
     da->data = NULL;
 }
 
@@ -72,7 +72,7 @@ static void DynPtrArrayEnsureCapacity(DynPtrArray* da, int capacity)
     assert(newData);
     memcpy(newData, da->data, sizeof(void*) * da->size);
     if (oldCapacity > 0)
-        delete[] reinterpret_cast<void**>(da->data);
+        free(da->data);
     da->data = newData;
 }
 
@@ -186,11 +186,6 @@ struct ColorData
     // Count of colors that list this color in their otherColors
     unsigned incomingColors : INCOMING_COLORS_BITS;
     unsigned visited : 1;
-    // ColorVisibleToClient for a ColorData* can change over the course of bridge processing which
-    // is problematic. We fix this by setting this flag when a color is detected as visible to client.
-    // Once the flag is set, the color is pinned to being visible to client, even though it could lose
-    // some xrefs, making it not satisfy the BridgelessColorIsHeavy condition.
-    unsigned visibleToClient : 1;
 };
 
 // Represents one managed object. Equivalent of new/old bridge "HashEntry"
@@ -238,19 +233,7 @@ static bool BridgelessColorIsHeavy(ColorData* data)
 // Should color be made visible to client?
 static bool ColorVisibleToClient(ColorData* data)
 {
-    if (data->visibleToClient)
-        return true;
-
-    if (DynPtrArraySize(&data->bridges) || BridgelessColorIsHeavy(data))
-    {
-        data->visibleToClient = true;
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-
+    return DynPtrArraySize(&data->bridges) || BridgelessColorIsHeavy(data);
 }
 
 // Stacks of ScanData objects used for tarjan algorithm.
@@ -1111,13 +1094,6 @@ uint8_t** GetRegisteredBridges(size_t* pNumBridges)
     return (uint8_t**)g_registeredBridges.data;
 }
 
-bool ShouldProcessBridgeObjects()
-{
-    // The client discards any set of cross references handed to it while it is still
-    // processing a previous one, so computing it would be pure waste.
-    return !GCToEEInterface::IsClientBridgeProcessingActive();
-}
-
 static bool TarjanSccAlgorithm()
 {
     int i;
@@ -1210,9 +1186,9 @@ static MarkCrossReferencesArgs* BuildSccCallbackData()
         ColorData* cd;
         for (cd = &cur->data[0]; cd < cur->nextData; cd++)
         {
-            if (!ColorVisibleToClient(cd))
-                continue;
             int bridges = DynPtrArraySize(&cd->bridges);
+            if (!(bridges || BridgelessColorIsHeavy(cd)))
+                continue;
 
             apiSccs[apiIndex].Count = bridges;
             uintptr_t *contexts = new (nothrow) uintptr_t[bridges];

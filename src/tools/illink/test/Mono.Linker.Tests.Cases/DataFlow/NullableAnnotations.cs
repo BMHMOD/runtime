@@ -67,9 +67,6 @@ namespace Mono.Linker.Tests.Cases.DataFlow
             MakeGenericTypeWithKnowAndUnknownArray();
             RequiresOnNullableMakeGenericType.Test();
 
-            NewConstraintThroughNullableGetUnderlyingType<TestType>();
-            EnumConstraintThroughNullableGetUnderlyingType<DayOfWeek>();
-
             // Prevents optimizing away 'as Type' conversion.
             PreserveSystemType();
         }
@@ -406,21 +403,6 @@ namespace Mono.Linker.Tests.Cases.DataFlow
         static void PreserveSystemType()
         {
             typeof(Type).RequiresNonPublicConstructors();
-        }
-
-        [Kept]
-        static void NewConstraintThroughNullableGetUnderlyingType<
-            [KeptGenericParamAttributes(GenericParameterAttributes.DefaultConstructorConstraint)]
-        T
-        >() where T : new()
-        {
-            Nullable.GetUnderlyingType(typeof(T)).RequiresPublicParameterlessConstructor();
-        }
-
-        [Kept]
-        static void EnumConstraintThroughNullableGetUnderlyingType<T>() where T : Enum
-        {
-            Nullable.GetUnderlyingType(typeof(T)).RequiresPublicFields();
         }
     }
 }

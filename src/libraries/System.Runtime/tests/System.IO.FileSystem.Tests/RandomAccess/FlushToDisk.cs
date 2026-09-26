@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Generic;
+using System.IO.Pipes;
 using System.Security.Cryptography;
 using Microsoft.Win32.SafeHandles;
 using Xunit;
@@ -22,6 +23,8 @@ namespace System.IO.Tests
         };
 
         protected override bool UsesOffsets => false;
+
+        protected override bool ThrowsForUnseekableFile => false;
 
         protected override long MethodUnderTest(SafeFileHandle handle, byte[] bytes, long fileOffset)
         {
@@ -81,20 +84,18 @@ namespace System.IO.Tests
         }
 
         [Fact]
-        [SkipOnPlatform(TestPlatforms.Browser, "pipes aren't supported on browser")]
+        [SkipOnPlatform(TestPlatforms.Browser, "System.IO.Pipes aren't supported on browser")]
         public void CanFlushUnseekableFile()
         {
-            SafeFileHandle.CreateAnonymousPipe(out SafeFileHandle readHandle, out SafeFileHandle writeHandle);
-
-            using (readHandle)
-            using (writeHandle)
+            using (var server = new AnonymousPipeServerStream(PipeDirection.Out))
+            using (SafeFileHandle handle = new SafeFileHandle(server.SafePipeHandle.DangerousGetHandle(), ownsHandle: false))
             {
                 // Flushing a non-seekable handle (in this case, a pipe handle) should work without throwing an
                 // exception. On Windows, the FlushFileBuffers() function DOES work with non-seekable handles
                 // (e.g. pipe handles) and that is what we are testing here. The fsync() function on Unix does
                 // NOT support non-seekable handles but no exception is thrown on Unix either because we silently
                 // ignore the errors effectively making the call below a no-op.
-                RandomAccess.FlushToDisk(writeHandle);
+                RandomAccess.FlushToDisk(handle);
             }
         }
 

@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json.Serialization;
@@ -158,7 +157,6 @@ namespace System.Text.Json
             }
         }
 
-        [RequiresUnreferencedCode("AssertOptionsEqual uses reflection to enumerate JsonSerializerOptions properties.")]
         public static void AssertOptionsEqual(JsonSerializerOptions expected, JsonSerializerOptions actual)
         {
             foreach (PropertyInfo property in typeof(JsonSerializerOptions).GetProperties(BindingFlags.Public | BindingFlags.Instance))

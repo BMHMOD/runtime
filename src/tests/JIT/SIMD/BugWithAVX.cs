@@ -4,11 +4,10 @@
 using System.Numerics;
 using Xunit;
 
-namespace SIMDTests.BugWithAVXTests
+namespace VectorMathTests
 {
     public class Program
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

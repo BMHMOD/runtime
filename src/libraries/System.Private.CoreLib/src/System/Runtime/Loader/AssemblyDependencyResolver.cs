@@ -193,7 +193,7 @@ namespace System.Runtime.Loader
         {
             if (pathsList == null)
             {
-                return [];
+                return Array.Empty<string>();
             }
             else
             {

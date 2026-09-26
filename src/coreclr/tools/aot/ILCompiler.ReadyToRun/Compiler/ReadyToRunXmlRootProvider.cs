@@ -195,8 +195,6 @@ namespace ILCompiler
                 if (type.HasInstantiation)
                 {
                     InstantiatedType instantiated = ReadyToRunLibraryRootProvider.InstantiateIfPossible(typeWithMethods);
-                    if (instantiated is null)
-                        return;
                     method = method.Context.GetMethodForInstantiatedType(method, instantiated);
                 }
 

@@ -202,8 +202,8 @@ namespace Internal.TypeSystem.Interop
                 if (customModifierType == null)
                     continue;
 
-                if ((customModifierType.Namespace == "System.Runtime.CompilerServices"u8 && customModifierType.Name == "IsCopyConstructed"u8) ||
-                    (customModifierType.Namespace == "Microsoft.VisualC"u8 && customModifierType.Name == "NeedsCopyConstructorModifier"u8))
+                if ((customModifierType.Namespace.SequenceEqual("System.Runtime.CompilerServices"u8) && customModifierType.Name.SequenceEqual("IsCopyConstructed"u8)) ||
+                    (customModifierType.Namespace.SequenceEqual("Microsoft.VisualC"u8) && customModifierType.Name.SequenceEqual("NeedsCopyConstructorModifier"u8)))
                 {
                     return true;
                 }
@@ -420,12 +420,6 @@ namespace Internal.TypeSystem.Interop
                 if (!isField && ((DefType)type).IsInt128OrHasInt128Fields && !isByRef)
                 {
                     // Int128 types or structs that contain them cannot be passed by value
-                    return MarshallerKind.Invalid;
-                }
-
-                if (!isField && ((DefType)type).IsDecimalFloatingPointOrHasDecimalFloatingPointFields && !isByRef)
-                {
-                    // Decimal32/64/128 types or structs that contain them cannot be passed by value
                     return MarshallerKind.Invalid;
                 }
 
@@ -928,7 +922,6 @@ namespace Internal.TypeSystem.Interop
                 if (!defType.ContainsGCPointers
                     && !defType.IsAutoLayoutOrHasAutoLayoutFields
                     && !defType.IsInt128OrHasInt128Fields
-                    && !defType.IsDecimalFloatingPointOrHasDecimalFloatingPointFields
                     && IsValidForGenericMarshalling(defType, isFieldScenario, builtInMarshallingEnabled: false))
                 {
                     return MarshallerKind.BlittableValue;
@@ -953,7 +946,7 @@ namespace Internal.TypeSystem.Interop
             //   objc_msgSendSuper
             //   objc_msgSendSuper_stret
             return metadata.Module.Equals(ObjectiveCLibrary)
-                && metadata.Name.AsSpan().StartsWith(ObjectiveCMsgSend);
+                && metadata.Name.StartsWith(ObjectiveCMsgSend);
         }
 
         internal static uint? GetObjectiveCMessageSendFunction(TargetDetails target, string pinvokeModule, string pinvokeFunction)
@@ -977,11 +970,6 @@ namespace Internal.TypeSystem.Interop
         public static bool IsRuntimeMarshallingEnabled(ModuleDesc module)
         {
             return module.Assembly is not EcmaAssembly assembly || !assembly.HasAssemblyCustomAttribute("System.Runtime.CompilerServices", "DisableRuntimeMarshallingAttribute");
-        }
-
-        public static bool IsMarshallingRequired(MethodSignature methodSig, ModuleDesc moduleContext)
-        {
-            return Marshaller.IsMarshallingRequired(methodSig, moduleContext);
         }
     }
 }

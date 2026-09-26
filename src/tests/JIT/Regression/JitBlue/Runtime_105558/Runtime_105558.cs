@@ -8,9 +8,6 @@
 // Debug: Prints 1 line(s)
 // Release: Prints 0 line(s)
 
-
-namespace Runtime_105558;
-
 using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
@@ -31,9 +28,21 @@ public class Runtime_105558
 {
     public static S1 s_3;
 
-    [ConditionalFact(typeof(Sse2), nameof(Sse2.IsSupported))]
+    [Fact]
+    public static void TestEntryPoint()
+    {
+        if (Sse2.IsSupported)
+        {
+            ShiftRightLogicalTest();
+        }
+        if (Avx512F.IsSupported)
+        {
+            Avx512FRotateRightTest();
+        }
+    }
+
     [MethodImpl(MethodImplOptions.NoInlining)]
-    public static void ShiftRightLogicalTest()
+    private static void ShiftRightLogicalTest()
     {
         var vr17 = Vector128.CreateScalar(2558356441U);
         var vr18 = Vector128.Create(0, 3113514718U, 0, 0);
@@ -42,9 +51,8 @@ public class Runtime_105558
             throw new InvalidOperationException();
     }
 
-    [ConditionalFact(typeof(Avx512F), nameof(Avx512F.IsSupported))]
     [MethodImpl(MethodImplOptions.NoInlining)]
-    public static void Avx512FRotateRightTest()
+    private static void Avx512FRotateRightTest()
     {
         var vr1 = Vector128.CreateScalar(1);
         Vector128<int> vr2 = Avx512F.VL.RotateRight(vr1, 84);

@@ -7,7 +7,7 @@ using Mono.Linker.Tests.Cases.Expectations.Metadata;
 
 namespace Mono.Linker.Tests.Cases.Reflection
 {
-    [SetupLinkerArgument("-a", "test", "library")]
+    [SetupLinkerArgument("-a", "test.exe", "library")]
     [ExpectedNoWarnings]
     [KeptMember(".ctor()")]
     public class TypeHierarchyLibraryModeSuppressions

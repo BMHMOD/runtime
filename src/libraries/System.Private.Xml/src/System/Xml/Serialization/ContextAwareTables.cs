@@ -34,8 +34,8 @@ namespace System.Xml.Serialization
             // Not found. Do the slower work of creating the value in the correct collection.
             AssemblyLoadContext? alc = AssemblyLoadContext.GetLoadContext(t.Assembly);
 
-            // Use the default table for types that are not collectible and whose load context is either null or not collectible
-            if (!t.IsCollectible && !(alc?.IsCollectible ?? false))
+            // Null and non-collectible load contexts use the default table
+            if (alc == null || !alc.IsCollectible)
             {
                 lock (_defaultTable)
                 {
@@ -47,7 +47,7 @@ namespace System.Xml.Serialization
                 }
             }
 
-            // Collectible types or load contexts should use the ConditionalWeakTable so they can be unloaded
+            // Collectible load contexts should use the ConditionalWeakTable so they can be unloaded
             else
             {
                 lock (_collectibleTable)

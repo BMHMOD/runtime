@@ -4,7 +4,6 @@
 using System;
 using System.Threading;
 using Xunit;
-using TestLibrary;
 public class Foo 
 {
         private static int n=0;
@@ -21,7 +20,7 @@ public class Foo
 		     }
 	  }
 	
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [Fact]
         public static int TestEntryPoint() 
         {
 	  String s = "Done";

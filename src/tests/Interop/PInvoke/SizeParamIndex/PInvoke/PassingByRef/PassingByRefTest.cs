@@ -4,7 +4,6 @@
 using System;
 using System.Runtime.InteropServices;
 using Xunit;
-using TestLibrary;
 
 namespace SizeParamIndex.PInvoke;
 
@@ -240,7 +239,6 @@ public class PassingByRefTest
         Console.WriteLine(strDescription + " Ends!");
     }
 
-    [ActiveIssue("needs triage", TestRuntimes.Mono)]
     [Fact]
     [SkipOnMono("needs triage")]
     [ActiveIssue("https://github.com/dotnet/runtime/issues/91388", typeof(TestLibrary.PlatformDetection), nameof(TestLibrary.PlatformDetection.PlatformDoesNotSupportNativeTestAssets))]

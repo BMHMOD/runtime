@@ -1,7 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Collections.Generic;
 using System.Runtime.Versioning;
 
 namespace System.Diagnostics
@@ -15,10 +14,13 @@ namespace System.Diagnostics
             throw new PlatformNotSupportedException();
         }
 
-        /// <summary>Gets process infos for each process on the local machine.</summary>
-        /// <param name="builder">The builder to add found process infos to.</param>
+        /// <summary>Gets process infos for each process on the specified machine.</summary>
         /// <param name="processNameFilter">Optional process name to use as an inclusion filter.</param>
-        public static void GetProcessInfos(ref ArrayBuilder<ProcessInfo> builder, string? processNameFilter)
+        /// <param name="machineName">The target machine.</param>
+        /// <returns>An array of process infos, one per found process.</returns>
+        [UnsupportedOSPlatform("ios")]
+        [UnsupportedOSPlatform("tvos")]
+        public static ProcessInfo[] GetProcessInfos(string? processNameFilter, string machineName)
         {
             throw new PlatformNotSupportedException();
         }
@@ -29,11 +31,6 @@ namespace System.Diagnostics
         internal static ProcessModuleCollection GetModules(int processId)
         {
             return new ProcessModuleCollection(0);
-        }
-
-        internal static string? GetProcessName(int processId, string machineName, bool isRemoteMachine, ref ProcessInfo? processInfo)
-        {
-            throw new PlatformNotSupportedException();
         }
 
         private static ProcessInfo CreateProcessInfo(int pid)

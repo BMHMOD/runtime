@@ -1,5 +1,7 @@
 project(mscorpe)
 
+add_definitions(-DFEATURE_CORECLR)
+
 set(MSCORPE_SOURCES
   iceefilegen.cpp
   ceefilegenwriter.cpp
@@ -10,6 +12,3 @@ set(MSCORPE_SOURCES
 add_library_clr(mscorpe STATIC
   ${MSCORPE_SOURCES}
 )
-
-# Disable the hosted contract machinery to avoid requiring the contract implementation.
-target_compile_definitions(mscorpe PRIVATE SELF_NO_HOST)

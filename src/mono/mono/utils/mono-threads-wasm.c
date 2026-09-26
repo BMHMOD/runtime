@@ -225,6 +225,8 @@ mono_thread_platform_create_thread (MonoThreadStart thread_fn, gpointer thread_d
 		g_error ("%s: pthread_attr_init failed, error: \"%s\" (%d)", __func__, g_strerror (res), res);
 
 #if 0
+	gsize set_stack_size;
+
 	if (stack_size)
 		set_stack_size = *stack_size;
 	else
@@ -236,10 +238,10 @@ mono_thread_platform_create_thread (MonoThreadStart thread_fn, gpointer thread_d
 		if (RUNNING_ON_VALGRIND)
 			set_stack_size = 1 << 20;
 		else
+			set_stack_size = (SIZEOF_VOID_P / 4) * 1024 * 1024;
+#else
+		set_stack_size = (SIZEOF_VOID_P / 4) * 1024 * 1024;
 #endif
-		{
-			set_stack_size = MONO_DEFAULT_STACKSIZE;
-		}
 	}
 
 #ifdef PTHREAD_STACK_MIN
@@ -342,7 +344,7 @@ typedef struct {
 } DsJobRegistration;
 
 void
-SystemJS_DiagnosticServerQueueJob (ds_job_cb cb, void* data)
+mono_schedule_ds_job (ds_job_cb cb, void* data)
 {
 	g_assert (cb);
 	DsJobRegistration* reg = g_new0 (DsJobRegistration, 1);
@@ -372,7 +374,7 @@ mono_background_exec (void)
 
 G_EXTERN_C
 EMSCRIPTEN_KEEPALIVE void
-SystemJS_ExecuteDiagnosticServerCallback (void)
+mono_wasm_ds_exec (void)
 {
 	MONO_ENTER_GC_UNSAFE;
 	GSList *j1 = jobs_ds, *cur1;
@@ -381,13 +383,13 @@ SystemJS_ExecuteDiagnosticServerCallback (void)
 	for (cur1 = j1; cur1; cur1 = cur1->next) {
 		DsJobRegistration* reg = (DsJobRegistration*)cur1->data;
 		g_assert (reg->cb);
-		THREADS_DEBUG ("SystemJS_ExecuteDiagnosticServerCallback running job %p \n", (gpointer)reg->cb);
+		THREADS_DEBUG ("mono_wasm_ds_exec running job %p \n", (gpointer)cb);
 		gsize done = reg->cb (reg->data);
 		if (done){
-			THREADS_DEBUG ("SystemJS_ExecuteDiagnosticServerCallback done job %p \n", (gpointer)reg->cb);
+			THREADS_DEBUG ("mono_wasm_ds_exec done job %p \n", (gpointer)cb);
 			g_free (reg);
 		} else {
-			THREADS_DEBUG ("SystemJS_ExecuteDiagnosticServerCallback scheduling job %p again \n", (gpointer)reg->cb);
+			THREADS_DEBUG ("mono_wasm_ds_exec scheduling job %p again \n", (gpointer)cb);
 			jobs_ds = g_slist_prepend (jobs_ds, (gpointer)reg);
 		}
 	}

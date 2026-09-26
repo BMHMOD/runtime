@@ -144,7 +144,7 @@ namespace System.Xml
                 int digit;
                 if (ch >= mapBase64.Length || (digit = mapBase64[ch]) == Invalid)
                 {
-                    throw new XmlException(SR.Xml_InvalidBase64Value, ch.ToString());
+                    throw new XmlException(SR.Xml_InvalidBase64Value, chars.ToString());
                 }
 
                 b = (b << 6) | digit;
@@ -175,10 +175,9 @@ namespace System.Xml
                 // ignore whitespace after the padding chars
                 while ((uint)iChar < (uint)chars.Length)
                 {
-                    char ch = chars[iChar++];
-                    if (!XmlCharType.IsWhiteSpace(ch))
+                    if (!XmlCharType.IsWhiteSpace(chars[iChar++]))
                     {
-                        throw new XmlException(SR.Xml_InvalidBase64Value, ch.ToString());
+                        throw new XmlException(SR.Xml_InvalidBase64Value, chars.ToString());
                     }
                 }
             }

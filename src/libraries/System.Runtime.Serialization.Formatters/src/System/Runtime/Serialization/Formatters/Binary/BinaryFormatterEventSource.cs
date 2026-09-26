@@ -8,7 +8,7 @@ namespace System.Runtime.Serialization.Formatters.Binary
 {
     [EventSource(
         Name = "System.Runtime.Serialization.Formatters.Binary.BinaryFormatterEventSource")]
-    internal sealed partial class BinaryFormatterEventSource : EventSource
+    internal sealed class BinaryFormatterEventSource : EventSource
     {
         private const int EventId_SerializationStart = 10;
         private const int EventId_SerializationStop = 11;
@@ -18,6 +18,10 @@ namespace System.Runtime.Serialization.Formatters.Binary
         private const int EventId_DeserializingObject = 22;
 
         public static readonly BinaryFormatterEventSource Log = new BinaryFormatterEventSource();
+
+        private BinaryFormatterEventSource()
+        {
+        }
 
         [Event(EventId_SerializationStart, Opcode = EventOpcode.Start, Keywords = Keywords.Serialization, Level = EventLevel.Informational, ActivityOptions = EventActivityOptions.Recursive)]
         public void SerializationStart()

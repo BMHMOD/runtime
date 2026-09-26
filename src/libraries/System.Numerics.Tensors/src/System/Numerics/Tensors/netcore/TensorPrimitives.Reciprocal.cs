@@ -123,11 +123,13 @@ namespace System.Numerics.Tensors
 
             public static Vector128<T> Invoke(Vector128<T> x)
             {
+#if NET9_0_OR_GREATER
                 if (Avx512F.VL.IsSupported)
                 {
                     if (typeof(T) == typeof(float)) return Avx512F.VL.Reciprocal14(x.AsSingle()).As<float, T>();
                     if (typeof(T) == typeof(double)) return Avx512F.VL.Reciprocal14(x.AsDouble()).As<double, T>();
                 }
+#endif
 
                 if (Sse.IsSupported)
                 {
@@ -149,11 +151,13 @@ namespace System.Numerics.Tensors
 
             public static Vector256<T> Invoke(Vector256<T> x)
             {
+#if NET9_0_OR_GREATER
                 if (Avx512F.VL.IsSupported)
                 {
                     if (typeof(T) == typeof(float)) return Avx512F.VL.Reciprocal14(x.AsSingle()).As<float, T>();
                     if (typeof(T) == typeof(double)) return Avx512F.VL.Reciprocal14(x.AsDouble()).As<double, T>();
                 }
+#endif
 
                 if (Avx.IsSupported)
                 {
@@ -165,11 +169,13 @@ namespace System.Numerics.Tensors
 
             public static Vector512<T> Invoke(Vector512<T> x)
             {
+#if NET9_0_OR_GREATER
                 if (Avx512F.IsSupported)
                 {
                     if (typeof(T) == typeof(float)) return Avx512F.Reciprocal14(x.AsSingle()).As<float, T>();
                     if (typeof(T) == typeof(double)) return Avx512F.Reciprocal14(x.AsDouble()).As<double, T>();
                 }
+#endif
 
                 return Vector512<T>.One / x;
             }
@@ -183,11 +189,13 @@ namespace System.Numerics.Tensors
 
             public static Vector128<T> Invoke(Vector128<T> x)
             {
+#if NET9_0_OR_GREATER
                 if (Avx512F.VL.IsSupported)
                 {
                     if (typeof(T) == typeof(float)) return Avx512F.VL.ReciprocalSqrt14(x.AsSingle()).As<float, T>();
                     if (typeof(T) == typeof(double)) return Avx512F.VL.ReciprocalSqrt14(x.AsDouble()).As<double, T>();
                 }
+#endif
 
                 if (Sse.IsSupported)
                 {
@@ -209,11 +217,13 @@ namespace System.Numerics.Tensors
 
             public static Vector256<T> Invoke(Vector256<T> x)
             {
+#if NET9_0_OR_GREATER
                 if (Avx512F.VL.IsSupported)
                 {
                     if (typeof(T) == typeof(float)) return Avx512F.VL.ReciprocalSqrt14(x.AsSingle()).As<float, T>();
                     if (typeof(T) == typeof(double)) return Avx512F.VL.ReciprocalSqrt14(x.AsDouble()).As<double, T>();
                 }
+#endif
 
                 if (Avx.IsSupported)
                 {
@@ -225,11 +235,13 @@ namespace System.Numerics.Tensors
 
             public static Vector512<T> Invoke(Vector512<T> x)
             {
+#if NET9_0_OR_GREATER
                 if (Avx512F.IsSupported)
                 {
                     if (typeof(T) == typeof(float)) return Avx512F.ReciprocalSqrt14(x.AsSingle()).As<float, T>();
                     if (typeof(T) == typeof(double)) return Avx512F.ReciprocalSqrt14(x.AsDouble()).As<double, T>();
                 }
+#endif
 
                 return Vector512<T>.One / Vector512.Sqrt(x);
             }

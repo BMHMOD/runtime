@@ -10,7 +10,6 @@ using Test.Cryptography;
 
 namespace System.Security.Cryptography.Pkcs.EnvelopedCmsTests.Tests
 {
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/126697", typeof(PlatformDetection), nameof(PlatformDetection.IsAppleMobile), nameof(PlatformDetection.IsNativeAot))]
     public class DecryptTestsRsaPaddingMode : DecryptTests
     {
         public static bool SupportsDiffieHellman { get; } = KeyAgreeRecipientInfoTests.SupportsDiffieHellman;
@@ -86,7 +85,7 @@ namespace System.Security.Cryptography.Pkcs.EnvelopedCmsTests.Tests
             }
         }
 
-        [ConditionalFact(typeof(DecryptTestsRsaPaddingMode), nameof(SupportsDiffieHellman))]
+        [ConditionalFact(nameof(SupportsDiffieHellman))]
         public static void CmsRecipient_RejectsNonRSACertificateWithRSAPadding()
         {
             using (X509Certificate2 keyAgreeCertificate = Certificates.DHKeyAgree1.GetCertificate())

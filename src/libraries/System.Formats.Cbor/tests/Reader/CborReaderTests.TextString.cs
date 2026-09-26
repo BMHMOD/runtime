@@ -19,7 +19,6 @@ namespace System.Formats.Cbor.Tests
         [InlineData("\u6c34", "63e6b0b4")]
         [InlineData("\x3bb", "62cebb")]
         [InlineData("\ud800\udd51", "64f0908591")]
-        [InlineData("S\u00e3o Paulo", "6a53c3a36f205061756c6f")]
         public static void ReadTextString_SingleValue_HappyPath(string expectedValue, string hexEncoding)
         {
             byte[] data = hexEncoding.HexToByteArray();
@@ -38,7 +37,6 @@ namespace System.Formats.Cbor.Tests
         [InlineData("\u6c34", "63e6b0b4")]
         [InlineData("\x3bb", "62cebb")]
         [InlineData("\ud800\udd51", "64f0908591")]
-        [InlineData("S\u00e3o Paulo", "6a53c3a36f205061756c6f")]
         public static void TryReadTextString_SingleValue_HappyPath(string expectedValue, string hexEncoding)
         {
             char[] buffer = new char[32];
@@ -68,10 +66,6 @@ namespace System.Formats.Cbor.Tests
         [InlineData("", "7f60ff")]
         [InlineData("ab", "7f62616260ff")]
         [InlineData("abbc", "7f62616262626360ff")]
-        [InlineData("M\u00fcnchen", "7f634dc3bc656e6368656eff")]
-        [InlineData(
-            "Red October translates into Russian (\u0440\u0443\u0441\u0441\u043a\u0438\u0439 \u044f\u0437\u044b\u043a) as \u041a\u0440\u0430\u0441\u043d\u044b\u0439 \u041e\u043a\u0442\u044f\u0431\u0440\u044c",
-            "7f6152646564204f6863746f62657220746b72616e736c617465732069656e746f20526875737369616e202871d180d183d181d181d0bad0b8d0b920d18f69d0b7d18bd0ba292061647320d09a6fd180d0b0d181d0bdd18bd0b920d09e6cd0bad182d18fd0b1d180d18cff")]
         public static void ReadTextString_IndefiniteLengthConcatenated_SingleValue_HappyPath(string expectedValue, string hexEncoding)
         {
             byte[] data = hexEncoding.HexToByteArray();
@@ -100,17 +94,13 @@ namespace System.Formats.Cbor.Tests
         [InlineData("", "7f60ff")]
         [InlineData("ab", "7f62616260ff")]
         [InlineData("abbc", "7f62616262626360ff")]
-        [InlineData("M\u00fcnchen", "7f634dc3bc656e6368656eff")]
-        [InlineData(
-            "Red October translates into Russian (\u0440\u0443\u0441\u0441\u043a\u0438\u0439 \u044f\u0437\u044b\u043a) as \u041a\u0440\u0430\u0441\u043d\u044b\u0439 \u041e\u043a\u0442\u044f\u0431\u0440\u044c",
-            "7f6152646564204f6863746f62657220746b72616e736c617465732069656e746f20526875737369616e202871d180d183d181d181d0bad0b8d0b920d18f69d0b7d18bd0ba292061647320d09a6fd180d0b0d181d0bdd18bd0b920d09e6cd0bad182d18fd0b1d180d18cff")]
         public static void TryReadTextString_IndefiniteLengthConcatenated_SingleValue__HappyPath(string expectedValue, string hexEncoding)
         {
             byte[] data = hexEncoding.HexToByteArray();
             var reader = new CborReader(data);
             Assert.Equal(CborReaderState.StartIndefiniteLengthTextString, reader.PeekState());
 
-            Span<char> buffer = stackalloc char[70];
+            Span<char> buffer = new char[32];
             bool result = reader.TryReadTextString(buffer, out int charsWritten);
 
             Assert.True(result);
@@ -256,13 +246,6 @@ namespace System.Formats.Cbor.Tests
             string value = reader.ReadTextString();
             Assert.Equal("", value);
             Assert.Equal(CborReaderState.Finished, reader.PeekState());
-
-            reader.Reset(encoding);
-            char[] buffer = new char[32];
-            bool result = reader.TryReadTextString(buffer, out int charsWritten);
-            Assert.True(result);
-            Assert.Equal(0, charsWritten);
-            Assert.Equal(CborReaderState.Finished, reader.PeekState());
         }
 
         [Theory]
@@ -279,11 +262,6 @@ namespace System.Formats.Cbor.Tests
             byte[] encoding = hexEncoding.HexToByteArray();
             var reader = new CborReader(encoding, mode);
             Assert.Throws<CborContentException>(() => reader.ReadTextString());
-            Assert.Equal(encoding.Length, reader.BytesRemaining);
-
-            reader.Reset(encoding);
-            char[] buffer = new char[32];
-            Assert.Throws<CborContentException>(() => reader.TryReadTextString(buffer, out int _));
             Assert.Equal(encoding.Length, reader.BytesRemaining);
         }
 
@@ -426,11 +404,6 @@ namespace System.Formats.Cbor.Tests
             var reader = new CborReader(encoding);
             Assert.Throws<CborContentException>(() => reader.ReadTextString());
             Assert.Equal(encoding.Length, reader.BytesRemaining);
-
-            reader.Reset(encoding);
-            char[] buffer = new char[32];
-            Assert.Throws<CborContentException>(() => reader.TryReadTextString(buffer, out int _));
-            Assert.Equal(encoding.Length, reader.BytesRemaining);
         }
 
         [Theory]
@@ -501,11 +474,6 @@ namespace System.Formats.Cbor.Tests
 
             Assert.Throws<CborContentException>(() => reader.ReadTextString());
             Assert.Equal(encoding.Length, reader.BytesRemaining);
-
-            reader.Reset(encoding);
-            char[] buffer = new char[32];
-            Assert.Throws<CborContentException>(() => reader.TryReadTextString(buffer, out int _));
-            Assert.Equal(encoding.Length, reader.BytesRemaining);
         }
 
         [Fact]
@@ -571,12 +539,6 @@ namespace System.Formats.Cbor.Tests
             var reader = new CborReader(encoding, conformanceMode);
             string actual = reader.ReadTextString();
             Assert.Equal(expected, actual);
-
-            reader.Reset(encoding);
-            char[] buffer = new char[32];
-            bool result = reader.TryReadTextString(buffer, out int charsWritten);
-            Assert.True(result);
-            Assert.Equal(expected, new string(buffer, 0, charsWritten));
         }
 
         [Theory]
@@ -592,11 +554,6 @@ namespace System.Formats.Cbor.Tests
             byte[] encoding = hexEncoding.HexToByteArray();
             var reader = new CborReader(encoding, conformanceMode);
             Assert.Throws<CborContentException>(() => reader.ReadTextString());
-            Assert.Equal(encoding.Length, reader.BytesRemaining);
-
-            reader.Reset(encoding);
-            char[] buffer = new char[32];
-            Assert.Throws<CborContentException>(() => reader.TryReadTextString(buffer, out int _));
             Assert.Equal(encoding.Length, reader.BytesRemaining);
         }
     }

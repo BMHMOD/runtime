@@ -9,7 +9,7 @@ namespace System.Security.Cryptography.X509Certificates
 {
     public sealed class X500DistinguishedName : AsnEncodedData
     {
-        private string? _lazyDistinguishedName;
+        private volatile string? _lazyDistinguishedName;
         private List<X500RelativeDistinguishedName>? _parsedAttributes;
 
         public X500DistinguishedName(byte[] encodedDistinguishedName)
@@ -131,8 +131,8 @@ namespace System.Security.Cryptography.X509Certificates
 
             try
             {
-                ValueAsnReader outer = new ValueAsnReader(rawDataSpan, AsnEncodingRules.DER);
-                ValueAsnReader sequence = outer.ReadSequence();
+                AsnValueReader outer = new AsnValueReader(rawDataSpan, AsnEncodingRules.DER);
+                AsnValueReader sequence = outer.ReadSequence();
                 outer.ThrowIfNotEmpty();
 
                 while (sequence.HasData)
@@ -141,7 +141,7 @@ namespace System.Security.Cryptography.X509Certificates
 
                     if (!rawDataSpan.Overlaps(encodedValue, out int offset))
                     {
-                        Debug.Fail("ValueAsnReader produced a span outside of the original bounds");
+                        Debug.Fail("AsnValueReader produced a span outside of the original bounds");
                         throw new UnreachableException();
                     }
 

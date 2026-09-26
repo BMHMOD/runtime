@@ -1,8 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 internal static partial class Interop
@@ -32,56 +30,37 @@ internal static partial class Interop
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        internal struct TIME_DYNAMIC_ZONE_INFORMATION
+        internal unsafe struct TIME_DYNAMIC_ZONE_INFORMATION
         {
-            [InlineArray(32)]
-            internal struct NameBuffer
-            {
-                private char _element0;
-            }
-
-            [InlineArray(128)]
-            internal struct TimeZoneKeyNameBuffer
-            {
-                private char _element0;
-            }
-
             internal int Bias;
-            internal NameBuffer StandardName;
+            internal fixed char StandardName[32];
             internal SYSTEMTIME StandardDate;
             internal int StandardBias;
-            internal NameBuffer DaylightName;
+            internal fixed char DaylightName[32];
             internal SYSTEMTIME DaylightDate;
             internal int DaylightBias;
-            internal TimeZoneKeyNameBuffer TimeZoneKeyName;
+            internal fixed char TimeZoneKeyName[128];
             internal byte DynamicDaylightTimeDisabled;
 
             internal string GetTimeZoneKeyName()
             {
-                ReadOnlySpan<char> span = TimeZoneKeyName;
-                int idx = span.IndexOf('\0');
-                return new string(idx >= 0 ? span[..idx] : span);
+                fixed (char* p = TimeZoneKeyName)
+                    return new string(p);
             }
         }
 
         [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-        internal struct TIME_ZONE_INFORMATION
+        internal unsafe struct TIME_ZONE_INFORMATION
         {
-            [InlineArray(32)]
-            internal struct NameBuffer
-            {
-                private char _element0;
-            }
-
             internal int Bias;
-            internal NameBuffer StandardName;
+            internal fixed char StandardName[32];
             internal SYSTEMTIME StandardDate;
             internal int StandardBias;
-            internal NameBuffer DaylightName;
+            internal fixed char DaylightName[32];
             internal SYSTEMTIME DaylightDate;
             internal int DaylightBias;
 
-            internal unsafe TIME_ZONE_INFORMATION(in TIME_DYNAMIC_ZONE_INFORMATION dtzi)
+            internal TIME_ZONE_INFORMATION(in TIME_DYNAMIC_ZONE_INFORMATION dtzi)
             {
                 // The start of TIME_DYNAMIC_ZONE_INFORMATION has identical layout as TIME_ZONE_INFORMATION
                 fixed (TIME_ZONE_INFORMATION* pTo = &this)
@@ -91,26 +70,22 @@ internal static partial class Interop
 
             internal string GetStandardName()
             {
-                ReadOnlySpan<char> span = StandardName;
-                int idx = span.IndexOf('\0');
-                return new string(idx >= 0 ? span[..idx] : span);
+                fixed (char* p = StandardName)
+                    return new string(p);
             }
 
             internal string GetDaylightName()
             {
-                ReadOnlySpan<char> span = DaylightName;
-                int idx = span.IndexOf('\0');
-                return new string(idx >= 0 ? span[..idx] : span);
+                fixed (char* p = DaylightName)
+                    return new string(p);
             }
         }
 
         internal const uint TIME_ZONE_ID_INVALID = unchecked((uint)-1);
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Kernel32, SetLastError = true)]
         internal static partial uint GetDynamicTimeZoneInformation(out TIME_DYNAMIC_ZONE_INFORMATION pTimeZoneInformation);
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Kernel32, SetLastError = true)]
         internal static partial uint GetTimeZoneInformation(out TIME_ZONE_INFORMATION lpTimeZoneInformation);
     }

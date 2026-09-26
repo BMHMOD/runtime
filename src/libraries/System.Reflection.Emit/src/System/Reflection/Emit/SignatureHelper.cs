@@ -30,7 +30,8 @@ namespace System.Reflection.Emit
         {
             BlobBuilder fieldSignature = new();
             FieldTypeEncoder encoder = new BlobEncoder(fieldSignature).Field();
-            WriteSignatureForType(encoder.Type(), fieldType, module, requiredCustomModifiers, optionalCustomModifiers);
+            WriteReturnTypeCustomModifiers(encoder.CustomModifiers(), requiredCustomModifiers, optionalCustomModifiers, module);
+            WriteSignatureForType(encoder.Type(), fieldType, module);
 
             return fieldSignature;
         }
@@ -84,8 +85,16 @@ namespace System.Reflection.Emit
             new BlobEncoder(methodSignature).MethodSignature(convention, genParamCount, isInstance).
                     Parameters(paramsLength, out ReturnTypeEncoder retEncoder, out ParametersEncoder parEncoder);
 
-            returnType ??= module.GetTypeFromCoreAssembly(CoreTypeId.Void);
-            WriteSignatureForType(retEncoder.Type(), returnType, module, returnTypeRequiredModifiers, returnTypeOptionalModifiers);
+            WriteReturnTypeCustomModifiers(retEncoder.CustomModifiers(), returnTypeRequiredModifiers, returnTypeOptionalModifiers, module);
+
+            if (returnType != null && returnType != module.GetTypeFromCoreAssembly(CoreTypeId.Void))
+            {
+                WriteSignatureForType(retEncoder.Type(), returnType, module);
+            }
+            else
+            {
+                retEncoder.Void();
+            }
 
             WriteParametersSignature(module, parameters, parEncoder, parameterRequiredModifiers, parameterOptionalModifiers);
 
@@ -114,6 +123,20 @@ namespace System.Reflection.Emit
             return parameterTypes;
         }
 
+        private static void WriteReturnTypeCustomModifiers(CustomModifiersEncoder encoder,
+            Type[]? requiredModifiers, Type[]? optionalModifiers, ModuleBuilderImpl module)
+        {
+            if (requiredModifiers != null)
+            {
+                WriteCustomModifiers(encoder, requiredModifiers, isOptional: false, module);
+            }
+
+            if (optionalModifiers != null)
+            {
+                WriteCustomModifiers(encoder, optionalModifiers, isOptional: true, module);
+            }
+        }
+
         private static void WriteCustomModifiers(CustomModifiersEncoder encoder, Type[] customModifiers, bool isOptional, ModuleBuilderImpl module)
         {
             // GetOptionalCustomModifiers and GetRequiredCustomModifiers return modifiers in reverse order
@@ -133,10 +156,17 @@ namespace System.Reflection.Emit
                 {
                     ParameterTypeEncoder encoder = parameterEncoder.AddParameter();
 
-                    Type[]? modreqs = (requiredModifiers != null && requiredModifiers.Length > i) ? requiredModifiers[i] : null;
-                    Type[]? modopts = (optionalModifiers != null && optionalModifiers.Length > i) ? optionalModifiers[i] : null;
+                    if (requiredModifiers != null && requiredModifiers.Length > i && requiredModifiers[i] != null)
+                    {
+                        WriteCustomModifiers(encoder.CustomModifiers(), requiredModifiers[i], isOptional: false, module);
+                    }
 
-                    WriteSignatureForType(encoder.Type(), parameters[i], module, modreqs, modopts);
+                    if (optionalModifiers != null && optionalModifiers.Length > i && optionalModifiers[i] != null)
+                    {
+                        WriteCustomModifiers(encoder.CustomModifiers(), optionalModifiers[i], isOptional: true, module);
+                    }
+
+                    WriteSignatureForType(encoder.Type(), parameters[i], module);
                 }
             }
         }
@@ -149,16 +179,15 @@ namespace System.Reflection.Emit
                 PropertySignature(isInstanceProperty: property.CallingConventions.HasFlag(CallingConventions.HasThis)).
                 Parameters(property.ParameterTypes == null ? 0 : property.ParameterTypes.Length, out ReturnTypeEncoder retType, out ParametersEncoder paramEncoder);
 
-            WriteSignatureForType(retType.Type(), property.PropertyType, module, property._returnTypeRequiredCustomModifiers, property._returnTypeOptionalCustomModifiers);
+            WriteReturnTypeCustomModifiers(retType.CustomModifiers(), property._returnTypeRequiredCustomModifiers, property._returnTypeOptionalCustomModifiers, module);
+            WriteSignatureForType(retType.Type(), property.PropertyType, module);
             WriteParametersSignature(module, property.ParameterTypes, paramEncoder, property._parameterTypeRequiredCustomModifiers, property._parameterTypeOptionalCustomModifiers);
 
             return propertySignature;
         }
 
-        private static void WriteSignatureForType(SignatureTypeEncoder signature, Type type, ModuleBuilderImpl module, Type[]? requiredModifiers = null, Type[]? optionalModifiers = null)
+        private static void WriteSignatureForType(SignatureTypeEncoder signature, Type type, ModuleBuilderImpl module)
         {
-            WriteCustomModifiers(signature.CustomModifiers(), requiredModifiers ?? type.GetRequiredCustomModifiers(), isOptional: false, module);
-            WriteCustomModifiers(signature.CustomModifiers(), optionalModifiers ?? type.GetOptionalCustomModifiers(), isOptional: true, module);
             if (type.IsArray)
             {
                 Type elementType = type.GetElementType()!;
@@ -170,8 +199,8 @@ namespace System.Reflection.Emit
                 else
                 {
                     signature.Array(out SignatureTypeEncoder elTypeSignature, out ArrayShapeEncoder arrayEncoder);
-                    WriteSignatureForType(elTypeSignature, elementType, module);
-                    arrayEncoder.Shape(type.GetArrayRank(), [], default);
+                    WriteSimpleSignature(elTypeSignature, elementType, module);
+                    arrayEncoder.Shape(type.GetArrayRank(), ImmutableArray.Create<int>(), ImmutableArray.Create<int>(new int[rank]));
                 }
             }
             else if (type.IsPointer)
@@ -223,7 +252,7 @@ namespace System.Reflection.Emit
             }
         }
 
-        internal static void WriteSignatureForFunctionPointerType(SignatureTypeEncoder signature, Type type, ModuleBuilderImpl module)
+        private static void WriteSignatureForFunctionPointerType(SignatureTypeEncoder signature, Type type, ModuleBuilderImpl module)
         {
             SignatureCallingConvention callConv = SignatureCallingConvention.Default;
             FunctionPointerAttributes attribs = FunctionPointerAttributes.None;
@@ -258,31 +287,28 @@ namespace System.Reflection.Emit
             MethodSignatureEncoder sigEncoder = signature.FunctionPointer(callConv, attribs);
             sigEncoder.Parameters(paramTypes.Length, out ReturnTypeEncoder retTypeEncoder, out ParametersEncoder paramsEncoder);
 
-            Type returnTypeToWrite = returnType;
-            if (returnTypeToWrite.IsSignatureType)
-                returnTypeToWrite = returnTypeToWrite.UnderlyingSystemType;
+            CustomModifiersEncoder retModifiersEncoder = retTypeEncoder.CustomModifiers();
 
-            WriteSignatureForType(
-                retTypeEncoder.Type(),
-                returnTypeToWrite,
-                module,
-                returnType.GetRequiredCustomModifiers(),
-                returnType.GetOptionalCustomModifiers());
+            if (returnType.GetOptionalCustomModifiers() is Type[] retModOpts)
+                WriteCustomModifiers(retModifiersEncoder, retModOpts, isOptional: true, module);
+
+            if (returnType.GetRequiredCustomModifiers() is Type[] retModReqs)
+                WriteCustomModifiers(retModifiersEncoder, retModReqs, isOptional: false, module);
+
+            WriteSignatureForType(retTypeEncoder.Type(), returnType, module);
 
             foreach (Type paramType in paramTypes)
             {
                 ParameterTypeEncoder paramEncoder = paramsEncoder.AddParameter();
+                CustomModifiersEncoder paramModifiersEncoder = paramEncoder.CustomModifiers();
 
-                Type paramTypeToWrite = paramType;
-                if (paramTypeToWrite.IsSignatureType)
-                    paramTypeToWrite = paramTypeToWrite.UnderlyingSystemType;
+                if (paramType.GetOptionalCustomModifiers() is Type[] paramModOpts)
+                    WriteCustomModifiers(paramModifiersEncoder, paramModOpts, isOptional: true, module);
 
-                WriteSignatureForType(
-                    paramEncoder.Type(),
-                    paramTypeToWrite,
-                    module,
-                    paramType.GetRequiredCustomModifiers(),
-                    paramType.GetOptionalCustomModifiers());
+                if (paramType.GetRequiredCustomModifiers() is Type[] paramModReqs)
+                    WriteCustomModifiers(paramModifiersEncoder, paramModReqs, isOptional: false, module);
+
+                WriteSignatureForType(paramEncoder.Type(), paramType, module);
             }
         }
 

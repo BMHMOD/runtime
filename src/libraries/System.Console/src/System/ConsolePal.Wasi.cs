@@ -20,27 +20,19 @@ namespace System
     {
         public static Stream OpenStandardInput()
         {
-            return new UnixConsoleStream(OpenStandardInputHandle(), FileAccess.Read,
+            return new UnixConsoleStream(Interop.Sys.FileDescriptors.STDIN_FILENO, FileAccess.Read,
                                          useReadLine: !Console.IsInputRedirected);
         }
 
         public static Stream OpenStandardOutput()
         {
-            return new UnixConsoleStream(OpenStandardOutputHandle(), FileAccess.Write);
+            return new UnixConsoleStream(Interop.Sys.FileDescriptors.STDOUT_FILENO, FileAccess.Write);
         }
 
         public static Stream OpenStandardError()
         {
-            return new UnixConsoleStream(OpenStandardErrorHandle(), FileAccess.Write);
+            return new UnixConsoleStream(Interop.Sys.FileDescriptors.STDERR_FILENO, FileAccess.Write);
         }
-
-        public static SafeFileHandle OpenStandardInputHandle() => OpenStandardHandle(0);
-
-        public static SafeFileHandle OpenStandardOutputHandle() => OpenStandardHandle(1);
-
-        public static SafeFileHandle OpenStandardErrorHandle() => OpenStandardHandle(2);
-
-        private static SafeFileHandle OpenStandardHandle(IntPtr fd) => new SafeFileHandle(fd, ownsHandle: false);
 
         public static Encoding InputEncoding
         {

@@ -18,7 +18,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src\System.Threading.RateLimiting.csproj" SkipUseReferenceAssembly="true" />
+    <ProjectReference Include="..\src\System.Threading.RateLimiting.csproj" />
   </ItemGroup>
 
 </Project>

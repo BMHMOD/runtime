@@ -487,9 +487,7 @@ namespace System.Net
             if ((object)uri.Scheme != (object)Uri.UriSchemeFtp)
                 throw new ArgumentOutOfRangeException(nameof(uri));
 
-            if (uri.OriginalString.AsSpan().ContainsAny('\r', '\n') ||
-                uri.OriginalString.Contains("%0A", StringComparison.OrdinalIgnoreCase) ||
-                uri.OriginalString.Contains("%0D", StringComparison.OrdinalIgnoreCase))
+            if (uri.OriginalString.Contains("\r\n", StringComparison.Ordinal))
                 throw new FormatException(SR.net_ftp_no_newlines);
 
             _timerCallback = new TimerThread.Callback(TimerCallback);

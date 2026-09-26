@@ -5,7 +5,7 @@ using System.Globalization;
 using System.Numerics;
 using Xunit;
 
-namespace System.Drawing.Primitives.Tests
+namespace System.Drawing.PrimitivesTest
 {
     public class SizeFTests
     {

@@ -98,7 +98,7 @@ namespace System.Collections.Generic
         {
             if (_count == 0)
             {
-                return [];
+                return Array.Empty<T>();
             }
 
             Debug.Assert(_array != null); // Nonzero _count should imply this

@@ -64,7 +64,8 @@ namespace Internal.IL
 
             if (!_method.Signature.IsStatic)
             {
-                yield return "this";
+                // TODO: this name might conflict with a parameter name or a local name. We need something unique.
+                yield return "___this";
             }
 
             // TODO: The Params table is allowed to have holes in it. This expect all parameters to be present.

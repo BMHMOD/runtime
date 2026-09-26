@@ -9,7 +9,6 @@ internal static partial class Interop
 {
     internal static partial class PerfCounter
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Advapi32)]
         internal static partial uint PerfStopProvider(
             IntPtr hProvider
@@ -54,7 +53,6 @@ internal static partial class Interop
             internal uint InstanceNameSize;
         }
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Advapi32)]
         internal static partial uint PerfStartProvider(
             ref Guid ProviderGuid,
@@ -62,7 +60,6 @@ internal static partial class Interop
             out SafePerfProviderHandle phProvider
         );
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Advapi32, SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
         internal static unsafe partial PerfCounterSetInstanceStruct* PerfCreateInstance(
             SafePerfProviderHandle hProvider,
@@ -71,7 +68,6 @@ internal static partial class Interop
             uint dwInstance
         );
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Advapi32)]
         internal static unsafe partial uint PerfSetCounterSetInfo(
             SafePerfProviderHandle hProvider,
@@ -79,14 +75,12 @@ internal static partial class Interop
             uint dwTemplateSize
         );
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Advapi32)]
         internal static unsafe partial uint PerfDeleteInstance(
             SafePerfProviderHandle hProvider,
             PerfCounterSetInstanceStruct* InstanceBlock
         );
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Advapi32)]
         internal static unsafe partial uint PerfSetCounterRefValue(
             SafePerfProviderHandle hProvider,

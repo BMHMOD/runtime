@@ -366,7 +366,10 @@ namespace Microsoft.Extensions.Primitives
 
             if (value != null)
             {
-                ArgumentNullException.ThrowIfNull(array);
+                if (array == null)
+                {
+                    ThrowHelper.ThrowArgumentNullException(ExceptionArgument.array);
+                }
                 if (arrayIndex < 0)
                 {
                     throw new ArgumentOutOfRangeException(nameof(arrayIndex));

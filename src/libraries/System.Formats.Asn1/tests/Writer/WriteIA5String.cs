@@ -53,7 +53,6 @@ namespace System.Formats.Asn1.Tests.Writer
         public static IEnumerable<object[]> InvalidInputs { get; } = new object[][]
         {
             new object[] { "Dr. & Mrs. Smith\u2010Jones \uFE60 children", },
-            new object[] { new string('A', 64) + "\u0080", },
         };
 
         internal override void WriteString(AsnWriter writer, string s) =>

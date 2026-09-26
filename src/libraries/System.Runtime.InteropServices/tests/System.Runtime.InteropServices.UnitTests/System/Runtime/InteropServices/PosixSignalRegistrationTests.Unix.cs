@@ -16,19 +16,13 @@ namespace System.Tests
     {
         public static IEnumerable<object[]> UninstallableSignals()
         {
-            yield return new object[] { PosixSignal.SIGKILL };
             yield return new object[] { (PosixSignal)9 };
         }
 
         public static IEnumerable<object[]> SupportedSignals()
         {
             foreach (PosixSignal value in Enum.GetValues(typeof(PosixSignal)))
-            {
-                if (value != PosixSignal.SIGKILL)
-                {
-                    yield return new object[] { value };
-                }
-            }
+                yield return new object[] { value };
         }
 
         public static IEnumerable<object[]> UnsupportedSignals()
@@ -46,7 +40,7 @@ namespace System.Tests
 
         public static bool NotMobileAndRemoteExecutable => PlatformDetection.IsNotMobile && RemoteExecutor.IsSupported;
 
-        [ConditionalTheory(typeof(PosixSignalRegistrationTests), nameof(NotMobileAndRemoteExecutable))]
+        [ConditionalTheory(nameof(NotMobileAndRemoteExecutable))]
         [SkipOnPlatform(TestPlatforms.LinuxBionic, "Remote executor has problems with exit codes")]
         [MemberData(nameof(SupportedSignals))]
         public void SignalHandlerCalledForKnownSignals(PosixSignal s)
@@ -81,7 +75,7 @@ namespace System.Tests
             }, s.ToString()).Dispose();
         }
 
-        [ConditionalTheory(typeof(PosixSignalRegistrationTests), nameof(NotMobileAndRemoteExecutable))]
+        [ConditionalTheory(nameof(NotMobileAndRemoteExecutable))]
         [SkipOnPlatform(TestPlatforms.LinuxBionic, "Remote executor has problems with exit codes")]
         [MemberData(nameof(PosixSignalAsRawValues))]
         public void SignalHandlerCalledForRawSignals(PosixSignal s)
@@ -202,7 +196,7 @@ namespace System.Tests
             }
         }
 
-        [ConditionalFact(typeof(PosixSignalRegistrationTests), nameof(NotMobileAndRemoteExecutable))]
+        [ConditionalFact(nameof(NotMobileAndRemoteExecutable))]
         [OuterLoop("SIGQUIT will generate a coredump")]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/65000", TestPlatforms.OSX)] // large (~6 GB) coredump on OSX leads to timeout on upload
         public void SignalCanCancelTermination_ExpectedCrash()
@@ -210,7 +204,7 @@ namespace System.Tests
             SignalCanCancelTermination(PosixSignal.SIGQUIT, false, 131);
         }
 
-        [ConditionalTheory(typeof(PosixSignalRegistrationTests), nameof(NotMobileAndRemoteExecutable))]
+        [ConditionalTheory(nameof(NotMobileAndRemoteExecutable))]
         [InlineData(PosixSignal.SIGINT, true, 0)]
         [InlineData(PosixSignal.SIGINT, false, 130)]
         [InlineData(PosixSignal.SIGTERM, true, 0)]
@@ -258,12 +252,7 @@ namespace System.Tests
                 var data = new TheoryData<PosixSignal>();
                 foreach (var value in Enum.GetValues(typeof(PosixSignal)))
                 {
-                    PosixSignal signal = (PosixSignal)value;
-                    if (signal == PosixSignal.SIGKILL)
-                    {
-                        continue; // SIGKILL cannot be registered
-                    }
-                    int signo = GetPlatformSignalNumber(signal);
+                    int signo = GetPlatformSignalNumber((PosixSignal)value);
                     Assert.True(signo > 0, "Expected raw signal number to be greater than 0.");
                     data.Add((PosixSignal)signo);
                 }

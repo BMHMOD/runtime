@@ -221,6 +221,7 @@ public:
     {
         STATIC_CONTRACT_NOTHROW;
         STATIC_CONTRACT_GC_NOTRIGGER;
+        STATIC_CONTRACT_FORBID_FAULT;
         STATIC_CONTRACT_MODE_COOPERATIVE;
 
         // To zero the struct, we create a zero filled array of large enough size and
@@ -244,6 +245,7 @@ public:
     {
         STATIC_CONTRACT_NOTHROW;
         STATIC_CONTRACT_GC_NOTRIGGER;
+        STATIC_CONTRACT_FORBID_FAULT;
         STATIC_CONTRACT_MODE_COOPERATIVE;
 
         _ASSERTE(IsStructPassedInRegs());
@@ -252,13 +254,14 @@ public:
         BYTE* floatRegDest = (BYTE*)GetStructFloatRegDestinationAddress();
         INDEBUG(int remainingBytes = fieldBytes;)
 
-        _ASSERTE(m_argLocDescForStructInRegs->m_eightByteInfo.GetNumEightBytes() != 0);
+        EEClass* eeClass = m_argLocDescForStructInRegs->m_eeClass;
+        _ASSERTE(eeClass != NULL);
 
         // We start at the first eightByte that the destOffset didn't skip completely.
-        for (int i = destOffset / 8; i < m_argLocDescForStructInRegs->m_eightByteInfo.GetNumEightBytes(); i++)
+        for (int i = destOffset / 8; i < eeClass->GetNumberEightBytes(); i++)
         {
-            int eightByteSize = m_argLocDescForStructInRegs->m_eightByteInfo.GetEightByteSize(i);
-            SystemVClassificationType eightByteClassification = m_argLocDescForStructInRegs->m_eightByteInfo.GetEightByteClassification(i);
+            int eightByteSize = eeClass->GetEightByteSize(i);
+            SystemVClassificationType eightByteClassification = eeClass->GetEightByteClassification(i);
 
             // Adjust the size of the first eightByte by the destOffset
             eightByteSize -= (destOffset & 7);
@@ -322,12 +325,13 @@ public:
         TADDR genRegDest = dac_cast<TADDR>(GetStructGenRegDestinationAddress());
         INDEBUG(int remainingBytes = fieldBytes;)
 
-        _ASSERTE(m_argLocDescForStructInRegs->m_eightByteInfo.GetNumEightBytes() != 0);
+        EEClass* eeClass = m_argLocDescForStructInRegs->m_eeClass;
+        _ASSERTE(eeClass != NULL);
 
-        for (int i = 0; i < m_argLocDescForStructInRegs->m_eightByteInfo.GetNumEightBytes(); i++)
+        for (int i = 0; i < eeClass->GetNumberEightBytes(); i++)
         {
-            int eightByteSize = m_argLocDescForStructInRegs->m_eightByteInfo.GetEightByteSize(i);
-            SystemVClassificationType eightByteClassification = m_argLocDescForStructInRegs->m_eightByteInfo.GetEightByteClassification(i);
+            int eightByteSize = eeClass->GetEightByteSize(i);
+            SystemVClassificationType eightByteClassification = eeClass->GetEightByteClassification(i);
 
             _ASSERTE(remainingBytes >= eightByteSize);
 

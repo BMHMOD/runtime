@@ -6,7 +6,7 @@
 #ifdef FEATURE_CACHED_INTERFACE_DISPATCH
 
     .extern RhpCidResolve
-    .extern RhpUniversalTransitionTailCall
+    .extern RhpUniversalTransition_DebugStepTailCall
 
     // Macro that generates code to check a single cache entry.
     .macro CHECK_CACHE_ENTRY entry
@@ -32,17 +32,6 @@
         // t8 holds the indirection cell address. Load the cache pointer.
         ld.d  $t0, $t8, OFFSETOF__InterfaceDispatchCell__m_pCache
 
-        // Validate t0 is a cache pointer matching the expected cache size.
-        // This compensates for a race where the stub was updated to expect a larger cache
-        // but we loaded a stale (smaller or non-cache) m_pCache value.
-        // On detection, re-dispatch through the indirection cell to retry with the current
-        // stub and cache pair.
-        andi  $t3, $t0, IDC_CACHE_POINTER_MASK
-        bnez  $t3, LOCAL_LABEL(RaceRetry_\entries)
-        ld.w  $t3, $t0, OFFSETOF__InterfaceDispatchCache__m_cEntries
-        ori   $t4, $zero, \entries
-        bne   $t3, $t4, LOCAL_LABEL(RaceRetry_\entries)
-
         // Load the MethodTable from the object instance in a0.
         ALTERNATE_ENTRY RhpInterfaceDispatchAVLocation\entries
         ld.d  $t1, $a0, 0
@@ -57,11 +46,6 @@
 
         // t8 still contains the indirection cell address.
         b  C_FUNC(RhpInterfaceDispatchSlow)
-
-LOCAL_LABEL(RaceRetry_\entries):
-        // Race detected: re-dispatch through the indirection cell
-        ld.d  $t0, $t8, 0
-        jirl  $r0, $t0, 0
 
     NESTED_END "RhpInterfaceDispatch\entries", _TEXT
 
@@ -107,7 +91,7 @@ LOCAL_LABEL(RaceRetry_\entries):
         // t7: target address for the thunk to call
         // t8: parameter of the thunk's target
         PREPARE_EXTERNAL_VAR RhpCidResolve, $t7
-        b  C_FUNC(RhpUniversalTransitionTailCall)
+        b  C_FUNC(RhpUniversalTransition_DebugStepTailCall)
     LEAF_END RhpInterfaceDispatchSlow, _TEXT
 
 #endif // FEATURE_CACHED_INTERFACE_DISPATCH

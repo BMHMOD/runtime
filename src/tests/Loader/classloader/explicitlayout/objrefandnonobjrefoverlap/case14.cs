@@ -9,7 +9,6 @@
 using System;
 using System.Runtime.InteropServices;
 using Xunit;
-using TestLibrary;
 
 public enum MyEnum {nil, alpha, beta};
 
@@ -37,7 +36,6 @@ public struct WrapBar { public Bar o; }
 
 public class Test{
 
-  [ActiveIssue("expected failure: overlapped structs fail at AOT compile time, not runtime", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoFULLAOT))]
   [Fact]
   public static int TestEntryPoint(){
       bool caught=false;

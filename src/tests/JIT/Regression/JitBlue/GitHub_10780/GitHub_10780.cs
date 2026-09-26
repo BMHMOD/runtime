@@ -7,7 +7,7 @@
 using System.Runtime.CompilerServices;
 using Xunit;
 
-namespace GitHub_10780
+namespace N
 {
     public struct Pair
     {
@@ -42,7 +42,6 @@ namespace GitHub_10780
             }
         }
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

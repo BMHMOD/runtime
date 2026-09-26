@@ -8,7 +8,6 @@ internal static partial class Interop
 {
     internal static partial class Crypt32
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Crypt32, EntryPoint = "CryptDecodeObject", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static unsafe partial bool CryptDecodeObjectPointer(
@@ -20,7 +19,6 @@ internal static partial class Interop
             void* pvStructInfo,
             ref int pcbStructInfo);
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Crypt32, EntryPoint = "CryptDecodeObject", SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static unsafe partial bool CryptDecodeObjectPointer(

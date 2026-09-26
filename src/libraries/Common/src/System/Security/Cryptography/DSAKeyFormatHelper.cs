@@ -16,11 +16,11 @@ namespace System.Security.Cryptography
         };
 
         internal static void ReadDsaPrivateKey(
-            ReadOnlySpan<byte> xBytes,
-            in ValueAlgorithmIdentifierAsn algId,
+            ReadOnlyMemory<byte> xBytes,
+            in AlgorithmIdentifierAsn algId,
             out DSAParameters ret)
         {
-            if (!algId.HasParameters)
+            if (!algId.Parameters.HasValue)
             {
                 throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding);
             }
@@ -30,7 +30,7 @@ namespace System.Security.Cryptography
             try
             {
                 ReadOnlySpan<byte> xSpan = AsnDecoder.ReadIntegerBytes(
-                    xBytes,
+                    xBytes.Span,
                     AsnEncodingRules.DER,
                     out int consumed);
 
@@ -47,7 +47,7 @@ namespace System.Security.Cryptography
                 throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding, e);
             }
 
-            ValueDssParms.Decode(algId.Parameters, AsnEncodingRules.BER, out ValueDssParms parms);
+            DssParms parms = DssParms.Decode(algId.Parameters.Value, AsnEncodingRules.BER);
 
             // Sanity checks from FIPS 186-4 4.1/4.2.  Since FIPS 186-5 withdrew DSA/DSS
             // these will never change again.
@@ -82,11 +82,11 @@ namespace System.Security.Cryptography
         }
 
         internal static void ReadDsaPublicKey(
-            ReadOnlySpan<byte> yBytes,
-            in ValueAlgorithmIdentifierAsn algId,
+            ReadOnlyMemory<byte> yBytes,
+            in AlgorithmIdentifierAsn algId,
             out DSAParameters ret)
         {
-            if (!algId.HasParameters)
+            if (!algId.Parameters.HasValue)
             {
                 throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding);
             }
@@ -96,7 +96,7 @@ namespace System.Security.Cryptography
             try
             {
                 y = AsnDecoder.ReadInteger(
-                    yBytes,
+                    yBytes.Span,
                     AsnEncodingRules.DER,
                     out int consumed);
 
@@ -110,7 +110,7 @@ namespace System.Security.Cryptography
                 throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding, e);
             }
 
-            ValueDssParms.Decode(algId.Parameters, AsnEncodingRules.BER, out ValueDssParms parms);
+            DssParms parms = DssParms.Decode(algId.Parameters.Value, AsnEncodingRules.BER);
 
             // Sanity checks from FIPS 186-4 4.1/4.2.  Since FIPS 186-5 withdrew DSA/DSS
             // these will never change again.
@@ -170,6 +170,16 @@ namespace System.Security.Cryptography
                 ReadDsaPublicKey,
                 out bytesRead,
                 out key);
+        }
+
+        internal static ReadOnlyMemory<byte> ReadSubjectPublicKeyInfo(
+             ReadOnlyMemory<byte> source,
+             out int bytesRead)
+        {
+            return KeyFormatHelper.ReadSubjectPublicKeyInfo(
+                s_validOids,
+                source,
+                out bytesRead);
         }
 
         internal static void ReadPkcs8(

@@ -7,6 +7,7 @@
 #include "excep.h"
 #include "interoputil.h"
 #include "interopconverter.h"
+#include "olevariant.h"
 #include "comcallablewrapper.h"
 
 #ifdef FEATURE_COMINTEROP
@@ -55,6 +56,7 @@ namespace
             return;
 
         // make sure we can cast to the specified class
+        FAULT_NOT_FATAL();
 
         // Bad format exception thrown for backward compatibility
         THROW_BAD_FORMAT_MAYBE(pMTClass->IsArray() == FALSE, BFA_UNEXPECTED_ARRAY_TYPE, pMTClass);
@@ -78,7 +80,7 @@ namespace
 // Convert ObjectRef to a COM IP, based on MethodTable* pMT.
 IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, MethodTable *pMT, BOOL bEnableCustomizedQueryInterface)
 {
-    CONTRACTL
+    CONTRACT (IUnknown*)
     {
         THROWS;
         GC_TRIGGERS;
@@ -86,16 +88,17 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, MethodTable *pMT, BOOL bEnable
         PRECONDITION(CheckPointer(poref));
         PRECONDITION(CheckPointer(pMT));
         PRECONDITION(g_fComStarted && "COM has not been started up, make sure EnsureComStarted is called before any COM objects are used!");
+        POSTCONDITION((*poref) != NULL ? CheckPointer(RETVAL) : CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     BOOL        fReleaseWrapper     = false;
     HRESULT     hr                  = E_NOINTERFACE;
-    ReleaseHolderAnyMode<IUnknown> pUnk;
+    SafeComHolder<IUnknown> pUnk    = NULL;
     size_t      ul                  = 0;
 
     if (*poref == NULL)
-        return NULL;
+        RETURN NULL;
 
     if (TryGetComIPFromObjectRefUsingComWrappers(*poref, &pUnk))
     {
@@ -107,8 +110,7 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, MethodTable *pMT, BOOL bEnable
         if (FAILED(hr))
             COMPlusThrowHR(hr);
 
-        _ASSERTE(((*poref) == NULL) || (pvObj != NULL));
-        return pvObj;
+        RETURN pvObj;
     }
 
     if (!g_pConfig->IsBuiltInCOMSupported())
@@ -122,7 +124,7 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, MethodTable *pMT, BOOL bEnable
     //  get the pUnk from the ComCallWrapper, otherwise from the RCW
     if ((NULL != pInteropInfo->GetCCW()) || (!pInteropInfo->RCWWasUsed()))
     {
-        CCWHolder pCCWHold{ ComCallWrapper::InlineGetWrapper(poref) };
+        CCWHolder pCCWHold = ComCallWrapper::InlineGetWrapper(poref);
 
         GetComIPFromCCW::flags flags = GetComIPFromCCW::None;
         if (!bEnableCustomizedQueryInterface)   { flags |= GetComIPFromCCW::SuppressCustomizedQueryInterface; }
@@ -144,7 +146,8 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, MethodTable *pMT, BOOL bEnable
     if (pUnk == NULL)
         COMPlusThrowHR(hr);
 
-    return pUnk.Detach();
+    pUnk.SuppressRelease();
+    RETURN pUnk;
 }
 
 
@@ -153,7 +156,7 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, MethodTable *pMT, BOOL bEnable
 // Convert ObjectRef to a COM IP of the requested type.
 IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, ComIpType ReqIpType, ComIpType *pFetchedIpType)
 {
-    CONTRACTL
+    CONTRACT (IUnknown*)
     {
         THROWS;
         GC_TRIGGERS;
@@ -161,8 +164,9 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, ComIpType ReqIpType, ComIpType
         PRECONDITION((ReqIpType & (ComIpType_Dispatch | ComIpType_Unknown)) != 0);
         PRECONDITION(CheckPointer(poref));
         PRECONDITION(ReqIpType != 0);
+        POSTCONDITION((*poref) != NULL ? CheckPointer(RETVAL) : CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // COM had better be started up at this point.
     _ASSERTE(g_fComStarted && "COM has not been started up, make sure EnsureComStarted is called before any COM objects are used!");
@@ -174,7 +178,7 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, ComIpType ReqIpType, ComIpType
     ComIpType   FetchedIpType   = ComIpType_None;
 
     if (*poref == NULL)
-        return NULL;
+        RETURN NULL;
 
     if (TryGetComIPFromObjectRefUsingComWrappers(*poref, &pUnk))
     {
@@ -208,8 +212,7 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, ComIpType ReqIpType, ComIpType
         if (pFetchedIpType != NULL)
             *pFetchedIpType = FetchedIpType;
 
-        _ASSERTE(((*poref) != NULL) == (pvObj != NULL));
-        return pvObj;
+        RETURN pvObj;
     }
 
     if (!g_pConfig->IsBuiltInCOMSupported())
@@ -223,7 +226,7 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, ComIpType ReqIpType, ComIpType
 
     if ( (NULL != pInteropInfo->GetCCW()) || (!pInteropInfo->RCWWasUsed()) )
     {
-        CCWHolder pCCWHold{ ComCallWrapper::InlineGetWrapper(poref) };
+        CCWHolder pCCWHold = ComCallWrapper::InlineGetWrapper(poref);
 
         // If the user requested IDispatch, then check for IDispatch first.
         if (ReqIpType & ComIpType_Dispatch)
@@ -289,7 +292,7 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, ComIpType ReqIpType, ComIpType
     if (pFetchedIpType)
         *pFetchedIpType = FetchedIpType;
 
-    return pUnk;
+    RETURN pUnk;
 }
 
 
@@ -299,14 +302,15 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, ComIpType ReqIpType, ComIpType
 //+----------------------------------------------------------------------------
 IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, REFIID iid, bool throwIfNoComIP /* = true */)
 {
-    CONTRACTL
+    CONTRACT (IUnknown*)
     {
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
         PRECONDITION(CheckPointer(poref));
+        POSTCONDITION((*poref) != NULL ? CheckPointer(RETVAL, throwIfNoComIP ? NULL_NOT_OK : NULL_OK) : CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     ASSERT_PROTECTED(poref);
 
@@ -319,7 +323,7 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, REFIID iid, bool throwIfNoComI
     size_t      ul              = 0;
 
     if (*poref == NULL)
-        return NULL;
+        RETURN NULL;
 
     if (TryGetComIPFromObjectRefUsingComWrappers(*poref, &pUnk))
     {
@@ -329,8 +333,7 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, REFIID iid, bool throwIfNoComI
         if (FAILED(hr))
             COMPlusThrowHR(hr);
 
-        _ASSERTE(((*poref) == NULL) || (pvObj != NULL));
-        return pvObj;
+        RETURN pvObj;
     }
 
     MethodTable *pMT = (*poref)->GetMethodTable();
@@ -341,12 +344,12 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, REFIID iid, bool throwIfNoComI
 
     if ((NULL != pInteropInfo->GetCCW()) || (!pInteropInfo->RCWWasUsed()))
     {
-        CCWHolder pCCWHold{ ComCallWrapper::InlineGetWrapper(poref) };
+        CCWHolder pCCWHold = ComCallWrapper::InlineGetWrapper(poref);
         pUnk = ComCallWrapper::GetComIPFromCCW(pCCWHold, iid, NULL);
     }
     else
     {
-        ReleaseHolderAnyMode<IUnknown> pUnkHolder;
+        SafeComHolder<IUnknown> pUnkHolder;
 
         RCWHolder pRCW(GetThread());
         RCWPROTECT_BEGIN(pRCW, pBlock);
@@ -356,14 +359,13 @@ IUnknown *GetComIPFromObjectRef(OBJECTREF *poref, REFIID iid, bool throwIfNoComI
 
         RCWPROTECT_END(pRCW);
 
-        pUnk = pUnkHolder.Detach();
+        pUnk = pUnkHolder.Extract();
     }
 
     if (throwIfNoComIP && pUnk == NULL)
         COMPlusThrowHR(hr);
 
-    _ASSERTE(((*poref) == NULL) || !throwIfNoComIP || (pUnk != NULL));
-    return pUnk;
+    RETURN pUnk;
 }
 
 
@@ -407,7 +409,7 @@ void GetObjectRefFromComIP(OBJECTREF* pObjOut, IUnknown **ppUnk, MethodTable *pM
     Thread * pThread = GetThread();
 
     IUnknown* pOuter = pUnk;
-    ReleaseHolderAnyMode<IUnknown> pAutoOuterUnk;
+    SafeComHolder<IUnknown> pAutoOuterUnk = NULL;
 
     if (pUnk != NULL)
     {
@@ -469,3 +471,5 @@ void GetObjectRefFromComIP(OBJECTREF* pObjOut, IUnknown **ppUnk, MethodTable *pM
     }
 }
 #endif // FEATURE_COMINTEROP
+
+

@@ -3,14 +3,12 @@
 
 using System;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.Interop.UnitTests;
 
 namespace ComInterfaceGenerator.Unit.Tests
 {
-    internal class VerifyCompilationTest<T, TAnalyzer> : Microsoft.Interop.UnitTests.Verifiers.CSharpSourceGeneratorVerifier<T, TAnalyzer>.Test
+    internal class VerifyCompilationTest<T> : Microsoft.Interop.UnitTests.Verifiers.CSharpSourceGeneratorVerifier<T>.Test
         where T : new()
-        where TAnalyzer : DiagnosticAnalyzer, new()
     {
         public required Action<Compilation> CompilationVerifier { get; init; }
 

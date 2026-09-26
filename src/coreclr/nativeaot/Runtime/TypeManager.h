@@ -6,8 +6,6 @@
 
 class TypeManager
 {
-    friend struct ::cdac_data<TypeManager>;
-
     // NOTE: Part of this layout is a contract with the managed side in TypeManagerHandle.cs
     HANDLE                      m_osModule;
     ReadyToRunHeader *          m_pHeader;
@@ -29,15 +27,13 @@ private:
     struct ModuleInfoRow
     {
         int32_t SectionId;
-        int32_t Length;
+        int32_t Flags;
         void * Start;
-    };
-};
+        void * End;
 
-template<> struct cdac_data<TypeManager>
-{
-    static constexpr size_t OsModule = offsetof(TypeManager, m_osModule);
-    static constexpr size_t Header = offsetof(TypeManager, m_pHeader);
+        bool HasEndPointer();
+        int GetLength();
+    };
 };
 
 // TypeManagerHandle represents an AOT module in MRT based runtimes.

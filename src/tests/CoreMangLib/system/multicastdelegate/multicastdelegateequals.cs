@@ -406,7 +406,6 @@ public class MulticastDelegateEquals
     #endregion
     #endregion
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

@@ -49,20 +49,6 @@ namespace System
                 if (IsGenericParameter)
                     return true;
 
-                if (IsFunctionPointer)
-                {
-                    if (GetFunctionPointerReturnType().ContainsGenericParameters)
-                        return true;
-
-                    foreach (Type parameterType in GetFunctionPointerParameterTypes())
-                    {
-                        if (parameterType.ContainsGenericParameters)
-                            return true;
-                    }
-
-                    return false;
-                }
-
                 if (!IsGenericType)
                     return false;
 
@@ -101,20 +87,6 @@ namespace System
 
                 if (HasElementType)
                     return GetElementType()!.IsVisible;
-
-                if (IsFunctionPointer)
-                {
-                    if (!GetFunctionPointerReturnType().IsVisible)
-                        return false;
-
-                    foreach (Type parameterType in GetFunctionPointerParameterTypes())
-                    {
-                        if (!parameterType.IsVisible)
-                            return false;
-                    }
-
-                    return true;
-                }
 
                 Type type = this;
                 while (type.IsNested)

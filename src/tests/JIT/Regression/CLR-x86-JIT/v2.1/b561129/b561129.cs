@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 
-
-namespace b561129;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
@@ -81,7 +78,6 @@ public class ProgressConsumerBuilder
 
 public class MainApp
 {
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

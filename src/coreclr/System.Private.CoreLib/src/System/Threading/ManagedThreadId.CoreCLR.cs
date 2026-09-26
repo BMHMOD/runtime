@@ -10,16 +10,8 @@ namespace System.Threading
         // This will be initialized by the runtime.
         [ThreadStatic]
         private static int t_currentManagedThreadId;
-
         internal static int CurrentManagedThreadIdUnchecked => t_currentManagedThreadId;
 
-        public static int Current
-        {
-            get
-            {
-                Debug.Assert(t_currentManagedThreadId != 0, "The runtime should have initialized the thread id by now.");
-                return t_currentManagedThreadId;
-            }
-        }
+        public static int Current => t_currentManagedThreadId;
     }
 }

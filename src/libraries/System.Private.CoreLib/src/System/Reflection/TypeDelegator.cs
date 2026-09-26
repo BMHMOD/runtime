@@ -152,7 +152,6 @@ namespace System.Reflection
         protected override bool IsValueTypeImpl() => typeImpl.IsValueType;
         protected override bool IsCOMObjectImpl() => typeImpl.IsCOMObject;
         public override bool IsByRefLike => typeImpl.IsByRefLike;
-        public override Type? GetNullableUnderlyingType() => typeImpl.GetNullableUnderlyingType();
         public override bool IsConstructedGenericType => typeImpl.IsConstructedGenericType;
 
         public override bool IsCollectible => typeImpl.IsCollectible;

@@ -1,27 +1,29 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-#ifndef BUNDLE_MARKER_H
-#define BUNDLE_MARKER_H
+#ifndef __BUNDLE_MARKER_H__
+#define __BUNDLE_MARKER_H__
 
-#include <stdint.h>
-#include <stdbool.h>
+#include <cstdint>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#pragma pack(push, 1)
+    union bundle_marker_t
+    {
+    public:
+        uint8_t placeholder[40];
+        struct
+        {
+            int64_t bundle_header_offset;
+            uint8_t signature[32];
+        } locator;
 
-// Returns the bundle header offset. Zero for non-bundle apphosts.
-int64_t bundle_marker_header_offset(void);
+        static int64_t header_offset();
+        static bool is_bundle()
+        {
+            return header_offset() != 0;
+        }
+    };
+#pragma pack(pop)
 
-// Returns true if this is a bundled single-file app.
-static inline bool bundle_marker_is_bundle(void)
-{
-    return bundle_marker_header_offset() != 0;
-}
 
-#ifdef __cplusplus
-}
-#endif
-
-#endif // BUNDLE_MARKER_H
+#endif // __BUNDLE_MARKER_H__

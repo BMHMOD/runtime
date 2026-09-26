@@ -9,28 +9,13 @@ namespace System.Security.Cryptography
     internal sealed partial class AesImplementation : Aes
     {
         private FixedMemoryKeyBox? _keyBox;
-        private ILiteSymmetricCipher? _encryptEcbCipher;
-        private ILiteSymmetricCipher? _decryptEcbCipher;
-        private ILiteSymmetricCipher? _encryptCbcCipher;
-        private ILiteSymmetricCipher? _decryptCbcCipher;
-        private ConcurrencyBlock _block;
 
         private FixedMemoryKeyBox GetKey()
         {
             if (_keyBox is null)
             {
-                Span<byte> key = stackalloc byte[KeySize / BitsPerByte];
-
-                try
-                {
-                    RandomNumberGenerator.Fill(key);
-                    SetKeyCoreUnchecked(key);
-                    Debug.Assert(_keyBox is not null);
-                }
-                finally
-                {
-                    CryptographicOperations.ZeroMemory(key);
-                }
+                GenerateKey();
+                Debug.Assert(_keyBox is not null);
             }
 
             return _keyBox;
@@ -47,13 +32,9 @@ namespace System.Security.Cryptography
             get => base.KeySize;
             set
             {
-                using (ConcurrencyBlock.Enter(ref _block))
-                {
-                    base.KeySize = value;
-                    ClearCachedCiphers();
-                    _keyBox?.Dispose();
-                    _keyBox = null;
-                }
+                base.KeySize = value;
+                _keyBox?.Dispose();
+                _keyBox = null;
             }
         }
 
@@ -86,26 +67,17 @@ namespace System.Security.Cryptography
             IV = RandomNumberGenerator.GetBytes(BlockSize / BitsPerByte);
         }
 
-        public sealed override unsafe void GenerateKey()
+        public sealed override void GenerateKey()
         {
             Span<byte> key = stackalloc byte[KeySize / BitsPerByte];
-
-            try
-            {
-                RandomNumberGenerator.Fill(key);
-                SetKeyCore(key);
-            }
-            finally
-            {
-                CryptographicOperations.ZeroMemory(key);
-            }
+            RandomNumberGenerator.Fill(key);
+            SetKeyCore(key);
         }
 
         protected sealed override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                ClearCachedCiphers();
                 _keyBox?.Dispose();
                 _keyBox = null;
             }
@@ -115,10 +87,9 @@ namespace System.Security.Cryptography
 
         protected override void SetKeyCore(ReadOnlySpan<byte> key)
         {
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                SetKeyCoreUnchecked(key);
-            }
+            KeySizeValue = checked(BitsPerByte * key.Length);
+            _keyBox?.Dispose();
+            _keyBox = new FixedMemoryKeyBox(key);
         }
 
         protected override bool TryDecryptEcbCore(
@@ -127,14 +98,19 @@ namespace System.Security.Cryptography
             PaddingMode paddingMode,
             out int bytesWritten)
         {
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                ILiteSymmetricCipher cipher = GetOrCreateCachedLiteCipher(
-                    ref _decryptEcbCipher,
+            ILiteSymmetricCipher cipher = GetKey().UseKey(
+                BlockSize / BitsPerByte,
+                static (blockSizeBytes, key) => CreateLiteCipher(
                     CipherMode.ECB,
+                    key,
                     iv: default,
-                    encrypting: false);
+                    blockSize: blockSizeBytes,
+                    paddingSize: blockSizeBytes,
+                    0, /*feedback size */
+                    encrypting: false));
 
+            using (cipher)
+            {
                 return UniversalCryptoOneShot.OneShotDecrypt(cipher, paddingMode, ciphertext, destination, out bytesWritten);
             }
         }
@@ -145,14 +121,19 @@ namespace System.Security.Cryptography
             PaddingMode paddingMode,
             out int bytesWritten)
         {
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                ILiteSymmetricCipher cipher = GetOrCreateCachedLiteCipher(
-                    ref _encryptEcbCipher,
+            ILiteSymmetricCipher cipher = GetKey().UseKey(
+                BlockSize / BitsPerByte,
+                static (blockSizeBytes, key) => CreateLiteCipher(
                     CipherMode.ECB,
+                    key,
                     iv: default,
-                    encrypting: true);
+                    blockSize: blockSizeBytes,
+                    paddingSize: blockSizeBytes,
+                    0, /*feedback size */
+                    encrypting: true));
 
+            using (cipher)
+            {
                 return UniversalCryptoOneShot.OneShotEncrypt(cipher, paddingMode, plaintext, destination, out bytesWritten);
             }
         }
@@ -164,14 +145,20 @@ namespace System.Security.Cryptography
             PaddingMode paddingMode,
             out int bytesWritten)
         {
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                ILiteSymmetricCipher cipher = GetOrCreateCachedLiteCipher(
-                    ref _encryptCbcCipher,
+            ILiteSymmetricCipher cipher = GetKey().UseKey(
+                iv,
+                BlockSize / BitsPerByte,
+                static (iv, blockSizeBytes, key) => CreateLiteCipher(
                     CipherMode.CBC,
+                    key,
                     iv,
-                    encrypting: true);
+                    blockSize: blockSizeBytes,
+                    paddingSize: blockSizeBytes,
+                    0, /*feedback size */
+                    encrypting: true));
 
+            using (cipher)
+            {
                 return UniversalCryptoOneShot.OneShotEncrypt(cipher, paddingMode, plaintext, destination, out bytesWritten);
             }
         }
@@ -183,14 +170,20 @@ namespace System.Security.Cryptography
             PaddingMode paddingMode,
             out int bytesWritten)
         {
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                ILiteSymmetricCipher cipher = GetOrCreateCachedLiteCipher(
-                    ref _decryptCbcCipher,
+            ILiteSymmetricCipher cipher = GetKey().UseKey(
+                iv,
+                BlockSize / BitsPerByte,
+                static (iv, blockSizeBytes, key) => CreateLiteCipher(
                     CipherMode.CBC,
+                    key,
                     iv,
-                    encrypting: false);
+                    blockSize: blockSizeBytes,
+                    paddingSize: blockSizeBytes,
+                    0, /*feedback size */
+                    encrypting: false));
 
+            using (cipher)
+            {
                 return UniversalCryptoOneShot.OneShotDecrypt(cipher, paddingMode, ciphertext, destination, out bytesWritten);
             }
         }
@@ -205,24 +198,21 @@ namespace System.Security.Cryptography
         {
             ValidateCFBFeedbackSize(feedbackSizeInBits);
 
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                ILiteSymmetricCipher cipher = GetKey().UseKey(
-                    iv,
-                    (BlockSizeBytes: BlockSize / BitsPerByte, FeedbackSizeBytes: feedbackSizeInBits / BitsPerByte),
-                    static (iv, state, key) => CreateLiteCipher(
-                        CipherMode.CFB,
-                        key,
-                        iv: iv,
-                        blockSize: state.BlockSizeBytes,
-                        paddingSize: state.FeedbackSizeBytes,
-                        state.FeedbackSizeBytes,
-                        encrypting: false));
+            ILiteSymmetricCipher cipher = GetKey().UseKey(
+                iv,
+                (BlockSizeBytes: BlockSize / BitsPerByte, FeedbackSizeBytes: feedbackSizeInBits / BitsPerByte),
+                static (iv, state, key) => CreateLiteCipher(
+                    CipherMode.CFB,
+                    key,
+                    iv: iv,
+                    blockSize: state.BlockSizeBytes,
+                    paddingSize: state.FeedbackSizeBytes,
+                    state.FeedbackSizeBytes,
+                    encrypting: false));
 
-                using (cipher)
-                {
-                    return UniversalCryptoOneShot.OneShotDecrypt(cipher, paddingMode, ciphertext, destination, out bytesWritten);
-                }
+            using (cipher)
+            {
+                return UniversalCryptoOneShot.OneShotDecrypt(cipher, paddingMode, ciphertext, destination, out bytesWritten);
             }
         }
 
@@ -236,24 +226,21 @@ namespace System.Security.Cryptography
         {
             ValidateCFBFeedbackSize(feedbackSizeInBits);
 
-            using (ConcurrencyBlock.Enter(ref _block))
-            {
-                ILiteSymmetricCipher cipher = GetKey().UseKey(
+            ILiteSymmetricCipher cipher = GetKey().UseKey(
+                iv,
+                (BlockSizeBytes: BlockSize / BitsPerByte, FeedbackSizeBytes: feedbackSizeInBits / BitsPerByte),
+                static (iv, state, key) => CreateLiteCipher(
+                    CipherMode.CFB,
+                    key,
                     iv,
-                    (BlockSizeBytes: BlockSize / BitsPerByte, FeedbackSizeBytes: feedbackSizeInBits / BitsPerByte),
-                    static (iv, state, key) => CreateLiteCipher(
-                        CipherMode.CFB,
-                        key,
-                        iv,
-                        blockSize: state.BlockSizeBytes,
-                        paddingSize: state.FeedbackSizeBytes,
-                        state.FeedbackSizeBytes,
-                        encrypting: true));
+                    blockSize: state.BlockSizeBytes,
+                    paddingSize: state.FeedbackSizeBytes,
+                    state.FeedbackSizeBytes,
+                    encrypting: true));
 
-                using (cipher)
-                {
-                    return UniversalCryptoOneShot.OneShotEncrypt(cipher, paddingMode, plaintext, destination, out bytesWritten);
-                }
+            using (cipher)
+            {
+                return UniversalCryptoOneShot.OneShotEncrypt(cipher, paddingMode, plaintext, destination, out bytesWritten);
             }
         }
 
@@ -302,66 +289,6 @@ namespace System.Security.Cryptography
             {
                 throw new CryptographicException(SR.Format(SR.Cryptography_CipherModeFeedbackNotSupported, feedback, CipherMode.CFB));
             }
-        }
-
-        private ILiteSymmetricCipher GetOrCreateCachedLiteCipher(
-            ref ILiteSymmetricCipher? cipher,
-            CipherMode cipherMode,
-            ReadOnlySpan<byte> iv,
-            bool encrypting)
-        {
-            Debug.Assert(cipherMode is CipherMode.ECB or CipherMode.CBC);
-
-            if (cipher is not null)
-            {
-                try
-                {
-                    cipher.Reset(iv);
-                    return cipher;
-                }
-                catch
-                {
-                    cipher.Dispose();
-                    cipher = null; // Null-out the cipher field passed by reference.
-                    throw;
-                }
-            }
-
-            int blockSizeBytes = BlockSize / BitsPerByte;
-            cipher = GetKey().UseKey(
-                iv,
-                (BlockSizeBytes: blockSizeBytes, CipherMode: cipherMode, Encrypting: encrypting),
-                static (iv, state, key) => CreateLiteCipher(
-                    state.CipherMode,
-                    key,
-                    iv,
-                    blockSize: state.BlockSizeBytes,
-                    paddingSize: state.BlockSizeBytes,
-                    0, /* feedback size */
-                    encrypting: state.Encrypting));
-
-            return cipher;
-        }
-
-        private void SetKeyCoreUnchecked(ReadOnlySpan<byte> key)
-        {
-            KeySizeValue = checked(BitsPerByte * key.Length);
-            FixedMemoryKeyBox keyBox = new FixedMemoryKeyBox(key);
-            ClearCachedCiphers();
-            _keyBox?.Dispose();
-            _keyBox = keyBox;
-        }
-
-        private void ClearCachedCiphers()
-        {
-            _encryptEcbCipher?.Dispose();
-            _encryptEcbCipher = null;
-            _decryptEcbCipher?.Dispose();
-            _decryptEcbCipher = null;
-            _encryptCbcCipher?.Dispose();
-            _encryptCbcCipher = null;
-            _decryptCbcCipher?.Dispose();
-            _decryptCbcCipher = null;
         }
 
         private const int BitsPerByte = 8;

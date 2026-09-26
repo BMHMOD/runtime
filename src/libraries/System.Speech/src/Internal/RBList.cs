@@ -4,7 +4,6 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 namespace System.Speech.Internal
@@ -48,11 +47,11 @@ namespace System.Speech.Internal
                 throw new InvalidOperationException();
             }
 #endif
-            if (!TryFindItem(_root, key, out TreeNode? node))
+            TreeNode node = FindItem(_root, key);
+            if (node == null)
             {
                 throw new KeyNotFoundException();
             }
-
             TreeNode nodeRemoved = DeleteNode(node);
             FixUpRemoval(nodeRemoved);
 
@@ -116,7 +115,8 @@ namespace System.Speech.Internal
             {
                 if (_root == null)
                 {
-                    System.Diagnostics.Debug.Fail("We don't expect First to be called on empty graphs");
+                    // We don't expect First to be called on empty graphs
+                    System.Diagnostics.Debug.Assert(false);
                     return null;
                 }
                 // Set the current pointer to the last element
@@ -136,9 +136,8 @@ namespace System.Speech.Internal
 
         #region Implement utility operations on Tree
 
-        private static TreeNode? GetUncle(TreeNode node)
+        private static TreeNode GetUncle(TreeNode node)
         {
-            System.Diagnostics.Debug.Assert(node.Parent?.Parent != null, "Tree is not in the right state to have an uncle");
             if (node.Parent == node.Parent.Parent.Left)
             {
                 return node.Parent.Parent.Right;
@@ -149,7 +148,7 @@ namespace System.Speech.Internal
             }
         }
 
-        private static TreeNode? GetSibling(TreeNode? node, TreeNode parent)
+        private static TreeNode GetSibling(TreeNode node, TreeNode parent)
         {
             if (node == parent.Left)
             {
@@ -161,22 +160,12 @@ namespace System.Speech.Internal
             }
         }
 
-        private static NodeColor GetColor(TreeNode? node)
+        private static NodeColor GetColor(TreeNode node)
         {
             return node == null ? NodeColor.BLACK : (node.IsRed ? NodeColor.RED : NodeColor.BLACK);
         }
 
-        private static bool IsRed([NotNullWhen(true)] TreeNode? node)
-        {
-            return GetColor(node) == NodeColor.RED;
-        }
-
-        private static bool IsBlack([NotNullWhen(false)] TreeNode? node)
-        {
-            return GetColor(node) == NodeColor.BLACK;
-        }
-
-        private static void SetColor(TreeNode? node, NodeColor color)
+        private static void SetColor(TreeNode node, NodeColor color)
         {
             if (node != null)
             {
@@ -188,7 +177,7 @@ namespace System.Speech.Internal
             }
         }
 
-        private static void TakeParent(TreeNode node, TreeNode? newNode)
+        private static void TakeParent(TreeNode node, TreeNode newNode)
         {
             if (node.Parent == null)
             {
@@ -210,7 +199,7 @@ namespace System.Speech.Internal
 
         private static TreeNode RotateLeft(TreeNode node)
         {
-            TreeNode newNode = node.Right!;
+            TreeNode newNode = node.Right;
             node.Right = newNode.Left;
             TakeParent(node, newNode);
             newNode.Left = node;
@@ -219,7 +208,7 @@ namespace System.Speech.Internal
 
         private static TreeNode RotateRight(TreeNode node)
         {
-            TreeNode newNode = node.Left!;
+            TreeNode newNode = node.Left;
             node.Left = newNode.Right;
             TakeParent(node, newNode);
             newNode.Right = node;
@@ -236,7 +225,7 @@ namespace System.Speech.Internal
             return node;
         }
 
-        private static TreeNode? FindSuccessor(TreeNode node)
+        private static TreeNode FindSuccessor(TreeNode node)
         {
             if (node.Right == null)
             {
@@ -245,7 +234,7 @@ namespace System.Speech.Internal
                     node = node.Parent;
                 }
 
-                return node.Parent;
+                return node.Parent ?? null;
             }
             else
             {
@@ -270,7 +259,7 @@ namespace System.Speech.Internal
             }
             else
             {
-                TreeNode? successor = FindSuccessor(node);
+                TreeNode successor = FindSuccessor(node);
                 Debug.Assert(successor != null && successor.Left == null);
                 node.CopyNode(successor);
                 TakeParent(successor, successor.Right);
@@ -281,7 +270,7 @@ namespace System.Speech.Internal
         #endregion Implement utility operations on Tree
 
         // Return the root of the new subtree
-        private TreeNode InsertNode(TreeNode? node, TreeNode newNode)
+        private TreeNode InsertNode(TreeNode node, TreeNode newNode)
         {
             if (node == null)
             {
@@ -302,27 +291,24 @@ namespace System.Speech.Internal
             return node;
         }
 
-        private bool TryFindItem([NotNullWhen(true)] TreeNode? node, object key, [NotNullWhen(true)] out TreeNode? item)
+        private TreeNode FindItem(TreeNode node, object key)
         {
             if (node == null)
             {
-                item = null;
-                return false;
+                return null;
             }
-
             int diff = CompareTo(key, node.Key);
             if (diff == 0)
             {
-                item = node;
-                return true;
+                return node;
             }
             else if (diff < 0)
             {
-                return TryFindItem(node.Left, key, out item);
+                return FindItem(node.Left, key);
             }
             else
             {
-                return TryFindItem(node.Right, key, out item);
+                return FindItem(node.Right, key);
             }
         }
 
@@ -355,22 +341,22 @@ namespace System.Speech.Internal
         }
         private void FixInsertCase2(TreeNode node)
         {
-            if (IsBlack(node.Parent))
+            if (GetColor(node.Parent) == NodeColor.BLACK)
             {
                 return; // Tree is still valid.
             }
 
             // Now, its parent is RED, so it must have an uncle since its parent is not root.
             // Also, its grandparent must be BLACK.
-            Debug.Assert(IsBlack(node.Parent.Parent));
-            TreeNode? uncle = GetUncle(node);
+            Debug.Assert(GetColor(node.Parent.Parent) == NodeColor.BLACK);
+            TreeNode uncle = GetUncle(node);
 
-            if (IsRed(uncle))
+            if (GetColor(uncle) == NodeColor.RED)
             {
                 SetColor(node.Parent, NodeColor.BLACK);
                 SetColor(uncle, NodeColor.BLACK);
                 SetColor(node.Parent.Parent, NodeColor.RED);
-                FixInsertCase1(node.Parent.Parent!); // Move recursively up
+                FixInsertCase1(node.Parent.Parent); // Move recursively up
             }
             else
             {
@@ -380,20 +366,18 @@ namespace System.Speech.Internal
 
         private void FixInsertCase3(TreeNode node)
         {
-            Debug.Assert(IsRed(node));
-            Debug.Assert(IsRed(node.Parent));
-
+            //
             // Now it's RED, parent is RED, uncle is BLACK,
             // We want to rotate so that its uncle is on the opposite side
-            if (node == node.Parent.Right && node.Parent == node.Parent.Parent!.Left)
+            if (node == node.Parent.Right && node.Parent == node.Parent.Parent.Left)
             {
                 RotateLeft(node.Parent);
-                node = node.Left!;
+                node = node.Left;
             }
-            else if (node == node.Parent.Left && node.Parent == node.Parent.Parent!.Right)
+            else if (node == node.Parent.Left && node.Parent == node.Parent.Parent.Right)
             {
                 RotateRight(node.Parent);
-                node = node.Right!;
+                node = node.Right;
             }
             FixInsertCase4(node);
         }
@@ -405,15 +389,15 @@ namespace System.Speech.Internal
             //
 
             SetColor(node.Parent, NodeColor.BLACK);
-            SetColor(node.Parent!.Parent, NodeColor.RED);
+            SetColor(node.Parent.Parent, NodeColor.RED);
             if (node == node.Parent.Left)
             {
-                Debug.Assert(node.Parent == node.Parent.Parent!.Left); // From case 3
+                Debug.Assert(node.Parent == node.Parent.Parent.Left); // From case 3
                 RotateRight(node.Parent.Parent);
             }
             else
             {
-                Debug.Assert(node.Parent == node.Parent.Parent!.Right); // From case 3
+                Debug.Assert(node.Parent == node.Parent.Parent.Right); // From case 3
                 RotateLeft(node.Parent.Parent);
             }
         }
@@ -423,7 +407,7 @@ namespace System.Speech.Internal
             // This node must have at most 1 child
             Debug.Assert(node.Left == null || node.Right == null);
 
-            TreeNode? onlyChild = node.Left ?? node.Right;
+            TreeNode onlyChild = node.Left ?? node.Right;
 
             // This node should have been deleted already, and the child has replaced the this node.
             Debug.Assert(node.Parent == null || node.Parent.Left == onlyChild || node.Parent.Right == onlyChild);
@@ -434,7 +418,7 @@ namespace System.Speech.Internal
             // Otherwise, we need fix up.
             //
 
-            if (IsBlack(node))
+            if (GetColor(node) == NodeColor.BLACK)
             {
                 if (GetColor(onlyChild) == NodeColor.RED)
                 {
@@ -451,14 +435,14 @@ namespace System.Speech.Internal
                     // The deleted node and its only child are BLACK, and there is a real parent, therefore,
                     // the total black height was at least 2 (excluding the real parent), thus the sibling subtree also has a black height of at least 2
                     //
-                    FixRemovalCase2(GetSibling(onlyChild, node.Parent)!);
+                    FixRemovalCase2(GetSibling(onlyChild, node.Parent));
                 }
             }
         }
 
         private static void FixRemovalCase1(TreeNode node)
         {
-            Debug.Assert(IsBlack(node));
+            Debug.Assert(GetColor(node) == NodeColor.BLACK);
             if (node.Parent == null)
             {
                 return;
@@ -469,28 +453,28 @@ namespace System.Speech.Internal
             }
         }
 
-        private static void FixRemovalCase2(TreeNode? sibling)
+        private static void FixRemovalCase2(TreeNode sibling)
         {
             Debug.Assert(sibling != null);
-            if (IsRed(sibling))
+            if (GetColor(sibling) == NodeColor.RED)
             {
                 Debug.Assert(sibling.Left != null && sibling.Right != null);
-                TreeNode parent = sibling.Parent!;
+                TreeNode parent = sibling.Parent;
                 // the parent must be black
                 SetColor(parent, NodeColor.RED);
                 SetColor(sibling, NodeColor.BLACK);
 
                 if (sibling == parent.Right)
                 {
-                    RotateLeft(sibling.Parent!);
+                    RotateLeft(sibling.Parent);
                     // new sibling was the old sibling left child, and must be non-leaf black
                     sibling = parent.Right;
                 }
                 else
                 {
-                    RotateRight(sibling.Parent!);
+                    RotateRight(sibling.Parent);
                     // new sibling was the old sibling right child, and must be non-leaf black
-                    sibling = parent.Left!;
+                    sibling = parent.Left;
                 }
             }
 
@@ -500,13 +484,13 @@ namespace System.Speech.Internal
 
         private static void FixRemovalCase3(TreeNode sibling)
         {
-            if (IsBlack(sibling.Parent) &&
-                IsBlack(sibling) &&
-                IsBlack(sibling.Left) &&
-                IsBlack(sibling.Right))
+            if (GetColor(sibling.Parent) == NodeColor.BLACK &&
+                GetColor(sibling) == NodeColor.BLACK &&
+                GetColor(sibling.Left) == NodeColor.BLACK &&
+                GetColor(sibling.Right) == NodeColor.BLACK)
             {
                 SetColor(sibling, NodeColor.RED);
-                FixRemovalCase1(sibling.Parent!);
+                FixRemovalCase1(sibling.Parent);
             }
             else
             {
@@ -516,10 +500,10 @@ namespace System.Speech.Internal
 
         private static void FixRemovalCase4(TreeNode sibling)
         {
-            if (IsRed(sibling.Parent) &&
-                IsBlack(sibling) &&
-                IsBlack(sibling.Left) &&
-                IsBlack(sibling.Right))
+            if (GetColor(sibling.Parent) == NodeColor.RED &&
+                GetColor(sibling) == NodeColor.BLACK &&
+                GetColor(sibling.Left) == NodeColor.BLACK &&
+                GetColor(sibling.Right) == NodeColor.BLACK)
             {
                 SetColor(sibling, NodeColor.RED);
                 SetColor(sibling.Parent, NodeColor.BLACK);
@@ -532,7 +516,7 @@ namespace System.Speech.Internal
 
         private static void FixRemovalCase5(TreeNode sibling)
         {
-            if (sibling == sibling.Parent!.Right &&
+            if (sibling == sibling.Parent.Right &&
                 GetColor(sibling) == NodeColor.BLACK &&
                 GetColor(sibling.Left) == NodeColor.RED &&
                 GetColor(sibling.Right) == NodeColor.BLACK)
@@ -557,11 +541,11 @@ namespace System.Speech.Internal
 
         private static void FixRemovalCase6(TreeNode sibling)
         {
-            Debug.Assert(IsBlack(sibling));
+            Debug.Assert(GetColor(sibling) == NodeColor.BLACK);
 
             SetColor(sibling, GetColor(sibling.Parent));
             SetColor(sibling.Parent, NodeColor.BLACK);
-            if (sibling == sibling.Parent!.Right)
+            if (sibling == sibling.Parent.Right)
             {
                 Debug.Assert(GetColor(sibling.Right) == NodeColor.RED);
                 SetColor(sibling.Right, NodeColor.BLACK);
@@ -579,7 +563,7 @@ namespace System.Speech.Internal
 
         #region Private Fields
 
-        private TreeNode? _root;
+        private TreeNode _root;
 
         #endregion
 
@@ -587,7 +571,7 @@ namespace System.Speech.Internal
 
         private sealed class MyEnumerator : IEnumerator
         {
-            internal MyEnumerator(TreeNode? node)
+            internal MyEnumerator(TreeNode node)
             {
                 _root = node;
             }
@@ -631,8 +615,8 @@ namespace System.Speech.Internal
                 _node = null;
             }
 
-            private TreeNode? _node;
-            private TreeNode? _root;
+            private TreeNode _node;
+            private TreeNode _root;
             private bool _moved;
         }
 
@@ -646,7 +630,7 @@ namespace System.Speech.Internal
                 _key = key;
             }
 
-            internal TreeNode? Left
+            internal TreeNode Left
             {
                 get
                 {
@@ -659,7 +643,7 @@ namespace System.Speech.Internal
                 }
             }
 
-            internal TreeNode? Right
+            internal TreeNode Right
             {
                 get
                 {
@@ -672,7 +656,7 @@ namespace System.Speech.Internal
                 }
             }
 
-            internal TreeNode? Parent
+            internal TreeNode Parent
             {
                 get
                 {
@@ -715,7 +699,7 @@ namespace System.Speech.Internal
             private object _key;
             private bool _isRed;
 
-            private TreeNode? _leftChild, _rightChild, _parent;
+            private TreeNode _leftChild, _rightChild, _parent;
         }
 
         private enum NodeColor

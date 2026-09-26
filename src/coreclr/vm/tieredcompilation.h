@@ -128,9 +128,7 @@ private:
 #endif // !DACCESS_COMPILE
 
 private:
-    typedef SListTail<SListElem<NativeCodeVersion>> OptimizationQueue;
-
-    OptimizationQueue m_methodsToOptimize;
+    SList<SListElem<NativeCodeVersion>> m_methodsToOptimize;
     UINT32 m_countOfMethodsToOptimize;
     UINT32 m_countOfNewMethodsCalledDuringDelay;
     SArray<MethodDesc*>* m_methodsPendingCountingForTier1;

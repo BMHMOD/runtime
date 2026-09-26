@@ -16,7 +16,7 @@ export function diagnosticServerEventLoop () {
     if (loaderHelpers.is_runtime_running()) {
         try {
             runtimeHelpers.mono_background_exec();// give GC chance to run
-            runtimeHelpers.SystemJS_ExecuteDiagnosticServerCallback();
+            runtimeHelpers.mono_wasm_ds_exec();
             scheduleDiagnosticServerEventLoop(100);
         } catch (ex) {
             loaderHelpers.mono_exit(1, ex);
@@ -51,7 +51,7 @@ export class DiagnosticConnectionBase {
         }
         const message = this.messagesReceived[0]!;
         const bytes_read = Math.min(message.length, bytes_to_read);
-        Module.HEAPU8.set(message.subarray(0, bytes_read), buffer as any >>> 0);
+        Module.HEAPU8.set(message.subarray(0, bytes_read), buffer as any);
         if (bytes_read === message.length) {
             this.messagesReceived.shift();
         } else {

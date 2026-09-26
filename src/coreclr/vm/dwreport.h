@@ -90,4 +90,6 @@ struct FaultReportInfo
 
 VOID WINAPI DoFaultReportDoFavorCallback(LPVOID pFaultReportInfoAsVoid);
 
+ContractFailureKind GetContractFailureKind(OBJECTREF obj);
+
 #endif // __DWREPORT_H__

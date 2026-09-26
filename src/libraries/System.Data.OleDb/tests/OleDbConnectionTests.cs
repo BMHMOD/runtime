@@ -11,45 +11,45 @@ namespace System.Data.OleDb.Tests
     [Collection("System.Data.OleDb")] // not let tests run in parallel
     public class OleDbConnectionTests : OleDbTestBase
     {
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void Ctor_ConnectionStringMissingProvider_Throws()
         {
             Assert.Throws<ArgumentException>(() => new OleDbConnection("Reason=missingProvider"));
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void Ctor_LongProvider_Throws()
         {
             Assert.Throws<ArgumentException>(() => new OleDbConnection("provider=" + new string('c', 256)));
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void Ctor_MSDASQLNotSupported_Throws()
         {
             Assert.Throws<ArgumentException>(() => new OleDbConnection("provider=MSDASQL"));
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void Ctor_MissingUdlFile_Throws()
         {
             Assert.Throws<ArgumentException>(() => new OleDbConnection(@"file name = missing-file.udl"));
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void Ctor_AsynchronousNotSupported_Throws()
         {
             Assert.Throws<ArgumentException>(() =>
                 new OleDbConnection(ConnectionString + ";asynchronous processing=true"));
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void Ctor_InvalidConnectTimeout_Throws()
         {
             Assert.Throws<ArgumentException>(() =>
                 new OleDbConnection(ConnectionString + ";connect timeout=-2"));
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void Open_NoConnectionString_Throws()
         {
             connection.Dispose();
@@ -58,7 +58,7 @@ namespace System.Data.OleDb.Tests
             Assert.Throws<InvalidOperationException>(() => connection.Open());
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void BeginTransaction_IsolationLevelIsUnspecified_SetsReadCommitted()
         {
             Assert.Equal(IsolationLevel.ReadCommitted, transaction.IsolationLevel);
@@ -67,7 +67,7 @@ namespace System.Data.OleDb.Tests
             Assert.Equal(IsolationLevel.ReadCommitted, transaction.IsolationLevel);
         }
 
-        [ConditionalTheory(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalTheory(Helpers.IsDriverAvailable)]
         [MemberData(nameof(IsolationLevelsExceptUnspecified))]
         public void BeginTransaction_SpecificIsolationLevel_Success(IsolationLevel isolationLevel)
         {
@@ -76,7 +76,7 @@ namespace System.Data.OleDb.Tests
             Assert.Equal(isolationLevel, transaction.IsolationLevel);
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void StateChange_ChangeState_TriggersEvent()
         {
             int timesCalled = 0;
@@ -89,14 +89,14 @@ namespace System.Data.OleDb.Tests
             Assert.Equal(2, timesCalled);
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void BeginTransaction_InvalidIsolationLevel_Throws()
         {
             transaction.Dispose();
             Assert.Throws<ArgumentOutOfRangeException>(() => connection.BeginTransaction((IsolationLevel)0));
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsAceDriverAvailable))]
+        [ConditionalFact(Helpers.IsAceDriverAvailable)]
         public void BeginTransaction_CallTwice_Throws()
         {
             // ctor in OleDbTestBase already called BeginTransaction once
@@ -106,7 +106,7 @@ namespace System.Data.OleDb.Tests
             );
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void GetDefaults_AnyGivenState_DoesNotThrow()
         {
             const int DefaultTimeout = 15;
@@ -120,7 +120,7 @@ namespace System.Data.OleDb.Tests
             VerifyDefaults();
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void CreateCommand_AsDbConnection_IsOleDb()
         {
             DbConnection dbConnection = connection as DbConnection;
@@ -129,9 +129,14 @@ namespace System.Data.OleDb.Tests
             Assert.IsType<OleDbCommand>(dbCommand);
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void GetSchema_NoArgs_ReturnsMetaDataCollections()
         {
+            if (PlatformDetection.IsWindows7)
+            {
+                return; // see https://github.com/dotnet/corefx/pull/37450
+            }
+
             DataTable t1 = connection.GetSchema();
             DataTable t2 = connection.GetSchema(DbMetaDataCollectionNames.MetaDataCollections);
             Assert.Equal(t1.Rows.Count, t2.Rows.Count);
@@ -145,12 +150,17 @@ namespace System.Data.OleDb.Tests
             }
         }
 
-        [ConditionalTheory(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalTheory(Helpers.IsDriverAvailable)]
         [InlineData(nameof(DbMetaDataCollectionNames.MetaDataCollections), "CollectionName")]
         [InlineData(nameof(DbMetaDataCollectionNames.DataSourceInformation), "CompositeIdentifierSeparatorPattern")]
         [InlineData(nameof(DbMetaDataCollectionNames.DataTypes), "TypeName")]
         public void GetSchema(string tableName, string columnName)
         {
+            if (PlatformDetection.IsWindows7)
+            {
+                return; // see https://github.com/dotnet/corefx/pull/37450
+            }
+
             DataTable schema = connection.GetSchema(tableName);
             Assert.True(schema != null && schema.Rows.Count > 0);
             var exception = Record.Exception(() => schema.Rows[0].Field<string>(columnName));
@@ -167,7 +177,7 @@ namespace System.Data.OleDb.Tests
         }
 
         [OuterLoop]
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void GetOleDbSchemaTable_ReturnsTableInfo()
         {
             string tableName = Helpers.GetTableName(nameof(GetOleDbSchemaTable_ReturnsTableInfo));
@@ -189,7 +199,7 @@ namespace System.Data.OleDb.Tests
             command.ExecuteNonQuery();
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsAceDriverAvailable))]
+        [ConditionalFact(Helpers.IsAceDriverAvailable)]
         public void ChangeDatabase_EmptyDatabase_Throws()
         {
             Assert.Throws<ArgumentException>(() => connection.ChangeDatabase(null));
@@ -204,7 +214,7 @@ namespace System.Data.OleDb.Tests
             );
         }
 
-        [ConditionalTheory(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalTheory(Helpers.IsDriverAvailable)]
         [MemberData(nameof(ManufacturedOleDbSchemaGuids))]
         public void GetOleDbSchemaTable_NoRestrictions_Success(Guid oleDbSchemaGuid)
         {
@@ -217,7 +227,7 @@ namespace System.Data.OleDb.Tests
             }
         }
 
-        [ConditionalTheory(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalTheory(Helpers.IsDriverAvailable)]
         [MemberData(nameof(ManufacturedOleDbSchemaGuids))]
         public void GetOleDbSchemaTable_SomeRestrictions_Throws(Guid oleDbSchemaGuid)
         {
@@ -245,7 +255,7 @@ namespace System.Data.OleDb.Tests
             }
         }
 
-        [ConditionalTheory(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalTheory(Helpers.IsDriverAvailable)]
         [InlineData(0, 0)]
         [InlineData(0, 1)]
         [InlineData(0, 2)]
@@ -267,7 +277,7 @@ namespace System.Data.OleDb.Tests
                 "Invalid UDL file.");
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void Ctor_ValidUdlFile_Success()
         {
             string udlFile = GetTestFilePath() + ".udl";
@@ -284,7 +294,7 @@ namespace System.Data.OleDb.Tests
             connection.Dispose();
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void OleDbConnectionStringBuilder_Success()
         {
             var connectionStringBuilder = (OleDbConnectionStringBuilder)OleDbFactory.Instance.CreateConnectionStringBuilder();
@@ -347,7 +357,7 @@ namespace System.Data.OleDb.Tests
             Assert.Empty(connectionStringBuilder.Provider);
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void TransactionRollBackTest()
         {
             using (OleDbConnection connection = new OleDbConnection(ConnectionString))
@@ -359,7 +369,7 @@ namespace System.Data.OleDb.Tests
             }
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void ServerVersionTest()
         {
             using (OleDbConnection connection = new OleDbConnection(ConnectionString))
@@ -370,7 +380,7 @@ namespace System.Data.OleDb.Tests
             }
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         public void ConnectionDatabasePropertyTest()
         {
             using (OleDbConnection connection = new OleDbConnection(ConnectionString))
@@ -393,7 +403,7 @@ namespace System.Data.OleDb.Tests
             }
         }
 
-        [ConditionalTheory(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalTheory(Helpers.IsDriverAvailable)]
         [MemberData(nameof(ProviderNamesForConnectionString))]
         public void ConnectionStringTest(string provider)
         {
@@ -408,7 +418,7 @@ namespace System.Data.OleDb.Tests
         }
 
         // Bug #96278 fixed only on .NET, not on .NET Framework
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.GetIsDriverAvailable))]
+        [ConditionalFact(Helpers.IsDriverAvailable)]
         [SkipOnTargetFramework(TargetFrameworkMonikers.NetFramework)]
         public void DbConnectionFactories_GetFactory_from_connection()
         {

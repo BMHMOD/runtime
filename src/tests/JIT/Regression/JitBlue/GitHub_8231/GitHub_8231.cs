@@ -6,7 +6,7 @@ using System.Numerics;
 using System.Runtime.CompilerServices;
 using Xunit;
 
-namespace GitHub_8231
+namespace N
 {
     public static class C
     {
@@ -35,7 +35,6 @@ namespace GitHub_8231
             return s;
         }
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

@@ -4,8 +4,6 @@
 using System;
 using System.Collections.Generic;
 
-using Internal.Text;
-
 #if TYPE_LOADER_IMPLEMENTATION
 using MetadataType = Internal.TypeSystem.DefType;
 #endif
@@ -36,7 +34,7 @@ namespace Internal.TypeSystem
         /// <summary>
         /// Gets a type in this module or null.
         /// </summary>
-        public MetadataType GetType(Utf8Span nameSpace, Utf8Span name, bool throwIfNotFound = true)
+        public MetadataType GetType(ReadOnlySpan<byte> nameSpace, ReadOnlySpan<byte> name, bool throwIfNotFound = true)
         {
             return (MetadataType)GetType(nameSpace, name, throwIfNotFound ? NotFoundBehavior.Throw : NotFoundBehavior.ReturnNull);
         }
@@ -44,7 +42,7 @@ namespace Internal.TypeSystem
         /// <summary>
         /// Gets a type in this module with the specified name, a resolution failure object, or null.
         /// </summary>
-        public abstract object GetType(Utf8Span nameSpace, Utf8Span name, NotFoundBehavior notFoundBehavior);
+        public abstract object GetType(ReadOnlySpan<byte> nameSpace, ReadOnlySpan<byte> name, NotFoundBehavior notFoundBehavior);
 
         /// <summary>
         /// Gets the global &lt;Module&gt; type.

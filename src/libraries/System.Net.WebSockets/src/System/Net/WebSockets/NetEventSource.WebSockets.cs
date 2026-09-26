@@ -8,9 +8,13 @@ using System.Runtime.CompilerServices;
 
 namespace System.Net
 {
-    [EventSource(Name = "Private.InternalDiagnostics.System.Net.WebSockets")]
+    [EventSource(Name = NetEventSourceName)]
     internal sealed partial class NetEventSource
     {
+        private const string NetEventSourceName = "Private.InternalDiagnostics.System.Net.WebSockets";
+
+        public NetEventSource() : base(NetEventSourceName, EventSourceSettings.EtwManifestEventFormat) { }
+
         // NOTE
         // - The 'Start' and 'Stop' suffixes on the following event names have special meaning in EventSource. They
         //   enable creating 'activities'.
@@ -42,11 +46,11 @@ namespace System.Net
         private const string Ping = "Ping";
         private const string Pong = "Pong";
 
-        [Event(KeepAliveSentId, Level = EventLevel.Informational)]
+        [Event(KeepAliveSentId, Keywords = Keywords.Debug, Level = EventLevel.Informational)]
         private void KeepAliveSent(string objName, string opcode, long payload) =>
             WriteEvent(KeepAliveSentId, objName, opcode, payload);
 
-        [Event(KeepAliveAckedId, Level = EventLevel.Informational)]
+        [Event(KeepAliveAckedId, Keywords = Keywords.Debug, Level = EventLevel.Informational)]
         private void KeepAliveAcked(string objName, long payload) =>
             WriteEvent(KeepAliveAckedId, objName, payload);
 
@@ -75,7 +79,7 @@ namespace System.Net
         // Debug Messages
         //
 
-        [Event(WsTraceId, Level = EventLevel.Verbose)]
+        [Event(WsTraceId, Keywords = Keywords.Debug, Level = EventLevel.Verbose)]
         private void WsTrace(string objName, string memberName, string message) =>
             WriteEvent(WsTraceId, objName, memberName, message);
 
@@ -98,11 +102,11 @@ namespace System.Net
         // Close
         //
 
-        [Event(CloseStartId, Level = EventLevel.Verbose)]
+        [Event(CloseStartId, Keywords = Keywords.Debug, Level = EventLevel.Verbose)]
         private void CloseStart(string objName, string memberName) =>
             WriteEvent(CloseStartId, objName, memberName);
 
-        [Event(CloseStopId, Level = EventLevel.Verbose)]
+        [Event(CloseStopId, Keywords = Keywords.Debug, Level = EventLevel.Verbose)]
         private void CloseStop(string objName, string memberName) =>
             WriteEvent(CloseStopId, objName, memberName);
 
@@ -124,11 +128,11 @@ namespace System.Net
         // ReceiveAsyncPrivate
         //
 
-        [Event(ReceiveStartId, Level = EventLevel.Informational)]
+        [Event(ReceiveStartId, Keywords = Keywords.Debug, Level = EventLevel.Informational)]
         private void ReceiveStart(string objName, string memberName, int bufferLength) =>
             WriteEvent(ReceiveStartId, objName, memberName, bufferLength);
 
-        [Event(ReceiveStopId, Level = EventLevel.Informational)]
+        [Event(ReceiveStopId, Keywords = Keywords.Debug, Level = EventLevel.Informational)]
         private void ReceiveStop(string objName, string memberName) =>
             WriteEvent(ReceiveStopId, objName, memberName);
 
@@ -150,11 +154,11 @@ namespace System.Net
         // SendFrameAsync
         //
 
-        [Event(SendStartId, Level = EventLevel.Verbose)]
+        [Event(SendStartId, Keywords = Keywords.Debug, Level = EventLevel.Verbose)]
         private void SendStart(string objName, string memberName, string opcode, int bufferLength) =>
             WriteEvent(SendStartId, objName, memberName, opcode, bufferLength);
 
-        [Event(SendStopId, Level = EventLevel.Verbose)]
+        [Event(SendStopId, Keywords = Keywords.Debug, Level = EventLevel.Verbose)]
         private void SendStop(string objName, string memberName) =>
             WriteEvent(SendStopId, objName, memberName);
 
@@ -176,11 +180,11 @@ namespace System.Net
         // AsyncMutex
         //
 
-        [Event(MutexEnterId, Level = EventLevel.Verbose)]
+        [Event(MutexEnterId, Keywords = Keywords.Debug, Level = EventLevel.Verbose)]
         private void MutexEnter(string objName, string memberName) =>
             WriteEvent(MutexEnterId, objName, memberName);
 
-        [Event(MutexExitId, Level = EventLevel.Verbose)]
+        [Event(MutexExitId, Keywords = Keywords.Debug, Level = EventLevel.Verbose)]
         private void MutexExit(string objName, string memberName) =>
             WriteEvent(MutexExitId, objName, memberName);
 

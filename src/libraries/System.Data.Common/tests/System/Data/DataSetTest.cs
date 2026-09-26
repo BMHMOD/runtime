@@ -1594,7 +1594,7 @@ namespace System.Data.Tests
         public static bool RemoteExecutorBinaryFormatter =>
             RemoteExecutor.IsSupported && PlatformDetection.IsBinaryFormatterSupported;
 
-        [ConditionalFact(typeof(DataSetTest), nameof(RemoteExecutorBinaryFormatter))]
+        [ConditionalFact(nameof(RemoteExecutorBinaryFormatter))]
         public void SerializationFormat_Binary_works_with_appconfig_switch()
         {
             RemoteExecutor.Invoke(RunTest).Dispose();

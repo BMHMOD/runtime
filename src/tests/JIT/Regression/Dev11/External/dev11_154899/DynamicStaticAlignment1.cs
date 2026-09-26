@@ -8,7 +8,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using Xunit;
 
-namespace dev11_154899
+namespace Test
 {
     public class Container<T>
     {
@@ -26,7 +26,6 @@ namespace dev11_154899
 
     public static class App
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

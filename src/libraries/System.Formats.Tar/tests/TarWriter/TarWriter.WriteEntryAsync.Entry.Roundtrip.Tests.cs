@@ -105,6 +105,7 @@ namespace System.Formats.Tar.Tests
         public async Task PaxExtendedAttributes_DoNotOverwritePublicProperties_WhenTheyFitOnLegacyFieldsAsync(TarEntryType entryType)
         {
             Dictionary<string, string> extendedAttributes = new();
+            extendedAttributes[PaxEaName] = "ea_name";
             extendedAttributes[PaxEaGName] = "ea_gname";
             extendedAttributes[PaxEaUName] = "ea_uname";
             extendedAttributes[PaxEaMTime] = GetTimestampStringFromDateTimeOffset(TestModificationTime);
@@ -157,6 +158,7 @@ namespace System.Formats.Tar.Tests
         public async Task PaxExtendedAttributes_DoNotOverwritePublicProperties_WhenLargerThanLegacyFieldsAsync(TarEntryType entryType)
         {
             Dictionary<string, string> extendedAttributes = new();
+            extendedAttributes[PaxEaName] = "ea_name";
             extendedAttributes[PaxEaGName] = "ea_gname";
             extendedAttributes[PaxEaUName] = "ea_uname";
             extendedAttributes[PaxEaMTime] = GetTimestampStringFromDateTimeOffset(TestModificationTime);

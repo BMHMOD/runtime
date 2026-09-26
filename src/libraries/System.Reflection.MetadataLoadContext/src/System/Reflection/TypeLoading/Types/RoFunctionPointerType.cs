@@ -23,7 +23,7 @@ namespace System.Reflection.TypeLoading
         internal readonly Type _returnType;
         internal readonly Type[] _parameterTypes;
 
-        private string? _toString;
+        private volatile string? _toString;
 
         private string GetToString() => _toString ??= ComputeToString();
 

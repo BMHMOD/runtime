@@ -3,7 +3,6 @@
 
 using System.Collections;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Speech.Synthesis;
@@ -28,7 +27,7 @@ namespace System.Speech.Internal.Synthesis
         #endregion
 
         #region Internal Methods
-        internal TtsEventMapper? EventMapper
+        internal TtsEventMapper EventMapper
         {
             get
             {
@@ -85,7 +84,7 @@ namespace System.Speech.Internal.Synthesis
         {
             try
             {
-                _audio!.Play(pBuff, cb);
+                _audio.Play(pBuff, cb);
             }
             catch (Exception e)
             {
@@ -160,13 +159,13 @@ namespace System.Speech.Internal.Synthesis
         /// <summary>
         /// Load a file either from a local network or from the Internet.
         /// </summary>
-        public Stream? LoadResource(Uri uri, string? mediaType)
+        public Stream LoadResource(Uri uri, string mediaType)
         {
             try
             {
-                string? localPath;
-                string? mediaTypeUnused; // TODO: Should this be passed out of this function?
-                Uri? baseUriUnused;
+                string localPath;
+                string mediaTypeUnused; // TODO: Should this be passed out of this function?
+                Uri baseUriUnused;
                 using (Stream stream = _resourceLoader.LoadFile(uri, out mediaTypeUnused, out baseUriUnused, out localPath))
                 {
                     // Read the file in memory for SES and release the original file immediately
@@ -176,7 +175,20 @@ namespace System.Speech.Internal.Synthesis
                     MemoryStream memStream = new(cLen);
                     byte[] ab = new byte[cLen];
 
+#if NET
                     stream.ReadExactly(ab);
+#else
+                    int totalRead = 0;
+                    while (totalRead < cLen)
+                    {
+                        int bytesRead = stream.Read(ab, totalRead, cLen - totalRead);
+                        if (bytesRead <= 0)
+                        {
+                            throw new EndOfStreamException();
+                        }
+                        totalRead += bytesRead;
+                    }
+#endif
 
                     _resourceLoader.UnloadFile(localPath);
                     memStream.Write(ab, 0, cLen);
@@ -197,7 +209,7 @@ namespace System.Speech.Internal.Synthesis
 
         public void AddEvent(TTSEvent evt)
         {
-            _audio!.InjectEvent(evt);
+            _audio.InjectEvent(evt);
         }
 
         public void FlushEvent()
@@ -249,7 +261,7 @@ namespace System.Speech.Internal.Synthesis
         /// <summary>
         /// Set and reset the last exception
         /// </summary>
-        internal Exception? LastException
+        internal Exception LastException
         {
             get
             {
@@ -288,15 +300,15 @@ namespace System.Speech.Internal.Synthesis
                                                            "" + (char)(sapiEvent.Param1 & 0xFFFF), // next phoneme
                                                            TimeSpan.FromMilliseconds(sapiEvent.Param1 >> 16),
                                                            (SynthesizerEmphasis)((uint)sapiEvent.Param2 >> 16),
-                                                           _prompt!, _audio!.Duration);
+                                                           _prompt, _audio.Duration);
                     break;
                 case TtsEventId.Bookmark:
                     // BookmarkDetected
-                    string? bookmark = Marshal.PtrToStringUni(sapiEvent.Param2);
-                    ttsEvent = new TTSEvent((TtsEventId)sapiEvent.EventId, _prompt!, null, null, _audio!.Duration, _audio.Position, bookmark, (uint)sapiEvent.Param1, sapiEvent.Param2);
+                    string bookmark = Marshal.PtrToStringUni(sapiEvent.Param2);
+                    ttsEvent = new TTSEvent((TtsEventId)sapiEvent.EventId, _prompt, null, null, _audio.Duration, _audio.Position, bookmark, (uint)sapiEvent.Param1, sapiEvent.Param2);
                     break;
                 default:
-                    ttsEvent = new TTSEvent((TtsEventId)sapiEvent.EventId, _prompt!, null, null, _audio!.Duration, _audio.Position, null, (uint)sapiEvent.Param1, sapiEvent.Param2);
+                    ttsEvent = new TTSEvent((TtsEventId)sapiEvent.EventId, _prompt, null, null, _audio.Duration, _audio.Position, null, (uint)sapiEvent.Param1, sapiEvent.Param2);
                     break;
             }
             return ttsEvent;
@@ -310,12 +322,12 @@ namespace System.Speech.Internal.Synthesis
 
         private SPVESACTIONS _actions = SPVESACTIONS.SPVES_RATE | SPVESACTIONS.SPVES_VOLUME;
 
-        private AudioBase? _audio;
+        private AudioBase _audio;
 
-        private Prompt? _prompt;
+        private Prompt _prompt;
 
         // Last Exception
-        private Exception? _exception;
+        private Exception _exception;
 
         // Rate setup in the control panel
         private int _defaultRate;
@@ -327,7 +339,7 @@ namespace System.Speech.Internal.Synthesis
         private ResourceLoader _resourceLoader;
 
         // Map the TTS events to the right format
-        private TtsEventMapper? _eventMapper;
+        private TtsEventMapper _eventMapper;
 
         #endregion
     }
@@ -340,7 +352,7 @@ namespace System.Speech.Internal.Synthesis
 
     internal abstract class TtsEventMapper : ITtsEventSink
     {
-        internal TtsEventMapper(ITtsEventSink? sink)
+        internal TtsEventMapper(ITtsEventSink sink)
         {
             _sink = sink;
         }
@@ -360,7 +372,7 @@ namespace System.Speech.Internal.Synthesis
             _sink?.FlushEvent();
         }
 
-        private ITtsEventSink? _sink;
+        private ITtsEventSink _sink;
     }
 
     internal class PhonemeEventMapper : TtsEventMapper
@@ -429,7 +441,7 @@ namespace System.Speech.Internal.Synthesis
             ConvertCompleteUnit();
             while (_queue.Count > 0)
             {
-                SendToOutput((TTSEvent)_queue.Dequeue()!);
+                SendToOutput((TTSEvent)_queue.Dequeue());
             }
             _phonemeQueue.Clear();
             _lastComplete = 0;
@@ -452,7 +464,7 @@ namespace System.Speech.Internal.Synthesis
             char[] source = new char[_lastComplete];
             _phonemes.CopyTo(0, source, 0, _lastComplete);
             _phonemes.Remove(0, _lastComplete);
-            char[]? target;
+            char[] target;
             if (_conversion == PhonemeConversion.IpaToSapi)
             {
                 target = _alphabetConverter.IpaToSapi(source);
@@ -467,25 +479,24 @@ namespace System.Speech.Internal.Synthesis
             // Update the next phoneme id
             // Retain any other information based on the first TTS phoneme event.
             //
-            TTSEvent ttsEvent, targetEvent, basePhonemeEvent;
-            long totalDurationTicks = 0;
-            basePhonemeEvent = (TTSEvent)_phonemeQueue.Peek()!;
+            TTSEvent ttsEvent, targetEvent, basePhonemeEvent = null;
+            long totalDuration = 0;
+            basePhonemeEvent = (TTSEvent)_phonemeQueue.Peek();
             for (int i = 0; i < _lastComplete;)
             {
-                ttsEvent = (TTSEvent)_phonemeQueue.Dequeue()!;
-                totalDurationTicks += ttsEvent.PhonemeDuration.Ticks;
-                i += ttsEvent.Phoneme!.Length;
+                ttsEvent = (TTSEvent)_phonemeQueue.Dequeue();
+                totalDuration += ttsEvent.PhonemeDuration.Milliseconds;
+                i += ttsEvent.Phoneme.Length;
             }
 
             targetEvent = TTSEvent.CreatePhonemeEvent(new string(target), "",
-                                                      TimeSpan.FromTicks(totalDurationTicks),
+                                                      TimeSpan.FromMilliseconds(totalDuration),
                                                       basePhonemeEvent.PhonemeEmphasis,
                                                       basePhonemeEvent.Prompt,
                                                       basePhonemeEvent.AudioPosition);
             SendToQueue(targetEvent);
         }
 
-        [MemberNotNull(nameof(_phonemes))]
         private void Reset()
         {
             _phonemeQueue.Clear();
@@ -500,7 +511,7 @@ namespace System.Speech.Internal.Synthesis
                 TTSEvent firstEvent;
                 if (_queue.Count > 0)
                 {
-                    firstEvent = (TTSEvent)_queue.Dequeue()!;
+                    firstEvent = _queue.Dequeue() as TTSEvent;
                     if (firstEvent.Id == TtsEventId.Phoneme)
                     {
                         firstEvent.NextPhoneme = evt.Phoneme;
@@ -512,7 +523,7 @@ namespace System.Speech.Internal.Synthesis
                     SendToOutput(firstEvent);
                     while (_queue.Count > 0)
                     {
-                        SendToOutput((TTSEvent)_queue.Dequeue()!);
+                        SendToOutput(_queue.Dequeue() as TTSEvent);
                     }
                 }
                 _queue.Enqueue(evt);
@@ -532,8 +543,7 @@ namespace System.Speech.Internal.Synthesis
 
         private PhonemeConversion _conversion;
         private StringBuilder _phonemes;
-        private Queue _queue;
-        private Queue _phonemeQueue;
+        private Queue _queue, _phonemeQueue;
         private AlphabetConverter _alphabetConverter;
         private int _lastComplete;
     }

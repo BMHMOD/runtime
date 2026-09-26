@@ -19,10 +19,8 @@ namespace Microsoft.Extensions.Configuration.Test
 {
     public class ConfigurationTests : IDisposable
     {
-        private const int _retries = 150;
+        private const int _retries = 100;
         private const int _msDelay = 200;
-
-        private static readonly TimeSpan s_maxWaitForReload = TimeSpan.FromSeconds(30);
 
         private readonly DisposableFileSystem _fileSystem;
         private readonly PhysicalFileProvider _fileProvider;
@@ -102,7 +100,7 @@ CommonKey3:CommonKey4=IniValue6";
 
             Assert.Throws<FileNotFoundException>(() => configurationBuilder.Build());
         }
-
+        
         [Fact]
         public void CanHandleExceptionIfFileNotFound()
         {
@@ -444,6 +442,30 @@ IniKey1=IniValue2");
         }
 
         [Fact]
+        public void OnLoadErrorCanIgnoreErrors()
+        {
+            _fileSystem.WriteFile("error.json", @"{""JsonKey1"": ");
+
+            FileConfigurationProvider provider = null;
+            Action<FileLoadExceptionContext> jsonLoadError = c =>
+            {
+                provider = c.Provider;
+                c.Ignore = true;
+            };
+
+            CreateBuilder()
+                .AddJsonFile(s =>
+                {
+                    s.Path = "error.json";
+                    s.OnLoadException = jsonLoadError;
+                })
+                .Build();
+
+            Assert.NotNull(provider);
+        }
+
+        [Fact]
+        [ActiveIssue("File watching is flaky (particularly on non windows. https://github.com/dotnet/runtime/issues/42036")]
         public void CanSetValuesAndReloadValues()
         {
             WriteTestFiles();
@@ -486,6 +508,7 @@ IniKey1=IniValue2");
         }
 
         [Fact]
+        [ActiveIssue("File watching is flaky (particularly on non windows. https://github.com/dotnet/runtime/issues/42036")]
         public async Task ReloadOnChangeWorksAfterError()
         {
             _fileSystem.WriteFile("reload.json", @"{""JsonKey1"": ""JsonValue1""}");
@@ -497,10 +520,7 @@ IniKey1=IniValue2");
             Assert.Equal("JsonValue1", config["JsonKey1"]);
 
             // Introduce an error and make sure the old key is removed
-            await WriteFilesForReload(
-                config,
-                () => _fileSystem.WriteFile("reload.json", @"{""JsonKey1"": "),
-                Path.Combine(_fileSystem.RootPath, "reload.json"));
+            _fileSystem.WriteFile("reload.json", @"{""JsonKey1"": ");
 
             await WaitForChange(
                 () => config["JsonKey1"] == null,
@@ -509,10 +529,7 @@ IniKey1=IniValue2");
             Assert.Null(config["JsonKey1"]);
 
             // Update the file again to make sure the config is updated
-            await WriteFilesForReload(
-                config,
-                () => _fileSystem.WriteFile("reload.json", @"{""JsonKey1"": ""JsonValue2""}"),
-                Path.Combine(_fileSystem.RootPath, "reload.json"));
+            _fileSystem.WriteFile("reload.json", @"{""JsonKey1"": ""JsonValue2""}");
 
             await WaitForChange(
                 () => config["JsonKey1"] == "JsonValue2",
@@ -522,226 +539,7 @@ IniKey1=IniValue2");
         }
 
         [Fact]
-        public void BuildThrowsOnInvalidData()
-        {
-            const string FileName = $"{nameof(BuildThrowsOnInvalidData)}.json";
-
-            _fileSystem.WriteFile(FileName, @"{""JsonKey1"": ");
-
-            bool callbackCalled = false;
-            Exception failureException = null;
-
-            Assert.Throws<InvalidDataException>(() => CreateBuilder()
-                .AddJsonFile(s =>
-                {
-                    s.Path = FileName;
-                    s.OnLoadException = c =>
-                    {
-                        callbackCalled = true;
-                        failureException = c.Exception;
-                        // c.Ignore stays false. Exception propagates from Build()
-                    };
-                })
-                .Build());
-
-            Assert.True(callbackCalled);
-            Assert.IsType<InvalidDataException>(failureException);
-        }
-
-        [Fact]
-        [PlatformSpecific(TestPlatforms.Windows)]
-        public void BuildThrowsOnIoError()
-        {
-            const string FileName = $"{nameof(BuildThrowsOnIoError)}.json";
-
-            _fileSystem.WriteFile(FileName, @"{""JsonKey1"": ""JsonValue1"" }");
-
-            using (_fileSystem.LockFileReading(FileName))
-            {
-                bool callbackCalled = false;
-                Exception failureException = null;
-
-                Assert.Throws<IOException>(() => CreateBuilder()
-                    .AddJsonFile(s =>
-                    {
-                        s.Path = FileName;
-                        s.OnLoadException = c =>
-                        {
-                            callbackCalled = true;
-                            failureException = c.Exception;
-                            // c.Ignore stays false. Exception propagates from Build()
-                        };
-                    })
-                    .Build());
-
-                Assert.True(callbackCalled);
-                Assert.IsType<IOException>(failureException);
-            }
-        }
-
-        [Fact]
-        public void LoadDataErrorRaisesOnLoadException()
-        {
-            const string FileName = $"{nameof(LoadDataErrorRaisesOnLoadException)}.json";
-
-            _fileSystem.WriteFile(FileName, @"{""JsonKey1"": ");
-
-            FileConfigurationProvider failingProvider = null;
-            Exception failureException = null;
-            Action<FileLoadExceptionContext> jsonLoadError = c =>
-            {
-                failureException = c.Exception;
-                failingProvider = c.Provider;
-                c.Ignore = true;
-            };
-
-            IConfigurationRoot cfgRoot = CreateBuilder()
-                .AddJsonFile(s =>
-                {
-                    s.Path = FileName;
-                    s.OnLoadException = jsonLoadError;
-                })
-                .Build();
-            using IDisposable cfgRootDisposable = cfgRoot as IDisposable;
-
-            Assert.NotNull(failingProvider);
-            Assert.IsType<InvalidDataException>(failureException);
-            Assert.Null(cfgRoot["JsonKey1"]);
-        }
-
-        [Fact]
-        [PlatformSpecific(TestPlatforms.Windows)]
-        public void LoadIoErrorRaisesOnLoadException()
-        {
-            const string FileName = $"{nameof(LoadIoErrorRaisesOnLoadException)}.json";
-
-            _fileSystem.WriteFile(FileName, @"{""JsonKey1"": ""JsonValue1"" }");
-
-            using (_fileSystem.LockFileReading(FileName))
-            {
-                FileConfigurationProvider failingProvider = null;
-                Exception failureException = null;
-                Action<FileLoadExceptionContext> jsonLoadError = c =>
-                {
-                    failureException = c.Exception;
-                    failingProvider = c.Provider;
-                    c.Ignore = true;
-                };
-
-                IConfigurationRoot cfgRoot = CreateBuilder()
-                    .AddJsonFile(s =>
-                    {
-                        s.Path = FileName;
-                        s.OnLoadException = jsonLoadError;
-                    })
-                    .Build();
-                using IDisposable cfgRootDisposable = cfgRoot as IDisposable;
-
-                Assert.NotNull(failingProvider);
-                Assert.IsType<IOException>(failureException);
-                Assert.Null(cfgRoot["JsonKey1"]);
-            }
-        }
-
-        [Fact]
-        public async Task ReloadDataErrorRaisesOnLoadException()
-        {
-            const string FileName = $"{nameof(ReloadDataErrorRaisesOnLoadException)}.json";
-
-            _fileSystem.WriteFile(FileName, @"{""JsonKey1"": ""JsonValue1"" }");
-
-            FileConfigurationProvider failingProvider = null;
-            Exception failureException = null;
-            Action<FileLoadExceptionContext> jsonLoadError = c =>
-            {
-                failureException = c.Exception;
-                failingProvider = c.Provider;
-                c.Ignore = true;
-            };
-
-            IConfigurationRoot cfgRoot = CreateBuilder()
-                .AddJsonFile(s =>
-                {
-                    s.Path = FileName;
-                    s.OnLoadException = jsonLoadError;
-                    s.ReloadOnChange = true;
-                })
-                .Build();
-            using IDisposable cfgRootDisposable = cfgRoot as IDisposable;
-            IChangeToken reloadToken = cfgRoot.GetReloadToken();
-
-            // No error should be triggered so far.
-            Assert.Null(failingProvider);
-            Assert.Null(failureException);
-            Assert.Equal("JsonValue1", cfgRoot["JsonKey1"]);
-            Assert.False(reloadToken.HasChanged);
-
-            await WriteFilesForReload(
-                cfgRoot,
-                () => _fileSystem.WriteFile(FileName, @"{""JsonKey1"": "),
-                Path.Combine(_fileSystem.RootPath, FileName));
-
-            await WaitForChange(() => failingProvider != null, "File change did not raise OnLoadException event in time.");
-
-            Assert.IsType<InvalidDataException>(failureException);
-
-            // Check that value was removed from config
-            Assert.Null(cfgRoot["JsonKey1"]);
-            Assert.True(reloadToken.HasChanged);
-        }
-
-        [Fact]
-        [PlatformSpecific(TestPlatforms.Windows)]
-        public async Task ReloadIoErrorRaisesOnLoadException()
-        {
-            const string FileName = $"{nameof(ReloadIoErrorRaisesOnLoadException)}.json";
-
-            _fileSystem.WriteFile(FileName, @"{""JsonKey1"": ""JsonValue1"" }");
-
-            FileConfigurationProvider failingProvider = null;
-            Exception failureException = null;
-            Action<FileLoadExceptionContext> jsonLoadError = c =>
-            {
-                failureException = c.Exception;
-                failingProvider = c.Provider;
-                c.Ignore = true;
-            };
-
-            IConfigurationRoot cfgRoot = CreateBuilder()
-                .AddJsonFile(s =>
-                {
-                    s.Path = FileName;
-                    s.OnLoadException = jsonLoadError;
-                    s.ReloadOnChange = true;
-                })
-                .Build();
-            using IDisposable cfgRootDisposable = cfgRoot as IDisposable;
-            IChangeToken reloadToken = cfgRoot.GetReloadToken();
-
-            // No error should be triggered so far.
-            Assert.Null(failingProvider);
-            Assert.Null(failureException);
-            Assert.Equal("JsonValue1", cfgRoot["JsonKey1"]);
-            Assert.False(reloadToken.HasChanged);
-
-            using (_fileSystem.LockFileReading(FileName))
-            {
-                await WriteFilesForReload(
-                    cfgRoot,
-                    // we need NoWait because Wait reads file under the hood and that is restricted in LockFileReading context
-                    () => _fileSystem.WriteFileNoWait(FileName, @"{""JsonKey1"": ""JsonValue1Updated"" }"),
-                    Path.Combine(_fileSystem.RootPath, FileName));
-
-                await WaitForChange(() => failingProvider != null, "File change did not raise OnLoadException event in time.");
-                Assert.IsType<IOException>(failureException);
-
-                // IO error on reload does not invalidate existing config, yet value is not updated
-                Assert.Equal("JsonValue1", cfgRoot["JsonKey1"]);
-                Assert.False(reloadToken.HasChanged);
-            }
-        }
-
-        [Fact]
+        [ActiveIssue("File watching is flaky (particularly on non windows. https://github.com/dotnet/runtime/issues/42036")]
         public async Task TouchingFileWillReload()
         {
             _fileSystem.WriteFile("reload.json", @"{""JsonKey1"": ""JsonValue1""}");
@@ -761,17 +559,9 @@ IniKey1=IniValue2");
             var token = config.GetReloadToken();
 
             // Update files
-            await WriteFilesForReload(
-                config,
-                () =>
-                {
-                    _fileSystem.WriteFile("reload.json", @"{""JsonKey1"": ""JsonValue2""}");
-                    _fileSystem.WriteFile("reload.ini", @"IniKey1 = IniValue2");
-                    _fileSystem.WriteFile("reload.xml", @"<settings XmlKey1=""XmlValue2""/>");
-                },
-                Path.Combine(_fileSystem.RootPath, "reload.json"),
-                Path.Combine(_fileSystem.RootPath, "reload.ini"),
-                Path.Combine(_fileSystem.RootPath, "reload.xml"));
+            _fileSystem.WriteFile("reload.json", @"{""JsonKey1"": ""JsonValue2""}");
+            _fileSystem.WriteFile("reload.ini", @"IniKey1 = IniValue2");
+            _fileSystem.WriteFile("reload.xml", @"<settings XmlKey1=""XmlValue2""/>");
 
             await WaitForChange(
                 () => config["JsonKey1"] == "JsonValue2"
@@ -786,6 +576,7 @@ IniKey1=IniValue2");
         }
 
         [Fact]
+        [ActiveIssue("File watching is flaky (particularly on non windows. https://github.com/dotnet/runtime/issues/42036")]
         public async Task CreatingOptionalFileInNonExistentDirectoryWillReload()
         {
             var directory = Path.GetRandomFileName();
@@ -819,6 +610,7 @@ IniKey1=IniValue2");
         }
 
         [Theory]
+        [ActiveIssue("File watching is flaky (particularly on non windows. https://github.com/dotnet/runtime/issues/42036")]
         [InlineData(false)]
         [InlineData(true)]
         public async Task DeletingFilesThatRedefineKeysWithReload(bool optional)
@@ -897,8 +689,9 @@ IniKey1=IniValue2");
             Assert.Equal("IniValue1", config["Key"]);
             Assert.True(token.HasChanged);
         }
-
+        
         [Theory]
+        [ActiveIssue("File watching is flaky (particularly on non windows. https://github.com/dotnet/runtime/issues/42036")]
         [InlineData(false)]
         [InlineData(true)]
         public async Task DeletingFileWillReload(bool optional)
@@ -937,6 +730,7 @@ IniKey1=IniValue2");
         }
 
         [Fact]
+        [ActiveIssue("File watching is flaky (particularly on non windows. https://github.com/dotnet/runtime/issues/42036")]
         public async Task CreatingWritingDeletingCreatingFileWillReload()
         {
             var config = CreateBuilder()
@@ -968,17 +762,9 @@ IniKey1=IniValue2");
 
             var writeToken = config.GetReloadToken();
 
-            await WriteFilesForReload(
-                config,
-                () =>
-                {
-                    _fileSystem.WriteFile(_jsonFile, @"{""JsonKey1"": ""JsonValue2""}");
-                    _fileSystem.WriteFile(_iniFile, @"IniKey1 = IniValue2");
-                    _fileSystem.WriteFile(_xmlFile, @"<settings XmlKey1=""XmlValue2""/>");
-                },
-                Path.Combine(_fileSystem.RootPath, _jsonFile),
-                Path.Combine(_fileSystem.RootPath, _iniFile),
-                Path.Combine(_fileSystem.RootPath, _xmlFile));
+            _fileSystem.WriteFile(_jsonFile, @"{""JsonKey1"": ""JsonValue2""}");
+            _fileSystem.WriteFile(_iniFile, @"IniKey1 = IniValue2");
+            _fileSystem.WriteFile(_xmlFile, @"<settings XmlKey1=""XmlValue2""/>");
 
             await WaitForChange(
                 () => config["JsonKey1"] == "JsonValue2"
@@ -1124,60 +910,36 @@ IniKey1=IniValue2");
         }
 
         [Fact]
+        [ActiveIssue("File watching is flaky (particularly on non windows. https://github.com/dotnet/runtime/issues/42036")]
         public async Task TouchingFileWillReloadForUserSecrets()
         {
-            // A unique id keeps concurrently running assemblies from sharing the same secrets folder.
-            string userSecretsId = $"Test_{Guid.NewGuid():N}";
+            string userSecretsId = "Test";
             var userSecretsPath = PathHelper.GetSecretsPathFromSecretsId(userSecretsId);
             var userSecretsFolder = Path.GetDirectoryName(userSecretsPath);
 
-            // The secrets path is absolute and lives under the real user profile, so DisposableFileSystem
-            // writes straight through it and cannot clean it up for us.
-            IConfigurationRoot config = null;
+            _fileSystem.CreateFolder(userSecretsFolder);
+            _fileSystem.WriteFile(userSecretsPath, @"{""UserSecretKey1"": ""UserSecretValue1""}");
 
-            try
-            {
-                _fileSystem.CreateFolder(userSecretsFolder);
-                _fileSystem.WriteFile(userSecretsPath, @"{""UserSecretKey1"": ""UserSecretValue1""}");
+            var config = CreateBuilder()
+                .AddUserSecrets(userSecretsId, reloadOnChange: true)
+                .Build();
 
-                config = CreateBuilder()
-                    .AddUserSecrets(userSecretsId, reloadOnChange: true)
-                    .Build();
+            Assert.Equal("UserSecretValue1", config["UserSecretKey1"]);
 
-                Assert.Equal("UserSecretValue1", config["UserSecretKey1"]);
+            var token = config.GetReloadToken();
 
-                var token = config.GetReloadToken();
+            // Update file
+            _fileSystem.WriteFile(userSecretsPath, @"{""UserSecretKey1"": ""UserSecretValue2""}");
 
-                // Update file
-                await WriteFilesForReload(
-                    config,
-                    () => _fileSystem.WriteFile(userSecretsPath, @"{""UserSecretKey1"": ""UserSecretValue2""}"),
-                    userSecretsPath);
+            await WaitForChange(
+                () => config["UserSecretKey1"] == "UserSecretValue2",
+                "Reload failed after create-delete-create.");
 
-                await WaitForChange(
-                    () => config["UserSecretKey1"] == "UserSecretValue2",
-                    "Reload failed after create-delete-create.");
-
-                Assert.Equal("UserSecretValue2", config["UserSecretKey1"]);
-                Assert.True(token.HasChanged);
-            }
-            finally
-            {
-                // Stop watching before removing the folder the watcher is pointed at.
-                (config as IDisposable)?.Dispose();
-
-                try
-                {
-                    Directory.Delete(userSecretsFolder, true);
-                }
-                catch
-                {
-                    // Don't throw if this fails.
-                }
-            }
+            Assert.Equal("UserSecretValue2", config["UserSecretKey1"]);
+            Assert.True(token.HasChanged);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public void BindingDoesNotThrowIfReloadedDuringBinding()
         {
             WriteTestFiles();
@@ -1243,40 +1005,6 @@ IniKey1=IniValue2");
             }
         }
 
-        // UseActivePolling is the reliable post-initialization indicator, not UsePollingFileWatcher,
-        // until https://github.com/dotnet/runtime/issues/131871 is fixed.
-        private static bool UsesPolling(IConfigurationRoot config) =>
-            config.Providers
-                .OfType<FileConfigurationProvider>()
-                .Any(provider => provider.Source.FileProvider is PhysicalFileProvider { UseActivePolling: true });
-
-        private async Task WriteFilesForReload(IConfigurationRoot config, Action writeFiles, params string[] filePaths)
-        {
-            DateTime[] previousWriteTimes = null;
-
-            if (UsesPolling(config))
-            {
-                // Polling detects overwrites by timestamp, so ensure the new write gets a different timestamp.
-                previousWriteTimes = filePaths.Select(File.GetLastWriteTimeUtc).ToArray();
-                DateTime latestWriteTime = previousWriteTimes.Max();
-                TimeSpan delay = latestWriteTime.AddSeconds(1) - DateTime.UtcNow;
-                if (delay > TimeSpan.Zero)
-                {
-                    await Task.Delay(delay);
-                }
-            }
-
-            writeFiles();
-
-            if (previousWriteTimes is not null)
-            {
-                for (int i = 0; i < filePaths.Length; i++)
-                {
-                    Assert.NotEqual(previousWriteTimes[i], File.GetLastWriteTimeUtc(filePaths[i]));
-                }
-            }
-        }
-
         private sealed class MyOptions
         {
             public string CmdKey1 { get; set; }
@@ -1288,68 +1016,6 @@ IniKey1=IniValue2");
             public string MemKey1 { get; set; }
 
             public string XmlKey1 { get; set; }
-        }
-
-        private async Task WatchOverConfigJsonFileAndUpdateIt(string relativePathPrefix)
-        {
-            // Use a unique file name so that repeated or concurrent runs sharing the same output
-            // directory cannot observe each other's files.
-            string fileName = $"testFileToReload_{Guid.NewGuid():N}.json";
-
-            // The prefix is concatenated rather than combined on purpose: preserving the unnormalized
-            // "./" or ".\" is the whole point of the test, and Path.Combine would strip it.
-            string configuredPath = relativePathPrefix + fileName;
-
-            // A relative path is resolved against the default file provider root (AppContext.BaseDirectory)
-            // rather than the current working directory, so the file has to be written there for the
-            // watcher to see it.
-            string watchedFilePath = Path.Combine(_basePath, fileName);
-
-            IConfigurationRoot config = new ConfigurationBuilder()
-                .AddJsonFile(configuredPath, optional: true, reloadOnChange: true)
-                .Build();
-
-            IFileProvider defaultFileProvider = config.Providers
-                .OfType<FileConfigurationProvider>()
-                .Single()
-                .Source.FileProvider;
-
-            try
-            {
-                var reloadedSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                using IDisposable subscription = ChangeToken.OnChange(config.GetReloadToken, () => reloadedSignal.TrySetResult(true));
-
-                File.WriteAllText(watchedFilePath, @"{""Prop2"": ""Value2""}");
-                await Task.WhenAny(reloadedSignal.Task, Task.Delay(s_maxWaitForReload));
-                Assert.True(reloadedSignal.Task.IsCompleted, "on file change event handler did not get executed");
-                Assert.Equal("Value2", config["Prop2"]);
-            }
-            finally
-            {
-                (config as IDisposable)?.Dispose();
-                (defaultFileProvider as IDisposable)?.Dispose();
-
-                try
-                {
-                    File.Delete(watchedFilePath);
-                }
-                catch
-                {
-                    // Don't throw if this fails; a cleanup error must not mask an assertion failure.
-                }
-            }
-        }
-
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsWindows))]
-        public async Task OnChangeGetFiredForRelativeWindowsPath()
-        {
-            await WatchOverConfigJsonFileAndUpdateIt(".\\");
-        }
-
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsLinux))]
-        public async Task OnChangeGetFiredForRelativeLinuxPath()
-        {
-            await WatchOverConfigJsonFileAndUpdateIt("./");
         }
     }
 }

@@ -118,12 +118,6 @@ namespace ILLink.RoslynAnalyzer.Tests
         }
 
         [Fact]
-        public Task OnlyReferenceInUnreachableBody()
-        {
-            return RunTest(allowMissingWarnings: true);
-        }
-
-        [Fact]
         public Task OverrideOfAbstractAndInterfaceMethodCalledFromLocal()
         {
             return RunTest(allowMissingWarnings: true);

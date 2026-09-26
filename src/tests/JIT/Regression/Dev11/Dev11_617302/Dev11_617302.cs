@@ -15,7 +15,6 @@ namespace ConsoleApplication1
         /// </summary>
         /// <param name="args"></param>
         /// <returns></returns>
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

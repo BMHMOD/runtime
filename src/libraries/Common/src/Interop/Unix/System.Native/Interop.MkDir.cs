@@ -3,13 +3,20 @@
 
 using System;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.Marshalling;
+using System.Text;
 
 internal static partial class Interop
 {
     internal static partial class Sys
     {
         [LibraryImport(Libraries.SystemNative, EntryPoint = "SystemNative_MkDir", SetLastError = true)]
-        internal static partial int MkDir([MarshalUsing(typeof(SpanOfCharAsUtf8StringMarshaller))] ReadOnlySpan<char> path, int mode);
+        private static partial int MkDir(ref byte path, int mode);
+
+        internal static int MkDir(ReadOnlySpan<char> path, int mode)
+        {
+            using ValueUtf8Converter converter = new(stackalloc byte[DefaultPathBufferSize]);
+            int result = MkDir(ref MemoryMarshal.GetReference(converter.ConvertAndTerminateString(path)), mode);
+            return result;
+        }
     }
 }

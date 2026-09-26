@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-namespace JitTest_Directed_localloc_localloc3;
-
 using System;
 using Xunit;
 
@@ -29,7 +27,6 @@ public unsafe class test1
         char* p = stackalloc char[1000000];
     }
 
-    [OuterLoop]
     [Fact]
     unsafe public static int TestEntryPoint()
     {

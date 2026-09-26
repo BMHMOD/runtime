@@ -11,23 +11,30 @@ namespace Internal.Cryptography.Pal.AnyOS
 {
     internal sealed partial class ManagedPkcsPal : PkcsPal
     {
-        public override Oid GetEncodedMessageType(ReadOnlySpan<byte> encodedMessage)
+        public override unsafe Oid GetEncodedMessageType(ReadOnlySpan<byte> encodedMessage)
         {
-            ValueAsnReader reader = new ValueAsnReader(encodedMessage, AsnEncodingRules.BER);
-            ValueContentInfoAsn.Decode(ref reader, out ValueContentInfoAsn contentInfo);
-
-            switch (contentInfo.ContentType)
+            fixed (byte* pin = encodedMessage)
             {
-                case Oids.Pkcs7Data:
-                case Oids.Pkcs7Signed:
-                case Oids.Pkcs7Enveloped:
-                case Oids.Pkcs7SignedEnveloped:
-                case Oids.Pkcs7Hashed:
-                case Oids.Pkcs7Encrypted:
-                    return new Oid(contentInfo.ContentType);
-            }
+                using (var manager = new PointerMemoryManager<byte>(pin, encodedMessage.Length))
+                {
+                    AsnValueReader reader = new AsnValueReader(encodedMessage, AsnEncodingRules.BER);
 
-            throw new CryptographicException(SR.Cryptography_Cms_InvalidMessageType);
+                    ContentInfoAsn.Decode(ref reader, manager.Memory, out ContentInfoAsn contentInfo);
+
+                    switch (contentInfo.ContentType)
+                    {
+                        case Oids.Pkcs7Data:
+                        case Oids.Pkcs7Signed:
+                        case Oids.Pkcs7Enveloped:
+                        case Oids.Pkcs7SignedEnveloped:
+                        case Oids.Pkcs7Hashed:
+                        case Oids.Pkcs7Encrypted:
+                            return new Oid(contentInfo.ContentType);
+                    }
+
+                    throw new CryptographicException(SR.Cryptography_Cms_InvalidMessageType);
+                }
+            }
         }
     }
 }

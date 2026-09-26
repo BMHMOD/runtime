@@ -7,7 +7,4 @@
   <ItemGroup>
     <Compile Include="GenericParams10k.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

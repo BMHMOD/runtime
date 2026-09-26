@@ -66,7 +66,6 @@ namespace Runtime_52864
             );
         }
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

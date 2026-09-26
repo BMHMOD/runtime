@@ -10,7 +10,6 @@ internal static partial class Interop
 {
     internal static partial class Mswsock
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Interop.Libraries.Mswsock, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static unsafe partial bool TransmitFile(

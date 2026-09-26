@@ -3,9 +3,6 @@
 
 // Block inlining of small localloc callee if call site is in a loop.
 
-
-namespace Runtime_43391;
-
 using System;
 using Xunit;
 

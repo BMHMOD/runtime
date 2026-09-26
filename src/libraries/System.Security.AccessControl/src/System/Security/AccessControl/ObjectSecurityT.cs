@@ -1,6 +1,16 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+/*============================================================
+**
+** Class:  ObjectSecurity
+**
+** Purpose: Generic Managed ACL wrapper
+**
+** Date:  February 7, 2007
+**
+===========================================================*/
+
 using System;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
@@ -11,7 +21,11 @@ namespace System.Security.AccessControl
 {
     public class AccessRule<T> : AccessRule where T : struct
     {
+        #region Constructors
+        //
         // Constructors for creating access rules for file objects
+        //
+
         public AccessRule(
             IdentityReference identity,
             T rights,
@@ -38,7 +52,10 @@ namespace System.Security.AccessControl
                 type)
         { }
 
+        //
         // Constructor for creating access rules for folder objects
+        //
+
         public AccessRule(
             IdentityReference identity,
             T rights,
@@ -69,8 +86,11 @@ namespace System.Security.AccessControl
                 type)
         { }
 
+        //
         // Internal constructor to be called by public constructors
         // and the access rule factory methods of ObjectSecurity
+        //
+
         internal AccessRule(
             IdentityReference identity,
             int accessMask,
@@ -87,14 +107,22 @@ namespace System.Security.AccessControl
                 type)
         { }
 
+        #endregion
+
+        #region Public properties
+
         public T Rights
         {
             get { return (T)(object)base.AccessMask; }
         }
+        #endregion
     }
+
 
     public class AuditRule<T> : AuditRule where T : struct
     {
+        #region Constructors
+
         public AuditRule(
             IdentityReference identity,
             T rights,
@@ -170,14 +198,22 @@ namespace System.Security.AccessControl
         {
         }
 
+        #endregion
+
+        #region Public properties
+
         public T Rights
         {
             get { return (T)(object)base.AccessMask; }
         }
+        #endregion
     }
+
 
     public abstract class ObjectSecurity<T> : NativeObjectSecurity where T : struct
     {
+        #region Constructors
+
         protected ObjectSecurity(bool isContainer, ResourceType resourceType)
             : base(isContainer, resourceType, null, null)
         { }
@@ -197,6 +233,9 @@ namespace System.Security.AccessControl
         protected ObjectSecurity(bool isContainer, ResourceType resourceType, SafeHandle? safeHandle, AccessControlSections includeSections, ExceptionFromErrorCode? exceptionFromErrorCode, object? exceptionContext)
             : base(isContainer, resourceType, safeHandle, includeSections, exceptionFromErrorCode, exceptionContext)
         { }
+
+        #endregion
+        #region Factories
 
         public override AccessRule AccessRuleFactory(
             IdentityReference identityReference,
@@ -232,6 +271,9 @@ namespace System.Security.AccessControl
                 flags);
         }
 
+        #endregion
+        #region Private Methods
+
         private AccessControlSections GetAccessControlSectionsFromChanges()
         {
             AccessControlSections persistRules = AccessControlSections.None;
@@ -253,6 +295,9 @@ namespace System.Security.AccessControl
             }
             return persistRules;
         }
+
+        #endregion
+        #region Protected Methods
 
         // Use this in your own Persist after you have demanded any appropriate CAS permissions.
         // Note that you will want your version to be internal and use a specialized Safe Handle.
@@ -289,6 +334,9 @@ namespace System.Security.AccessControl
                 WriteUnlock();
             }
         }
+
+        #endregion
+        #region Public Methods
 
         // Override these if you need to do some custom bit remapping to hide any
         // complexity from the user.
@@ -347,6 +395,9 @@ namespace System.Security.AccessControl
             base.RemoveAuditRuleSpecific(rule);
         }
 
+        #endregion
+        #region some overrides
+
         public override Type AccessRightType
         {
             get { return typeof(T); }
@@ -361,5 +412,6 @@ namespace System.Security.AccessControl
         {
             get { return typeof(AuditRule<T>); }
         }
+        #endregion
     }
 }

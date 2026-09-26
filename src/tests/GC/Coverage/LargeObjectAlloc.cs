@@ -6,7 +6,6 @@
 
 using System;
 using System.Threading;
-using TestLibrary;
 
 internal class Mainy
 {
@@ -44,13 +43,6 @@ internal class Mainy
 
         Console.WriteLine("LargeObjectAlloc started with {0} threads. Control-C to exit", Threads.ToString());
 
-        if (!PlatformDetection.IsMultithreadingSupported)
-        {
-            Mainy.DoWork();
-            Console.WriteLine("Test Passed");
-            return 100;
-        }
-
         Thread myThread = null;
         for (long i = 0; i < Threads; i++)
         {
@@ -67,3 +59,4 @@ internal class Mainy
         return 100;
     }
 }
+

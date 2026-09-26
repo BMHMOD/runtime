@@ -225,7 +225,6 @@ namespace System.Management
             if (pWbemClassObject == IntPtr.Zero)
                 throw new ObjectDisposedException(name);
             int res = WmiNetUtilsHelper.CompareTo_f(16, pWbemClassObject, lFlags, pCompareTo.pWbemClassObject);
-            GC.KeepAlive(pCompareTo);
             GC.KeepAlive(this);
             return res;
         }
@@ -271,8 +270,6 @@ namespace System.Management
             if (pWbemClassObject == IntPtr.Zero)
                 throw new ObjectDisposedException(name);
             int res = WmiNetUtilsHelper.PutMethod_f(20, pWbemClassObject, wszName, lFlags, pInSignature, pOutSignature);
-            GC.KeepAlive(pInSignature);
-            GC.KeepAlive(pOutSignature);
             GC.KeepAlive(this);
             return res;
         }

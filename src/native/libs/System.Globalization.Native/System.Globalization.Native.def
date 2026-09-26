@@ -37,4 +37,3 @@ EXPORTS
     GlobalizationNative_ToAscii
     GlobalizationNative_ToUnicode
     GlobalizationNative_InitOrdinalCasingPage
-    GlobalizationNative_InitOrdinalLowerCasingPage

@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
@@ -28,8 +29,8 @@ internal sealed class DacEnumerableHash
         _target = target;
         _type = type;
 
-        Buckets = _target.ReadPointerField(address, _type, nameof(Buckets));
-        Count = _target.ReadField<uint>(address, _type, nameof(Count));
+        Buckets = _target.ReadPointer(address + (ulong)_type.Fields[nameof(Buckets)].Offset);
+        Count = _target.Read<uint>(address + (ulong)_type.Fields[nameof(Count)].Offset);
 
         // read items in the hash table
         uint length = GetLength();
@@ -44,8 +45,8 @@ internal sealed class DacEnumerableHash
             entries.AddRange(elements);
         }
 
-        // In STRESS testing, we may stop while this table is resizing, so we
-        // can't assert that Count equals the number of walked entries.
+        Debug.Assert(Count == entries.Count);
+
         Entries = entries;
     }
 
@@ -60,7 +61,7 @@ internal sealed class DacEnumerableHash
         {
             // offsets are stored on the parent type
             VolatileEntryValue = address + (ulong)type.Fields[nameof(VolatileEntryValue)].Offset;
-            VolatileEntryNextEntry = target.ReadPointerField(address, type, nameof(VolatileEntryNextEntry));
+            VolatileEntryNextEntry = target.ReadPointer(address + (ulong)type.Fields[nameof(VolatileEntryNextEntry)].Offset);
         }
 
         public TargetPointer VolatileEntryValue { get; init; }

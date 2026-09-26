@@ -8,41 +8,14 @@ using Xunit;
 
 namespace System.Formats.Asn1.Tests.Reader
 {
-    public sealed class PeekTestsAsnReaderTests : PeekTestsBase
+    public sealed class PeekTests
     {
-        internal override AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default)
-        {
-            return AsnReaderWrapper.CreateClassReader(data, ruleSet, options);
-        }
-    }
-
-    public sealed class PeekTestsValueAsnReaderTests : PeekTestsBase
-    {
-        internal override AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default)
-        {
-            return AsnReaderWrapper.CreateValueReader(data, ruleSet, options);
-        }
-    }
-
-    public abstract class PeekTestsBase
-    {
-        internal abstract AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default);
-
         [Fact]
-        public void ReaderPeekTag_Valid()
+        public static void ReaderPeekTag_Valid()
         {
             // SEQUENCE(NULL)
             byte[] data = { 0x30, 0x02, 0x05, 0x00 };
-            AsnReaderWrapper reader = CreateWrapper(data, AsnEncodingRules.BER);
+            AsnReader reader = new AsnReader(data, AsnEncodingRules.BER);
             Asn1Tag tag = reader.PeekTag();
 
             Assert.Equal((int)UniversalTagNumber.Sequence, tag.TagValue);
@@ -51,26 +24,24 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void ReaderPeekTag_Invalid()
+        public static void ReaderPeekTag_Invalid()
         {
             // (UNIVERSAL [continue into next byte])
             byte[] data = { 0x1F };
-            AsnReaderWrapper reader = CreateWrapper(data, AsnEncodingRules.BER);
+            AsnReader reader = new AsnReader(data, AsnEncodingRules.BER);
 
-            Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.PeekTag());
+            Assert.Throws<AsnContentException>(() => reader.PeekTag());
         }
 
         [Fact]
-        public void PeekEncodedValue_Primitive()
+        public static void PeekEncodedValue_Primitive()
         {
             const string EncodedContents = "010203040506";
             const string EncodedValue = "0406" + EncodedContents;
 
             byte[] data = (EncodedValue + "0500").HexToByteArray();
 
-            AsnReaderWrapper reader = CreateWrapper(data, AsnEncodingRules.BER);
+            AsnReader reader = new AsnReader(data, AsnEncodingRules.BER);
             Assert.Equal(EncodedValue, reader.PeekEncodedValue().ByteArrayToHex());
 
             // It's Peek, so it's reproducible.
@@ -78,14 +49,14 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void PeekEncodedValue_Indefinite()
+        public static void PeekEncodedValue_Indefinite()
         {
             const string EncodedContents = "040101" + "04050203040506";
             const string EncodedValue = "2480" + EncodedContents + "0000";
 
             byte[] data = (EncodedValue + "0500").HexToByteArray();
 
-            AsnReaderWrapper reader = CreateWrapper(data, AsnEncodingRules.BER);
+            AsnReader reader = new AsnReader(data, AsnEncodingRules.BER);
             Assert.Equal(EncodedValue, reader.PeekEncodedValue().ByteArrayToHex());
 
             // It's Peek, so it's reproducible.
@@ -93,7 +64,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void PeekEncodedValue_Corrupt_Throws()
+        public static void PeekEncodedValue_Corrupt_Throws()
         {
             const string EncodedContents = "040101" + "04050203040506";
             // Constructed bit isn't set, so indefinite length is invalid.
@@ -101,22 +72,23 @@ namespace System.Formats.Asn1.Tests.Reader
 
             byte[] data = (EncodedValue + "0500").HexToByteArray();
 
-            AsnReaderWrapper reader = CreateWrapper(data, AsnEncodingRules.BER);
-
             Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.PeekEncodedValue());
+                () =>
+                {
+                    AsnReader reader = new AsnReader(data, AsnEncodingRules.BER);
+                    reader.PeekEncodedValue();
+                });
         }
 
         [Fact]
-        public void PeekContentSpan_Primitive()
+        public static void PeekContentSpan_Primitive()
         {
             const string EncodedContents = "010203040506";
             const string EncodedValue = "0406" + EncodedContents;
 
             byte[] data = (EncodedValue + "0500").HexToByteArray();
 
-            AsnReaderWrapper reader = CreateWrapper(data, AsnEncodingRules.BER);
+            AsnReader reader = new AsnReader(data, AsnEncodingRules.BER);
             Assert.Equal(EncodedContents, reader.PeekContentBytes().ByteArrayToHex());
 
             // It's Peek, so it's reproducible.
@@ -124,14 +96,14 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void PeekContentSpan_Indefinite()
+        public static void PeekContentSpan_Indefinite()
         {
             const string EncodedContents = "040101" + "04050203040506";
             const string EncodedValue = "2480" + EncodedContents + "0000";
 
             byte[] data = (EncodedValue + "0500").HexToByteArray();
 
-            AsnReaderWrapper reader = CreateWrapper(data, AsnEncodingRules.BER);
+            AsnReader reader = new AsnReader(data, AsnEncodingRules.BER);
             Assert.Equal(EncodedContents, reader.PeekContentBytes().ByteArrayToHex());
 
             // It's Peek, so it's reproducible.
@@ -139,7 +111,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void PeekContentSpan_Corrupt_Throws()
+        public static void PeekContentSpan_Corrupt_Throws()
         {
             const string EncodedContents = "040101" + "04050203040506";
             // Constructed bit isn't set, so indefinite length is invalid.
@@ -147,17 +119,18 @@ namespace System.Formats.Asn1.Tests.Reader
 
             byte[] data = (EncodedValue + "0500").HexToByteArray();
 
-            AsnReaderWrapper reader = CreateWrapper(data, AsnEncodingRules.BER);
-
             Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.PeekContentBytes());
+                () =>
+                {
+                    AsnReader reader = new AsnReader(data, AsnEncodingRules.BER);
+                    reader.PeekContentBytes();
+                });
         }
 
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
-        public void PeekContentSpan_ExtremelyNested(bool fullArray)
+        public static void PeekContentSpan_ExtremelyNested(bool fullArray)
         {
             byte[] dataBytes = new byte[4 * 16384];
 
@@ -188,16 +161,16 @@ namespace System.Formats.Asn1.Tests.Reader
                 dataBytes[i + 1] = 0x80;
             }
 
-            AsnReaderWrapper reader = CreateWrapper(dataBytes, AsnEncodingRules.BER);
-            ReadOnlySpan<byte> contents = reader.PeekContentBytes();
+            AsnReader reader = new AsnReader(dataBytes, AsnEncodingRules.BER);
+            ReadOnlyMemory<byte> contents = reader.PeekContentBytes();
             Assert.Equal(expectedLength, contents.Length);
-            Assert.True(Unsafe.AreSame(ref dataBytes[2], ref MemoryMarshal.GetReference(contents)));
+            Assert.True(Unsafe.AreSame(ref dataBytes[2], ref MemoryMarshal.GetReference(contents.Span)));
         }
 
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
-        public void PeekEncodedValue_ExtremelyNested(bool fullArray)
+        public static void PeekEncodedValue_ExtremelyNested(bool fullArray)
         {
             byte[] dataBytes = new byte[4 * 16384];
 
@@ -223,10 +196,10 @@ namespace System.Formats.Asn1.Tests.Reader
                 dataBytes[i + 1] = 0x80;
             }
 
-            AsnReaderWrapper reader = CreateWrapper(dataBytes, AsnEncodingRules.BER);
-            ReadOnlySpan<byte> contents = reader.PeekEncodedValue();
+            AsnReader reader = new AsnReader(dataBytes, AsnEncodingRules.BER);
+            ReadOnlyMemory<byte> contents = reader.PeekEncodedValue();
             Assert.Equal(expectedLength, contents.Length);
-            Assert.True(Unsafe.AreSame(ref dataBytes[0], ref MemoryMarshal.GetReference(contents)));
+            Assert.True(Unsafe.AreSame(ref dataBytes[0], ref MemoryMarshal.GetReference(contents.Span)));
 
             Assert.True(
                 AsnDecoder.TryReadEncodedValue(
@@ -244,18 +217,14 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void PeekEncodedValue_InvalidLength()
+        public static void PeekEncodedValue_InvalidLength()
         {
             byte[] badLength = "04040203".HexToByteArray();
 
-            AsnReaderWrapper reader = CreateWrapper(badLength, AsnEncodingRules.BER);
+            AsnReader reader = new AsnReader(badLength, AsnEncodingRules.BER);
 
-            Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.PeekEncodedValue());
-            Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.ReadEncodedValue());
+            Assert.Throws<AsnContentException>(() => reader.PeekEncodedValue());
+            Assert.Throws<AsnContentException>(() => reader.ReadEncodedValue());
 
             Assert.False(
                 AsnDecoder.TryReadEncodedValue(
@@ -273,15 +242,13 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void PeekContentBytes_InvalidLength()
+        public static void PeekContentBytes_InvalidLength()
         {
             byte[] badLength = "04040203".HexToByteArray();
 
-            AsnReaderWrapper reader = CreateWrapper(badLength, AsnEncodingRules.BER);
+            AsnReader reader = new AsnReader(badLength, AsnEncodingRules.BER);
 
-            Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.PeekContentBytes());
+            Assert.Throws<AsnContentException>(() => reader.PeekContentBytes());
         }
     }
 }

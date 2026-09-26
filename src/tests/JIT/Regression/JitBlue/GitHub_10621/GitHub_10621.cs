@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-namespace GitHub_10621;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
@@ -18,7 +15,6 @@ public class GitHub_10621
 
     // An empty try with nested try finallys where
     // the inner finally cannot be cloned.
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

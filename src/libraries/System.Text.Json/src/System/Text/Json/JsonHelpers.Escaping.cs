@@ -25,7 +25,7 @@ namespace System.Text.Json
             }
         }
 
-        public static unsafe byte[] EscapeValue(
+        public static byte[] EscapeValue(
             ReadOnlySpan<byte> utf8Value,
             int firstEscapeIndexVal,
             JavaScriptEncoder? encoder)
@@ -45,7 +45,7 @@ namespace System.Text.Json
 
             byte[] escapedString = escapedValue.Slice(0, written).ToArray();
 
-            if (valueArray is not null)
+            if (valueArray != null)
             {
                 ArrayPool<byte>.Shared.Return(valueArray);
             }
@@ -53,7 +53,7 @@ namespace System.Text.Json
             return escapedString;
         }
 
-        private static unsafe byte[] GetEscapedPropertyNameSection(
+        private static byte[] GetEscapedPropertyNameSection(
             ReadOnlySpan<byte> utf8Value,
             int firstEscapeIndexVal,
             JavaScriptEncoder? encoder)
@@ -73,7 +73,7 @@ namespace System.Text.Json
 
             byte[] propertySection = GetPropertyNameSection(escapedValue.Slice(0, written));
 
-            if (valueArray is not null)
+            if (valueArray != null)
             {
                 ArrayPool<byte>.Shared.Return(valueArray);
             }

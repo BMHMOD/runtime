@@ -1,10 +1,21 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System;
+
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.PatchpointInfo))]
-internal sealed partial class PatchpointInfo : IData<PatchpointInfo>
+internal sealed class PatchpointInfo : IData<PatchpointInfo>
 {
-    [Field] public partial uint LocalCount { get; }
+    static PatchpointInfo IData<PatchpointInfo>.Create(Target target, TargetPointer address)
+        => new PatchpointInfo(target, address);
+
+    public PatchpointInfo(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.PatchpointInfo);
+
+        LocalCount = target.Read<uint>(address + (ulong)type.Fields[nameof(LocalCount)].Offset);
+    }
+
+    public uint LocalCount { get; }
 }

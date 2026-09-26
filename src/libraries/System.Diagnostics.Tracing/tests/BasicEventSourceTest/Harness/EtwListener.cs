@@ -94,8 +94,7 @@ namespace BasicEventSourceTests
                 if (options == null)
                     options = new FilteringOptions();
 
-                var providerGuid = TraceEventProviders.GetEventSourceGuidFromName(eventSourceName);
-                _session.EnableProvider(providerGuid, (TraceEventLevel)options.Level, (ulong)options.Keywords,
+                _session.EnableProvider(eventSourceName, (TraceEventLevel)options.Level, (ulong)options.Keywords,
                     new TraceEventProviderOptions() { Arguments = options.Args });
             }
             else if (command == EventCommand.Disable)

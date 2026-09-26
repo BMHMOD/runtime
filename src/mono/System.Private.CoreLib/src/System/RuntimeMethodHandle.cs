@@ -35,14 +35,6 @@ namespace System
             return GetFunctionPointer(value);
         }
 
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        private static extern IntPtr GetNativeCode(IntPtr m);
-
-        internal static IntPtr GetNativeCodeInternal(IntPtr methodHandleValue)
-        {
-            return GetNativeCode(methodHandleValue);
-        }
-
         public override bool Equals(object? obj)
         {
             if (obj == null || GetType() != obj.GetType())

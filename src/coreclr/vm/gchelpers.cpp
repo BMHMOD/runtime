@@ -29,7 +29,6 @@
 #include "gchelpers.inl"
 #include "eeprofinterfaces.inl"
 #include "frozenobjectheap.h"
-#include "cdacstress.h"
 
 #ifdef FEATURE_COMINTEROP
 #include "runtimecallablewrapper.h"
@@ -44,6 +43,8 @@
 EXTERN_C ee_alloc_context* GetThreadEEAllocContext()
 {
     WRAPPER_NO_CONTRACT;
+
+    assert(GCHeapUtilities::UseThreadAllocationContexts());
 
     return &t_runtime_thread_locals.alloc_context;
 }
@@ -65,7 +66,6 @@ EXTERN_C Object* RhpGcAlloc(MethodTable* pMT, GC_ALLOC_FLAGS uFlags, intptr_t nu
 
     pFrame->Push(CURRENT_THREAD);
 
-    INSTALL_RESUME_AFTER_CATCH_HANDLER_WITH_FRAME(pFrame);
     INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
@@ -108,7 +108,6 @@ EXTERN_C Object* RhpGcAlloc(MethodTable* pMT, GC_ALLOC_FLAGS uFlags, intptr_t nu
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
     UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
-    UNINSTALL_RESUME_AFTER_CATCH_HANDLER_WITH_FRAME;
 
     pFrame->Pop(CURRENT_THREAD);
 
@@ -126,7 +125,6 @@ EXTERN_C Object* RhpGcAllocMaybeFrozen(MethodTable* pMT, intptr_t numElements, T
 
     pFrame->Push(CURRENT_THREAD);
 
-    INSTALL_RESUME_AFTER_CATCH_HANDLER_WITH_FRAME(pFrame);
     INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
@@ -166,7 +164,6 @@ EXTERN_C Object* RhpGcAllocMaybeFrozen(MethodTable* pMT, intptr_t numElements, T
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
     UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
-    UNINSTALL_RESUME_AFTER_CATCH_HANDLER_WITH_FRAME;
 
     pFrame->Pop(CURRENT_THREAD);
 
@@ -182,7 +179,6 @@ EXTERN_C void RhExceptionHandling_FailedAllocation_Helper(MethodTable* pMT, bool
 
     pFrame->Push(CURRENT_THREAD);
 
-    INSTALL_RESUME_AFTER_CATCH_HANDLER_WITH_FRAME(&frame);
     INSTALL_MANAGED_EXCEPTION_DISPATCHER;
     INSTALL_UNWIND_AND_CONTINUE_HANDLER;
 
@@ -194,10 +190,108 @@ EXTERN_C void RhExceptionHandling_FailedAllocation_Helper(MethodTable* pMT, bool
 
     UNINSTALL_UNWIND_AND_CONTINUE_HANDLER;
     UNINSTALL_MANAGED_EXCEPTION_DISPATCHER;
-    UNINSTALL_RESUME_AFTER_CATCH_HANDLER_WITH_FRAME;
 
     pFrame->Pop(CURRENT_THREAD);
 }
+
+// When not using per-thread allocation contexts, we (the EE) need to take care that
+// no two threads are concurrently modifying the global allocation context. This lock
+// must be acquired before any sort of operations involving the global allocation context
+// can occur.
+//
+// This lock is acquired by all allocations when not using per-thread allocation contexts.
+// It is acquired in two kinds of places:
+//   1) JIT_TrialAllocFastSP (and related assembly alloc helpers), which attempt to
+//      acquire it but move into an alloc slow path if acquiring fails
+//      (but does not decrement the lock variable when doing so)
+//   2) Alloc in gchelpers.cpp, which acquire the lock using
+//      the Acquire and Release methods below.
+class GlobalAllocLock {
+    friend struct AsmOffsets;
+private:
+    // The lock variable. This field must always be first.
+    LONG m_lock;
+
+public:
+    // Creates a new GlobalAllocLock in the unlocked state.
+    GlobalAllocLock() : m_lock(-1) {}
+
+    // Copy and copy-assignment operators should never be invoked
+    // for this type
+    GlobalAllocLock(const GlobalAllocLock&) = delete;
+    GlobalAllocLock& operator=(const GlobalAllocLock&) = delete;
+
+    // Acquires the lock, spinning if necessary to do so. When this method
+    // returns, m_lock will be zero and the lock will be acquired.
+    void Acquire()
+    {
+        CONTRACTL {
+            NOTHROW;
+            GC_TRIGGERS; // switch to preemptive mode
+            MODE_COOPERATIVE;
+        } CONTRACTL_END;
+
+        DWORD spinCount = 0;
+        while(InterlockedExchange(&m_lock, 0) != -1)
+        {
+            GCX_PREEMP();
+            __SwitchToThread(0, spinCount++);
+        }
+
+        assert(m_lock == 0);
+    }
+
+    // Releases the lock.
+    void Release()
+    {
+        LIMITED_METHOD_CONTRACT;
+
+        // the lock may not be exactly 0. This is because the
+        // assembly alloc routines increment the lock variable and
+        // jump if not zero to the slow alloc path, which eventually
+        // will try to acquire the lock again. At that point, it will
+        // spin in Acquire (since m_lock is some number that's not zero).
+        // When the thread that /does/ hold the lock releases it, the spinning
+        // thread will continue.
+        MemoryBarrier();
+        assert(m_lock >= 0);
+        m_lock = -1;
+    }
+
+    // Static helper to acquire a lock, for use with the Holder template.
+    static void AcquireLock(GlobalAllocLock *lock)
+    {
+        WRAPPER_NO_CONTRACT;
+        lock->Acquire();
+    }
+
+    // Static helper to release a lock, for use with the Holder template
+    static void ReleaseLock(GlobalAllocLock *lock)
+    {
+        WRAPPER_NO_CONTRACT;
+        lock->Release();
+    }
+
+    typedef class Holder<GlobalAllocLock *, GlobalAllocLock::AcquireLock, GlobalAllocLock::ReleaseLock> Holder;
+};
+
+typedef GlobalAllocLock::Holder GlobalAllocLockHolder;
+
+struct AsmOffsets {
+    static_assert(offsetof(GlobalAllocLock, m_lock) == 0, "ASM code relies on this property");
+};
+
+// For single-proc machines, the global allocation context is protected
+// from concurrent modification by this lock.
+//
+// When not using per-thread allocation contexts, certain methods on IGCHeap
+// require that this lock be held before calling. These methods are documented
+// on the IGCHeap interface.
+extern "C"
+{
+    GlobalAllocLock g_global_alloc_lock;
+}
+
 
 // Checks to see if the given allocation size exceeds the
 // largest object size allowed - if it does, it throws
@@ -317,8 +411,6 @@ inline Object* Alloc(ee_alloc_context* pEEAllocContext, size_t size, GC_ALLOC_FL
         }
     }
 
-    CdacStress<cdac_on_alloc>::MaybeVerify();
-
     GCStress<gc_on_alloc>::MaybeTrigger(pAllocContext);
 
     // for SOH, if there is enough space in the current allocation context, then
@@ -368,16 +460,33 @@ inline Object* Alloc(size_t size, GC_ALLOC_FLAGS flags)
         MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
     } CONTRACTL_END;
 
+#ifdef _DEBUG
+    if (g_pConfig->ShouldInjectFault(INJECTFAULT_GCHEAP))
+    {
+        char *a = new char;
+        delete a;
+    }
+#endif
+
     if (flags & GC_ALLOC_CONTAINS_REF)
         flags &= ~GC_ALLOC_ZEROING_OPTIONAL;
 
     Object *retVal = NULL;
     CheckObjectSize(size);
 
-    ee_alloc_context *threadContext = GetThreadEEAllocContext();
-    CdacStress<cdac_on_alloc>::MaybeVerify();
-    GCStress<gc_on_alloc>::MaybeTrigger(&threadContext->m_GCAllocContext);
-    retVal = Alloc(threadContext, size, flags);
+    if (GCHeapUtilities::UseThreadAllocationContexts())
+    {
+        ee_alloc_context *threadContext = GetThreadEEAllocContext();
+        GCStress<gc_on_alloc>::MaybeTrigger(&threadContext->m_GCAllocContext);
+        retVal = Alloc(threadContext, size, flags);
+    }
+    else
+    {
+        GlobalAllocLockHolder holder(&g_global_alloc_lock);
+        ee_alloc_context *globalContext = &g_global_alloc_context;
+        GCStress<gc_on_alloc>::MaybeTrigger(&globalContext->m_GCAllocContext);
+        retVal = Alloc(globalContext, size, flags);
+    }
 
 
     if (!retVal)
@@ -430,7 +539,7 @@ inline void LogAlloc(Object* object)
 
     if (LoggingOn(LF_GCALLOC, LL_INFO10))
     {
-        LogSpewAlways("Allocated %5zu bytes for %s_TYPE" FMT_ADDR FMT_CLASS "\n",
+        LogSpewAlways("Allocated %5d bytes for %s_TYPE" FMT_ADDR FMT_CLASS "\n",
                       size,
                       pMT->IsValueType() ? "VAL" : "REF",
                       DBG_ADDR(object),
@@ -702,6 +811,14 @@ OBJECTREF AllocateArrayEx(MethodTable *pArrayMT, INT32 *pArgs, DWORD dwNumArgs, 
         PRECONDITION(dwNumArgs > 0);
     } CONTRACTL_END;
 
+#ifdef _DEBUG
+    if (g_pConfig->ShouldInjectFault(INJECTFAULT_GCHEAP))
+    {
+        char *a = new char;
+        delete a;
+    }
+#endif
+
     SetTypeHandleOnThreadForAlloc(TypeHandle(pArrayMT));
 
     // keep original flags in case the call is recursive (jugged array case)
@@ -881,6 +998,7 @@ OBJECTREF AllocatePrimitiveArray(CorElementType type, DWORD cElements)
     {
         THROWS;
         GC_TRIGGERS;
+        INJECT_FAULT(COMPlusThrowOM());
         MODE_COOPERATIVE;  // returns an objref without pinning it => cooperative
     }
     CONTRACTL_END
@@ -972,6 +1090,14 @@ STRINGREF AllocateString( DWORD cchStringLength )
         GC_TRIGGERS;
         MODE_COOPERATIVE; // returns an objref without pinning it => cooperative
     } CONTRACTL_END;
+
+#ifdef _DEBUG
+    if (g_pConfig->ShouldInjectFault(INJECTFAULT_GCHEAP))
+    {
+        char *a = new char;
+        delete a;
+    }
+#endif
 
     // Limit the maximum string size to <2GB to mitigate risk of security issues caused by 32-bit integer
     // overflows in buffer size calculations.
@@ -1115,8 +1241,7 @@ OBJECTREF AllocateObject(MethodTable *pMT
         if (pMT == g_pBaseCOMObject)
             COMPlusThrow(kInvalidComObjectException, IDS_EE_NO_BACKING_CLASS_FACTORY);
 
-        OBJECTREF obj = AllocateComObject_ForManaged(pMT);
-        oref = OBJECTREF_TO_UNCHECKED_OBJECTREF(obj);
+        oref = OBJECTREF_TO_UNCHECKED_OBJECTREF(AllocateComObject_ForManaged(pMT));
     }
 #endif // FEATURE_COMINTEROP_UNMANAGED_ACTIVATION
 #else  // FEATURE_COMINTEROP
@@ -1443,6 +1568,21 @@ extern "C" HCIMPL2_RAW(VOID, JIT_WriteBarrier, Object **dst, Object *ref)
 HCIMPLEND_RAW
 
 #endif // FEATURE_USE_ASM_GC_WRITE_BARRIERS
+
+extern "C" HCIMPL2_RAW(VOID, JIT_WriteBarrierEnsureNonHeapTarget, Object **dst, Object *ref)
+{
+    // Must use static contract here, because if an AV occurs, a normal EH
+    // unwind will not occur, and destructors will not run.
+    STATIC_CONTRACT_MODE_COOPERATIVE;
+    STATIC_CONTRACT_THROWS;
+    STATIC_CONTRACT_GC_NOTRIGGER;
+
+    assert(!GCHeapUtilities::GetGCHeap()->IsHeapPointer((void*)dst));
+
+    // not a release store because NonHeap.
+    *dst = ref;
+}
+HCIMPLEND_RAW
 
 // This function sets the card table with the granularity of 1 byte, to avoid ghost updates
 //    that could occur if multiple threads were trying to set different bits in the same card.

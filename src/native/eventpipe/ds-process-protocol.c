@@ -16,8 +16,8 @@
  */
 
 static
-bool
-process_info_payload_get_size (DiagnosticsProcessInfoPayload *payload, uint16_t *size_out);
+uint16_t
+process_info_payload_get_size (DiagnosticsProcessInfoPayload *payload);
 
 static
 bool
@@ -27,8 +27,8 @@ process_info_payload_flatten (
 	uint16_t *size);
 
 static
-bool
-env_info_payload_get_size (DiagnosticsEnvironmentInfoPayload *payload, uint16_t *size_out);
+uint16_t
+env_info_payload_get_size (DiagnosticsEnvironmentInfoPayload *payload);
 
 static
 uint32_t
@@ -112,8 +112,8 @@ process_protocol_helper_unknown_command (
  */
 
 static
-bool
-process_info_payload_get_size (DiagnosticsProcessInfoPayload *payload, uint16_t *size_out)
+uint16_t
+process_info_payload_get_size (DiagnosticsProcessInfoPayload *payload)
 {
 	// see IPC spec @ https://github.com/dotnet/diagnostics/blob/main/documentation/design-docs/ipc-protocol.md
 	// for definition of serialization format
@@ -125,7 +125,6 @@ process_info_payload_get_size (DiagnosticsProcessInfoPayload *payload, uint16_t 
 	// LPCWSTR Arch;        -> 4 bytes + strlen * sizeof(WCHAR)
 
 	EP_ASSERT (payload != NULL);
-	EP_ASSERT (size_out != NULL);
 
 	size_t size = 0;
 	size += sizeof(payload->process_id);
@@ -143,7 +142,8 @@ process_info_payload_get_size (DiagnosticsProcessInfoPayload *payload, uint16_t 
 	size += (payload->arch != NULL) ?
 		(ep_rt_utf16_string_len (payload->arch) + 1) * sizeof(ep_char16_t) : 0;
 
-	return ds_ipc_payload_size_try_narrow (size, size_out);
+	EP_ASSERT (size <= UINT16_MAX);
+	return (uint16_t)size;
 }
 
 static
@@ -159,11 +159,7 @@ process_info_payload_flatten (
 	EP_ASSERT (buffer != NULL);
 	EP_ASSERT (*buffer != NULL);
 	EP_ASSERT (size != NULL);
-#ifdef EP_CHECKED_BUILD
-	uint16_t expected_size;
-	EP_ASSERT (process_info_payload_get_size (process_info, &expected_size));
-	EP_ASSERT (expected_size == *size);
-#endif
+	EP_ASSERT (process_info_payload_get_size (process_info) == *size);
 
 	// see IPC spec @ https://github.com/dotnet/diagnostics/blob/main/documentation/design-docs/ipc-protocol.md
 	// for definition of serialization format
@@ -230,8 +226,8 @@ ds_process_info_payload_fini (DiagnosticsProcessInfoPayload *payload)
  */
 
 static
-bool
-process_info_2_payload_get_size (DiagnosticsProcessInfo2Payload *payload, uint16_t *size_out)
+uint16_t
+process_info_2_payload_get_size (DiagnosticsProcessInfo2Payload *payload)
 {
 	// see IPC spec @ https://github.com/dotnet/diagnostics/blob/main/documentation/design-docs/ipc-protocol.md
 	// for definition of serialization format
@@ -245,7 +241,6 @@ process_info_2_payload_get_size (DiagnosticsProcessInfo2Payload *payload, uint16
 	// LPCWSTR clr_product_version; 				-> 4 bytes + strlen * sizeof(WCHAR)
 
 	EP_ASSERT (payload != NULL);
-	EP_ASSERT (size_out != NULL);
 
 	size_t size = 0;
 	size += sizeof(payload->process_id);
@@ -271,7 +266,8 @@ process_info_2_payload_get_size (DiagnosticsProcessInfo2Payload *payload, uint16
 	size += (payload->clr_product_version != NULL) ?
 		(ep_rt_utf16_string_len (payload->clr_product_version) + 1) * sizeof(ep_char16_t) : 0;
 
-	return ds_ipc_payload_size_try_narrow (size, size_out);
+	EP_ASSERT (size <= UINT16_MAX);
+	return (uint16_t)size;
 }
 
 static
@@ -287,11 +283,7 @@ process_info_2_payload_flatten (
 	EP_ASSERT (buffer != NULL);
 	EP_ASSERT (*buffer != NULL);
 	EP_ASSERT (size != NULL);
-#ifdef EP_CHECKED_BUILD
-	uint16_t expected_size;
-	EP_ASSERT (process_info_2_payload_get_size (process_info, &expected_size));
-	EP_ASSERT (expected_size == *size);
-#endif
+	EP_ASSERT (process_info_2_payload_get_size (process_info) == *size);
 
 	// see IPC spec @ https://github.com/dotnet/diagnostics/blob/main/documentation/design-docs/ipc-protocol.md
 	// for definition of serialization format
@@ -371,8 +363,8 @@ ds_process_info_2_payload_fini (DiagnosticsProcessInfo2Payload *payload)
  */
 
 static
-bool
-process_info_3_payload_get_size (DiagnosticsProcessInfo3Payload *payload, uint16_t *size_out)
+uint16_t
+process_info_3_payload_get_size (DiagnosticsProcessInfo3Payload *payload)
 {
 	// see IPC spec @ https://github.com/dotnet/diagnostics/blob/main/documentation/design-docs/ipc-protocol.md
 	// for definition of serialization format
@@ -388,7 +380,6 @@ process_info_3_payload_get_size (DiagnosticsProcessInfo3Payload *payload, uint16
 	// LPCWSTR portable_rid;						-> 4 bytes + strlen * sizeof(WCHAR)
 
 	EP_ASSERT (payload != NULL);
-	EP_ASSERT (size_out != NULL);
 
 	size_t size = 0;
 	size += sizeof(payload->version);
@@ -419,7 +410,8 @@ process_info_3_payload_get_size (DiagnosticsProcessInfo3Payload *payload, uint16
 	size += (payload->portable_rid != NULL) ?
 		(ep_rt_utf16_string_len (payload->portable_rid) + 1) * sizeof(ep_char16_t) : 0;
 
-	return ds_ipc_payload_size_try_narrow (size, size_out);
+	EP_ASSERT (size <= UINT16_MAX);
+	return (uint16_t)size;
 }
 
 static
@@ -435,11 +427,7 @@ process_info_3_payload_flatten (
 	EP_ASSERT (buffer != NULL);
 	EP_ASSERT (*buffer != NULL);
 	EP_ASSERT (size != NULL);
-#ifdef EP_CHECKED_BUILD
-	uint16_t expected_size;
-	EP_ASSERT (process_info_3_payload_get_size (process_info, &expected_size));
-	EP_ASSERT (expected_size == *size);
-#endif
+	EP_ASSERT (process_info_3_payload_get_size (process_info) == *size);
 
 	// see IPC spec @ https://github.com/dotnet/diagnostics/blob/main/documentation/design-docs/ipc-protocol.md
 	// for definition of serialization format
@@ -535,17 +523,17 @@ ds_process_info_3_payload_fini (DiagnosticsProcessInfo3Payload *payload)
  */
 
 static
-bool
-env_info_payload_get_size (DiagnosticsEnvironmentInfoPayload *payload, uint16_t *size_out)
+uint16_t
+env_info_payload_get_size (DiagnosticsEnvironmentInfoPayload *payload)
 {
 	EP_ASSERT (payload != NULL);
-	EP_ASSERT (size_out != NULL);
 
 	size_t size = 0;
 	size += sizeof (payload->incoming_bytes);
 	size += sizeof (payload->future);
 
-	return ds_ipc_payload_size_try_narrow (size, size_out);
+	EP_ASSERT (size <= UINT16_MAX);
+	return (uint16_t)size;
 }
 
 static
@@ -580,11 +568,7 @@ env_info_payload_flatten (
 	EP_ASSERT (buffer != NULL);
 	EP_ASSERT (*buffer != NULL);
 	EP_ASSERT (size != NULL);
-#ifdef EP_CHECKED_BUILD
-	uint16_t expected_size;
-	EP_ASSERT (env_info_payload_get_size (env_info, &expected_size));
-	EP_ASSERT (expected_size == *size);
-#endif
+	EP_ASSERT (env_info_payload_get_size (env_info) == *size);
 
 	// see IPC spec @ https://github.com/dotnet/diagnostics/blob/main/documentation/design-docs/ipc-protocol.md
 	// for definition of serialization format
@@ -701,14 +685,11 @@ process_protocol_helper_get_process_info (
 		ds_ipc_advertise_cookie_v1_get ());
 	ep_raise_error_if_nok (process_info_payload != NULL);
 
-	uint16_t payload_size;
-	ep_raise_error_if_nok (process_info_payload_get_size (process_info_payload, &payload_size));
-
 	ep_raise_error_if_nok (ds_ipc_message_initialize_buffer (
 		message,
 		ds_ipc_header_get_generic_success (),
 		(void *)process_info_payload,
-		payload_size,
+		process_info_payload_get_size (process_info_payload),
 		process_info_payload_flatten));
 
 	ep_raise_error_if_nok (ds_ipc_message_send (message, stream));
@@ -774,14 +755,11 @@ process_protocol_helper_get_process_info_2 (
 		clr_product_version);
 	ep_raise_error_if_nok (process_info_2_payload != NULL);
 
-	uint16_t payload_size;
-	ep_raise_error_if_nok (process_info_2_payload_get_size (process_info_2_payload, &payload_size));
-
 	ep_raise_error_if_nok (ds_ipc_message_initialize_buffer (
 		message,
 		ds_ipc_header_get_generic_success (),
 		(void *)process_info_2_payload,
-		payload_size,
+		process_info_2_payload_get_size (process_info_2_payload),
 		process_info_2_payload_flatten));
 
 	ep_raise_error_if_nok (ds_ipc_message_send (message, stream));
@@ -854,14 +832,11 @@ process_protocol_helper_get_process_info_3 (
 		portable_rid);
 	ep_raise_error_if_nok (process_info_3_payload != NULL);
 
-	uint16_t payload_size;
-	ep_raise_error_if_nok (process_info_3_payload_get_size (process_info_3_payload, &payload_size));
-
 	ep_raise_error_if_nok (ds_ipc_message_initialize_buffer (
 		message,
 		ds_ipc_header_get_generic_success (),
 		(void *)process_info_3_payload,
-		payload_size,
+		process_info_3_payload_get_size (process_info_3_payload),
 		process_info_3_payload_flatten));
 
 	ep_raise_error_if_nok (ds_ipc_message_send (message, stream));
@@ -902,14 +877,11 @@ process_protocol_helper_get_process_env (
 	env_info_payload = ds_env_info_payload_init (&payload);
 	ep_raise_error_if_nok (env_info_payload);
 
-	uint16_t payload_size;
-	ep_raise_error_if_nok (env_info_payload_get_size (env_info_payload, &payload_size));
-
 	ep_raise_error_if_nok (ds_ipc_message_initialize_buffer (
 		message,
 		ds_ipc_header_get_generic_success (),
 		(void *)env_info_payload,
-		payload_size,
+		env_info_payload_get_size (env_info_payload),
 		env_info_payload_flatten));
 
 	ep_raise_error_if_nok (ds_ipc_message_send (message, stream));

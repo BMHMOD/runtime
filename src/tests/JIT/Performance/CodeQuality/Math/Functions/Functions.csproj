@@ -41,7 +41,4 @@
     <Compile Include="Single\TanSingle.cs" />
     <Compile Include="Single\TanhSingle.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

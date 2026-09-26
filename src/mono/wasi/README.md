@@ -12,8 +12,14 @@ Here is a quick overview of how to consume published artifacts. Assuming .NET SD
 dotnet workload install wasi-experimental
 ```
 
-This will install the workload for building .NET based WASI apps.
-You can start from the sample projects under `src/mono/sample/wasi`, or author a project that targets `wasi-wasm`, and run it with
+This will install workload for building .NET based WASI apps + basic template.
+Now you can create a new .NET application that targets WASI
+
+```
+dotnet new wasiconsole
+```
+
+And run it with
 
 ```
 dotnet run

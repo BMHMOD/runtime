@@ -7,9 +7,6 @@
 //
 //     File: C:\dev\dotnet\runtime\src\coreclr\jit\gentree.cpp Line: 18154
 //
-
-namespace Runtime_105484;
-
 using System;
 using System.Runtime.CompilerServices;
 using System.Numerics;
@@ -47,13 +44,16 @@ public class Runtime_105484
         }
     }
 
-    [ConditionalFact(typeof(Sve), nameof(Sve.IsSupported))]
+    [Fact]
     public static void TestEntryPoint()
     {
-        try
+        if (Sve.IsSupported)
         {
-            M();
+            try
+            {
+                M();
+            }
+            catch {}
         }
-        catch {}
     }
 }

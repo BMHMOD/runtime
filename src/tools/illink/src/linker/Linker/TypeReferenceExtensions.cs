@@ -140,12 +140,11 @@ namespace Mono.Linker
             if (type is GenericInstanceType genericInstance)
             {
                 var declaringType = genericInstance.DeclaringType;
-                var declaringArity = declaringType.GetGenericParameterCount(resolver);
 
-                if (declaringArity > 0)
+                if (declaringType.HasGenericParameters)
                 {
                     var result = new GenericInstanceType(declaringType);
-                    for (var i = 0; i < declaringArity; ++i)
+                    for (var i = 0; i < declaringType.GenericParameters.Count; ++i)
                         result.GenericArguments.Add(genericInstance.GenericArguments[i]);
 
                     return result;
@@ -154,15 +153,11 @@ namespace Mono.Linker
                 return declaringType;
             }
 
-            return type.DeclaringType;
-        }
+            if (type is TypeDefinition typeDefinition)
+                return typeDefinition.DeclaringType;
 
-        public static int GetGenericParameterCount(this TypeReference type, ITryResolveMetadata resolver)
-        {
-            if (type.HasGenericParameters)
-                return type.GenericParameters.Count;
-
-            return resolver.TryResolve(type)?.GenericParameters.Count ?? 0;
+            Debug.Assert(false);
+            return null;
         }
 
         public static TypeReference InflateFrom(this TypeReference typeToInflate, IGenericInstance? maybeGenericInstanceProvider)
@@ -353,7 +348,6 @@ namespace Mono.Linker
             return fullTypeName.Replace('+', '/');
         }
 
-#if !ILTRIM
         public static bool HasDefaultConstructor(this TypeDefinition type, LinkContext context)
         {
             foreach (var m in type.Methods)
@@ -385,7 +379,6 @@ namespace Mono.Linker
 
             throw new NotImplementedException();
         }
-#endif
 
         public static bool IsTypeOf(this TypeReference type, string ns, string name)
         {
@@ -489,14 +482,12 @@ namespace Mono.Linker
         /// Any data flow annotations placed on a type parameter which receives an array type apply to the array itself. None of the members in its
         /// element type should be marked.
         /// </summary>
-#if !ILTRIM
         public static TypeDefinition? ResolveToTypeDefinition(this TypeReference typeReference, LinkContext context)
             => typeReference is ArrayType
                 ? BCL.FindPredefinedType(WellKnownType.System_Array, context)
                 : typeReference.IsNamedType()
                     ? context.TryResolve(typeReference)
                     : null;
-#endif
 
         public static bool IsByRefOrPointer(this TypeReference typeReference)
         {

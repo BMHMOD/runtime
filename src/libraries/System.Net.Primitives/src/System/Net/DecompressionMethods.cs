@@ -10,7 +10,6 @@ namespace System.Net
         GZip = 0x1,
         Deflate = 0x2,
         Brotli = 0x4,
-        Zstandard = 0x8,
         All = ~None
     }
 }

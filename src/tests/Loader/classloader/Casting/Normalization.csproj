@@ -2,7 +2,4 @@
   <ItemGroup>
     <Compile Include="Normalization.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

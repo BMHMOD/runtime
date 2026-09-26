@@ -9,39 +9,33 @@ namespace System.Diagnostics
 {
     internal static partial class ProcessManager
     {
-        private static NullableBool _procMatchesPidNamespace;
+        private static volatile int _procMatchesPidNamespace;
 
-        /// <summary>Gets process infos for each process on the local machine.</summary>
-        /// <param name="builder">The builder to add found process infos to.</param>
+        /// <summary>Gets the IDs of all processes on the current machine.</summary>
+        public static int[] GetProcessIds() => new List<int>(EnumerateProcessIds()).ToArray();
+
+        /// <summary>Gets process infos for each process on the specified machine.</summary>
         /// <param name="processNameFilter">Optional process name to use as an inclusion filter.</param>
-        public static void GetProcessInfos(ref ArrayBuilder<ProcessInfo> builder, string? processNameFilter)
+        /// <param name="machineName">The target machine.</param>
+        /// <returns>An array of process infos, one per found process.</returns>
+        public static ProcessInfo[] GetProcessInfos(string? processNameFilter, string machineName)
         {
+            Debug.Assert(processNameFilter is null, "Not used on Linux");
+            ThrowIfRemoteMachine(machineName);
+
             // Iterate through all process IDs to load information about each process
             IEnumerable<int> pids = EnumerateProcessIds();
+            ArrayBuilder<ProcessInfo> processes = default;
             foreach (int pid in pids)
             {
-                ProcessInfo? pi = CreateProcessInfo(pid, processNameFilter);
+                ProcessInfo? pi = CreateProcessInfo(pid);
                 if (pi != null)
                 {
-                    builder.Add(pi);
+                    processes.Add(pi);
                 }
             }
-        }
 
-        internal static string? GetProcessName(int processId, string _ /* machineName */, bool __ /* isRemoteMachine */, ref ProcessInfo? processInfo)
-        {
-            if (processInfo is not null)
-            {
-                return processInfo.ProcessName;
-            }
-
-            if (TryGetProcPid(processId, out Interop.procfs.ProcPid procPid) &&
-                Interop.procfs.TryReadStatFile(procPid, out Interop.procfs.ParsedStat stat))
-            {
-                return Process.GetUntruncatedProcessName(procPid, ref stat);
-            }
-
-            return null;
+            return processes.ToArray();
         }
 
         /// <summary>Gets an array of module infos for the specified process.</summary>
@@ -79,32 +73,21 @@ namespace System.Diagnostics
         /// <summary>
         /// Creates a ProcessInfo from the specified process ID.
         /// </summary>
-        internal static ProcessInfo? CreateProcessInfo(int pid, string? processNameFilter = null)
+        internal static ProcessInfo? CreateProcessInfo(int pid)
         {
-            if (!TryGetProcPid(pid, out Interop.procfs.ProcPid procPid) ||
-                !Interop.procfs.TryReadStatFile(procPid, out Interop.procfs.ParsedStat stat))
+            if (TryGetProcPid(pid, out Interop.procfs.ProcPid procPid) &&
+                Interop.procfs.TryReadStatFile(procPid, out Interop.procfs.ParsedStat stat))
             {
-                return null;
+                Interop.procfs.TryReadStatusFile(procPid, out Interop.procfs.ParsedStatus status);
+                return CreateProcessInfo(procPid, ref stat, ref status);
             }
-
-            string? processName = null;
-            if (processNameFilter != null)
-            {
-                processName = Process.GetUntruncatedProcessName(procPid, ref stat);
-                if (!processNameFilter.Equals(processName, StringComparison.OrdinalIgnoreCase))
-                {
-                    return null;
-                }
-            }
-
-            Interop.procfs.TryReadStatusFile(procPid, out Interop.procfs.ParsedStatus status);
-            return CreateProcessInfo(procPid, ref stat, ref status, processName: processName);
+            return null;
         }
 
         /// <summary>
         /// Creates a ProcessInfo from the data parsed from a /proc/pid/stat file and the associated tasks directory.
         /// </summary>
-        internal static unsafe ProcessInfo CreateProcessInfo(Interop.procfs.ProcPid procPid, ref Interop.procfs.ParsedStat procFsStat, ref Interop.procfs.ParsedStatus procFsStatus, string? processName = null)
+        internal static ProcessInfo CreateProcessInfo(Interop.procfs.ProcPid procPid, ref Interop.procfs.ParsedStat procFsStat, ref Interop.procfs.ParsedStatus procFsStatus, string? processName = null)
         {
             int pid = procFsStat.pid;
 
@@ -283,7 +266,11 @@ namespace System.Diagnostics
         {
             get
             {
-                if (_procMatchesPidNamespace == NullableBool.Undefined)
+                // _procMatchesPidNamespace is set to:
+                // - 0: when uninitialized,
+                // - 1: '/proc' and the process pid namespace match,
+                // - 2: when they don't match.
+                if (_procMatchesPidNamespace == 0)
                 {
                     // '/proc/self' is a symlink to the pid used by '/proc' for the current process.
                     // We compare it with the pid of the current process to see if the '/proc' and pid namespace match up.
@@ -295,9 +282,9 @@ namespace System.Diagnostics
                     }
                     Debug.Assert(procSelfPid.HasValue);
 
-                    _procMatchesPidNamespace = !procSelfPid.HasValue || procSelfPid == Environment.ProcessId ? NullableBool.True : NullableBool.False;
+                    _procMatchesPidNamespace = !procSelfPid.HasValue || procSelfPid == Environment.ProcessId ? 1 : 2;
                 }
-                return _procMatchesPidNamespace == NullableBool.True;
+                return _procMatchesPidNamespace == 1;
             }
         }
     }

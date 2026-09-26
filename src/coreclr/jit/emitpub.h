@@ -22,17 +22,19 @@ void emitEndFN();
 
 void emitComputeCodeSizes();
 
-unsigned emitEndCodeGen(Compiler*             comp,
-                        bool                  contTrkPtrLcls,
-                        bool                  fullyInt,
-                        bool                  fullPtrMap,
-                        unsigned              xcptnsCount,
-                        unsigned*             prologSize,
-                        unsigned*             epilogSize,
-                        void**                codeAddr,
-                        void**                codeAddrRW,
-                        void**                coldCodeAddr,
-                        void** coldCodeAddrRW DEBUGARG(unsigned* instrCount));
+unsigned emitEndCodeGen(Compiler*         comp,
+                        bool              contTrkPtrLcls,
+                        bool              fullyInt,
+                        bool              fullPtrMap,
+                        unsigned          xcptnsCount,
+                        unsigned*         prologSize,
+                        unsigned*         epilogSize,
+                        void**            codeAddr,
+                        void**            codeAddrRW,
+                        void**            coldCodeAddr,
+                        void**            coldCodeAddrRW,
+                        void**            consAddr,
+                        void** consAddrRW DEBUGARG(unsigned* instrCount));
 
 /************************************************************************/
 /*                      Method prolog and epilog                        */
@@ -43,9 +45,10 @@ unsigned emitGetEpilogCnt();
 template <typename Callback>
 bool emitGenNoGCLst(Callback& cb, bool skipMainPrologsAndEpilogs = false);
 
-void emitBegProlog();
-void emitMarkPrologEnd();
-void emitEndProlog();
+void     emitBegProlog();
+unsigned emitGetPrologOffsetEstimate();
+void     emitMarkPrologEnd();
+void     emitEndProlog();
 
 void emitCreatePlaceholderIG(insGroupPlaceholderType igType,
                              BasicBlock*             igBB,
@@ -58,18 +61,15 @@ void emitGeneratePrologEpilog();
 void emitStartPrologEpilogGeneration();
 void emitFinishPrologEpilogGeneration();
 
-bool emitGeneratingPrologOrFuncletProlog() const;
-bool emitGeneratingEpilogOrFuncletEpilog() const;
-
 /************************************************************************/
 /*           Record a code position and later convert it to offset      */
 /************************************************************************/
 
+void*    emitCurBlock();
 unsigned emitCurOffset();
 unsigned emitSpecifiedOffset(unsigned insCount, unsigned igSize);
 
 UNATIVE_OFFSET emitCodeOffset(void* blockPtr, unsigned codeOffs);
-UNATIVE_OFFSET emitGetCurrentCodeOffsetFrom(insGroup* ig);
 
 #ifdef DEBUG
 const char* emitOffsetToLabel(unsigned offs);

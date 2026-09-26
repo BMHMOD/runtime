@@ -214,7 +214,7 @@ struct SimplificationAssumptions
 // also maintains a cache.
 class ScalarEvolutionContext
 {
-    Compiler*             m_compiler;
+    Compiler*             m_comp;
     FlowGraphNaturalLoop* m_loop = nullptr;
     ScalarEvolutionMap    m_cache;
 

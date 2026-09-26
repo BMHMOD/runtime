@@ -1,6 +1,5 @@
 using System;
 using Xunit;
-using TestLibrary;
 
 /* Regression test for https://github.com/dotnet/runtime/issues/85821
  * ensure that self-referencing generic instances are initialized correctly and don't TLE
@@ -8,7 +7,6 @@ using TestLibrary;
 
 public class Program
 {
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static int TestEntryPoint()
     {

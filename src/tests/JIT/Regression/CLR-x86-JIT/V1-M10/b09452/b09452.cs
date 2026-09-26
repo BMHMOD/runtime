@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b09452
+namespace DefaultNamespace
 {
     //@BEGINRENAME; Verify this renames
     //@ENDRENAME; Verify this renames
@@ -11,7 +11,6 @@ namespace b09452
 
     public class X
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

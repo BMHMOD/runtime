@@ -65,14 +65,6 @@ namespace System.Runtime
                 goto again;
             }
 
-            // If we haven't found an implementation, do a third pass looking for a variant default implementation.
-            if ((flags & ResolveFlags.Variant) == 0)
-            {
-                flags |= ResolveFlags.Variant;
-                pCur = pTgtType;
-                goto again;
-            }
-
             return IntPtr.Zero;
         }
 
@@ -84,8 +76,8 @@ namespace System.Runtime
                                         ushort* pImplSlotNumber,
                                         MethodTable** ppGenericContext)
         {
-            // We set this below during second pass for non-default interface method dispatch, callers should not set this.
-            Debug.Assert((flags & ResolveFlags.Variant) == 0 || (flags & ResolveFlags.DefaultInterfaceImplementation) != 0);
+            // We set this below during second pass, callers should not set this.
+            Debug.Assert((flags & ResolveFlags.Variant) == 0);
 
             bool fRes = false;
 
@@ -110,7 +102,7 @@ namespace System.Runtime
                 fRes = FindImplSlotInSimpleMap(
                     pTgtType, pItfType, itfSlotNumber, pImplSlotNumber, ppGenericContext, flags);
 
-                if (!fRes && (flags & ResolveFlags.DefaultInterfaceImplementation) == 0)
+                if (!fRes)
                 {
                     flags |= ResolveFlags.Variant; // check variance for second scan of dispatch map
                     fRes = FindImplSlotInSimpleMap(

@@ -90,7 +90,7 @@ namespace System
                 members = GetMember(defaultMemberName);
             }
 
-            return members ?? [];
+            return members ?? Array.Empty<MemberInfo>();
         }
 
         private static bool IsFullNameRoundtripCompatible(RuntimeType runtimeType)
@@ -682,7 +682,7 @@ namespace System
                 }
 
                 finalists ??= [finalist];
-                providedArgs ??= [];
+                providedArgs ??= Array.Empty<object>();
                 object? state = null;
                 MethodBase? invokeMethod = null;
 

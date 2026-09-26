@@ -37,7 +37,6 @@
 #endif // !TARGET_UNIX
 
 #include "nativelibrary.h"
-#include "hostinformation.h"
 
 #ifndef DACCESS_COMPILE
 
@@ -218,11 +217,17 @@ HRESULT CorHost2::ExecuteApplication(LPCWSTR   pwzAppFullName,
 }
 
 /*
- * This method constructs the array returned by Environment.GetCommandLineArgs().
- * The first element is passed separately from argv as exePath and uses the native
- * invocation name when provided by the host. Otherwise, the assembly or bundle path
- * is used. The remaining elements come from argv, which contains the arguments to the
- * main method.
+ * This method processes the arguments sent to the host which are then used
+ * to invoke the main method.
+ * Note -
+ * [0] - points to the assemblyName that has been sent by the host.
+ * The rest are the arguments sent to the assembly.
+ * Also note, this might not always return the exact same identity as the cmdLine
+ * used to invoke the method.
+ *
+ * For example :-
+ * ActualCmdLine - Foo arg1 arg2.
+ * (Host1)       - Full_path_to_Foo arg1 arg2
 */
 static PTRARRAYREF SetCommandLineArgs(PCWSTR pwzAssemblyPath, int argc, PCWSTR* argv)
 {
@@ -237,16 +242,15 @@ static PTRARRAYREF SetCommandLineArgs(PCWSTR pwzAssemblyPath, int argc, PCWSTR* 
     // Record the command line.
     SaveManagedCommandLine(pwzAssemblyPath, argc, argv);
 
-    StackSString invocationName;
-    PCWSTR exePath = HostInformation::GetProperty(HOST_PROPERTY_ARGV0, invocationName)
-        ? invocationName.GetUnicode()
-        : (Bundle::AppIsBundle() ? static_cast<PCWSTR>(Bundle::AppBundle->Path()) : pwzAssemblyPath);
+    PCWSTR exePath = Bundle::AppIsBundle() ? static_cast<PCWSTR>(Bundle::AppBundle->Path()) : pwzAssemblyPath;
 
-    PTRARRAYREF result = NULL;
-    GCPROTECT_BEGIN(result);
-    UnmanagedCallersOnlyCaller initializeCommandLineArgs(METHOD__ENVIRONMENT__INITIALIZE_COMMAND_LINE_ARGS);
-    initializeCommandLineArgs.InvokeThrowing(exePath, argc, argv, &result);
-    GCPROTECT_END();
+    PTRARRAYREF result;
+    PREPARE_NONVIRTUAL_CALLSITE(METHOD__ENVIRONMENT__INITIALIZE_COMMAND_LINE_ARGS);
+    DECLARE_ARGHOLDER_ARRAY(args, 3);
+    args[ARGNUM_0] = PTR_TO_ARGHOLDER(exePath);
+    args[ARGNUM_1] = DWORD_TO_ARGHOLDER(argc);
+    args[ARGNUM_2] = PTR_TO_ARGHOLDER(argv);
+    CALL_MANAGED_METHOD_RETREF(result, PTRARRAYREF, args);
 
     return result;
 }
@@ -333,7 +337,7 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
         if(CLRConfig::GetConfigValue(CLRConfig::INTERNAL_Corhost_Swallow_Uncaught_Exceptions))
         {
             EX_TRY
-                DWORD retval = pAssembly->ExecuteMainMethod(&arguments, true /* captureException */);
+                DWORD retval = pAssembly->ExecuteMainMethod(&arguments, TRUE /* waitForOtherThreads */);
                 if (pReturnValue)
                 {
                     *pReturnValue = retval;
@@ -342,7 +346,7 @@ HRESULT CorHost2::ExecuteAssembly(DWORD dwAppDomainId,
         }
         else
         {
-            DWORD retval = pAssembly->ExecuteMainMethod(&arguments, false /* captureException */);
+            DWORD retval = pAssembly->ExecuteMainMethod(&arguments, TRUE /* waitForOtherThreads */);
             if (pReturnValue)
             {
                 *pReturnValue = retval;
@@ -426,22 +430,25 @@ HRESULT CorHost2::ExecuteInDefaultAppDomain(LPCWSTR pwzAssemblyPath,
         {
             GCX_COOP();
 
-            UnmanagedCallersOnlyCaller executeInDefaultAppDomain(METHOD__ENVIRONMENT__EXECUTE_IN_DEFAULT_APP_DOMAIN);
-            pMethodMD->EnsureActive();
-            PCODE entryPoint;
+            MethodDescCallSite method(pMethodMD);
+
+            STRINGREF sref = NULL;
+            GCPROTECT_BEGIN(sref);
+
+            if (pwzArgument)
+                sref = StringObject::NewString(pwzArgument);
+
+            ARG_SLOT MethodArgs[] =
             {
-                GCX_PREEMP();
-                entryPoint = pMethodMD->GetSingleCallableAddrOfCode();
-            }
-
-            INT32 retval = executeInDefaultAppDomain.InvokeThrowing_Ret<INT32>(
-                static_cast<INT_PTR>(entryPoint),
-                pwzArgument);
-
+                ObjToArgSlot(sref)
+            };
+            DWORD retval = method.Call_RetI4(MethodArgs);
             if (pReturnValue)
             {
                 *pReturnValue = retval;
             }
+
+            GCPROTECT_END();
         }
     }
     EX_CATCH_HRESULT(hr);
@@ -564,8 +571,14 @@ HRESULT CorHost2::CreateAppDomainWithManager(
     {
         GCX_COOP();
 
-        UnmanagedCallersOnlyCaller setup(METHOD__APPCONTEXT__SETUP);
-        setup.InvokeThrowing(pPropertyNames, pPropertyValues, nProperties);
+        MethodDescCallSite setup(METHOD__APPCONTEXT__SETUP);
+
+        ARG_SLOT args[3];
+        args[0] = PtrToArgSlot(pPropertyNames);
+        args[1] = PtrToArgSlot(pPropertyValues);
+        args[2] = PtrToArgSlot(nProperties);
+
+        setup.Call(args);
     }
 
     LPCWSTR pwzNativeDllSearchDirectories = NULL;
@@ -595,6 +608,12 @@ HRESULT CorHost2::CreateAppDomainWithManager(
             pwzAppPaths = pPropertyValues[i];
         }
         else
+        if (u16_strcmp(pPropertyNames[i], W("DEFAULT_STACK_SIZE")) == 0)
+        {
+            extern void ParseDefaultStackSize(LPCWSTR value);
+            ParseDefaultStackSize(pPropertyValues[i]);
+        }
+        else
         if (u16_strcmp(pPropertyNames[i], W("USE_ENTRYPOINT_FILTER")) == 0)
         {
             extern void ParseUseEntryPointFilter(LPCWSTR value);
@@ -616,10 +635,6 @@ HRESULT CorHost2::CreateAppDomainWithManager(
             sPlatformResourceRoots,
             sAppPaths));
     }
-
-    // Initialize the InvariantCulture such that it can be safely used when creating
-    // stack traces under high memory pressure.
-    CoreLibBinder::GetClass(CLASS__CULTURE_INFO)->CheckRunClassInitThrowing();
 
 #if defined(TARGET_UNIX) && !defined(FEATURE_STATICALLY_LINKED)
     if (!g_coreclr_embedded)
@@ -650,8 +665,8 @@ HRESULT CorHost2::CreateAppDomainWithManager(
     // Initialize default event sources
     {
         GCX_COOP();
-        UnmanagedCallersOnlyCaller initEventSources(METHOD__EVENT_SOURCE__INITIALIZE_DEFAULT_EVENT_SOURCES);
-        initEventSources.InvokeThrowing();
+        MethodDescCallSite initEventSources(METHOD__EVENT_SOURCE__INITIALIZE_DEFAULT_EVENT_SOURCES);
+        initEventSources.Call(NULL);
     }
 #endif // FEATURE_PERFTRACING
 
@@ -679,9 +694,8 @@ HRESULT CorHost2::CreateDelegate(
     EMPTY_STRING_TO_NULL(wszClassName);
     EMPTY_STRING_TO_NULL(wszMethodName);
 
-    if (fnPtr == NULL)
+    if (fnPtr == 0)
        return E_POINTER;
-
     *fnPtr = 0;
 
     if(wszAssemblyName == NULL)
@@ -700,6 +714,10 @@ HRESULT CorHost2::CreateDelegate(
     HRESULT hr = S_OK;
     BEGIN_EXTERNAL_ENTRYPOINT(&hr);
 
+#ifdef FEATURE_PORTABLE_ENTRYPOINTS
+    hr = E_NOTIMPL;
+
+#else // !FEATURE_PORTABLE_ENTRYPOINTS
     GCX_COOP_THREAD_EXISTS(GET_THREAD());
 
     MAKE_UTF8PTR_FROMWIDE(szClassName, wszClassName);
@@ -736,19 +754,15 @@ HRESULT CorHost2::CreateDelegate(
 
         if (pMD->HasUnmanagedCallersOnlyAttribute())
         {
-            pMD->PrepareForUseAsAFunctionPointer();
-            *fnPtr = pMD->GetMultiCallableAddrOfCode(CORINFO_ACCESS_UNMANAGED_CALLER_MAYBE);
+            *fnPtr = pMD->GetMultiCallableAddrOfCode();
         }
         else
         {
-#ifdef FEATURE_PORTABLE_ENTRYPOINTS
-            ThrowHR(COR_E_NOTSUPPORTED);
-#else // !FEATURE_PORTABLE_ENTRYPOINTS
             UMEntryThunkData* pUMEntryThunk = pMD->GetLoaderAllocator()->GetUMEntryThunkCache()->GetUMEntryThunk(pMD);
             *fnPtr = (INT_PTR)pUMEntryThunk->GetCode();
-#endif // FEATURE_PORTABLE_ENTRYPOINTS
         }
     }
+#endif // FEATURE_PORTABLE_ENTRYPOINTS
 
     END_EXTERNAL_ENTRYPOINT;
 

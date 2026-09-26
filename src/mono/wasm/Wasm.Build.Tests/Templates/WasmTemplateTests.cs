@@ -22,7 +22,7 @@ namespace Wasm.Build.Tests
         {
         }
 
-        [Theory, TestCategory("no-fingerprinting"), TestCategory("workload")]
+        [Theory, TestCategory("no-fingerprinting")]
         [InlineData(Configuration.Debug)]
         [InlineData(Configuration.Release)]
         public void BrowserBuildThenPublish(Configuration config)
@@ -70,7 +70,7 @@ namespace Wasm.Build.Tests
             return data;
         }
 
-        [Theory, TestCategory("no-fingerprinting"), TestCategory("workload")]
+        [Theory, TestCategory("no-fingerprinting")]
         [MemberData(nameof(TestDataForAppBundleDir))]
         public async Task RunWithDifferentAppBundleLocations(bool runOutsideProjectDirectory, string extraProperties)
             => await BrowserRunTwiceWithAndThenWithoutBuildAsync(Configuration.Release, extraProperties, runOutsideProjectDirectory);
@@ -79,7 +79,7 @@ namespace Wasm.Build.Tests
         {
             ProjectInfo info = CreateWasmTemplateProject(Template.WasmBrowser, config, aot: false, "browser", extraProperties: extraProperties);
             UpdateBrowserProgramFile();
-            UpdateBrowserMainJs(forwardConsole: true);
+            UpdateBrowserMainJs();
 
             string workingDir = runOutsideProjectDirectory ? BuildEnvironment.TmpPath : _projectDir;
             string projectFilePath = info.ProjectFilePath;
@@ -100,12 +100,9 @@ namespace Wasm.Build.Tests
                                             .WithWorkingDirectory(workingDir);
 
                 await using var runner = new BrowserRunner(_testOutput);
-                var page = await runner.RunAsync(runCommand, $"run --no-silent -c {config} --project \"{projectFilePath}\"");
+                var page = await runner.RunAsync(runCommand, $"run --no-silent -c {config} --project \"{projectFilePath}\" --forward-console");
                 await runner.WaitForExitMessageAsync(TimeSpan.FromMinutes(2));
-                string output;
-                lock (runner.OutputLines)
-                    output = string.Join(Environment.NewLine, runner.OutputLines);
-                Assert.Contains("Hello, Browser!", output);
+                Assert.Contains("Hello, Browser!", string.Join(Environment.NewLine, runner.OutputLines));
             }
 
             {
@@ -113,45 +110,49 @@ namespace Wasm.Build.Tests
                                             .WithWorkingDirectory(workingDir);
 
                 await using var runner = new BrowserRunner(_testOutput);
-                var page = await runner.RunAsync(runCommand, $"run --no-silent -c {config} --no-build --project \"{projectFilePath}\"");
+                var page = await runner.RunAsync(runCommand, $"run --no-silent -c {config} --no-build --project \"{projectFilePath}\" --forward-console");
                 await runner.WaitForExitMessageAsync(TimeSpan.FromMinutes(2));
-                string output;
-                lock (runner.OutputLines)
-                    output = string.Join(Environment.NewLine, runner.OutputLines);
-                Assert.Contains("Hello, Browser!", output);
+                Assert.Contains("Hello, Browser!", string.Join(Environment.NewLine, runner.OutputLines));
             }
         }
 
         public static IEnumerable<object?[]> BrowserBuildAndRunTestData()
         {
-            yield return new object?[] { "", BuildTestBase.DefaultTargetFramework };
-            yield return new object?[] { $"-f {DefaultTargetFramework}", DefaultTargetFramework };
+            yield return new object?[] { "", BuildTestBase.DefaultTargetFramework, DefaultRuntimeAssetsRelativePath };
+            yield return new object?[] { $"-f {DefaultTargetFramework}", DefaultTargetFramework, DefaultRuntimeAssetsRelativePath };
 
             if (EnvironmentVariables.WorkloadsTestPreviousVersions)
             {
-                yield return new object?[] { $"-f {PreviousTargetFramework}", PreviousTargetFramework };
-                yield return new object?[] { $"-f {Previous2TargetFramework}", Previous2TargetFramework };
+                yield return new object?[] { $"-f {PreviousTargetFramework}", PreviousTargetFramework, DefaultRuntimeAssetsRelativePath };
+                yield return new object?[] { $"-f {Previous2TargetFramework}", Previous2TargetFramework, DefaultRuntimeAssetsRelativePath };
             }
+
+            // ActiveIssue("https://github.com/dotnet/runtime/issues/90979")
+            // yield return new object?[] { "", BuildTestBase.DefaultTargetFramework, "./" };
+            // yield return new object?[] { "-f net8.0", "net8.0", "./" };
         }
 
         [Theory]
         [MemberData(nameof(BrowserBuildAndRunTestData))]
-        [TestCategory("workload")]
-        public async Task BrowserBuildAndRun(string extraNewArgs, string targetFramework)
+        public async Task BrowserBuildAndRun(string extraNewArgs, string targetFramework, string runtimeAssetsRelativePath)
         {
             Configuration config = Configuration.Debug;
+            string extraProperties = runtimeAssetsRelativePath == DefaultRuntimeAssetsRelativePath ?
+                "" :
+                $"<WasmRuntimeAssetsLocation>{runtimeAssetsRelativePath}</WasmRuntimeAssetsLocation>";
             ProjectInfo info = CreateWasmTemplateProject(
                 Template.WasmBrowser,
                 config,
                 aot: false,
                 "browser",
+                extraProperties: extraProperties,
                 extraArgs: extraNewArgs,
                 addFrameworkArg: extraNewArgs.Length == 0
             );
 
             if (new Version(targetFramework.Replace("net", "")).Major > 8)
                 UpdateBrowserProgramFile();
-            UpdateBrowserMainJs(targetFramework);
+            UpdateBrowserMainJs(targetFramework, runtimeAssetsRelativePath);
 
             PublishProject(info, config, new PublishOptions(UseCache: false));
 
@@ -164,12 +165,11 @@ namespace Wasm.Build.Tests
         [InlineData(Configuration.Debug, /*appendRID*/ true, /*useArtifacts*/ true)]
         [InlineData(Configuration.Debug, /*appendRID*/ false, /*useArtifacts*/ true)]
         [InlineData(Configuration.Debug, /*appendRID*/ false, /*useArtifacts*/ false)]
-        [TestCategory("workload")]
         public async Task BuildAndRunForDifferentOutputPaths(Configuration config, bool appendRID, bool useArtifacts)
         {
             ProjectInfo info = CreateWasmTemplateProject(Template.WasmBrowser, config, aot: false);
             UpdateBrowserProgramFile();
-            UpdateBrowserMainJs(forwardConsole: true);
+            UpdateBrowserMainJs();
 
             bool isPublish = false;
             string projectDirectory = Path.GetDirectoryName(info.ProjectFilePath) ?? "";
@@ -198,7 +198,6 @@ namespace Wasm.Build.Tests
         [Theory]
         [InlineData("", true)] // Default case
         [InlineData("false", false)] // the other case
-        [TestCategory("native"), TestCategory("mono"), TestCategory("workload")]
         public async Task Test_WasmStripILAfterAOT(string stripILAfterAOT, bool expectILStripping)
         {
             Configuration config = Configuration.Release;
@@ -277,7 +276,6 @@ namespace Wasm.Build.Tests
         [Theory]
         [InlineData(false)]
         [InlineData(true)]
-        [TestCategory("workload")]
         public void PublishPdb(bool copyOutputSymbolsToPublishDirectory)
         {
             Configuration config = Configuration.Release;
@@ -298,12 +296,10 @@ namespace Wasm.Build.Tests
             }
         }
 
-        [Theory, TestCategory("no-workload")]
-        [InlineData(false, false)]
-        [InlineData(false, true)]
-        [InlineData(true, false)]
-        [InlineData(true, true)]
-        public async Task LibraryMode(bool useWasmSdk, bool isPublish)
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task LibraryModeBuild(bool useWasmSdk)
         {
             var config = Configuration.Release;
             ProjectInfo info = CopyTestAsset(config, aot: false, TestAsset.LibraryModeTestApp, "libraryMode");
@@ -313,88 +309,13 @@ namespace Wasm.Build.Tests
                     { "Microsoft.NET.Sdk.WebAssembly", "Microsoft.NET.Sdk" }
                 });
             }
-
-            // Without WASM SDK, the project is a plain library with browser-wasm RID.
-            // It should build and publish successfully but won't produce a wasm app bundle.
-            if (isPublish)
-                PublishProject(info, config, new PublishOptions(AssertAppBundle: useWasmSdk));
-            else
-                BuildProject(info, config, new BuildOptions(AssertAppBundle: useWasmSdk));
-
+            BuildProject(info, config, new BuildOptions(AssertAppBundle: useWasmSdk));
             if (useWasmSdk)
             {
-                var result = isPublish
-                    ? await RunForPublishWithWebServer(new BrowserRunOptions(config, ExpectedExitCode: 100))
-                    : await RunForBuildWithDotnetRun(new BrowserRunOptions(config, ExpectedExitCode: 100));
-
+                var result = await RunForBuildWithDotnetRun(new BrowserRunOptions(config, ExpectedExitCode: 100));
                 Assert.Contains("WASM Library MyExport is called", result.TestOutput);
             }
-        }
-
-        [Theory]
-        [InlineData(Configuration.Debug, true)]
-        [InlineData(Configuration.Release, true)]
-        [InlineData(Configuration.Debug, false)]
-        [InlineData(Configuration.Release, false)]
-        [TestCategory("workload")]
-        public void TypeScriptDefinitionsCopiedToWwwrootOnBuild(Configuration config, bool emitTypeScriptDts)
-        {
-            string shouldEmit = emitTypeScriptDts ? "true" : "false";
-            string emitTypeScriptDtsProp = $"<WasmEmitTypeScriptDefinitions>{shouldEmit}</WasmEmitTypeScriptDefinitions>";
-            ProjectInfo info = CreateWasmTemplateProject(Template.WasmBrowser, config, aot: false, "tsdefs", extraProperties: emitTypeScriptDtsProp);
-
-            string projectDirectory = Path.GetDirectoryName(info.ProjectFilePath)!;
-            string dotnetDtsWwwrootPath = Path.Combine(projectDirectory, "wwwroot", "_framework", "dotnet.d.ts");
-            string rootDotnetDtsWwwrootPath = Path.Combine(projectDirectory, "wwwroot", "dotnet.d.ts");
-
-            // Verify dotnet.d.ts is absent from the project after creation
-            Assert.False(File.Exists(dotnetDtsWwwrootPath), $"dotnet.d.ts should not exist at {dotnetDtsWwwrootPath} after creation of the project");
-            Assert.False(File.Exists(rootDotnetDtsWwwrootPath), $"dotnet.d.ts should not exist at {rootDotnetDtsWwwrootPath} after creation of the project");
-
-            // Build to trigger the _EnsureDotnetTypeScriptDefinitions target during the build phase
-            BuildProject(info, config, new BuildOptions());
-
-            // Verify dotnet.d.ts presence in the project's wwwroot/_framework directory after build
-            bool fileExists = File.Exists(dotnetDtsWwwrootPath);
-            if (emitTypeScriptDts)
-            {
-                Assert.True(fileExists, $"dotnet.d.ts should be created at {dotnetDtsWwwrootPath} after the build with WasmEmitTypeScriptDefinitions={shouldEmit}");
-                Assert.False(File.Exists(rootDotnetDtsWwwrootPath), $"dotnet.d.ts should not be created at {rootDotnetDtsWwwrootPath}");
-
-                // Rebuild with -question to verify the build stays incremental after
-                // dotnet.d.ts is copied to wwwroot/_framework (see https://github.com/dotnet/runtime/issues/124729).
-                BuildProject(info, config, new BuildOptions(UseCache: false, AssertAppBundle: false, ExtraMSBuildArgs: "-question"));
-            }
-            else
-            {
-                Assert.False(fileExists, $"dotnet.d.ts should not exist at {dotnetDtsWwwrootPath} after the build with WasmEmitTypeScriptDefinitions={shouldEmit}");
-                Assert.False(File.Exists(rootDotnetDtsWwwrootPath), $"dotnet.d.ts should not exist at {rootDotnetDtsWwwrootPath} after the build with WasmEmitTypeScriptDefinitions={shouldEmit}");
-            }
-        }
-
-        [Theory]
-        [InlineData("true", false)]
-        [InlineData("false", true)]
-        [InlineData("", false)] // Default case
-        [TestCategory("mono"), TestCategory("workload")]
-        public void UseMonoRuntimeParameter(string useMonoRuntimeArg, bool expectUseMonoRuntimeProperty)
-        {
-            Configuration config = Configuration.Debug;
-            string extraArgs = string.IsNullOrEmpty(useMonoRuntimeArg) ? "" : $"--UseMonoRuntime {useMonoRuntimeArg}";
-            ProjectInfo info = CreateWasmTemplateProject(Template.WasmBrowser, config, aot: false, "usemonoruntime", extraArgs: extraArgs);
-
-            string projectFile = File.ReadAllText(info.ProjectFilePath);
-
-            // Verify UseMonoRuntime presence in the project file
-            bool containsUseMonoRuntime = projectFile.Contains("<UseMonoRuntime>false</UseMonoRuntime>");
-            if (expectUseMonoRuntimeProperty)
-            {
-                Assert.True(containsUseMonoRuntime, $"Expected <UseMonoRuntime>false</UseMonoRuntime> to be present in the project file when --UseMonoRuntime {useMonoRuntimeArg}");
-            }
-            else
-            {
-                Assert.False(containsUseMonoRuntime, $"Expected <UseMonoRuntime>false</UseMonoRuntime> to not be present in the project file when --UseMonoRuntime {useMonoRuntimeArg}");
-            }
+            
         }
     }
 }

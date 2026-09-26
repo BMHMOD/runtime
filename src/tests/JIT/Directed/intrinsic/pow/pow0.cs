@@ -4,14 +4,11 @@
 
 //simple and recursive call
 
-namespace JitTest_Directed_intrinsic_pow_pow0;
-
 using System;
 using Xunit;
 
 public class pow0
 {
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

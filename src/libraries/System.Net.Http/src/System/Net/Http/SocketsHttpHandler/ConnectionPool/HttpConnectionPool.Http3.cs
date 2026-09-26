@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Http.Headers;
-using System.Net.NetworkInformation;
 using System.Net.Quic;
 using System.Net.Security;
 using System.Runtime.ExceptionServices;
@@ -267,15 +266,14 @@ namespace System.Net.Http
                     connectionSetupActivity = ConnectionSetupDistributedTracing.StartConnectionSetupActivity(isSecure: true, _telemetryServerAddress, authority.Port);
                     // If the authority was sent as an option through alt-svc then include alt-used header.
                     connection = new Http3Connection(this, authority, includeAltUsedHeader: _http3Authority == authority);
-                    var connectEndPoint = new DnsEndPoint(authority.IdnHost, authority.Port);
-                    QuicConnection quicConnection = await ConnectHelper.ConnectQuicAsync(queueItem.Request, connectEndPoint, _poolManager.Settings._pooledConnectionIdleTimeout, _sslOptionsHttp3!, connection.StreamCapacityCallback, cts.Token).ConfigureAwait(false);
+                    QuicConnection quicConnection = await ConnectHelper.ConnectQuicAsync(queueItem.Request, new DnsEndPoint(authority.IdnHost, authority.Port), _poolManager.Settings._pooledConnectionIdleTimeout, _sslOptionsHttp3!, connection.StreamCapacityCallback, cts.Token).ConfigureAwait(false);
                     if (quicConnection.NegotiatedApplicationProtocol != SslApplicationProtocol.Http3)
                     {
                         await quicConnection.DisposeAsync().ConfigureAwait(false);
                         throw new HttpRequestException(HttpRequestError.ConnectionError, "QUIC connected but no HTTP/3 indicated via ALPN.", null, RequestRetryType.RetryOnConnectionFailure);
                     }
                     if (connectionSetupActivity is not null) ConnectionSetupDistributedTracing.StopConnectionSetupActivity(connectionSetupActivity, null, quicConnection.RemoteEndPoint);
-                    connection.InitQuicConnection(quicConnection, connectionSetupActivity, connectEndPoint);
+                    connection.InitQuicConnection(quicConnection, connectionSetupActivity);
                 }
                 else if (reasonException is not null)
                 {
@@ -514,7 +512,7 @@ namespace System.Net.Http
                     if (NetEventSource.Log.IsEnabled()) connection.Trace("HTTP3 connection no longer usable");
                     connection.Dispose();
                 }
-            }
+            };
         }
 
         /// <summary>
@@ -756,10 +754,11 @@ namespace System.Net.Http
                     _persistAuthority = nextAuthorityPersist;
                 }
 
-                // NetworkChange notifications aren't supported on every platform.
-                if (!nextAuthorityPersist && NetworkChange.IsSupported)
+                if (!nextAuthorityPersist)
                 {
+#if !ILLUMOS && !SOLARIS
                     _poolManager.StartMonitoringNetworkChanges();
+#endif
                 }
             }
         }

@@ -18,7 +18,7 @@ namespace System.DirectoryServices.Tests
         private const int ADS_SYSTEMFLAG_CR_NTDS_NC = 0x1;
         private const int ADS_SYSTEMFLAG_CR_NTDS_DOMAIN = 0x2;
 
-        [ConditionalFact(typeof(DirectorySearcherTests), nameof(IsLdapConfigurationExist))]
+        [ConditionalFact(nameof(IsLdapConfigurationExist))]
         public void DirectorySearch_IteratesCorrectly_SimpleEnumeration()
         {
             bool seen = false;
@@ -34,7 +34,7 @@ namespace System.DirectoryServices.Tests
             Assert.True(seen);
         }
 
-        [ConditionalFact(typeof(DirectorySearcherTests), nameof(IsLdapConfigurationExist))]
+        [ConditionalFact(nameof(IsLdapConfigurationExist))]
         public void DirectorySearch_IteratesCorrectly_AfterCount()
         {
             bool seen = false;

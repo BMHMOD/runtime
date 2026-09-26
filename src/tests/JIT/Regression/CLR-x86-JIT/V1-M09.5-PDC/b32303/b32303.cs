@@ -3,13 +3,12 @@
 //
 
 using Xunit;
-namespace b32303
+namespace Test
 {
     using System;
 
     public class Temp
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

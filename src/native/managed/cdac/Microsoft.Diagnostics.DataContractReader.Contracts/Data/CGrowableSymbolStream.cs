@@ -3,9 +3,17 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.CGrowableSymbolStream))]
-internal sealed partial class CGrowableSymbolStream : IData<CGrowableSymbolStream>
+internal sealed class CGrowableSymbolStream : IData<CGrowableSymbolStream>
 {
-    [Field] public partial TargetPointer Buffer { get; }
-    [Field] public partial uint Size { get; }
+    static CGrowableSymbolStream IData<CGrowableSymbolStream>.Create(Target target, TargetPointer address) => new CGrowableSymbolStream(target, address);
+    public CGrowableSymbolStream(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.CGrowableSymbolStream);
+
+        Buffer = target.ReadPointer(address + (ulong)type.Fields[nameof(Buffer)].Offset);
+        Size = target.Read<uint>(address + (ulong)type.Fields[nameof(Size)].Offset);
+    }
+
+    public TargetPointer Buffer { get; init; }
+    public uint Size { get; init; }
 }

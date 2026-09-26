@@ -11,7 +11,6 @@
 #define __STUBGEN_H__
 
 #include "stublink.h"
-#include "sstring.h"
 
 struct ILStubEHClause;
 class ILStubLinker;
@@ -21,9 +20,15 @@ struct StructMarshalStubs
 {
     static const DWORD MANAGED_STRUCT_ARGIDX = 0;
     static const DWORD NATIVE_STRUCT_ARGIDX = 1;
-    static const DWORD CLEANUP_WORK_LIST_ARGIDX = 2;
+    static const DWORD OPERATION_ARGIDX = 2;
+    static const DWORD CLEANUP_WORK_LIST_ARGIDX = 3;
 
-    static bool TryGenerateStructMarshallingMethod(MethodDesc* pMD, DynamicResolver** resolver, COR_ILMETHOD_DECODER** methodILDecoder);
+    enum MarshalOperation
+    {
+        Marshal,
+        Unmarshal,
+        Cleanup
+    };
 };
 
 struct LocalDesc
@@ -309,7 +314,6 @@ public:
         m_memberRefs.Set(pSrc->m_memberRefs);
         m_methodSpecs.Set(pSrc->m_methodSpecs);
         m_typeSpecs.Set(pSrc->m_typeSpecs);
-        m_userStrings.Set(pSrc->m_userStrings);
     }
 
     TypeHandle LookupTypeDef(mdToken token)
@@ -413,23 +417,6 @@ public:
         PCCOR_SIGNATURE pSig = (PCCOR_SIGNATURE)sigData.Ptr();
         DWORD cbSig = static_cast<DWORD>(sigData.Size());
         return SigPointer(pSig, cbSig);
-    }
-
-    LPCWSTR LookupUserString(mdToken token)
-    {
-        CONTRACTL
-        {
-            THROWS;
-            MODE_ANY;
-            GC_NOTRIGGER;
-            PRECONDITION(RidFromToken(token) - 1 < m_userStrings.GetCount());
-            PRECONDITION(RidFromToken(token) != 0);
-            PRECONDITION(TypeFromToken(token) == mdtString);
-        }
-        CONTRACTL_END;
-
-        SString& userString = m_userStrings[static_cast<COUNT_T>(RidFromToken(token) - 1)];
-        return userString.GetUnicode();
     }
 
     mdToken GetToken(TypeHandle th)
@@ -541,34 +528,6 @@ public:
         return token;
     }
 
-    mdToken GetUserStringToken(SString str)
-    {
-        CONTRACTL
-        {
-            THROWS;
-            MODE_ANY;
-            GC_NOTRIGGER;
-        }
-        CONTRACTL_END;
-
-        mdToken token = TokenFromRid(m_userStrings.GetCount(), mdtString)+1;
-        m_userStrings.Append(std::move(str));
-        return token;
-    }
-
-    mdToken GetMaxUserStringToken()
-    {
-        CONTRACTL
-        {
-            THROWS;
-            MODE_ANY;
-            GC_NOTRIGGER;
-        }
-        CONTRACTL_END;
-
-        return TokenFromRid(m_userStrings.GetCount(), mdtString);
-    }
-
 protected:
     mdToken GetTypeSpecWorker(TypeSpecEntry** entry)
     {
@@ -662,7 +621,6 @@ protected:
     uint32_t                                       m_nextAvailableRid;
     CQuickBytesSpecifySize<TOKEN_LOOKUP_MAP_SIZE>  m_qbEntries;
     SArray<CQuickBytesSpecifySize<16>, FALSE>      m_signatures;
-    SArray<SString, FALSE>                         m_userStrings;
     SArray<MemberRefEntry, FALSE>                  m_memberRefs;
     SArray<MethodSpecEntry, FALSE>                 m_methodSpecs;
     SArray<TypeSpecEntry, FALSE>                   m_typeSpecs;
@@ -692,7 +650,6 @@ struct ILStubEHClauseBuilder
     ILCodeLabel* handlerBeginLabel;
     ILCodeLabel* handlerEndLabel;
     DWORD typeToken;
-    ILStubEHClauseBuilder* next;
 };
 
 
@@ -726,7 +683,6 @@ protected:
 
     void DeleteCodeLabels();
     void DeleteCodeStreams();
-    void DeleteEHClauses();
 
     struct ILInstruction
     {
@@ -770,13 +726,13 @@ public:
 
     BOOL StubHasVoidReturnType();
 
+    Stub *Link(LoaderHeap *pHeap, UINT *pcbSize /* = NULL*/, BOOL fMC);
+
     size_t  Link(UINT* puMaxStack);
 
     size_t GetNumEHClauses();
     // Write out EH clauses. Number of items written out will be GetNumEHCLauses().
     void WriteEHClauses(COR_ILMETHOD_SECT_EH* sect);
-    // Get resolved EH clause info (must be called after Link()).
-    ILStubEHClause GetEHClause(size_t index);
 
     TokenLookupMap* GetTokenLookupMap() { LIMITED_METHOD_CONTRACT; return &m_tokenMap; }
 
@@ -842,7 +798,6 @@ protected:
     int GetToken(TypeHandle th, mdToken typeSignature);
     int GetToken(FieldDesc* pFD);
     int GetToken(FieldDesc* pFD, mdToken typeSignature);
-    int GetUserStringToken(SString str);
     int GetSigToken(PCCOR_SIGNATURE pSig, DWORD cbSig);
     DWORD NewLocal(CorElementType typ = ELEMENT_TYPE_I);
     DWORD NewLocal(LocalDesc loc);
@@ -880,14 +835,6 @@ protected:
     // We need this MethodDesc so we can reconstruct the generics
     // SigTypeContext info, if needed.
     MethodDesc * m_pMD;
-
-    // EH clause tracking is owned by the linker so that Begin/End calls
-    // can span different ILCodeStream instances (the PInvoke stub's
-    // try-finally, for example, begins on the Marshal stream and the
-    // handler ends on the Cleanup stream).
-    ILStubEHClauseBuilder* m_pBuildingEHClauseStack;
-    ILStubEHClauseBuilder* m_pFinishedEHClauseHead;
-    ILStubEHClauseBuilder* m_pFinishedEHClauseTail;
 };  // class ILStubLinker
 
 
@@ -1002,8 +949,8 @@ public:
     void EmitLDARG      (unsigned uArgIdx);
     void EmitLDARGA     (unsigned uArgIdx);
     void EmitLDC        (DWORD_PTR uConst);
-    void EmitLDC_R4     (float fConst);
-    void EmitLDC_R8     (double dConst);
+    void EmitLDC_R4     (UINT32 uConst);
+    void EmitLDC_R8     (UINT64 uConst);
     void EmitLDELEMA    (int token);
     void EmitLDELEM_REF ();
     void EmitLDFLD      (int token);
@@ -1028,21 +975,17 @@ public:
     void EmitLDOBJ      (int token);
     void EmitLDSFLD     (int token);
     void EmitLDSFLDA    (int token);
-    void EmitLDSTR      (SString str);
     void EmitLDTOKEN    (int token);
     void EmitLEAVE      (ILCodeLabel* pCodeLabel);
     void EmitLOCALLOC   ();
     void EmitMUL        ();
     void EmitMUL_OVF    ();
     void EmitNEWOBJ     (int token, int numInArgs);
-    void EmitNEWARR     (int token);
     void EmitNOP        (LPCSTR pszNopComment);
     void EmitPOP        ();
     void EmitRET        ();
     void EmitSHR_UN     ();
     void EmitSTARG      (unsigned uArgIdx);
-    void EmitSTELEM_I1  ();
-    void EmitSTELEM_I4  ();
     void EmitSTELEM_REF ();
     void EmitSTIND_I    ();
     void EmitSTIND_I1   ();
@@ -1073,6 +1016,7 @@ public:
     void EmitLabel(ILCodeLabel* pLabel);
     void EmitLoadThis ();
     void EmitLoadNullPtr();
+    void EmitArgIteratorCreateAndLoad();
 
     ILCodeLabel* NewCodeLabel();
 
@@ -1151,6 +1095,8 @@ protected:
     ILCodeStreamBuffer*           m_pqbILInstructions;
     UINT                          m_uCurInstrIdx;
     ILStubLinker::CodeStreamType  m_codeStreamType;       // Type of the ILCodeStream
+    SArray<ILStubEHClauseBuilder> m_buildingEHClauses;
+    SArray<ILStubEHClauseBuilder> m_finishedEHClauses;
 
 #ifndef TARGET_64BIT
     const static UINT32 SPECIAL_VALUE_NAN_64_ON_32 = 0xFFFFFFFF;

@@ -78,11 +78,9 @@ namespace System.Security.Cryptography.Tests
             CreateWithParameters(DSATestData.GetDSA1024Params());
         }
 
-        [ConditionalFact]
+        [ConditionalFact(typeof(DSAFactory), nameof(DSAFactory.SupportsFips186_3))]
         public static void CreateWithParameters_2048()
         {
-            DefaultDSAProvider.Instance.SkipUnlessSupportsFips186_3();
-
             CreateWithParameters(DSATestData.GetDSA2048Params());
         }
 

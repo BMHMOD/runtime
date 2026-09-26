@@ -41,7 +41,7 @@ namespace System.Runtime.Loader
         {
         }
 
-        private static Assembly InternalLoadFromPath(string? assemblyPath)
+        private static Assembly InternalLoadFromPath(string? assemblyPath, string? nativeImagePath)
         {
             ArgumentNullException.ThrowIfNull(assemblyPath);
 

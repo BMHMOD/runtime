@@ -6,7 +6,7 @@ using System;
 using Xunit;
 
 
-namespace b14475
+namespace DefaultNamespace
 {
     public class Bug_Cb4270
     {
@@ -33,7 +33,6 @@ namespace b14475
             return true;
         }
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

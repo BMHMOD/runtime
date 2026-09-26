@@ -5,7 +5,6 @@ using System;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
 using Xunit;
-using TestLibrary;
 
 public class Test34094
 {
@@ -513,7 +512,6 @@ public class Test34094
         return true;
     }
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static unsafe int TestEntryPoint()
     {

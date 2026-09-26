@@ -5,8 +5,6 @@
 
 #endregion
 
-using System.Diagnostics.CodeAnalysis;
-
 namespace System.Speech.Internal.SrgsCompiler
 {
     internal abstract class ParseElementCollection : ParseElement
@@ -40,7 +38,7 @@ namespace System.Speech.Internal.SrgsCompiler
             else
             {
                 _startArc ??= _endArc = _backend.EpsilonTransition(1.0f);
-                _backend.AddSemanticInterpretationTag(_endArc!, propertyInfo);
+                _backend.AddSemanticInterpretationTag(_endArc, propertyInfo);
             }
         }
 
@@ -49,7 +47,7 @@ namespace System.Speech.Internal.SrgsCompiler
         internal void AddSementicPropertyTag(CfgGrammar.CfgProperty propertyInfo)
         {
             _startArc ??= _endArc = _backend.EpsilonTransition(1.0f);
-            _backend.AddPropertyTag(_startArc, _endArc!, propertyInfo);
+            _backend.AddPropertyTag(_startArc, _endArc, propertyInfo);
         }
 
         /// <summary>
@@ -99,7 +97,7 @@ namespace System.Speech.Internal.SrgsCompiler
             if (start.End != null)
             {
                 // Remove the added startState if possible, check done by MoveSemanticTagRight
-                for (State? startState = startArc.End; startArc.IsEpsilonTransition && startState != null && Graph.MoveSemanticTagRight(startArc) && startState.InArcs.CountIsOne && startState.OutArcs.CountIsOne; startState = startArc.End)
+                for (State startState = startArc.End; startArc.IsEpsilonTransition && startState != null && Graph.MoveSemanticTagRight(startArc) && startState.InArcs.CountIsOne && startState.OutArcs.CountIsOne; startState = startArc.End)
                 {
                     // State has a single input epsilon transition
                     // Delete the input epsilon transition and delete state.
@@ -122,33 +120,30 @@ namespace System.Speech.Internal.SrgsCompiler
         /// <summary>
         /// Remove all the epsilon transition at the end
         /// </summary>
-        [return: NotNullIfNotNull(nameof(end))]
-        protected static Arc? TrimEnd(Arc? end, Backend backend)
+        protected static Arc TrimEnd(Arc end, Backend backend)
         {
-            if (end is null)
-            {
-                return null;
-            }
             Arc endArc = end;
 
-            // Remove the end arc if possible, check done by MoveSemanticTagRight
-            for (State? endState = endArc.Start; endArc.IsEpsilonTransition && endState != null && Graph.MoveSemanticTagLeft(endArc) && endState.InArcs.CountIsOne && endState.OutArcs.CountIsOne; endState = endArc.Start)
+            if (endArc != null)
             {
-                // State has a single input epsilon transition
-                // Delete the input epsilon transition and delete state.
-                System.Diagnostics.Debug.Assert(endArc.Start == endState);
-                endArc.Start = null;
+                // Remove the end arc if possible, check done by MoveSemanticTagRight
+                for (State endState = endArc.Start; endArc.IsEpsilonTransition && endState != null && Graph.MoveSemanticTagLeft(endArc) && endState.InArcs.CountIsOne && endState.OutArcs.CountIsOne; endState = endArc.Start)
+                {
+                    // State has a single input epsilon transition
+                    // Delete the input epsilon transition and delete state.
+                    System.Diagnostics.Debug.Assert(endArc.Start == endState);
+                    endArc.Start = null;
 
-                // Reset the end Arc
-                System.Diagnostics.Debug.Assert(endState.InArcs.CountIsOne);
-                endArc = endState.InArcs.First;
-                System.Diagnostics.Debug.Assert(endArc.End == endState);
-                endArc.End = null;
+                    // Reset the end Arc
+                    System.Diagnostics.Debug.Assert(endState.InArcs.CountIsOne);
+                    endArc = endState.InArcs.First;
+                    System.Diagnostics.Debug.Assert(endArc.End == endState);
+                    endArc.End = null;
 
-                // Delete the input epsilon transition and delete state if appropriate.
-                backend.DeleteState(endState);
+                    // Delete the input epsilon transition and delete state if appropriate.
+                    backend.DeleteState(endState);
+                }
             }
-
             return endArc;
         }
 
@@ -156,7 +151,7 @@ namespace System.Speech.Internal.SrgsCompiler
         {
             if (_startArc != null)
             {
-                parent.AddArc(_startArc, _endArc!);
+                parent.AddArc(_startArc, _endArc);
             }
         }
 
@@ -173,7 +168,7 @@ namespace System.Speech.Internal.SrgsCompiler
         /// </summary>
         internal virtual void AddArc(Arc start, Arc end)
         {
-            State? state = null;
+            State state = null;
             if (_startArc == null)
             {
                 _startArc = start;
@@ -184,7 +179,7 @@ namespace System.Speech.Internal.SrgsCompiler
                 bool done = false;
 
                 // Successive <one-of> have 2 epsilon transition
-                if (_endArc!.IsEpsilonTransition && start.IsEpsilonTransition)
+                if (_endArc.IsEpsilonTransition && start.IsEpsilonTransition)
                 {
                     // Trim the start tag.
                     start = TrimStart(start, _backend);
@@ -198,8 +193,8 @@ namespace System.Speech.Internal.SrgsCompiler
                         if (_endArc.IsEpsilonTransition)
                         {
                             // we do the merging
-                            State? from = _endArc.Start;
-                            State? to = start.End;
+                            State from = _endArc.Start;
+                            State to = start.End;
                             done = true;
 
                             if (from == null)
@@ -300,7 +295,7 @@ namespace System.Speech.Internal.SrgsCompiler
         }
 
         protected Backend _backend;
-        protected Arc? _startArc;
-        protected Arc? _endArc;
+        protected Arc _startArc;
+        protected Arc _endArc;
     }
 }

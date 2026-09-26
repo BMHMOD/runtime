@@ -146,7 +146,7 @@ namespace System.Security.Cryptography.X509Certificates.Tests
                             }
                         }
 
-                        extension = new X509Extension(extension.Oid!, extensionBytes, extension.Critical);
+                        extension.RawData = extensionBytes;
                     }
 
                     request.CertificateExtensions.Add(extension);

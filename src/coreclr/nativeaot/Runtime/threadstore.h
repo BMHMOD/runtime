@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 #include "Crst.h"
-#include "cdacdata.h"
 
 class Thread;
 class CLREventStatic;
@@ -16,10 +15,11 @@ enum class TrapThreadsFlags
     TrapThreads = 1,
 };
 
+extern "C" void PopulateDebugHeaders();
+
 class ThreadStore
 {
-    friend class RuntimeInstance;
-    friend struct ::cdac_data<ThreadStore>;
+    friend void PopulateDebugHeaders();
 
     SList<Thread>       m_ThreadList;
     PTR_RuntimeInstance m_pRuntimeInstance;
@@ -29,7 +29,6 @@ private:
     ThreadStore();
 
 public:
-    SPTR_DECL(ThreadStore, s_pThreadStore);
     void                    LockThreadStore();
     void                    UnlockThreadStore();
 
@@ -48,9 +47,6 @@ public:
     static Thread *         RawGetCurrentThread();
     static Thread *         GetCurrentThread();
     static Thread *         GetCurrentThreadIfAvailable();
-#if defined(TARGET_UNIX) && !defined(TARGET_WASM)
-    static Thread *         GetCurrentThreadIfAvailableAsyncSafe();
-#endif
     static PTR_Thread       GetSuspendingThread();
     static void             AttachCurrentThread();
     static void             AttachCurrentThread(bool fAcquireThreadStoreLock);
@@ -69,11 +65,6 @@ public:
 };
 typedef DPTR(ThreadStore) PTR_ThreadStore;
 
-template<> struct cdac_data<ThreadStore>
-{
-    static constexpr size_t FirstThreadLink = offsetof(ThreadStore, m_ThreadList);
-};
-
 ThreadStore * GetThreadStore();
 
 #define FOREACH_THREAD(p_thread_name)                       \
@@ -85,4 +76,5 @@ ThreadStore * GetThreadStore();
 
 #define END_FOREACH_THREAD  \
     }                       \
-}
+}                           \
+

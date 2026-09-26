@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b27811
+namespace Test
 {
     using System;
 
@@ -38,7 +38,6 @@ namespace b27811
             return ptr.m_afField1[2];
         }
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

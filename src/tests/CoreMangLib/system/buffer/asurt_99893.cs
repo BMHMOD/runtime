@@ -11,7 +11,6 @@ namespace System
 {
     public class ASURT_99893
     {
-	[OuterLoop]
 	[Fact]
 	public static int TestEntryPoint()
 	{
@@ -40,7 +39,7 @@ namespace System
 		pass=false;
 		TestLibrary.Logging.WriteLine("GetByte: Unexpected exception thrown: " + ex);
 	    }
-
+	    
 	    // SetByte
 	    try
 	    {
@@ -75,7 +74,7 @@ namespace System
 		pass=false;
 		TestLibrary.Logging.WriteLine("BlockCopy: Unexpected exception thrown: " + ex);
 	    }
-
+	    
 	    if (pass)
 	    {
 		TestLibrary.Logging.WriteLine("Test passed.");
@@ -88,16 +87,16 @@ namespace System
 	    }
 	}
     }
-
-    internal struct Int32
+	
+    public struct Int32 
     {
 	object value;
-	public void Init (object o)
+	public void Init (object o) 
 	{
 	    value = o;
 	}
-
-	override public string ToString ()
+		
+	override public string ToString () 
 	{
 	    string s = "MyInt32";
 	    if (value == null) s += "<null>";

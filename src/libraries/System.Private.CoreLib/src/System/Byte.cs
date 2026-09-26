@@ -124,13 +124,19 @@ namespace System
         public static bool TryParse([NotNullWhen(true)] string? s, NumberStyles style, IFormatProvider? provider, out byte result)
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(s.AsSpan(), style, NumberFormatInfo.GetInstance(provider), out result, out _) == Number.ParsingStatus.OK;
+
+            if (s is null)
+            {
+                result = 0;
+                return false;
+            }
+            return Number.TryParseBinaryInteger(s.AsSpan(), style, NumberFormatInfo.GetInstance(provider), out result) == Number.ParsingStatus.OK;
         }
 
         public static bool TryParse(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider? provider, out byte result)
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(s, style, NumberFormatInfo.GetInstance(provider), out result, out _) == Number.ParsingStatus.OK;
+            return Number.TryParseBinaryInteger(s, style, NumberFormatInfo.GetInstance(provider), out result) == Number.ParsingStatus.OK;
         }
 
         public override string ToString()
@@ -275,9 +281,6 @@ namespace System
         /// <inheritdoc cref="IBinaryInteger{TSelf}.LeadingZeroCount(TSelf)" />
         public static byte LeadingZeroCount(byte value) => (byte)(BitOperations.LeadingZeroCount(value) - 24);
 
-        /// <inheritdoc cref="IBinaryInteger{TSelf}.Log10(TSelf)" />
-        public static byte Log10(byte value) => (byte)uint.Log10(value);
-
         /// <inheritdoc cref="IBinaryInteger{TSelf}.PopCount(TSelf)" />
         public static byte PopCount(byte value) => (byte)BitOperations.PopCount(value);
 
@@ -316,7 +319,7 @@ namespace System
                 }
 
                 // We only have 1-byte so read it directly
-                result = source[source.Length - sizeof(byte)];
+                result = Unsafe.Add(ref MemoryMarshal.GetReference(source), source.Length - sizeof(byte));
             }
 
             value = result;
@@ -349,7 +352,7 @@ namespace System
                 }
 
                 // We only have 1-byte so read it directly
-                result = source[0];
+                result = MemoryMarshal.GetReference(source);
             }
 
             value = result;
@@ -367,7 +370,8 @@ namespace System
         {
             if (destination.Length >= sizeof(byte))
             {
-                destination[0] = m_value;
+                byte value = m_value;
+                MemoryMarshal.GetReference(destination) = value;
 
                 bytesWritten = sizeof(byte);
                 return true;
@@ -384,7 +388,8 @@ namespace System
         {
             if (destination.Length >= sizeof(byte))
             {
-                destination[0] = m_value;
+                byte value = m_value;
+                MemoryMarshal.GetReference(destination) = value;
 
                 bytesWritten = sizeof(byte);
                 return true;
@@ -1098,27 +1103,6 @@ namespace System
             }
         }
 
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(string, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial([NotNullWhen(true)] string? s, NumberStyles style, IFormatProvider? provider, out byte result, out int charsConsumed)
-        {
-            NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(s.AsSpan(), style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out result, out charsConsumed) == Number.ParsingStatus.OK;
-        }
-
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(ReadOnlySpan{char}, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial(ReadOnlySpan<char> s, NumberStyles style, IFormatProvider? provider, out byte result, out int charsConsumed)
-        {
-            NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(s, style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out result, out charsConsumed) == Number.ParsingStatus.OK;
-        }
-
-        /// <inheritdoc cref="INumberBase{TSelf}.TryParsePartial(ReadOnlySpan{byte}, NumberStyles, IFormatProvider?, out TSelf, out int)" />
-        public static bool TryParsePartial(ReadOnlySpan<byte> utf8Text, NumberStyles style, IFormatProvider? provider, out byte result, out int bytesConsumed)
-        {
-            NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(utf8Text, style | Number.AllowTrailingInvalidCharacters, NumberFormatInfo.GetInstance(provider), out result, out bytesConsumed) == Number.ParsingStatus.OK;
-        }
-
         //
         // IParsable
         //
@@ -1191,7 +1175,7 @@ namespace System
         public static bool TryParse(ReadOnlySpan<byte> utf8Text, NumberStyles style, IFormatProvider? provider, out byte result)
         {
             NumberFormatInfo.ValidateParseStyleInteger(style);
-            return Number.TryParseBinaryInteger(utf8Text, style, NumberFormatInfo.GetInstance(provider), out result, out _) == Number.ParsingStatus.OK;
+            return Number.TryParseBinaryInteger(utf8Text, style, NumberFormatInfo.GetInstance(provider), out result) == Number.ParsingStatus.OK;
         }
 
         /// <inheritdoc cref="IUtf8SpanParsable{TSelf}.Parse(ReadOnlySpan{byte}, IFormatProvider?)" />
@@ -1203,8 +1187,6 @@ namespace System
         //
         // IUtfChar
         //
-
-        static bool IUtfChar<byte>.IsUtf8 => true;
 
         static byte IUtfChar<byte>.CastFrom(byte value) => value;
         static byte IUtfChar<byte>.CastFrom(char value) => (byte)value;

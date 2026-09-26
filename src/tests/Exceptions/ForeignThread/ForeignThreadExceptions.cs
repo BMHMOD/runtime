@@ -4,7 +4,6 @@
 using System;
 using System.Runtime.InteropServices;
 using Xunit;
-using TestLibrary;
 
 public delegate void MyCallback();
 
@@ -87,8 +86,6 @@ public class ForeignThreadExceptionsTest
         }
     }
 
-    [ActiveIssue("llvmfullaot: EH problem", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoFULLAOT))]
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/64127", typeof(PlatformDetection), nameof(PlatformDetection.PlatformDoesNotSupportNativeTestAssets))]
     [Fact]
     public static int TestEntryPoint()
     {

@@ -22,20 +22,15 @@ namespace System.Reflection.Runtime.MethodInfos
         }
 
         protected sealed override object? Invoke(object? thisObject, object?[]? arguments, BinderBundle binderBundle, bool wrapInTargetInvocationException) =>
-            InvokeSpecial(thisObject, arguments, arguments, binderBundle, wrapInTargetInvocationException);
+            InvokeSpecial(thisObject, arguments, binderBundle, wrapInTargetInvocationException);
 
         protected internal sealed override object? Invoke(object? thisObject, Span<object?> arguments) =>
-            InvokeSpecial(thisObject, arguments, copyBackArguments: null, binderBundle: null, wrapInTargetInvocationException: false);
+            InvokeSpecial(thisObject, arguments, binderBundle: null, wrapInTargetInvocationException: false);
 
         protected internal sealed override object? InvokeDirectWithFewArgs(object? thisObject, Span<object?> arguments) =>
-            InvokeSpecial(thisObject, arguments, copyBackArguments: null, binderBundle: null, wrapInTargetInvocationException: false);
+            InvokeSpecial(thisObject, arguments, binderBundle: null, wrapInTargetInvocationException: false);
 
-        private object? InvokeSpecial(
-            object? thisObject,
-            ReadOnlySpan<object?> arguments,
-            object?[]? copyBackArguments,
-            BinderBundle binderBundle,
-            bool wrapInTargetInvocationException)
+        private object? InvokeSpecial(object? thisObject, ReadOnlySpan<object?> arguments, BinderBundle binderBundle, bool wrapInTargetInvocationException)
         {
             // This does not handle optional parameters. None of the methods we use custom invocation for have them.
             if (!(thisObject == null && 0 != (_options & InvokerOptions.AllowNullThis)))
@@ -46,18 +41,10 @@ namespace System.Reflection.Runtime.MethodInfos
                 throw new TargetParameterCountException();
 
             object[] convertedArguments = new object[argCount];
-            bool[]? shouldCopyBack = null;
             for (int i = 0; i < convertedArguments.Length; i++)
             {
-                bool copyBack;
-                convertedArguments[i] = RuntimeAugments.CheckArgument(arguments[i], _parameterTypes[i].TypeHandle, binderBundle, out copyBack);
-                if (copyBack)
-                {
-                    shouldCopyBack ??= new bool[argCount];
-                    shouldCopyBack[i] = true;
-                }
+                convertedArguments[i] = RuntimeAugments.CheckArgument(arguments[i], _parameterTypes[i].TypeHandle, binderBundle);
             }
-
             object result;
             try
             {
@@ -67,18 +54,6 @@ namespace System.Reflection.Runtime.MethodInfos
             {
                 throw new TargetInvocationException(e);
             }
-
-            if (shouldCopyBack is not null)
-            {
-                Debug.Assert(copyBackArguments is not null);
-
-                for (int i = 0; i < shouldCopyBack.Length; i++)
-                {
-                    if (shouldCopyBack[i])
-                        copyBackArguments[i] = convertedArguments[i];
-                }
-            }
-
             return result;
         }
 

@@ -15,26 +15,33 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
     {
         protected override void EmitCode(NodeFactory factory, ref LoongArch64Emitter instructionEncoder, bool relocsOnly)
         {
-            if (_thunkKind == ImportThunkKind.Eager)
+            if (_thunkKind == Kind.Eager)
             {
                 // branch to helper
                 instructionEncoder.EmitJMP(_helperCell);
                 return;
             }
+
+            instructionEncoder.Builder.RequireInitialPointerAlignment();
+            Debug.Assert(instructionEncoder.Builder.CountBytes == 0);
+
+            instructionEncoder.Builder.EmitReloc(factory.ModuleImport, RelocType.IMAGE_REL_BASED_DIR64);
+
+            Debug.Assert(instructionEncoder.Builder.CountBytes == ((ISymbolNode)this).Offset);
+
             if (relocsOnly)
             {
                 // When doing relocs only, we don't need to generate the actual instructions
-                // as they will be ignored. Just emit the module import load and jump so we record the dependencies.
-                instructionEncoder.EmitLD(Register.R5, factory.ModuleImport);
+                // as they will be ignored. Just emit the jump so we record the dependency.
                 instructionEncoder.EmitJMP(_helperCell);
                 return;
             }
 
             switch (_thunkKind)
             {
-                case ImportThunkKind.DelayLoadHelper:
-                case ImportThunkKind.VirtualStubDispatch:
-                case ImportThunkKind.DelayLoadHelperWithExistingIndirectionCell:
+                case Kind.DelayLoadHelper:
+                case Kind.VirtualStubDispatch:
+                case Kind.DelayLoadHelperWithExistingIndirectionCell:
                 {
                     // T8 contains indirection cell
                     // Do nothing T8=R20 contains our first param
@@ -43,13 +50,32 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                     int index = _containingImportSection.IndexFromBeginningOfArray;
                     instructionEncoder.EmitMOV(Register.R12, checked((ushort)index));
 
-                    instructionEncoder.EmitLD(Register.R13, factory.ModuleImport);
+                    int offset = -instructionEncoder.Builder.CountBytes;
+
+                    // get pc
+                    // pcaddi T1=R13, 0
+                    instructionEncoder.EmitPCADDI(Register.R13);
+
+                    // load Module* -> T1
+                    instructionEncoder.EmitLD(Register.R13, Register.R13, offset);
+
+                    // ld_d R13, R13, 0
+                    instructionEncoder.EmitLD(Register.R13, Register.R13, 0);
                     break;
                 }
 
-                case ImportThunkKind.Lazy:
+                case Kind.Lazy:
                 {
-                    instructionEncoder.EmitLD(Register.R5, factory.ModuleImport);
+                    int offset = -instructionEncoder.Builder.CountBytes;
+                    // get pc
+                    // pcaddi R5, 0
+                    instructionEncoder.EmitPCADDI(Register.R5);
+
+                    // load Module* -> R5=A1
+                    instructionEncoder.EmitLD(Register.R5, Register.R5, offset);
+
+                    // ld_d R5, R5, 0
+                    instructionEncoder.EmitLD(Register.R5, Register.R5, 0);
                     break;
                 }
 

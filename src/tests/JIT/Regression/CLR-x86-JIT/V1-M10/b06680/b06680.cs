@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b06680
+namespace DefaultNamespace
 {
     //@BEGINRENAME; Verify this renames
     //@ENDRENAME; Verify this renames
@@ -13,7 +13,6 @@ namespace b06680
     {
         private static int n = 0;
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

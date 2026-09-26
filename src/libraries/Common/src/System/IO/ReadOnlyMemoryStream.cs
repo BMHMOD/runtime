@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-// On net11.0+, the public ReadOnlyMemoryStream in System.Runtime (CoreLib) supersedes this internal copy.
-#if !NET11_0_OR_GREATER
-
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -216,5 +213,3 @@ namespace System.IO
 #endif
     }
 }
-
-#endif // !NET11_0_OR_GREATER

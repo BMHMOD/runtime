@@ -6,7 +6,6 @@ using System;
 using System.Reflection;
 using System.Runtime.Intrinsics.X86;
 using Xunit;
-using TestLibrary;
 
 namespace IntelHardwareIntrinsicTest._Crc32
 {
@@ -16,7 +15,6 @@ namespace IntelHardwareIntrinsicTest._Crc32
         const int Fail = 0;
 
         [ActiveIssue("https://github.com/dotnet/runtime/issues/54185", TestRuntimes.Mono)]
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/75767", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoLLVMAOT))]
         [Fact]
         public static void Test()
         {

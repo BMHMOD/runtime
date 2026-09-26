@@ -99,7 +99,13 @@ namespace System.Reflection.PortableExecutable
 
                     try
                     {
-                        actualLength = deflate.ReadAtLeast(new Span<byte>(decompressed.Pointer, decompressed.Size), decompressed.Size, throwOnEndOfStream: false);
+#if NET
+                        actualLength = deflate.TryReadAll(new Span<byte>(decompressed.Pointer, decompressed.Size));
+#else
+                        using var decompressedStream = new UnmanagedMemoryStream(decompressed.Pointer, decompressed.Size, decompressed.Size, FileAccess.Write);
+                        deflate.CopyTo(decompressedStream);
+                        actualLength = (int)decompressedStream.Position;
+#endif
                     }
                     catch (Exception e)
                     {

@@ -8,7 +8,7 @@ namespace System.Security.Cryptography.EcDiffieHellman.Tests
     public partial class ECDiffieHellmanTests
     {
         [Fact]
-        public void TestNotImplementedException()
+        public static void TestNotImplementedException()
         {
             using (ECDiffieHellman ec = ECDiffieHellmanFactory.Create())
             {

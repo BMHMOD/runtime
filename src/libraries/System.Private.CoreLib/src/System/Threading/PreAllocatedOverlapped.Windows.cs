@@ -90,7 +90,7 @@ namespace System.Threading
         /// </exception>
         [CLSCompliant(false)]
         public static PreAllocatedOverlapped UnsafeCreate(IOCompletionCallback callback, object? state, object? pinData) =>
-            new(callback, state, pinData, flowExecutionContext: false);
+            ThreadPool.UseWindowsThreadPool ? UnsafeCreateWindowsThreadPool(callback, state, pinData) : UnsafeCreatePortableCore(callback, state, pinData);
 
         private unsafe PreAllocatedOverlapped(IOCompletionCallback callback, object? state, object? pinData, bool flowExecutionContext)
         {
@@ -110,17 +110,33 @@ namespace System.Threading
             }
         }
 
-        internal bool AddRef() => _lifetime.AddRef();
+        internal bool AddRef() => ThreadPool.UseWindowsThreadPool ? AddRefWindowsThreadPool() : AddRefPortableCore();
 
-        internal void Release() => _lifetime.Release(this);
+        internal void Release()
+        {
+            if (ThreadPool.UseWindowsThreadPool)
+            {
+                ReleaseWindowsThreadPool();
+            }
+            else
+            {
+                ReleasePortableCore();
+            }
+        }
 
         /// <summary>
         /// Frees the resources associated with this <see cref="PreAllocatedOverlapped"/> instance.
         /// </summary>
         public void Dispose()
         {
-            _lifetime.Dispose(this);
-            GC.SuppressFinalize(this);
+            if (ThreadPool.UseWindowsThreadPool)
+            {
+                DisposeWindowsThreadPool();
+            }
+            else
+            {
+                DisposePortableCore();
+            }
         }
 
         ~PreAllocatedOverlapped()

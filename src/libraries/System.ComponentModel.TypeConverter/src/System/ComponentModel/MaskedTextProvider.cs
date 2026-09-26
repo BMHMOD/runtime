@@ -88,7 +88,7 @@ namespace System.ComponentModel
                 CharType = charType;
             }
 
-            public override unsafe string ToString() =>
+            public override string ToString() =>
                 string.Create(
                     CultureInfo.InvariantCulture,
                     stackalloc char[256],

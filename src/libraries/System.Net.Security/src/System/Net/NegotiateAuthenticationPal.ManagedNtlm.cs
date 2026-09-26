@@ -8,7 +8,6 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Net.Security;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.Authentication.ExtendedProtection;
@@ -125,105 +124,62 @@ namespace System.Net
             }
 
             [StructLayout(LayoutKind.Sequential)]
-            private struct MessageField
+            private unsafe struct MessageField
             {
-                private ushort _length;
-                private ushort _maximumLength;
-                private int _payloadOffset;
-                public ushort Length
-                {
-                    readonly get => BitConverter.IsLittleEndian ? _length : BinaryPrimitives.ReverseEndianness(_length);
-                    set => _length = BitConverter.IsLittleEndian ? value : BinaryPrimitives.ReverseEndianness(value);
-                }
-                public ushort MaximumLength
-                {
-                    readonly get => BitConverter.IsLittleEndian ? _maximumLength : BinaryPrimitives.ReverseEndianness(_maximumLength);
-                    set => _maximumLength = BitConverter.IsLittleEndian ? value : BinaryPrimitives.ReverseEndianness(value);
-                }
-                public int PayloadOffset
-                {
-                    readonly get => BitConverter.IsLittleEndian ? _payloadOffset : BinaryPrimitives.ReverseEndianness(_payloadOffset);
-                    set => _payloadOffset = BitConverter.IsLittleEndian ? value : BinaryPrimitives.ReverseEndianness(value);
-                }
+                public ushort Length;
+                public ushort MaximumLength;
+                public int PayloadOffset;
             }
 
             [StructLayout(LayoutKind.Sequential)]
-            private struct MessageHeader
+            private unsafe struct MessageHeader
             {
-                public HeaderBuffer Header;
+                public fixed byte Header[HeaderLength];
                 public MessageType MessageType;
                 private byte _unused1;
                 private byte _unused2;
                 private byte _unused3;
-
-                [InlineArray(HeaderLength)]
-                public struct HeaderBuffer
-                {
-                    private byte _element0;
-                }
             }
 
             [StructLayout(LayoutKind.Sequential)]
-            private struct Version
+            private unsafe struct Version
             {
                 public byte VersionMajor;
                 public byte VersionMinor;
-                private ushort _productBuild;
+                public ushort ProductBuild;
                 private byte _unused4;
                 private byte _unused5;
                 private byte _unused6;
                 public byte CurrentRevision;
-                public ushort ProductBuild
-                {
-                    readonly get => BitConverter.IsLittleEndian ? _productBuild : BinaryPrimitives.ReverseEndianness(_productBuild);
-                    set => _productBuild = BitConverter.IsLittleEndian ? value : BinaryPrimitives.ReverseEndianness(value);
-                }
             }
 
             // Type 1 message
             [StructLayout(LayoutKind.Sequential)]
-            private struct NegotiateMessage
+            private unsafe struct NegotiateMessage
             {
                 public MessageHeader Header;
-                private Flags _flags;
+                public Flags Flags;
                 public MessageField DomainName;
                 public MessageField WorkStation;
                 public Version Version;
-                public Flags Flags
-                {
-                    readonly get => BitConverter.IsLittleEndian ? _flags : (Flags)BinaryPrimitives.ReverseEndianness((uint)_flags);
-                    set => _flags = BitConverter.IsLittleEndian ? value : (Flags)BinaryPrimitives.ReverseEndianness((uint)value);
-                }
             }
 
             // TYPE 2 message
             [StructLayout(LayoutKind.Sequential)]
-            private struct ChallengeMessage
+            private unsafe struct ChallengeMessage
             {
                 public MessageHeader Header;
                 public MessageField TargetName;
-                private Flags _flags;
-                public ChallengeBuffer ServerChallenge;
-
-                [InlineArray(ChallengeLength)]
-                public struct ChallengeBuffer
-                {
-                    private byte _element0;
-                }
+                public Flags Flags;
+                public fixed byte ServerChallenge[ChallengeLength];
                 private ulong _unused;
                 public MessageField TargetInfo;
                 public Version Version;
-
-                public Flags Flags
-                {
-                    readonly get => BitConverter.IsLittleEndian ? _flags : (Flags)BinaryPrimitives.ReverseEndianness((uint)_flags);
-                    set => _flags = BitConverter.IsLittleEndian ? value : (Flags)BinaryPrimitives.ReverseEndianness((uint)value);
-                }
             }
 
             // TYPE 3 message
             [StructLayout(LayoutKind.Sequential)]
-            private struct AuthenticateMessage
+            private unsafe struct AuthenticateMessage
             {
                 public MessageHeader Header;
                 public MessageField LmChallengeResponse;
@@ -232,48 +188,25 @@ namespace System.Net
                 public MessageField UserName;
                 public MessageField Workstation;
                 public MessageField EncryptedRandomSessionKey;
-                private Flags _flags;
+                public Flags Flags;
                 public Version Version;
-                public MicBuffer Mic;
-
-                [InlineArray(DigestLength)]
-                public struct MicBuffer
-                {
-                    private byte _element0;
-                }
-
-                public Flags Flags
-                {
-                    readonly get => BitConverter.IsLittleEndian ? _flags : (Flags)BinaryPrimitives.ReverseEndianness((uint)_flags);
-                    set => _flags = BitConverter.IsLittleEndian ? value : (Flags)BinaryPrimitives.ReverseEndianness((uint)value);
-                }
+                public fixed byte Mic[16];
             }
 
             // Set temp to ConcatenationOf(Responserversion, HiResponserversion, Z(6), Time, ClientChallenge, Z(4), ServerName, Z(4))
             [StructLayout(LayoutKind.Sequential)]
-            private struct NtChallengeResponse
+            private unsafe struct NtChallengeResponse
             {
-                public DigestBuffer Hmac;
+                public fixed byte Hmac[DigestLength];
                 public byte Responserversion;
                 public byte HiResponserversion;
                 private byte _reserved1;
                 private byte _reserved2;
                 private int _reserved3;
-                private long _time;
-                public ChallengeMessage.ChallengeBuffer ClientChallenge;
+                public long Time;
+                public fixed byte ClientChallenge[ChallengeLength];
                 private int _reserved4;
-                public InlineArray4<byte> ServerInfo; // Has to be non-zero size, so set it to the Z(4) padding
-                public long Time
-                {
-                    readonly get => BitConverter.IsLittleEndian ? _time : BinaryPrimitives.ReverseEndianness(_time);
-                    set => _time = BitConverter.IsLittleEndian ? value : BinaryPrimitives.ReverseEndianness(value);
-                }
-
-                [InlineArray(DigestLength)]
-                public struct DigestBuffer
-                {
-                    private byte _element0;
-                }
+                public fixed byte ServerInfo[4]; // Has to be non-zero size, so set it to the Z(4) padding
             }
 
             public override bool IsAuthenticated => _isAuthenticated;
@@ -373,29 +306,42 @@ namespace System.Net
                 message.Version = s_version;
             }
 
+            private static unsafe int GetFieldLength(MessageField field)
+            {
+                ReadOnlySpan<byte> span = new ReadOnlySpan<byte>(&field, sizeof(MessageField));
+                return BinaryPrimitives.ReadInt16LittleEndian(span);
+            }
+
+            private static unsafe int GetFieldOffset(MessageField field)
+            {
+                ReadOnlySpan<byte> span = new ReadOnlySpan<byte>(&field, sizeof(MessageField));
+                return BinaryPrimitives.ReadInt16LittleEndian(span.Slice(4));
+            }
+
             private static ReadOnlySpan<byte> GetField(MessageField field, ReadOnlySpan<byte> payload)
             {
-                int offset = field.PayloadOffset;
-                int length = field.Length;
+                int offset = GetFieldOffset(field);
+                int length = GetFieldLength(field);
 
-                if (length == 0 || offset < 0 || offset > payload.Length - length)
+                if (length == 0 || offset + length > payload.Length)
                 {
                     return ReadOnlySpan<byte>.Empty;
                 }
 
-                return payload.Slice(offset, length);
+                return payload.Slice(GetFieldOffset(field), GetFieldLength(field));
             }
 
-            private static void SetField(ref MessageField field, int length, int offset)
+            private static unsafe void SetField(ref MessageField field, int length, int offset)
             {
                 if (length is < 0 or > short.MaxValue)
                 {
                     throw new Win32Exception(NTE_FAIL);
                 }
 
-                field.Length = (ushort)length;
-                field.MaximumLength = (ushort)length;
-                field.PayloadOffset = offset;
+                Span<byte> span = MemoryMarshal.AsBytes(new Span<MessageField>(ref field));
+                BinaryPrimitives.WriteInt16LittleEndian(span, (short)length);
+                BinaryPrimitives.WriteInt16LittleEndian(span.Slice(2), (short)length);
+                BinaryPrimitives.WriteInt32LittleEndian(span.Slice(4), offset);
             }
 
             private static void AddToPayload(ref MessageField field, ReadOnlySpan<byte> data, Span<byte> payload, ref int offset)
@@ -416,7 +362,7 @@ namespace System.Net
             // Define NTOWFv2(Passwd, User, UserDom) as HMAC_MD5(MD4(UNICODE(Passwd)), UNICODE(ConcatenationOf(Uppercase(User),
             // UserDom ) ) )
             // EndDefine
-            private static unsafe void makeNtlm2Hash(string domain, string userName, ReadOnlySpan<char> password, Span<byte> hash)
+            private static void makeNtlm2Hash(string domain, string userName, ReadOnlySpan<char> password, Span<byte> hash)
             {
                 // Maximum password length for Windows authentication is 128 characters, we enforce
                 // the limit early to prevent allocating large buffers on stack.
@@ -449,7 +395,7 @@ namespace System.Net
             // Set temp to ConcatenationOf(Responserversion, HiResponserversion, Z(6), Time, ClientChallenge, Z(4), ServerName, Z(4))
             // Set NTProofStr to HMAC_MD5(ResponseKeyNT, ConcatenationOf(CHALLENGE_MESSAGE.ServerChallenge, temp))
             // Set NtChallengeResponse to ConcatenationOf(NTProofStr, temp)
-            private static unsafe void makeNtlm2ChallengeResponse(DateTime time, ReadOnlySpan<byte> ntlm2hash, ReadOnlySpan<byte> serverChallenge, Span<byte> clientChallenge, ReadOnlySpan<byte> serverInfo, ref MessageField field, Span<byte> payload, ref int payloadOffset)
+            private unsafe void makeNtlm2ChallengeResponse(DateTime time, ReadOnlySpan<byte> ntlm2hash, ReadOnlySpan<byte> serverChallenge, Span<byte> clientChallenge, ReadOnlySpan<byte> serverInfo, ref MessageField field, Span<byte> payload, ref int payloadOffset)
             {
                 Debug.Assert(serverChallenge.Length == ChallengeLength);
                 Debug.Assert(clientChallenge.Length == ChallengeLength);
@@ -462,7 +408,7 @@ namespace System.Net
                 temp.Responserversion = 1;
                 temp.Time = time.ToFileTimeUtc();
 
-                clientChallenge.CopyTo((Span<byte>)temp.ClientChallenge);
+                clientChallenge.CopyTo(MemoryMarshal.CreateSpan(ref temp.ClientChallenge[0], ChallengeLength));
                 serverInfo.CopyTo(MemoryMarshal.CreateSpan(ref temp.ServerInfo[0], serverInfo.Length));
 
                 // Calculate NTProofStr
@@ -508,7 +454,7 @@ namespace System.Net
                 }
             }
 
-            private byte[]? ProcessTargetInfo(ReadOnlySpan<byte> targetInfo, out DateTime time, out bool hasNbNames)
+            private byte[] ProcessTargetInfo(ReadOnlySpan<byte> targetInfo, out DateTime time, out bool hasNbNames)
             {
                 int spnSize = _spn != null ? Encoding.Unicode.GetByteCount(_spn) : 0;
 
@@ -518,11 +464,10 @@ namespace System.Net
                 }
 
                 bool hasNbComputerName = false, hasNbDomainName = false;
-                byte[] targetInfoBuffer = new byte[targetInfo.Length + 20 /* channel binding */ + 4 + spnSize /* SPN */ + 8 /* flags */ + 4 /* EOL */];
+                byte[] targetInfoBuffer = new byte[targetInfo.Length + 20 /* channel binding */ + 4 + spnSize /* SPN */ + 8 /* flags */];
                 int targetInfoOffset = 0;
 
                 time = DateTime.UtcNow;
-                hasNbNames = false;
 
                 if (targetInfo.Length > 0)
                 {
@@ -539,20 +484,9 @@ namespace System.Net
                             break;
                         }
 
-                        // Make sure the AV pair fits in the remaining target info bytes.
-                        if (length > info.Length - 4)
-                        {
-                            return null;
-                        }
-
                         if (ID == AvId.Timestamp)
                         {
-                            if (length < 8)
-                            {
-                                return null;
-                            }
-
-                            time = DateTime.FromFileTimeUtc(BinaryPrimitives.ReadInt64LittleEndian(info.Slice(4, 8)));
+                            time = DateTime.FromFileTimeUtc(BitConverter.ToInt64(info.Slice(4, 8)));
                         }
                         else if (ID == AvId.TargetName || ID == AvId.ChannelBindings)
                         {
@@ -611,7 +545,7 @@ namespace System.Net
                     return targetInfoBuffer;
                 }
 
-                return targetInfoBuffer.AsSpan(0, targetInfoOffset).ToArray();
+                return targetInfoBuffer.AsSpan(targetInfoOffset).ToArray();
             }
 
             // Section 3.4.5.2 SIGNKEY, 3.4.5.3 SEALKEY
@@ -628,12 +562,7 @@ namespace System.Net
             // This gets decoded byte blob and returns response in binary form.
             private unsafe byte[]? ProcessChallenge(ReadOnlySpan<byte> blob, out NegotiateAuthenticationStatusCode statusCode)
             {
-                // The challenge must be at least large enough to hold the fixed-size header.
-                if (blob.Length < sizeof(ChallengeMessage))
-                {
-                    statusCode = NegotiateAuthenticationStatusCode.InvalidToken;
-                    return null;
-                }
+                // TODO: Validate size and offsets
 
                 ref readonly ChallengeMessage challengeMessage = ref MemoryMarshal.AsRef<ChallengeMessage>(blob.Slice(0, sizeof(ChallengeMessage)));
 
@@ -645,7 +574,7 @@ namespace System.Net
                     return null;
                 }
 
-                Flags flags = challengeMessage.Flags;
+                Flags flags = BitConverter.IsLittleEndian ? challengeMessage.Flags : (Flags)BinaryPrimitives.ReverseEndianness((uint)challengeMessage.Flags);
                 ReadOnlySpan<byte> targetName = GetField(challengeMessage.TargetName, blob);
 
                 // Only NTLMv2 with MIC is supported
@@ -666,12 +595,7 @@ namespace System.Net
                 }
 
                 ReadOnlySpan<byte> targetInfo = GetField(challengeMessage.TargetInfo, blob);
-                byte[]? targetInfoBuffer = ProcessTargetInfo(targetInfo, out DateTime time, out bool hasNbNames);
-                if (targetInfoBuffer is null)
-                {
-                    statusCode = NegotiateAuthenticationStatusCode.InvalidToken;
-                    return null;
-                }
+                byte[] targetInfoBuffer = ProcessTargetInfo(targetInfo, out DateTime time, out bool hasNbNames);
 
                 // If NTLM v2 authentication is used and the CHALLENGE_MESSAGE does not contain both
                 // MsvAvNbComputerName and MsvAvNbDomainName AVPairs and either Integrity is TRUE or
@@ -757,7 +681,7 @@ namespace System.Net
                     hmacMic.AppendData(_negotiateMessage);
                     hmacMic.AppendData(blob);
                     hmacMic.AppendData(responseBytes.AsSpan(0, payloadOffset));
-                    hmacMic.GetHashAndReset((Span<byte>)response.Mic);
+                    hmacMic.GetHashAndReset(MemoryMarshal.CreateSpan(ref response.Mic[0], hmacMic.HashLengthInBytes));
                 }
 
                 // Derive signing keys
@@ -786,7 +710,7 @@ namespace System.Net
                 _serverSeal = new RC4(_serverSealingKey);
             }
 
-            private unsafe void CalculateSignature(
+            private void CalculateSignature(
                 ReadOnlySpan<byte> message,
                 uint sequenceNumber,
                 ReadOnlySpan<byte> signingKey,
@@ -805,7 +729,7 @@ namespace System.Net
                 }
             }
 
-            public override unsafe bool VerifyMIC(ReadOnlySpan<byte> message, ReadOnlySpan<byte> signature)
+            public override bool VerifyMIC(ReadOnlySpan<byte> message, ReadOnlySpan<byte> signature)
             {
                 // Check length and version
                 if (signature.Length != SignatureLength ||

@@ -3,10 +3,9 @@
 //
 
 using Xunit;
-using TestLibrary;
 /*
 ---------------------------
-Assert Failure (PID 848, Thread 1036/40c)
+Assert Failure (PID 848, Thread 1036/40c)        
 ---------------------------
 (argCnt < MAX_PTRARG_OFS)
 
@@ -21,10 +20,10 @@ Image:
 D:\bugs\bug.exe
 
 ---------------------------
-Abort   Retry   Ignore
+Abort   Retry   Ignore   
 ---------------------------
 */
-namespace b41391
+namespace Test
 {
     using System;
 
@@ -54,7 +53,7 @@ namespace b41391
             while ((bool)m_axStatic2) { }
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsVarArgSupported))]
+        [ConditionalFact(typeof(TestLibrary.PlatformDetection), nameof(TestLibrary.PlatformDetection.IsVarArgSupported))]
         public static void TestEntryPoint()
         {
             try

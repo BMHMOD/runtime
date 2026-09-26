@@ -40,17 +40,9 @@ SET_DEFAULT_DEBUG_CHANNEL(LOADER); // some headers have code with asserts, so do
 #include <dlfcn.h>
 #include <stdlib.h>
 
-#if defined(TARGET_WASI)
-#include "pal/wasi/pal_wasi_missing.h"
-#endif
-
 #ifdef __APPLE__
 #include <mach-o/dyld.h>
 #include <mach-o/loader.h>
-#elif defined(TARGET_WASI)
-// WASI has no dynamic linker and no <link.h>. PAL_CopyModuleData is stubbed
-// to return 0 in the TARGET_WASM branch below; <link.h>'s dl_phdr_info /
-// link_map are not referenced anywhere this file actually compiles on WASI.
 #else
 #include <link.h>
 #endif // __APPLE__
@@ -1139,6 +1131,13 @@ void LOADCallDllMain(DWORD dwReason, LPVOID lpReserved)
 {
     MODSTRUCT *module = nullptr;
     BOOL InLoadOrder = TRUE; /* true if in load order, false for reverse */
+    CPalThread *pThread;
+
+    pThread = InternalGetCurrentThread();
+    if (UserCreatedThread != pThread->GetThreadType())
+    {
+        return;
+    }
 
     /* Validate dwReason */
     switch(dwReason)

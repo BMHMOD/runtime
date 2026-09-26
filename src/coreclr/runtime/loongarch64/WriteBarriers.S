@@ -177,7 +177,33 @@
         // Exit label
     .endm
 
-// RhpCheckedAssignRef(Object** dst, Object* src)
+// void JIT_ByRefWriteBarrier
+// On entry:
+//   t8  : the source address (points to object reference to write)
+//   t6  : the destination address (object reference written here)
+//
+// On exit:
+//   t8  : incremented by 8
+//   t6  : incremented by 8
+//   t7  : trashed
+//   t3, t4  : trashed
+//
+//   NOTE: Keep in sync with RBM_CALLEE_TRASH_WRITEBARRIER_BYREF and RBM_CALLEE_GCTRASH_WRITEBARRIER_BYREF
+//         if you add more trashed registers.
+//
+// WARNING: Code in EHHelpers.cpp makes assumptions about write barrier code, in particular:
+// - Function "InWriteBarrierHelper" assumes an AV due to passed in null pointer will happen at RhpByRefAssignRefAVLocation1
+// - Function "UnwindSimpleHelperToCaller" assumes no registers were pushed and RA contains the return address
+LEAF_ENTRY RhpByRefAssignRef, _TEXT
+
+    ALTERNATE_ENTRY RhpByRefAssignRefAVLocation1
+        ld.d  $t7, $t8, 0
+        addi.d  $t8, $t8, 8
+        b  C_FUNC(RhpCheckedAssignRef)
+
+LEAF_END RhpByRefAssignRef, _TEXT
+
+// JIT_CheckedWriteBarrier(Object** dst, Object* src)
 //
 // Write barrier for writes to objects that may reside
 // on the managed heap.
@@ -189,7 +215,7 @@
 //
 // On exit:
 //   $t3 : trashed
-//   $t6 : preserved (the destination address is not modified)
+//   $t6 : incremented by 8 to implement JIT_ByRefWriteBarrier contract
  LEAF_ENTRY RhpCheckedAssignRef, _TEXT
 
         // is destReg within the heap?
@@ -202,11 +228,12 @@
 LOCAL_LABEL(NotInHeap):
     ALTERNATE_ENTRY RhpCheckedAssignRefAVLocation
         st.d  $t7, $t6, 0
+        addi.d  $t6, $t6, 8
         jirl  $r0, $ra, 0
 
 LEAF_END RhpCheckedAssignRef, _TEXT
 
-// RhpAssignRef(Object** dst, Object* src)
+// JIT_WriteBarrier(Object** dst, Object* src)
 //
 // Write barrier for writes to objects that are known to
 // reside on the managed heap.
@@ -217,7 +244,7 @@ LEAF_END RhpCheckedAssignRef, _TEXT
 //
 // On exit:
 //  t3, t4 : trashed
-//  t6 : preserved (the destination address is not modified)
+//  t6 : incremented by 8
 LEAF_ENTRY RhpAssignRefLoongArch64, _TEXT
         dbar 0
 
@@ -226,6 +253,7 @@ LEAF_ENTRY RhpAssignRefLoongArch64, _TEXT
 
         INSERT_UNCHECKED_WRITE_BARRIER_CORE  $t6, $t7
 
+        addi.d  $t6, $t6, 8
         jirl  $r0, $ra, 0
 
 LEAF_END RhpAssignRefLoongArch64, _TEXT

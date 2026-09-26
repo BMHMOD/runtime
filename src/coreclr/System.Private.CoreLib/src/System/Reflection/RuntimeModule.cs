@@ -416,18 +416,13 @@ namespace System.Reflection
         public override string FullyQualifiedName => GetFullyQualifiedName();
 
         [LibraryImport(RuntimeHelpers.QCall, EntryPoint = "RuntimeModule_GetTypes")]
-        private static partial void GetTypes(QCallModule module, ObjectHandleOnStack retTypes, ObjectHandleOnStack retExceptions);
+        private static partial void GetTypes(QCallModule module, ObjectHandleOnStack retTypes);
 
         internal RuntimeType[] GetDefinedTypes()
         {
             RuntimeType[]? types = null;
-            Exception[]? exceptions = null;
             RuntimeModule thisAsLocal = this;
-            GetTypes(new QCallModule(ref thisAsLocal), ObjectHandleOnStack.Create(ref types), ObjectHandleOnStack.Create(ref exceptions));
-
-            if (exceptions is not null)
-                throw new ReflectionTypeLoadException(types, exceptions, SR.ReflectionTypeLoad_LoadFailed);
-
+            GetTypes(new QCallModule(ref thisAsLocal), ObjectHandleOnStack.Create(ref types));
             return types!;
         }
 
@@ -459,7 +454,7 @@ namespace System.Reflection
         public override FieldInfo[] GetFields(BindingFlags bindingFlags)
         {
             if (RuntimeType == null)
-                return [];
+                return Array.Empty<FieldInfo>();
 
             return RuntimeType.GetFields(bindingFlags);
         }
@@ -476,7 +471,7 @@ namespace System.Reflection
         public override MethodInfo[] GetMethods(BindingFlags bindingFlags)
         {
             if (RuntimeType == null)
-                return [];
+                return Array.Empty<MethodInfo>();
 
             return RuntimeType.GetMethods(bindingFlags);
         }

@@ -15,7 +15,8 @@
 #ifndef _IALLOCATOR_DEFINED_
 #define _IALLOCATOR_DEFINED_
 
-#include <stddef.h>
+#include "contract.h"
+#include "safemath.h"
 
 class IAllocator
 {

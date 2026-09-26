@@ -37,11 +37,6 @@ static Thread* g_RuntimeInitializingThread;
 
 #endif //!DACCESS_COMPILE
 
-#if defined(TARGET_ARM64)
-extern "C" void* PacSignPtr(void* ptr, void* sp);
-extern "C" void* PacStripPtr(void* ptr);
-#endif // TARGET_ARM64
-
 ee_alloc_context::PerThreadRandom::PerThreadRandom()
 {
     minipal_xoshiro128pp_init(&random_state, (uint32_t)minipal_hires_ticks());
@@ -88,10 +83,6 @@ void Thread::WaitForGC(PInvokeTransitionFrame* pTransitionFrame)
     // restored after the wait operation;
     int32_t lastErrorOnEntry = PalGetLastError();
 
-    // Mark that this thread is trapped for suspension.
-    // Used by the sample profiler to determine this thread was in managed code.
-    SetState(TSF_SuspensionTrapped);
-
     do
     {
         // set preemptive mode
@@ -101,17 +92,12 @@ void Thread::WaitForGC(PInvokeTransitionFrame* pTransitionFrame)
         ClearState(TSF_Redirected);
 #endif //FEATURE_SUSPEND_REDIRECTION
 
-        // make sure this is cleared - in case a signal is lost or somehow we did not act on it
-        SetActivationPending(false);
-
         GCHeapUtilities::GetGCHeap()->WaitUntilGCComplete();
 
         // must be in cooperative mode when checking the trap flag
         VolatileStoreWithoutBarrier(&m_pTransitionFrame, (PInvokeTransitionFrame*)nullptr);
     }
     while (ThreadStore::IsTrapThreadsRequested());
-
-    ClearState(TSF_SuspensionTrapped);
 
     // Restore the saved error
     PalSetLastError(lastErrorOnEntry);
@@ -486,12 +472,6 @@ void Thread::GcScanRootsWorker(ScanFunc * pfnEnumCallback, ScanContext * pvCallb
             EnumGcRef(pHijackedReturnValue, returnKind, pfnEnumCallback, pvCallbackData);
         }
     }
-
-    PTR_OBJECTREF pHijackedAsyncContinuation = NULL;
-    if (frameIterator.GetHijackedAsyncContinuation(&pHijackedAsyncContinuation))
-    {
-        EnumGcRef(pHijackedAsyncContinuation, GCRK_Object, pfnEnumCallback, pvCallbackData);
-    }
 #endif
 
 #ifndef DACCESS_COMPILE
@@ -638,7 +618,7 @@ void Thread::Hijack()
     PalHijack(this);
 }
 
-void Thread::HijackCallback(NATIVE_CONTEXT* pThreadContext, Thread* pThreadToHijack, bool doInlineSuspend)
+void Thread::HijackCallback(NATIVE_CONTEXT* pThreadContext, Thread* pThreadToHijack)
 {
     // If we are no longer trying to suspend, no need to do anything.
     // This is just an optimization. It is ok to race with the setting the trap flag here.
@@ -707,8 +687,9 @@ void Thread::HijackCallback(NATIVE_CONTEXT* pThreadContext, Thread* pThreadToHij
         ASSERT(codeManager->IsUnwindable(pvAddress) || runtime->IsConservativeStackReportingEnabled());
 #endif
 
+        // if we are not given a thread to hijack
         // perform in-line wait on the current thread
-        if (doInlineSuspend)
+        if (pThreadToHijack == NULL)
         {
             ASSERT(pThread->m_interruptedContext == NULL);
             pThread->InlineSuspend(pThreadContext);
@@ -806,14 +787,11 @@ void Thread::HijackReturnAddress(NATIVE_CONTEXT* pSuspendCtx, HijackFunc* pfnHij
 void Thread::HijackReturnAddressWorker(StackFrameIterator* frameIterator, HijackFunc* pfnHijackFunction)
 {
     void** ppvRetAddrLocation;
-    uintptr_t spForPacSign = 0;
 
     frameIterator->CalculateCurrentMethodState();
-
     if (frameIterator->GetCodeManager()->GetReturnAddressHijackInfo(frameIterator->GetMethodInfo(),
         frameIterator->GetRegisterSet(),
-        &ppvRetAddrLocation,
-        &spForPacSign))
+        &ppvRetAddrLocation))
     {
         ASSERT(ppvRetAddrLocation != NULL);
 
@@ -825,34 +803,18 @@ void Thread::HijackReturnAddressWorker(StackFrameIterator* frameIterator, Hijack
         CrossThreadUnhijack();
 
         void* pvRetAddr = *ppvRetAddrLocation;
-
         ASSERT(pvRetAddr != NULL);
-
-#if defined(TARGET_ARM64)
-        ASSERT(StackFrameIterator::IsValidReturnAddress(PacStripPtr(pvRetAddr)));
-#else
         ASSERT(StackFrameIterator::IsValidReturnAddress(pvRetAddr));
-#endif // TARGET_ARM64
 
         m_ppvHijackedReturnAddressLocation = ppvRetAddrLocation;
         m_pvHijackedReturnAddress = pvRetAddr;
-#if defined(TARGET_ARM64)
-        m_pSpForPacSign = (void*)spForPacSign;
-#endif // TARGET_ARM64
 #if defined(TARGET_X86)
-        bool isAsync = false;
-        GCRefKind retKind = frameIterator->GetCodeManager()->GetReturnValueKind(frameIterator->GetMethodInfo(), frameIterator->GetRegisterSet(), &isAsync);
-        m_uHijackedReturnValueFlags = ReturnKindToTransitionFrameFlags(retKind, isAsync);
+        m_uHijackedReturnValueFlags = ReturnKindToTransitionFrameFlags(
+            frameIterator->GetCodeManager()->GetReturnValueKind(frameIterator->GetMethodInfo(),
+                                                                frameIterator->GetRegisterSet()));
 #endif
 
-        void* pvHijackedAddr = (void*)pfnHijackFunction;
-#if defined(TARGET_ARM64)
-        if (spForPacSign != 0)
-        {
-            pvHijackedAddr = PacSignPtr(pvHijackedAddr, (void*)spForPacSign);
-        }
-#endif // TARGET_ARM64
-        *ppvRetAddrLocation = pvHijackedAddr;
+        *ppvRetAddrLocation = (void*)pfnHijackFunction;
 
         STRESS_LOG2(LF_STACKWALK, LL_INFO10000, "InternalHijack: TgtThread = %llx, IP = %p\n",
             GetOSThreadId(), frameIterator->GetRegisterSet()->GetIP());
@@ -975,9 +937,6 @@ void Thread::UnhijackWorker()
     if (m_pvHijackedReturnAddress == NULL)
     {
         ASSERT(m_ppvHijackedReturnAddressLocation == NULL);
-#if defined(TARGET_ARM64)
-        ASSERT(m_pSpForPacSign == NULL);
-#endif // TARGET_ARM64
         return;
     }
 
@@ -988,9 +947,6 @@ void Thread::UnhijackWorker()
     // Clear the hijack state.
     m_ppvHijackedReturnAddressLocation  = NULL;
     m_pvHijackedReturnAddress           = NULL;
-#if defined(TARGET_ARM64)
-    m_pSpForPacSign                     = NULL;
-#endif // TARGET_ARM64
 #ifdef TARGET_X86
     m_uHijackedReturnValueFlags         = 0;
 #endif

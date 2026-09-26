@@ -64,17 +64,17 @@ namespace Microsoft.Extensions.Logging
         {
             get
             {
-                if (_formatter is null || _values is null)
+                if (index < 0 || index >= Count)
                 {
-                    if (index == 0)
-                    {
-                        return new KeyValuePair<string, object?>("{OriginalFormat}", _originalMessage);
-                    }
-
                     throw new IndexOutOfRangeException();
                 }
 
-                return _formatter.GetValue(_values, index);
+                if (index == Count - 1)
+                {
+                    return new KeyValuePair<string, object?>("{OriginalFormat}", _originalMessage);
+                }
+
+                return _formatter!.GetValue(_values!, index);
             }
         }
 

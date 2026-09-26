@@ -66,7 +66,7 @@ namespace System.Threading
         }
 
         [ThreadStatic]
-        private static ThreadInt64PersistentCounter.ThreadLocalNode? t_completionCountNode;
+        private static object? t_completionCountObject;
 
 #pragma warning disable IDE1006 // Naming Styles
         // The singleton must be initialized after the static variables above, as the constructor may be dependent on them.
@@ -84,44 +84,23 @@ namespace System.Threading
         [StructLayout(LayoutKind.Explicit, Size = Internal.PaddingHelpers.CACHE_LINE_SIZE * 6)]
         private struct CacheLineSeparated
         {
-            /// <safety>Occupies its own cache-line offset and overlaps no other field; ThreadCounts wraps only a ulong, so accessing it cannot forge a managed reference or read out of bounds.</safety>
             [FieldOffset(Internal.PaddingHelpers.CACHE_LINE_SIZE * 1)]
-            public safe ThreadCounts counts; // SOS's ThreadPool command depends on this name
+            public ThreadCounts counts; // SOS's ThreadPool command depends on this name
 
-            // Periodically updated heartbeat timestamp to indicate that we are making progress.
-            // Used in starvation detection.
-            /// <safety>This int occupies its own cache-line offset in the explicit layout and overlaps no other field, so accessing it cannot forge a managed reference or read out of bounds.</safety>
             [FieldOffset(Internal.PaddingHelpers.CACHE_LINE_SIZE * 2)]
-            public safe int lastDispatchTime;
+            public int lastDequeueTime;
 
-            /// <safety>This int occupies its own offset in the explicit layout and overlaps no other field, so accessing it cannot forge a managed reference or read out of bounds.</safety>
             [FieldOffset(Internal.PaddingHelpers.CACHE_LINE_SIZE * 3)]
-            public safe int priorCompletionCount;
-            /// <safety>This int occupies its own offset in the explicit layout and overlaps no other field, so accessing it cannot forge a managed reference or read out of bounds.</safety>
+            public int priorCompletionCount;
             [FieldOffset(Internal.PaddingHelpers.CACHE_LINE_SIZE * 3 + sizeof(int))]
-            public safe int priorCompletedWorkRequestsTime;
-            /// <safety>This int occupies its own offset in the explicit layout and overlaps no other field, so accessing it cannot forge a managed reference or read out of bounds.</safety>
+            public int priorCompletedWorkRequestsTime;
             [FieldOffset(Internal.PaddingHelpers.CACHE_LINE_SIZE * 3 + sizeof(int) * 2)]
-            public safe int nextCompletedWorkRequestsTime;
+            public int nextCompletedWorkRequestsTime;
 
-            // This flag is used for communication between item enqueuing and workers that process the items.
-            // There are two states of this flag:
-            // 0: has no guarantees
-            // 1: means a worker will check work queues and ensure that
-            //    any work items inserted in work queue before setting the flag
-            //    are picked up.
-            //    Note: The state must be cleared by the worker thread _before_
-            //       checking. Otherwise there is a window between finding no work
-            //       and resetting the flag, when the flag is in a wrong state.
-            //       A new work item may be added right before the flag is reset
-            //       without asking for a worker, while the last worker is quitting.
-            /// <safety>This int occupies its own cache-line offset in the explicit layout and overlaps no other field, so accessing it cannot forge a managed reference or read out of bounds.</safety>
             [FieldOffset(Internal.PaddingHelpers.CACHE_LINE_SIZE * 4)]
-            public safe int _hasOutstandingThreadRequest;
-
-            /// <safety>This int occupies its own offset in the explicit layout and overlaps no other field, so accessing it cannot forge a managed reference or read out of bounds.</safety>
+            public volatile int numRequestedWorkers;
             [FieldOffset(Internal.PaddingHelpers.CACHE_LINE_SIZE * 4 + sizeof(int))]
-            public safe int gateThreadRunningState;
+            public int gateThreadRunningState;
         }
 
         private long _currentSampleStartTime;
@@ -230,7 +209,7 @@ namespace System.Threading
                 else if (_separated.counts.NumThreadsGoal < newMinThreads)
                 {
                     _separated.counts.InterlockedSetNumThreadsGoal(newMinThreads);
-                    if (_separated._hasOutstandingThreadRequest != 0)
+                    if (_separated.numRequestedWorkers > 0)
                     {
                         addWorker = true;
                     }
@@ -338,43 +317,39 @@ namespace System.Threading
         public int ThreadCount => _separated.counts.VolatileRead().NumExistingThreads;
         public long CompletedWorkItemCount => _completionCounter.Count;
 
-        public ThreadInt64PersistentCounter.ThreadLocalNode GetOrCreateThreadLocalCompletionCountNode() =>
-            t_completionCountNode ?? CreateThreadLocalCompletionCountNode();
+        public object GetOrCreateThreadLocalCompletionCountObject() =>
+            t_completionCountObject ?? CreateThreadLocalCompletionCountObject();
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private ThreadInt64PersistentCounter.ThreadLocalNode CreateThreadLocalCompletionCountNode()
+        private object CreateThreadLocalCompletionCountObject()
         {
-            Debug.Assert(t_completionCountNode == null);
+            Debug.Assert(t_completionCountObject == null);
 
-            ThreadInt64PersistentCounter.ThreadLocalNode threadLocalCompletionCountNode = _completionCounter.CreateThreadLocalCountObject();
-            t_completionCountNode = threadLocalCompletionCountNode;
-            return threadLocalCompletionCountNode;
+            object threadLocalCompletionCountObject = _completionCounter.CreateThreadLocalCountObject();
+            t_completionCountObject = threadLocalCompletionCountObject;
+            return threadLocalCompletionCountObject;
         }
 
-        private static void NotifyWorkItemProgress(ThreadInt64PersistentCounter.ThreadLocalNode threadLocalCompletionCountNode)
+        private void NotifyWorkItemProgress(object threadLocalCompletionCountObject, int currentTimeMs)
         {
-            threadLocalCompletionCountNode.Increment();
-        }
+            ThreadInt64PersistentCounter.Increment(threadLocalCompletionCountObject);
+            _separated.lastDequeueTime = currentTimeMs;
 
-        internal void NotifyWorkItemProgress()
-        {
-            NotifyWorkItemProgress(GetOrCreateThreadLocalCompletionCountNode());
-        }
-
-        internal bool NotifyWorkItemComplete(ThreadInt64PersistentCounter.ThreadLocalNode threadLocalCompletionCountNode, int currentTimeMs)
-        {
-            NotifyWorkItemProgress(threadLocalCompletionCountNode);
             if (ShouldAdjustMaxWorkersActive(currentTimeMs))
             {
                 AdjustMaxWorkersActive();
             }
-
-            return !WorkerThread.ShouldStopProcessingWorkNow(this);
         }
 
-        internal void NotifyDispatchProgress(int currentTickCount)
+        internal void NotifyWorkItemProgress() =>
+            NotifyWorkItemProgress(GetOrCreateThreadLocalCompletionCountObject(), Environment.TickCount);
+
+        internal bool NotifyWorkItemComplete(object? threadLocalCompletionCountObject, int currentTimeMs)
         {
-            _separated.lastDispatchTime = currentTickCount;
+            Debug.Assert(threadLocalCompletionCountObject != null);
+
+            NotifyWorkItemProgress(threadLocalCompletionCountObject, currentTimeMs);
+            return !WorkerThread.ShouldStopProcessingWorkNow(this);
         }
 
         //
@@ -484,15 +459,13 @@ namespace System.Threading
             return _pendingBlockingAdjustment == PendingBlockingAdjustment.None;
         }
 
-        internal void EnsureWorkerRequested()
+        internal void RequestWorker()
         {
-            // Only one worker is requested at a time to mitigate Thundering Herd problem.
-            if (_separated._hasOutstandingThreadRequest == 0 &&
-                Interlocked.Exchange(ref _separated._hasOutstandingThreadRequest, 1) == 0)
-            {
-                WorkerThread.MaybeAddWorkingWorker(this);
-                GateThread.EnsureRunning(this);
-            }
+            // The order of operations here is important. MaybeAddWorkingWorker() and EnsureRunning() use speculative checks to
+            // do their work and the memory barrier from the interlocked operation is necessary in this case for correctness.
+            Interlocked.Increment(ref _separated.numRequestedWorkers);
+            WorkerThread.MaybeAddWorkingWorker(this);
+            GateThread.EnsureRunning(this);
         }
 
         private bool OnGen2GCCallback()

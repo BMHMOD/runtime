@@ -56,30 +56,37 @@ namespace System.Data.Common
         ;
 
 
+        private static readonly Regex ConnectionStringRegex = CreateConnectionStringRegex();
+        private static readonly Regex ConnectionStringRegexOdbc = CreateConnectionStringRegexOdbc();
+
 #if NET
         [GeneratedRegex(ConnectionStringPattern, RegexOptions.ExplicitCapture)]
-        private static partial Regex ConnectionStringRegex { get; }
+        private static partial Regex CreateConnectionStringRegex();
 
         [GeneratedRegex(ConnectionStringPatternOdbc, RegexOptions.ExplicitCapture)]
-        private static partial Regex ConnectionStringRegexOdbc { get; }
+        private static partial Regex CreateConnectionStringRegexOdbc();
 #else
-        private static Regex ConnectionStringRegex { get; } = new Regex(ConnectionStringPattern, RegexOptions.ExplicitCapture | RegexOptions.Compiled);
-        private static Regex ConnectionStringRegexOdbc { get; } = new Regex(ConnectionStringPatternOdbc, RegexOptions.ExplicitCapture | RegexOptions.Compiled);
+        private static Regex CreateConnectionStringRegex() => new Regex(ConnectionStringPattern, RegexOptions.ExplicitCapture | RegexOptions.Compiled);
+        private static Regex CreateConnectionStringRegexOdbc() => new Regex(ConnectionStringPatternOdbc, RegexOptions.ExplicitCapture | RegexOptions.Compiled);
 #endif
 #endif
         internal const string DataDirectory = "|datadirectory|";
 
+        private static readonly Regex ConnectionStringValidKeyRegex = CreateConnectionStringValidKeyRegex(); // key not allowed to start with semi-colon or space or contain non-visible characters or end with space
+        private static readonly Regex ConnectionStringQuoteValueRegex = CreateConnectionStringQuoteValueRegex(); // generally do not quote the value if it matches the pattern
+        private static readonly Regex ConnectionStringQuoteOdbcValueRegex = CreateConnectionStringQuoteOdbcValueRegex(); // do not quote odbc value if it matches this pattern
+
 #if NET
         [GeneratedRegex("^(?![;\\s])[^\\p{Cc}]+(?<!\\s)$")]
-        private static partial Regex ConnectionStringValidKeyRegex { get; } // key not allowed to start with semi-colon or space or contain non-visible characters or end with space
+        private static partial Regex CreateConnectionStringValidKeyRegex();
         [GeneratedRegex("^[^\"'=;\\s\\p{Cc}]*$")]
-        private static partial Regex ConnectionStringQuoteValueRegex { get; } // generally do not quote the value if it matches the pattern
+        private static partial Regex CreateConnectionStringQuoteValueRegex();
         [GeneratedRegex("^\\{([^\\}\u0000]|\\}\\})*\\}$", RegexOptions.ExplicitCapture)]
-        private static partial Regex ConnectionStringQuoteOdbcValueRegex { get; } // do not quote odbc value if it matches this pattern
+        private static partial Regex CreateConnectionStringQuoteOdbcValueRegex();
 #else
-        private static Regex ConnectionStringValidKeyRegex { get; } = new Regex("^(?![;\\s])[^\\p{Cc}]+(?<!\\s)$", RegexOptions.Compiled); // key not allowed to start with semi-colon or space or contain non-visible characters or end with space
-        private static Regex ConnectionStringQuoteValueRegex { get; } = new Regex("^[^\"'=;\\s\\p{Cc}]*$", RegexOptions.Compiled); // generally do not quote the value if it matches the pattern
-        private static Regex ConnectionStringQuoteOdbcValueRegex { get; } = new Regex("^\\{([^\\}\u0000]|\\}\\})*\\}$", RegexOptions.ExplicitCapture | RegexOptions.Compiled); // do not quote odbc value if it matches this pattern
+        private static Regex CreateConnectionStringValidKeyRegex() => new Regex("^(?![;\\s])[^\\p{Cc}]+(?<!\\s)$", RegexOptions.Compiled);
+        private static Regex CreateConnectionStringQuoteValueRegex() => new Regex("^[^\"'=;\\s\\p{Cc}]*$", RegexOptions.Compiled);
+        private static Regex CreateConnectionStringQuoteOdbcValueRegex() => new Regex("^\\{([^\\}\u0000]|\\}\\})*\\}$", RegexOptions.ExplicitCapture | RegexOptions.Compiled);
 #endif
 
         // connection string common keywords
@@ -230,7 +237,7 @@ namespace System.Data.Common
                     // <value> -> <value>
                     builder.Append(keyValue);
                 }
-                else if (keyValue.Contains('\"') && !keyValue.Contains('\''))
+                else if ((-1 != keyValue.IndexOf('\"')) && (-1 == keyValue.IndexOf('\'')))
                 {
                     // <val"ue> -> <'val"ue'>
                     builder.Append('\'');
@@ -753,7 +760,7 @@ namespace System.Data.Common
         {
             if (null != keyvalue)
             {
-                return !keyvalue.Contains('\u0000');
+                return (-1 == keyvalue.IndexOf('\u0000'));
             }
             return true;
         }
@@ -764,9 +771,9 @@ namespace System.Data.Common
             {
 #if DEBUG
                 bool compValue = ConnectionStringValidKeyRegex.IsMatch(keyname);
-                Debug.Assert(((0 < keyname.Length) && (';' != keyname[0]) && !char.IsWhiteSpace(keyname[0]) && !keyname.Contains('\u0000')) == compValue, "IsValueValid mismatch with regex");
+                Debug.Assert(((0 < keyname.Length) && (';' != keyname[0]) && !char.IsWhiteSpace(keyname[0]) && (-1 == keyname.IndexOf('\u0000'))) == compValue, "IsValueValid mismatch with regex");
 #endif
-                return ((0 < keyname.Length) && (';' != keyname[0]) && !char.IsWhiteSpace(keyname[0]) && !keyname.Contains('\u0000'));
+                return ((0 < keyname.Length) && (';' != keyname[0]) && !char.IsWhiteSpace(keyname[0]) && (-1 == keyname.IndexOf('\u0000')));
             }
             return false;
         }

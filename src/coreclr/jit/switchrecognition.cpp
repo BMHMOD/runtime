@@ -354,7 +354,7 @@ bool Compiler::optSwitchDetectAndConvert(BasicBlock* firstBlock, bool testingFor
 //    testsCount - Number of conditional blocks in the chain
 //    testValues - Array of constants that are tested against the variable
 //    falseLikelihood - Likelihood of control flow reaching the false block
-//    switchValue - Variable node that is tested against the constants
+//    nodeToTest - Variable node that is tested against the constants
 //    testingForConversion - Test if its likely a switch conversion will happen.
 //    Used to prevent a pessimization when optimizing for conditional chaining.
 //    Done in this function to prevent maintaining the check in two places.
@@ -367,12 +367,12 @@ bool Compiler::optSwitchConvert(BasicBlock* firstBlock,
                                 int         testsCount,
                                 ssize_t*    testValues,
                                 weight_t    falseLikelihood,
-                                GenTree*    switchValue,
+                                GenTree*    nodeToTest,
                                 bool        testingForConversion,
                                 BitVec*     ccmpVec)
 {
     assert(firstBlock->KindIs(BBJ_COND));
-    assert(!varTypeIsSmall(switchValue));
+    assert(!varTypeIsSmall(nodeToTest));
 
     if (testingForConversion && (testsCount < CONVERT_SWITCH_TO_CCMP_MIN_TEST))
     {
@@ -424,18 +424,8 @@ bool Compiler::optSwitchConvert(BasicBlock* firstBlock,
         return false;
     }
 
-    // Normalize switch whenever it's a requirement to fit the table or as an optimization to collapse into range check
-    bool doesntFitTable  = maxValue > SWITCH_MAX_DISTANCE;
-    bool continuousRange = testsCount == (maxValue - minValue + 1);
-    if (doesntFitTable || continuousRange)
-    {
-        if (minValue != 0)
-        {
-            switchValue = gtNewOperNode(GT_ADD, switchValue->TypeGet(), switchValue,
-                                        gtNewIconNode(-minValue, switchValue->TypeGet()));
-        }
-    }
-    else
+    // if MaxValue is less than SWITCH_MAX_DISTANCE then don't bother with SUB(val, minValue)
+    if (maxValue <= SWITCH_MAX_DISTANCE)
     {
         minValue = 0;
     }
@@ -483,10 +473,17 @@ bool Compiler::optSwitchConvert(BasicBlock* firstBlock,
     FlowEdge** const jmpTab =
         new (this, CMK_FlowEdge) FlowEdge*[2 + jumpCount + 1 /* true/false edges | cases | default case */];
 
-    unsigned numSuccs = blockIfTrue == blockIfFalse ? 1 : 2;
-    firstBlock->SetSwitch(new (this, CMK_BasicBlock) BBswtDesc(jmpTab, numSuccs, jmpTab + 2, jumpCount + 1, true));
+    firstBlock->SetSwitch(new (this, CMK_BasicBlock) BBswtDesc(jmpTab, 2, jmpTab + 2, jumpCount + 1, true));
     firstBlock->bbCodeOffsEnd = lastBlock->bbCodeOffsEnd;
     firstBlock->lastStmt()->GetRootNode()->ChangeOper(GT_SWITCH);
+
+    // The root node is now SUB(nodeToTest, minValue) if minValue != 0
+    GenTree* switchValue = nodeToTest;
+    if (minValue != 0)
+    {
+        switchValue =
+            gtNewOperNode(GT_SUB, nodeToTest->TypeGet(), switchValue, gtNewIconNode(minValue, nodeToTest->TypeGet()));
+    }
 
     firstBlock->lastStmt()->GetRootNode()->AsOp()->gtOp1 = switchValue;
     gtSetStmtInfo(firstBlock->lastStmt());

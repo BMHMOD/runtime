@@ -196,7 +196,7 @@ CrashReportWriter::WriteSysctl(const char* sysctlname, const char* valueName)
     size_t size = 0;
     if (sysctlbyname(sysctlname, nullptr, &size, NULL, 0) >= 0)
     {
-        AStringHolder buffer = new char[size];
+        ArrayHolder<char> buffer = new char[size];
         if (sysctlbyname(sysctlname, buffer, &size, NULL, 0) >= 0)
         {
             WriteValue(valueName, buffer);
@@ -232,10 +232,10 @@ CrashReportWriter::WriteStackFrame(const StackFrame& frame)
     IXCLRDataMethodInstance* pMethod = frame.GetMethod();
     if (pMethod != nullptr)
     {
-        WStringHolder wszUnicodeName = new WCHAR[MAX_LONGPATH + 1];
+        ArrayHolder<WCHAR> wszUnicodeName = new WCHAR[MAX_LONGPATH + 1];
         if (SUCCEEDED(pMethod->GetName(0, MAX_LONGPATH, nullptr, wszUnicodeName)))
         {
-            std::string methodName = ConvertString(wszUnicodeName);
+            std::string methodName = ConvertString(wszUnicodeName.GetPtr());
             WriteValue("method_name", methodName.c_str());
         }
     }

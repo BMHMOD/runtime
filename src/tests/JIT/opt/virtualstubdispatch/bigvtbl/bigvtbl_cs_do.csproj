@@ -5,6 +5,5 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="bigvtbl.cs" />
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
   </ItemGroup>
 </Project>

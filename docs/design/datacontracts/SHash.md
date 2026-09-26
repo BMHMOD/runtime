@@ -11,50 +11,35 @@ public interface ITraits<TKey, TEntry>
     bool Equals(TKey left, TKey right);
     uint Hash(TKey key);
     bool IsNull(TEntry entry);
+    TEntry Null();
     bool IsDeleted(TEntry entry);
 }
 
-public interface ISHash<TKey, TEntry> where TEntry : class, IData<TEntry>
+public interface ISHash<TKey, TEntry> where TEntry : IData<TEntry>
 {
 
 }
 ```
 
 ``` csharp
-TEntry? LookupSHash<TKey, TEntry>(ISHash<TKey, TEntry> hashTable, TKey key) where TEntry : class, IData<TEntry>;
-SHash<TKey, TEntry> CreateSHash<TKey, TEntry>(Target target, TargetPointer address, Target.TypeInfo type, ITraits<TKey, TEntry> traits) where TEntry : class, IData<TEntry>;
+TEntry LookupSHash<TKey, TEntry>(ISHash<TKey, TEntry> hashTable, TKey key) where TEntry : IData<TEntry>;
+SHash<TKey, TEntry> CreateSHash<TKey, TEntry>(Target target, TargetPointer address, Target.TypeInfo type, ITraits<TKey, TEntry> traits) where TEntry : IData<TEntry>;
 ```
-
-`LookupSHash` returns `null` when no entry matches the key (rather than a
-sentinel produced by the traits). `TEntry` is therefore constrained to be a
-reference type (`class`).
 
 ## Version 1
 
 In order to properly populate an SHash, we need to know the size of each element, which varies from instantiation to instantiation of SHash. Therefore, we pass as an argument the DataType ```type``` which contains the particular offsets.
 
-<!-- BEGIN GENERATED: usage contract=SHash version=c1 -->
-### Data descriptors used
-
-| Data Descriptor | Field | Type | Meaning |
-| --- | --- | --- | --- |
-| `type` | *(type size)* | `uint32` | Size in bytes of each SHash table entry |
-| `type` | `Table` | `pointer` | Address of the SHash table |
-| `type` | `TableSize` | `uint32` | Number of entries in the table |
-
-### Global variables used
-
-_None._
-
-### Contracts used
-
-_None._
-<!-- END GENERATED: usage contract=SHash version=c1 -->
-
+Data descriptors used:
+| Data Descriptor Name | Field | Meaning |
+| --- | --- | --- |
+| `type` | `Table` | Address of the SHash table |
+| `type` | `TableSize` | Number of entries in the table |
+| `type` | `EntrySize` | Size in bytes of each table entry |
 
 ``` csharp
 
-private class SHash<TKey, TEntry> : ISHash<TKey, TEntry> where TEntry : class, IData<TEntry>
+private class SHash<TKey, TEntry> : ISHash<TKey, TEntry> where TEntry : IData<TEntry>
 {
     public TargetPointer Table { get; set; }
     public uint TableSize { get; set; }
@@ -67,7 +52,7 @@ ISHash<TKey, TEntry> ISHash.CreateSHash<TKey, TEntry>(Target target, TargetPoint
 {
     TargetPointer table = target.ReadPointer(address + /* type::Table offset */);
     uint tableSize = target.Read<uint>(address + /* type::TableSize offset */);
-    uint entrySize = type.Size ?? 0;
+    uint entrySize = target.Read<uint>(address + /* type::EntrySize offset */);
     List<TEntry> entries = [];
     for (int i = 0; i < tableSize; i++)
     {
@@ -84,11 +69,11 @@ ISHash<TKey, TEntry> ISHash.CreateSHash<TKey, TEntry>(Target target, TargetPoint
         Entries = entries
     };
 }
-TEntry? ISHash.LookupSHash<TKey, TEntry>(ISHash<TKey, TEntry> hashTable, TKey key)
+TEntry ISHash.LookupSHash<TKey, TEntry>(ISHash<TKey, TEntry> hashTable, TKey key)
 {
     SHash<TKey, TEntry> shashTable = (SHash<TKey, TEntry>)hashTable;
     if (shashTable.TableSize == 0)
-        return null;
+        return shashTable.Traits!.Null();
 
     uint hash = shashTable.Traits!.Hash(key);
     uint index = hash % shashTable.TableSize;
@@ -97,7 +82,7 @@ TEntry? ISHash.LookupSHash<TKey, TEntry>(ISHash<TKey, TEntry> hashTable, TKey ke
     {
         TEntry current = shashTable.Entries![(int)index];
         if (shashTable.Traits.IsNull(current))
-            return null;
+            return shashTable.Traits.Null();
         // we don't support the removal of entries
         if (!shashTable.Traits.IsDeleted(current) && shashTable.Traits.Equals(key, shashTable.Traits.GetKey(current)))
             return current;

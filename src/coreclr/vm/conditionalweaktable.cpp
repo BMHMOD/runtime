@@ -4,20 +4,11 @@
 
 #include "conditionalweaktable.h"
 #include "gchandleutilities.h"
-
-#ifdef DACCESS_COMPILE
 #include "../debug/daccess/gcinterface.dac.h"
-#endif // DACCESS_COMPILE
 
 bool ConditionalWeakTableContainerObject::TryGetValue(OBJECTREF key, OBJECTREF* value)
 {
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_NOTRIGGER;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
+    STANDARD_VM_CONTRACT;
     SUPPORTS_DAC;
     _ASSERTE(key != nullptr && value != nullptr);
 
@@ -33,19 +24,11 @@ bool ConditionalWeakTableContainerObject::TryGetValue(OBJECTREF key, OBJECTREF* 
     int bucket = hashCode & (_buckets->GetNumComponents() - 1);
     PTR_int32_t buckets = _buckets->GetDirectPointerToNonObjectElements();
     DPTR(Entry) entries = _entries->GetDirectPointerToNonObjectElements();
-
     for (int entriesIndex = buckets[bucket]; entriesIndex != -1; entriesIndex = entries[entriesIndex].Next)
     {
-        const Entry& entry = entries[entriesIndex];
-        if (entry.HashCode == hashCode && ObjectFromHandle(entry.depHnd) == key)
+        if (entries[entriesIndex].HashCode == hashCode && ObjectFromHandle(entries[entriesIndex].depHnd) == key)
         {
-#ifdef DACCESS_COMPILE
-            // In the DACCESS_COMPILE, the handle helper is directly accessible.
-            *value = GetDependentHandleSecondary(entry.depHnd);
-#else
-            IGCHandleManager* mgr = GCHandleUtilities::GetGCHandleManager();
-            *value = ObjectToOBJECTREF(mgr->GetDependentHandleSecondary(entry.depHnd));
-#endif // !DACCESS_COMPILE
+            *value = HndGetHandleExtraInfo(entries[entriesIndex].depHnd);
             return true;
         }
     }

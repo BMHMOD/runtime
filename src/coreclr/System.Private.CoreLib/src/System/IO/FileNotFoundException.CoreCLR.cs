@@ -5,19 +5,13 @@ namespace System.IO
 {
     public partial class FileNotFoundException
     {
-        internal FileNotFoundException(string? fileName, string? requestingAssemblyChain, int hResult)
+        // Do not delete: this is invoked from native code.
+        private FileNotFoundException(string? fileName, int hResult)
             : base(null)
         {
             HResult = hResult;
             FileName = fileName;
-            _requestingAssemblyChain = requestingAssemblyChain;
             SetMessageField();
-        }
-
-        internal FileNotFoundException(string? fileName, string? requestingAssemblyChain, int hResult, string? diagnosticInfo)
-            : this(fileName, requestingAssemblyChain, hResult)
-        {
-            FusionLog = diagnosticInfo;
         }
     }
 }

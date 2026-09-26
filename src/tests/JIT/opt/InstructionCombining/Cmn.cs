@@ -93,7 +93,8 @@ namespace TestCompareNegative
         [MethodImpl(MethodImplOptions.NoInlining)]
         static bool CmnLSR(uint a, uint b)
         {
-            //ARM64-FULL-LINE: cmn {{w[0-9]+}}, {{w[0-9]+}}, LSR #2
+            //ARM64-FULL-LINE: lsr {{w[0-9]+}}, {{w[0-9]+}},  #2
+            //ARM64-FULL-LINE: cmn {{w[0-9]+}}, {{w[0-9]+}}
             if (a == (uint)-(b>>2))
             {
                 return true;

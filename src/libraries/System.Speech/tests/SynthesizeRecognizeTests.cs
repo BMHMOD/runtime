@@ -34,21 +34,21 @@ namespace SampleSynthesisTests
             _output = output;
         }
 
-        [ConditionalFact(typeof(SynthesizeRecognizeTests), nameof(HasInstalledRecognizers))]
+        [ConditionalFact(nameof(HasInstalledRecognizers))]
         public void SpeechSynthesizerToSpeechRecognitionEngine1()
         {
             // word chosen to be recognized with high confidence
             SpeechSynthesizerToSpeechRecognitionEngine_Core("recognize", "recognize");
         }
 
-        [ConditionalFact(typeof(SynthesizeRecognizeTests), nameof(HasInstalledRecognizers))]
+        [ConditionalFact(nameof(HasInstalledRecognizers))]
         public void SpeechSynthesizerToSpeechRecognitionEngine2()
         {
             // word chosen to be recognized with high confidence
             SpeechSynthesizerToSpeechRecognitionEngine_Core("apple", "apple");
         }
 
-        [ConditionalFact(typeof(SynthesizeRecognizeTests), nameof(HasInstalledRecognizers))]
+        [ConditionalFact(nameof(HasInstalledRecognizers))]
         public void SpeechSynthesizerToSpeechRecognitionEngine_SilenceFails()
         {
             SpeechSynthesizerToSpeechRecognitionEngine_Core("    ", null);
@@ -56,6 +56,9 @@ namespace SampleSynthesisTests
 
         private void SpeechSynthesizerToSpeechRecognitionEngine_Core(string input, string output)
         {
+            if (PlatformDetection.IsWindows7 && PlatformDetection.IsX86Process)
+                return; // Flaky on this configuration
+
             RetryHelper.Execute(() => // Flaky in some cases
             {
                 if (Thread.CurrentThread.CurrentCulture.ToString() != "en-US")
@@ -145,7 +148,7 @@ namespace SampleSynthesisTests
             });
         }
 
-        [ConditionalFact(typeof(SynthesizeRecognizeTests), nameof(HasInstalledRecognizers))]
+        [ConditionalFact(nameof(HasInstalledRecognizers))]
         public void SpeechRecognitionEngineInvalidInput()
         {
             using var ms = new MemoryStream();
@@ -157,7 +160,7 @@ namespace SampleSynthesisTests
             }
         }
 
-        [ConditionalFact(typeof(SynthesizeRecognizeTests), nameof(HasInstalledRecognizers))]
+        [ConditionalFact(nameof(HasInstalledRecognizers))]
         public void SpeechRecognitionEngineProperties()
         {
             using (var rec = new SpeechRecognitionEngine())

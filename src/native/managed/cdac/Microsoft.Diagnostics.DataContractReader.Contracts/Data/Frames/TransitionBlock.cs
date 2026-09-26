@@ -3,33 +3,28 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.TransitionBlock))]
-internal partial class TransitionBlock : IData<TransitionBlock>
+internal class TransitionBlock : IData<TransitionBlock>
 {
-    [Field] public partial TargetCodePointer ReturnAddress { get; }
+    static TransitionBlock IData<TransitionBlock>.Create(Target target, TargetPointer address)
+        => new TransitionBlock(target, address);
 
-    [FieldAddress]
-    public partial TargetPointer CalleeSavedRegisters { get; }
+    public TransitionBlock(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.TransitionBlock);
+        ReturnAddress = target.ReadPointer(address + (ulong)type.Fields[nameof(ReturnAddress)].Offset);
+        CalleeSavedRegisters = address + (ulong)type.Fields[nameof(CalleeSavedRegisters)].Offset;
+
+        if (type.Fields.ContainsKey(nameof(ArgumentRegisters)))
+        {
+            ArgumentRegisters = address + (ulong)type.Fields[nameof(ArgumentRegisters)].Offset;
+        }
+    }
+
+    public TargetPointer ReturnAddress { get; }
+    public TargetPointer CalleeSavedRegisters { get; }
 
     /// <summary>
-    /// Address of the argument registers area within this TransitionBlock.
+    /// Only available on ARM targets.
     /// </summary>
-    [FieldAddress]
-    public partial TargetPointer ArgumentRegisters { get; }
-
-    /// <summary>
-    /// Address of the first slot covered by the GCRefMap within this TransitionBlock.
-    /// </summary>
-    [FieldAddress]
-    public partial TargetPointer FirstGCRefMapSlot { get; }
-
-    /// <summary>
-    /// Address just past the end of the TransitionBlock, where caller-pushed
-    /// stack arguments begin. On x86 this is where GCRefMap positions
-    /// >= NUM_ARGUMENT_REGISTERS map to (see native OffsetFromGCRefMapPos).
-    /// Computed as <c>address + sizeof(TransitionBlock)</c>, mirrors native
-    /// <c>TransitionBlock::GetOffsetOfArgs()</c>.
-    /// </summary>
-    [InstanceDataStart]
-    public partial TargetPointer OffsetOfArgs { get; }
+    public TargetPointer? ArgumentRegisters { get; }
 }

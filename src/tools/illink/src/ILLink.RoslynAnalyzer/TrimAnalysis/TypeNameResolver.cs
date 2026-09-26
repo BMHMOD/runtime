@@ -12,11 +12,9 @@ using System.Collections.Immutable;
 
 namespace ILLink.Shared.TrimAnalysis
 {
-    public struct TypeNameResolver
+    internal struct TypeNameResolver
     {
         readonly Compilation _compilation;
-
-        internal Compilation Compilation => _compilation;
 
         static readonly TypeNameParseOptions s_typeNameParseOptions = new() { MaxNodes = int.MaxValue };
 
@@ -151,26 +149,6 @@ namespace ILLink.Shared.TrimAnalysis
                     return asmSym;
             }
             return null;
-        }
-
-        public bool TryResolveTypeNameInAssembly(string assemblySimpleName, string typeNameString, [NotNullWhen(true)] out ITypeSymbol? type)
-        {
-            type = null;
-
-            IAssemblySymbol? assembly = ResolveAssembly(new AssemblyNameInfo(assemblySimpleName));
-            if (assembly is null)
-                return false;
-
-            if (!TypeName.TryParse(typeNameString.AsSpan(), out TypeName? parsedTypeName, s_typeNameParseOptions))
-                return false;
-
-            // Assembly.GetType rejects top-level assembly-qualified names at runtime
-            // (Argument_AssemblyGetTypeCannotSpecifyAssembly).
-            if (parsedTypeName.AssemblyName is not null)
-                return false;
-
-            type = ResolveTypeName(assembly, parsedTypeName);
-            return type is not null;
         }
     }
 }

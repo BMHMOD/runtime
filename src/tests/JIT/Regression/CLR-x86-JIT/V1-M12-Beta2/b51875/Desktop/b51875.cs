@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Xunit;
-namespace b51875
+namespace Test
 {
     using System;
     using System.Collections;
@@ -25,7 +25,6 @@ namespace b51875
                 return 1;
             return 0;
         }
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

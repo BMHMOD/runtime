@@ -55,8 +55,6 @@ namespace Microsoft.Extensions.DependencyInjection
         /// </summary>
         /// <remarks>
         /// The <see cref="OptionsBuilderExtensions.ValidateOnStart{TOptions}(OptionsBuilder{TOptions})"/> extension is called by this method.
-        /// The validator registration is not scoped to <paramref name="name"/>. The name selects the options instance
-        /// evaluated during startup; the validator determines which names it validates.
         /// </remarks>
         /// <typeparam name="TOptions">The options type to be configured.</typeparam>
         /// <typeparam name="TValidateOptions">The <see cref="IValidateOptions{TOptions}"/> validator type.</typeparam>
@@ -284,6 +282,5 @@ namespace Microsoft.Extensions.DependencyInjection
             services.AddOptions();
             return new OptionsBuilder<TOptions>(services, name);
         }
-
     }
 }

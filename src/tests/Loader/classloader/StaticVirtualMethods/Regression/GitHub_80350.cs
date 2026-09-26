@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 // This regression test tracks the issue where implementation of a static virtual method
 // on a derived type is not found when there is a re-abstraction of the same method
@@ -12,7 +11,6 @@ using TestLibrary;
 public class Test1 : I2
 {
 
-    [ActiveIssue("needs triage", TestPlatforms.tvOS)]
     [Fact]
     public static int TestEntryPoint()
     {

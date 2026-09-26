@@ -10,7 +10,7 @@ namespace Mono.Linker.Tests.Cases.Attributes
     [SetupLinkerTrimMode("link")]
     // System.dll referenced by a dynamically (for example in TypeConverterAttribute on IComponent)
     // has unresolved references.
-    [SkipUnresolved(true)]
+    [SetupLinkerArgument("--skip-unresolved", "true")]
     [KeptAttributeInAssembly(PlatformAssemblies.CoreLib, typeof(AssemblyDescriptionAttribute))]
     [KeptAttributeInAssembly(PlatformAssemblies.CoreLib, typeof(AssemblyCompanyAttribute))]
 #if !NET

@@ -6,11 +6,10 @@ using System.Runtime.InteropServices;
 using Point = System.Numerics.Vector4;
 using Xunit;
 
-namespace SIMDTests.LdindTests
+namespace Test
 { 
     public static class Program
     {
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

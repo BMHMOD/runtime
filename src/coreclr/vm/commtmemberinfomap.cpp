@@ -43,7 +43,7 @@ public:
         }
         CONTRACTL_END;
 
-        return pItem->szName != NULL;
+        return (pItem->szName != NULL);
     }
 
     virtual void SetFree(WSTRHASH *pItem)
@@ -72,7 +72,7 @@ public:
         CONTRACTL_END;
 
         // Do case-insensitive hash
-        return HashiString(reinterpret_cast<LPCWSTR>(pData));
+        return (HashiString(reinterpret_cast<LPCWSTR>(pData)));
     }
 
     virtual int Cmp(const void *pData, void *pItem)
@@ -97,26 +97,28 @@ public:
 // ============================================================================
 EEHashEntry_t * EEModuleTokenHashTableHelper::AllocateEntry(EEModuleTokenPair *pKey, BOOL bDeepCopy, void *pHeap)
 {
-    CONTRACTL
+    CONTRACT (EEHashEntry_t*)
     {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
+        INJECT_FAULT(CONTRACT_RETURN NULL);
         PRECONDITION(CheckPointer(pKey));
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     _ASSERTE(!bDeepCopy && "Deep copy is not supported by the EEModuleTokenHashTableHelper");
 
     EEHashEntry_t *pEntry = (EEHashEntry_t *) new (nothrow) BYTE[SIZEOF_EEHASH_ENTRY + sizeof(EEModuleTokenPair)];
     if (!pEntry)
-        return NULL;
+        RETURN NULL;
 
     EEModuleTokenPair *pEntryKey = (EEModuleTokenPair *) pEntry->Key;
     pEntryKey->m_tk = pKey->m_tk;
     pEntryKey->m_pModule = pKey->m_pModule;
 
-    return pEntry;
+    RETURN pEntry;
 } // EEHashEntry_t * EEModuleTokenHashTableHelper::AllocateEntry()
 
 
@@ -257,24 +259,23 @@ void ComMTMemberInfoMap::Init(size_t sizeOfPtr)
 
 ComMTMethodProps *ComMTMemberInfoMap::GetMethodProps(mdToken tk, Module *pModule)
 {
-    CONTRACTL
+    CONTRACT (ComMTMethodProps*)
     {
         NOTHROW;
         GC_NOTRIGGER;
         MODE_ANY;
         PRECONDITION(CheckPointer(pModule));
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     EEModuleTokenPair TokenModulePair(tk, pModule);
     HashDatum Data;
 
     if (m_TokenToComMTMethodPropsMap.GetValue(&TokenModulePair, &Data))
-        {
-            return (ComMTMethodProps *)Data;
-        }
+        RETURN (ComMTMethodProps *)Data;
 
-    return NULL;
+    RETURN NULL;
 } // ComMTMethodProps *ComMTMemberInfoMap::GetMethodProps()
 
 
@@ -331,7 +332,7 @@ void ComMTMemberInfoMap::SetupPropsForIClassX(size_t sizeOfPtr)
 
             IfFailThrow(pField->GetMDImport()->GetNameOfFieldDef(pField->GetMemberDef(), &pszName));
             IfFailThrow(Utf2Quick(pszName, rName));
-            size_t cchpName = u16_strlen(rName.Ptr()) + 1;
+            ULONG cchpName = ((int)u16_strlen(rName.Ptr())) + 1;
             m_MethodProps[i].pName = reinterpret_cast<WCHAR*>(m_sNames.Alloc(cchpName * sizeof(WCHAR)));
 
             m_MethodProps[i].pMeth = (MethodDesc*)pFieldMeth;
@@ -360,7 +361,6 @@ void ComMTMemberInfoMap::SetupPropsForIClassX(size_t sizeOfPtr)
             // Retrieve the method desc on the current class. This involves looking up the method
             // desc in the vtable if it is a virtual method.
             pMeth = pCMT->GetMethodDescForSlot(i);
-            _ASSERTE(!pMeth->IsAsyncMethod());
             if (pMeth->IsVirtual())
             {
                 WORD wSlot = InteropMethodTableData::GetSlotForMethodDesc(m_pMT, pMeth);
@@ -449,14 +449,14 @@ UnLink:
             // property names.  This is an obscure corner case.
             m_MethodProps[i].pName = m_MethodProps[m_MethodProps[i].property].pName;
             WCHAR *pNewName;
-            // string length + 3 chars for "get"/"set" + 1 for null terminator.
-            size_t cchpNewName = u16_strlen(m_MethodProps[ixGet].pName) + 3 + 1;
+            //string length + "get" + null terminator.
+            //XXX Fri 11/19/2004 Why is this + 4 rather than +3?
+            ULONG cchpNewName = ((int)u16_strlen(m_MethodProps[ixGet].pName)) + 4 + 1;
             pNewName = reinterpret_cast<WCHAR*>(m_sNames.Alloc(cchpNewName * sizeof(WCHAR)));
             wcscpy_s(pNewName, cchpNewName, W("get"));
             wcscat_s(pNewName, cchpNewName, m_MethodProps[ixGet].pName);
             m_MethodProps[ixGet].pName = pNewName;
-            cchpNewName = u16_strlen(m_MethodProps[ixSet].pName) + 3 + 1;
-            pNewName = reinterpret_cast<WCHAR*>(m_sNames.Alloc(cchpNewName * sizeof(WCHAR)));
+            pNewName = reinterpret_cast<WCHAR*>(m_sNames.Alloc((int)((4+u16_strlen(m_MethodProps[ixSet].pName))*sizeof(WCHAR)+2)));
             wcscpy_s(pNewName, cchpNewName, W("set"));
             wcscat_s(pNewName, cchpNewName, m_MethodProps[ixSet].pName);
             m_MethodProps[ixSet].pName = pNewName;
@@ -541,15 +541,6 @@ void ComMTMemberInfoMap::SetupPropsForInterface(size_t sizeOfPtr)
     {
         MethodDesc* pMD = m_pMT->GetMethodDescForSlot(iMD);
         _ASSERTE(pMD != NULL);
-
-        if (pMD->IsAsyncMethod())
-        {
-            // Async methods introduce mismatches in the .NET and COM vtables.
-            // We will need to remap slots.
-            bSlotRemap = true;
-            continue;
-        }
-
         ULONG tmp = pMD->GetComSlot();
 
         if (tmp < ulComSlotMin)
@@ -561,13 +552,10 @@ void ComMTMemberInfoMap::SetupPropsForInterface(size_t sizeOfPtr)
     // Used a couple of times.
     MethodTable::MethodIterator it(m_pMT);
 
-    if (ulComSlotMax - ulComSlotMin >= nSlots)
+    if (ulComSlotMax-ulComSlotMin >= nSlots)
     {
         bSlotRemap = true;
-    }
 
-    if (bSlotRemap)
-    {
         // Resize the array.
         rSlotMap.ReSizeThrows(ulComSlotMax+1);
 
@@ -578,7 +566,7 @@ void ComMTMemberInfoMap::SetupPropsForInterface(size_t sizeOfPtr)
         it.MoveToBegin();
         for (; it.IsValid(); it.Next())
         {
-            if (it.IsVirtual() && !it.GetMethodDesc()->IsAsyncMethod())
+            if (it.IsVirtual())
             {
                 MethodDesc* pMD = it.GetMethodDesc();
                 _ASSERTE(pMD != NULL);
@@ -602,7 +590,7 @@ void ComMTMemberInfoMap::SetupPropsForInterface(size_t sizeOfPtr)
         if (it.IsVirtual())
         {
             pMeth = it.GetMethodDesc();
-            if (pMeth != NULL && !pMeth->IsAsyncMethod())
+            if (pMeth != NULL)
             {
                 ULONG ixSlot = pMeth->GetComSlot();
                 if (bSlotRemap)
@@ -619,22 +607,6 @@ void ComMTMemberInfoMap::SetupPropsForInterface(size_t sizeOfPtr)
     for (iMD=0; iMD < nSlots; ++iMD)
     {
         pMeth = m_MethodProps[iMD].pMeth;
-        if (pMeth == nullptr)
-        {
-            // For async methods, we skip .NET methods when building the COM vtable.
-            // So at some point we hit the end of the .NET methods before we run
-            // through all possible vtable slots.
-            // Record when we ran out here.
-#ifdef _DEBUG
-            // In debug, validate that all remaining slots are null.
-            for (unsigned j = iMD; j < nSlots; ++j)
-            {
-                _ASSERTE(m_MethodProps[j].pMeth == nullptr);
-            }
-#endif
-            nSlots = iMD;
-            break;
-        }
         GetMethodPropsForMeth(pMeth, iMD, m_MethodProps, m_sNames);
     }
 
@@ -716,7 +688,9 @@ void ComMTMemberInfoMap::GetMethodPropsForMeth(
     // Generally don't munge function into a getter.
     rProps[ix].bFunction2Getter = FALSE;
 
-    _ASSERTE(!pMeth->IsAsyncMethod());
+    // TODO: (async) revisit and examine if this needs to be supported somehow
+    if (pMeth->IsAsyncMethod())
+        ThrowHR(COR_E_NOTSUPPORTED);
 
     // See if there is property information for this member.
     hr = pMeth->GetMDImport()->GetPropertyInfoForMethodDef(pMeth->GetMemberDef(), &pd, &pPropName, &uSemantic);
@@ -746,6 +720,10 @@ void ComMTMemberInfoMap::GetMethodPropsForMeth(
             // Save the name.  Have to convert from UTF8.
             int iLen = MultiByteToWideChar(CP_UTF8, 0, pPropName, -1, 0, 0);
             rProps[ix].pName = reinterpret_cast<WCHAR*>(sNames.Alloc(iLen*sizeof(WCHAR)));
+            if (rProps[ix].pName == NULL)
+            {
+                ThrowHR(E_OUTOFMEMORY);
+            }
             MultiByteToWideChar(CP_UTF8, 0, pPropName, -1, rProps[ix].pName, iLen);
 
             // Check whether the property has a dispid attribute.
@@ -801,8 +779,12 @@ void ComMTMemberInfoMap::GetMethodPropsForMeth(
             }
         }
 
-        size_t len = u16_strlen(pName) + 1;
+        ULONG len = ((int)u16_strlen(pName)) + 1;
         rProps[ix].pName = reinterpret_cast<WCHAR*>(sNames.Alloc(len * sizeof(WCHAR)));
+        if (rProps[ix].pName == NULL)
+        {
+            ThrowHR(E_OUTOFMEMORY);
+        }
         wcscpy_s(rProps[ix].pName, len, pName);
 
         // Determine if the method is visible from COM.
@@ -947,8 +929,12 @@ void ComMTMemberInfoMap::EliminateDuplicateNames(
                 }
 
                 // Remember the new name.
-                size_t len = u16_strlen(rcName) + 1;
+                ULONG len = ((int)u16_strlen(rcName)) + 1;
                 rProps[iCur].pName = reinterpret_cast<WCHAR*>(sNames.Alloc(len * sizeof(WCHAR)));
+                if (rProps[iCur].pName == NULL)
+                {
+                    ThrowHR(E_OUTOFMEMORY);
+                }
                 wcscpy_s(rProps[iCur].pName, len, rcName);
 
                 // Don't need to look at this iCur any more, since we know it is completely unique.
@@ -1025,8 +1011,12 @@ void ComMTMemberInfoMap::EliminateDuplicateNames(
             } while (htNames.Find(rcName) != NULL);
 
             // Now rcName has an acceptable (unique) name.  Remember the new name.
-            size_t len = u16_strlen(rcName) + 1;
+            ULONG len = ((int)u16_strlen(rcName)) + 1;
             rProps[iCur].pName = reinterpret_cast<WCHAR*>(sNames.Alloc(len * sizeof(WCHAR)));
+            if (rProps[iCur].pName == NULL)
+            {
+                ThrowHR(E_OUTOFMEMORY);
+            }
             wcscpy_s(rProps[iCur].pName, len, rcName);
 
             // Stick it in the table.
@@ -1388,13 +1378,13 @@ public:
 
     BOOL IsVbRefType()
     {
-        CONTRACTL
+        CONTRACT(BOOL)
         {
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
         }
-        CONTRACTL_END;
+        CONTRACT_END;
 
         // Get the arg, and skip decorations.
         SigPointer pt = GetArgProps();
@@ -1411,15 +1401,15 @@ public:
 
         // Is it just Object?
         if (mt == ELEMENT_TYPE_OBJECT)
-            return TRUE;
+            RETURN TRUE;
 
         // A particular class?
         if (mt == ELEMENT_TYPE_CLASS)
         {
             // Exclude "string".
             if (pt.IsStringType(m_pModule, GetSigTypeContext()))
-                return FALSE;
-            return TRUE;
+                RETURN FALSE;
+            RETURN TRUE;
         }
 
         // A particular valuetype?
@@ -1427,12 +1417,12 @@ public:
         {
             // Include "variant".
             if (pt.IsClass(m_pModule, g_VariantClassName, GetSigTypeContext()))
-                return TRUE;
-            return FALSE;
+                RETURN TRUE;
+            RETURN FALSE;
         }
 
         // An array, a string, or POD.
-        return FALSE;
+        RETURN FALSE;
     }
 }; // class MetaSigExport : public MetaSig
 
@@ -1584,6 +1574,7 @@ void ComMTMemberInfoMap::PopulateMemberHashtable()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END;
 
@@ -1617,7 +1608,11 @@ void ComMTMemberInfoMap::PopulateMemberHashtable()
 
             // We are dealing with a method.
             MethodDesc *pMD = pProps->pMeth;
-            _ASSERTE(!pMD->IsAsyncMethod());
+            // TODO: (async) revisit and examine if this needs to be supported somehow
+            if (pMD->IsAsyncMethod())
+            {
+                ThrowHR(COR_E_NOTSUPPORTED); // Probably this isn't right, and instead should be a skip, but a throw makes it easier to find if this is wrong
+            }
             EEModuleTokenPair Key(pMD->GetMemberDef(), pMD->GetModule());
             m_TokenToComMTMethodPropsMap.InsertValue(&Key, (HashDatum)pProps);
         }

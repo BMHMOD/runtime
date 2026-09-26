@@ -2,8 +2,10 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
+using System.ComponentModel;
 using System.IO;
 using System.IO.MemoryMappedFiles;
+using System.Runtime.InteropServices;
 using System.Text;
 using Microsoft.NET.HostModel.MachO;
 
@@ -36,7 +38,7 @@ namespace Microsoft.NET.HostModel.AppHost
 
         public class DotNetSearchOptions
         {
-            // Keep in sync with fxr_search_location in fxr_resolver.h
+            // Keep in sync with fxr_resolver::search_location in fxr_resolver.h
             [Flags]
             public enum SearchLocation : byte
             {
@@ -160,7 +162,7 @@ namespace Microsoft.NET.HostModel.AppHost
                                 }
                             }
                         }
-                        using (FileStream appHostDestinationStream = HostModelUtils.CreateFileStreamForHost(appHostDestinationFilePath, FileAccess.ReadWrite, FileShare.None, bufferSize: 1))
+                        using (FileStream appHostDestinationStream = new FileStream(appHostDestinationFilePath, FileMode.Create, FileAccess.ReadWrite, FileShare.None, bufferSize: 1))
                         using (MemoryMappedViewAccessor appHostAccessor = appHostDestinationMap.CreateViewAccessor(0, appHostDestinationLength, MemoryMappedFileAccess.Read))
                         {
                             // Write the final content to the destination file, only up to the total length of the host, not the entire mapped file.
@@ -177,8 +179,14 @@ namespace Microsoft.NET.HostModel.AppHost
                         }
                     }
                 });
-
-                HostModelUtils.SetPermissionsForHost(appHostDestinationFilePath);
+                if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    // chmod +755
+                    File.SetUnixFileMode(appHostDestinationFilePath,
+                        UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute |
+                        UnixFileMode.GroupRead | UnixFileMode.GroupExecute |
+                        UnixFileMode.OtherRead | UnixFileMode.OtherExecute);
+                }
             }
             catch (Exception ex)
             {

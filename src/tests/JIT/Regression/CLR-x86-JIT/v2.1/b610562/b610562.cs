@@ -13,7 +13,6 @@ namespace VTest
 {
     public class TestMain : refTest<TestMain>
     {
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

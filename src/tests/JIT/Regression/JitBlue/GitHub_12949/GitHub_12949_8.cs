@@ -1,9 +1,6 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-
-namespace GitHub_12949_8;
-
 using System;
 using System.Runtime.CompilerServices;
 using System.Numerics;
@@ -27,7 +24,6 @@ public class X<K>
 
 public class B
 {
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

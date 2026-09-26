@@ -15,28 +15,34 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
     {
         protected override void EmitCode(NodeFactory factory, ref RiscV64Emitter instructionEncoder, bool relocsOnly)
         {
-            if (_thunkKind == ImportThunkKind.Eager)
+            if (_thunkKind == Kind.Eager)
             {
                 instructionEncoder.EmitJMP(_helperCell);
                 return;
             }
 
+            instructionEncoder.Builder.RequireInitialPointerAlignment();
+            Debug.Assert(instructionEncoder.Builder.CountBytes == 0);
+
+            instructionEncoder.Builder.EmitReloc(factory.ModuleImport, RelocType.IMAGE_REL_BASED_DIR64);
+
+            Debug.Assert(instructionEncoder.Builder.CountBytes == ((ISymbolNode)this).Offset);
+
             if (relocsOnly)
             {
                 // When doing relocs only, we don't need to generate the actual instructions
-                // as they will be ignored. Just emit the module import load and jump so we record the dependencies.
-                instructionEncoder.EmitLD(Register.X11, factory.ModuleImport);
+                // as they will be ignored. Just emit the jump so we record the dependency.
                 instructionEncoder.EmitJMP(_helperCell);
                 return;
             }
 
             switch (_thunkKind)
             {
-                case ImportThunkKind.Eager:
+                case Kind.Eager:
                     break;
 
-                case ImportThunkKind.DelayLoadHelper:
-                case ImportThunkKind.VirtualStubDispatch:
+                case Kind.DelayLoadHelper:
+                case Kind.VirtualStubDispatch:
                 {
                     // t5 contains indirection cell
                     // Do nothing t5 contains our first param
@@ -45,15 +51,31 @@ namespace ILCompiler.DependencyAnalysis.ReadyToRun
                     int index = _containingImportSection.IndexFromBeginningOfArray;
                     instructionEncoder.EmitLI(Register.X5, index);
 
-                    // Move Module* -> t1
-                    instructionEncoder.EmitLD(Register.X6, factory.ModuleImport);
+                    int offset = -instructionEncoder.Builder.CountBytes;
 
+                    // get pc
+                    // auipc t1, 0
+                    instructionEncoder.EmitPC(Register.X6);
+
+                    // load Module* -> t1
+                    instructionEncoder.EmitLD(Register.X6, Register.X6, offset);
+
+                    // ld t1, t1, 0
+                    instructionEncoder.EmitLD(Register.X6, Register.X6, 0);
                     break;
                 }
-                case ImportThunkKind.Lazy:
+                case Kind.Lazy:
                 {
-                    // Load Module* -> a1
-                    instructionEncoder.EmitLD(Register.X11, factory.ModuleImport);
+                    int offset = -instructionEncoder.Builder.CountBytes;
+
+                    // get pc
+                    instructionEncoder.EmitPC(Register.X11);
+
+                    // load Module* -> a1
+                    instructionEncoder.EmitLD(Register.X11, Register.X11, offset);
+
+                    // ld a1, a1, 0
+                    instructionEncoder.EmitLD(Register.X11, Register.X11, 0);
                     break;
                 }
                 default:

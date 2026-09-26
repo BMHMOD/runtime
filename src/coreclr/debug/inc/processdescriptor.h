@@ -2,8 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //*****************************************************************************
 
-#ifndef _PROCESSDESCRIPTOR_H_
-#define _PROCESSDESCRIPTOR_H_
+#ifndef _PROCESSCONTEXT_H
+#define _PROCESSCONTEXT_H
 
 struct ProcessDescriptor
 {
@@ -34,4 +34,4 @@ struct ProcessDescriptor
     LPCSTR m_ApplicationGroupId;
 };
 
-#endif // _PROCESSDESCRIPTOR_H_
+#endif // _PROCESSCONTEXT_H

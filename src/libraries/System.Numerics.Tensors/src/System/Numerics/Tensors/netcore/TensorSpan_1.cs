@@ -21,7 +21,10 @@ namespace System.Numerics.Tensors
     /// <typeparam name="T">The type of the elements within the tensor span.</typeparam>
     [DebuggerTypeProxy(typeof(TensorSpanDebugView<>))]
     [DebuggerDisplay("{ToString(),raw}")]
-    public readonly ref struct TensorSpan<T> : ITensor<TensorSpan<T>, T>
+    public readonly ref struct TensorSpan<T>
+#if NET9_0_OR_GREATER
+        : ITensor<TensorSpan<T>, T>
+#endif
     {
         /// <inheritdoc cref="IReadOnlyTensor{TSelf, T}.Empty" />
         public static TensorSpan<T> Empty => default;
@@ -375,6 +378,7 @@ namespace System.Numerics.Tensors
         /// <inheritdoc cref="IReadOnlyTensor{TSelf, T}.TryGetSpan(ReadOnlySpan{NIndex}, int, out ReadOnlySpan{T})" />
         public bool TryGetSpan(scoped ReadOnlySpan<NIndex> startIndexes, int length, out ReadOnlySpan<T> span) => AsReadOnlyTensorSpan().TryGetSpan(startIndexes, length, out span);
 
+#if NET9_0_OR_GREATER
         //
         // IReadOnlyTensor
         //
@@ -459,6 +463,7 @@ namespace System.Numerics.Tensors
         TensorSpan<T> ITensor<TensorSpan<T>, T>.AsTensorSpan(params scoped ReadOnlySpan<NIndex> startIndexes) => Slice(startIndexes);
 
         TensorSpan<T> ITensor<TensorSpan<T>, T>.AsTensorSpan(params scoped ReadOnlySpan<NRange> ranges) => Slice(ranges);
+#endif
 
         /// <summary>Enumerates the elements of a tensor span.</summary>
         public ref struct Enumerator : IEnumerator<T>

@@ -19,3 +19,7 @@ DEFINE_DACGFN(Unknown_AddRef)
 DEFINE_DACGFN(Unknown_AddRefSpecial)
 DEFINE_DACGFN(Unknown_AddRefInner)
 #endif
+#ifdef FEATURE_COMWRAPPERS
+DEFINE_DACGFN(ManagedObjectWrapper_QueryInterface)
+DEFINE_DACGFN(TrackerTarget_QueryInterface)
+#endif

@@ -23,7 +23,7 @@ namespace System.Security.Cryptography.Pkcs.EnvelopedCmsTests.Tests
             Assert.Equal(expectedParameters, recipientInfo1.KeyEncryptionAlgorithm.Parameters);
         }
 
-        [ConditionalFact(typeof(KeyTransRecipientInfoRsaPaddingModeTests), nameof(SupportsRsaOaepCerts))]
+        [ConditionalFact(nameof(SupportsRsaOaepCerts))]
         public static void TestKeyTransEncryptedKey_RsaAlgorithms_Recipient_PreferredOverCertificate()
         {
             KeyTransRecipientInfo recipientInfo1 = EncodeKeyTransl_Rsa2048(RSAEncryptionPadding.OaepSHA256, Certificates.RsaOaep2048_Sha1Parameters);

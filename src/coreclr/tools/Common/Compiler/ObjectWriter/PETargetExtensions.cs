@@ -19,7 +19,6 @@ namespace ILCompiler.ObjectWriter
         Apple = 0x4644,
         FreeBSD = 0xADC4,
         NetBSD = 0x1993,
-        OpenBSD = 0xADC5,
         SunOS = 0x1992,
     }
 
@@ -125,9 +124,6 @@ namespace ILCompiler.ObjectWriter
 
                 case TargetOS.NetBSD:
                     return MachineOSOverride.NetBSD;
-
-                case TargetOS.OpenBSD:
-                    return MachineOSOverride.OpenBSD;
 
                 default:
                     throw new NotImplementedException(target.OperatingSystem.ToString());

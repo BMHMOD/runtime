@@ -1,56 +1,16 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
-using System.Buffers;
 using System.Collections.Generic;
-using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
-using System.Text;
 using Test.Cryptography;
 using Xunit;
 
 namespace System.Formats.Asn1.Tests.Reader
 {
-    public sealed class ReadBMPStringAsnReaderTests : ReadBMPStringBase
+    public sealed class ReadBMPString
     {
-        internal override AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default)
-        {
-            return AsnReaderWrapper.CreateClassReader(data, ruleSet, options);
-        }
-    }
-
-    public sealed class ReadBMPStringValueAsnReaderTests : ReadBMPStringBase
-    {
-        internal override AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default)
-        {
-            return AsnReaderWrapper.CreateValueReader(data, ruleSet, options);
-        }
-    }
-
-    public abstract class ReadBMPStringBase
-    {
-        public static IEnumerable<object[]> VectorBoundaryLengths
-        {
-            get
-            {
-                yield return new object[] { Vector<ushort>.Count - 1 };
-                yield return new object[] { Vector<ushort>.Count };
-                yield return new object[] { Vector<ushort>.Count + 1 };
-            }
-        }
-
-        internal abstract AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default);
-
         public static IEnumerable<object[]> ValidEncodingData { get; } =
             new object[][]
             {
@@ -159,82 +119,14 @@ namespace System.Formats.Asn1.Tests.Reader
             };
 
         [Theory]
-        [MemberData(nameof(VectorBoundaryLengths))]
-        public void ReadBMPString_DoesNotAccessOutsideBounds(int charCount)
-        {
-            int payloadLength = charCount * sizeof(ushort);
-            AssertExtensions.LessThan(payloadLength, 128);
-
-            using BoundedMemory<byte> encoded = BoundedMemory.Allocate<byte>(payloadLength + 2);
-            using BoundedMemory<char> destination = BoundedMemory.Allocate<char>(charCount);
-
-            encoded.Span[0] = (byte)UniversalTagNumber.BMPString;
-            encoded.Span[1] = (byte)payloadLength;
-
-            for (int i = 0; i < charCount; i++)
-            {
-                char value = i % 2 == 0 ? '\uD7FF' : '\uE000';
-                int byteIndex = 2 + (i * sizeof(ushort));
-                encoded.Span[byteIndex] = (byte)(value >> 8);
-                encoded.Span[byteIndex + 1] = (byte)value;
-            }
-
-            encoded.MakeReadonly();
-
-            AsnReaderWrapper reader = CreateWrapper(encoded.Memory, AsnEncodingRules.DER);
-            Assert.True(reader.TryCopyBMPString(destination.Span, out int charsWritten));
-            Assert.Equal(charCount, charsWritten);
-
-            for (int i = 0; i < charsWritten; i++)
-            {
-                Assert.Equal(i % 2 == 0 ? '\uD7FF' : '\uE000', destination.Span[i]);
-            }
-        }
-
-        [Theory]
-        [InlineData(true, '\uD800')]
-        [InlineData(true, '\uDFFF')]
-        [InlineData(false, '\uD800')]
-        [InlineData(false, '\uDFFF')]
-        public void ReadBMPString_InvalidSurrogateInVectorOrTail(bool invalidInVector, char invalidValue)
-        {
-            int invalidIndex = invalidInVector ? 1 : Vector<ushort>.Count;
-            int charCount = Vector<ushort>.Count + 1;
-            int payloadLength = charCount * sizeof(ushort);
-            AssertExtensions.LessThan(payloadLength, 128);
-
-            byte[] encoded = new byte[payloadLength + 2];
-            encoded[0] = (byte)UniversalTagNumber.BMPString;
-            encoded[1] = (byte)payloadLength;
-
-            for (int i = 2; i < encoded.Length; i += sizeof(ushort))
-            {
-                encoded[i] = 0;
-                encoded[i + 1] = (byte)'A';
-            }
-
-            encoded[2 + (invalidIndex * sizeof(ushort))] = (byte)(invalidValue >> 8);
-            encoded[3 + (invalidIndex * sizeof(ushort))] = (byte)invalidValue;
-
-            AsnContentException exception = Assert.Throws<AsnContentException>(
-                () => AsnDecoder.ReadCharacterString(
-                    encoded,
-                    AsnEncodingRules.DER,
-                    UniversalTagNumber.BMPString,
-                    out _));
-            DecoderFallbackException fallback = Assert.IsType<DecoderFallbackException>(exception.InnerException);
-            Assert.Equal(invalidIndex * sizeof(ushort), fallback.Index);
-        }
-
-        [Theory]
         [MemberData(nameof(ValidEncodingData))]
-        public void GetBMPString_Success(
+        public static void GetBMPString_Success(
             AsnEncodingRules ruleSet,
             string inputHex,
             string expectedValue)
         {
             byte[] inputData = inputHex.HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
             string value = reader.ReadCharacterString(UniversalTagNumber.BMPString);
 
             Assert.Equal(expectedValue, value);
@@ -242,7 +134,7 @@ namespace System.Formats.Asn1.Tests.Reader
 
         [Theory]
         [MemberData(nameof(ValidEncodingData))]
-        public void TryCopyBMPString(
+        public static void TryCopyBMPString(
             AsnEncodingRules ruleSet,
             string inputHex,
             string expectedValue)
@@ -250,7 +142,7 @@ namespace System.Formats.Asn1.Tests.Reader
             byte[] inputData = inputHex.HexToByteArray();
             char[] output = new char[expectedValue.Length];
 
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
             bool copied;
             int charsWritten;
 
@@ -279,7 +171,7 @@ namespace System.Formats.Asn1.Tests.Reader
 
         [Theory]
         [MemberData(nameof(ValidEncodingData))]
-        public void TryCopyBMPStringBytes(
+        public static void TryCopyBMPStringBytes(
             AsnEncodingRules ruleSet,
             string inputHex,
             string expectedString)
@@ -288,7 +180,7 @@ namespace System.Formats.Asn1.Tests.Reader
             string expectedHex = Text.Encoding.BigEndianUnicode.GetBytes(expectedString).ByteArrayToHex();
             byte[] output = new byte[expectedHex.Length / 2];
 
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
             bool copied;
             int bytesWritten;
 
@@ -320,15 +212,15 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER, "1E020020", true)]
         [InlineData(AsnEncodingRules.BER, "3E80" + "04020020" + "0000", false)]
         [InlineData(AsnEncodingRules.BER, "3E04" + "04020020", false)]
-        public void TryReadBMPStringBytes(
+        public static void TryReadBMPStringBytes(
             AsnEncodingRules ruleSet,
             string inputHex,
             bool expectSuccess)
         {
             byte[] inputData = inputHex.HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
-            bool got = reader.TryReadBMPStringBytes(out ReadOnlySpan<byte> contents);
+            bool got = reader.TryReadBMPStringBytes(out ReadOnlyMemory<byte> contents);
 
             if (expectSuccess)
             {
@@ -336,7 +228,7 @@ namespace System.Formats.Asn1.Tests.Reader
 
                 Assert.True(
                     Unsafe.AreSame(
-                        ref MemoryMarshal.GetReference(contents),
+                        ref MemoryMarshal.GetReference(contents.Span),
                         ref inputData[2]));
             }
             else
@@ -360,20 +252,19 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData("Length Too Long", AsnEncodingRules.CER, "1E0600480069")]
         [InlineData("Length Too Long", AsnEncodingRules.DER, "1E0600480069")]
         [InlineData("Constructed Form", AsnEncodingRules.DER, "3E0404020049")]
-        public void TryReadBMPStringBytes_Throws(
+        public static void TryReadBMPStringBytes_Throws(
             string description,
             AsnEncodingRules ruleSet,
             string inputHex)
         {
             _ = description;
             byte[] inputData = inputHex.HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) =>
+                () =>
                 {
-                    reader.TryReadBMPStringBytes(out _);
+                    reader.TryReadBMPStringBytes(out ReadOnlyMemory<byte> contents);
                 });
         }
 
@@ -420,7 +311,7 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData("NonEmpty Null", AsnEncodingRules.BER, "3E80000100")]
         [InlineData("NonEmpty Null", AsnEncodingRules.CER, "3E80000100")]
         [InlineData("LongLength Null", AsnEncodingRules.BER, "3E80008100")]
-        public void TryCopyBMPStringBytes_Throws(
+        public static void TryCopyBMPStringBytes_Throws(
             string description,
             AsnEncodingRules ruleSet,
             string inputHex)
@@ -432,11 +323,10 @@ namespace System.Formats.Asn1.Tests.Reader
 
             int bytesWritten = -1;
 
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                (ref reader) =>
+                () =>
                 {
                     reader.TryCopyBMPStringBytes(outputData, out bytesWritten);
                 });
@@ -445,17 +335,16 @@ namespace System.Formats.Asn1.Tests.Reader
             Assert.Equal(252, outputData[0]);
         }
 
-        private void TryCopyBMPString_Throws_Helper(AsnEncodingRules ruleSet, byte[] inputData)
+        private static void TryCopyBMPString_Throws_Helper(AsnEncodingRules ruleSet, byte[] inputData)
         {
             char[] outputData = new char[inputData.Length + 1];
             outputData[0] = 'a';
 
             int bytesWritten = -1;
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                (ref reader) =>
+                () =>
                 {
                     reader.TryCopyBMPString(
                         outputData,
@@ -485,18 +374,17 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData("Bad BMP value (high private surrogate)", AsnEncodingRules.BER, "1E02DB81")]
         [InlineData("Bad BMP value (low surrogate)", AsnEncodingRules.BER, "1E02DC00")]
         [InlineData("Wrong Tag", AsnEncodingRules.BER, "04024869")]
-        public void GetBMPString_Throws(
+        public static void GetBMPString_Throws(
             string description,
             AsnEncodingRules ruleSet,
             string inputHex)
         {
             _ = description;
             byte[] inputData = inputHex.HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) =>
+                () =>
                 {
                     reader.ReadCharacterString(UniversalTagNumber.BMPString);
                 });
@@ -549,7 +437,7 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData("Bad BMP value (high surrogate)", AsnEncodingRules.BER, "1E02D800")]
         [InlineData("Bad BMP value (high private surrogate)", AsnEncodingRules.BER, "1E02DB81")]
         [InlineData("Bad BMP value (low surrogate)", AsnEncodingRules.BER, "1E02DC00")]
-        public void TryCopyBMPString_Throws(
+        public static void TryCopyBMPString_Throws(
             string description,
             AsnEncodingRules ruleSet,
             string inputHex)
@@ -560,7 +448,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void TryCopyBMPString_Throws_CER_NestedTooLong()
+        public static void TryCopyBMPString_Throws_CER_NestedTooLong()
         {
             // CER says that the maximum encoding length for a BMPString primitive
             // is 1000.
@@ -589,7 +477,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void TryCopyBMPString_Throws_CER_NestedTooShortIntermediate()
+        public static void TryCopyBMPString_Throws_CER_NestedTooShortIntermediate()
         {
             // CER says that the maximum encoding length for a BMPString primitive
             // is 1000, and in the constructed form the lengths must be
@@ -627,7 +515,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void TryCopyBMPStringBytes_Success_CER_MaxPrimitiveLength()
+        public static void TryCopyBMPStringBytes_Success_CER_MaxPrimitiveLength()
         {
             // CER says that the maximum encoding length for a BMPString primitive
             // is 1000.
@@ -649,7 +537,7 @@ namespace System.Formats.Asn1.Tests.Reader
 
             byte[] output = new byte[1000];
 
-            AsnReaderWrapper reader = CreateWrapper(input, AsnEncodingRules.CER);
+            AsnReader reader = new AsnReader(input, AsnEncodingRules.CER);
             bool success = reader.TryCopyBMPStringBytes(output, out int bytesWritten);
 
             Assert.True(success, "reader.TryCopyBMPStringBytes");
@@ -661,7 +549,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void TryCopyBMPStringBytes_Success_CER_MinConstructedLength()
+        public static void TryCopyBMPStringBytes_Success_CER_MinConstructedLength()
         {
             // CER says that the maximum encoding length for a BMPString primitive
             // is 1000, and that a constructed form must be used for values greater
@@ -713,7 +601,7 @@ namespace System.Formats.Asn1.Tests.Reader
 
             byte[] output = new byte[1001];
 
-            AsnReaderWrapper reader = CreateWrapper(input, AsnEncodingRules.CER);
+            AsnReader reader = new AsnReader(input, AsnEncodingRules.CER);
             bool success = reader.TryCopyBMPStringBytes(output, out int bytesWritten);
 
             Assert.True(success, "reader.TryCopyBMPStringBytes");
@@ -728,25 +616,23 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void TagMustBeCorrect_Universal(AsnEncodingRules ruleSet)
+        public static void TagMustBeCorrect_Universal(AsnEncodingRules ruleSet)
         {
             byte[] inputData = { 0x1E, 4, 0, (byte)'h', 0, (byte)'i' };
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
-            Assert.Throws<ArgumentException>(
-                ref reader,
+            AssertExtensions.Throws<ArgumentException>(
                 "expectedTag",
-                static (ref reader) => reader.TryReadBMPStringBytes(Asn1Tag.Null, out _));
+                () => reader.TryReadBMPStringBytes(Asn1Tag.Null, out _));
 
             Assert.True(reader.HasData, "HasData after bad universal tag");
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.TryReadBMPStringBytes(new Asn1Tag(TagClass.ContextSpecific, 0), out _));
+                () => reader.TryReadBMPStringBytes(new Asn1Tag(TagClass.ContextSpecific, 0), out _));
 
             Assert.True(reader.HasData, "HasData after wrong tag");
 
-            Assert.True(reader.TryReadBMPStringBytes(out ReadOnlySpan<byte> value));
+            Assert.True(reader.TryReadBMPStringBytes(out ReadOnlyMemory<byte> value));
             Assert.Equal("00680069", value.ByteArrayToHex());
             Assert.False(reader.HasData, "HasData after read");
         }
@@ -755,40 +641,35 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void TagMustBeCorrect_Custom(AsnEncodingRules ruleSet)
+        public static void TagMustBeCorrect_Custom(AsnEncodingRules ruleSet)
         {
             byte[] inputData = { 0x87, 2, 0x20, 0x10 };
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
-            Assert.Throws<ArgumentException>(
-                ref reader,
+            AssertExtensions.Throws<ArgumentException>(
                 "expectedTag",
-                static (ref reader) => reader.TryReadBMPStringBytes(Asn1Tag.Null, out _));
+                () => reader.TryReadBMPStringBytes(Asn1Tag.Null, out _));
 
             Assert.True(reader.HasData, "HasData after bad universal tag");
 
-            Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.TryReadBMPStringBytes(out _));
+            Assert.Throws<AsnContentException>(() => reader.TryReadBMPStringBytes(out _));
 
             Assert.True(reader.HasData, "HasData after default tag");
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.TryReadBMPStringBytes(new Asn1Tag(TagClass.Application, 0), out _));
+                () => reader.TryReadBMPStringBytes(new Asn1Tag(TagClass.Application, 0), out _));
 
             Assert.True(reader.HasData, "HasData after wrong custom class");
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.TryReadBMPStringBytes(new Asn1Tag(TagClass.ContextSpecific, 1), out _));
+                () => reader.TryReadBMPStringBytes(new Asn1Tag(TagClass.ContextSpecific, 1), out _));
 
             Assert.True(reader.HasData, "HasData after wrong custom tag value");
 
             Assert.True(
                 reader.TryReadBMPStringBytes(
                     new Asn1Tag(TagClass.ContextSpecific, 7),
-                    out ReadOnlySpan<byte> value));
+                    out ReadOnlyMemory<byte> value));
 
             Assert.Equal("2010", value.ByteArrayToHex());
             Assert.False(reader.HasData, "HasData after reading value");
@@ -801,28 +682,28 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER, "8002FE60", TagClass.ContextSpecific, 0)]
         [InlineData(AsnEncodingRules.CER, "4C02FE60", TagClass.Application, 12)]
         [InlineData(AsnEncodingRules.DER, "DF8A4602FE60", TagClass.Private, 1350)]
-        public void ExpectedTag_IgnoresConstructed(
+        public static void ExpectedTag_IgnoresConstructed(
             AsnEncodingRules ruleSet,
             string inputHex,
             TagClass tagClass,
             int tagValue)
         {
             byte[] inputData = inputHex.HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             Assert.True(
                 reader.TryReadBMPStringBytes(
                     new Asn1Tag(tagClass, tagValue, true),
-                    out ReadOnlySpan<byte> val1));
+                    out ReadOnlyMemory<byte> val1));
 
             Assert.False(reader.HasData);
 
-            reader = CreateWrapper(inputData, ruleSet);
+            reader = new AsnReader(inputData, ruleSet);
 
             Assert.True(
                 reader.TryReadBMPStringBytes(
                     new Asn1Tag(tagClass, tagValue, false),
-                    out ReadOnlySpan<byte> val2));
+                    out ReadOnlyMemory<byte> val2));
 
             Assert.False(reader.HasData);
 
@@ -833,8 +714,8 @@ namespace System.Formats.Asn1.Tests.Reader
     internal static class ReaderBMPExtensions
     {
         public static bool TryReadBMPStringBytes(
-            this ref AsnReaderWrapper reader,
-            out ReadOnlySpan<byte> contents)
+            this AsnReader reader,
+            out ReadOnlyMemory<byte> contents)
         {
             return reader.TryReadPrimitiveCharacterStringBytes(
                 new Asn1Tag(UniversalTagNumber.BMPString),
@@ -842,9 +723,9 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         public static bool TryReadBMPStringBytes(
-            this ref AsnReaderWrapper reader,
+            this AsnReader reader,
             Asn1Tag expectedTag,
-            out ReadOnlySpan<byte> contents)
+            out ReadOnlyMemory<byte> contents)
         {
             return reader.TryReadPrimitiveCharacterStringBytes(
                 expectedTag,
@@ -852,7 +733,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         public static bool TryCopyBMPStringBytes(
-            this ref AsnReaderWrapper reader,
+            this AsnReader reader,
             Span<byte> destination,
             out int bytesWritten)
         {
@@ -863,7 +744,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         public static bool TryCopyBMPString(
-            this ref AsnReaderWrapper reader,
+            this AsnReader reader,
             Span<char> destination,
             out int charsWritten)
         {

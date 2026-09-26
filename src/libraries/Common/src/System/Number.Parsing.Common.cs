@@ -4,20 +4,18 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 namespace System
 {
     internal static partial class Number
     {
-        // Internal-only style bit used by the INumberBase.TryParsePartial implementations to signal that parsing
-        // should stop at the first otherwise-invalid character rather than failing. This is deliberately not a
-        // public NumberStyles value; it is layered on top of the user-provided style after validation. It uses the
-        // highest bit (0x8000_0000) so public flags can keep growing upward without stomping it; see NumberStyles.
-        internal const NumberStyles AllowTrailingInvalidCharacters = unchecked((NumberStyles)0x80000000);
-
-        private static bool TryParseNumber<TChar>(ReadOnlySpan<TChar> value, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info, out int elementsConsumed)
+        private static unsafe bool TryParseNumber<TChar>(scoped ref TChar* str, TChar* strEnd, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info)
             where TChar : unmanaged, IUtfChar<TChar>
         {
+            Debug.Assert(str != null);
+            Debug.Assert(strEnd != null);
+            Debug.Assert(str <= strEnd);
             Debug.Assert((styles & (NumberStyles.AllowHexSpecifier | NumberStyles.AllowBinarySpecifier)) == 0);
 
             const int StateSign = 0x0001;
@@ -56,8 +54,9 @@ namespace System
             }
 
             int state = 0;
-            int index = 0;
-            uint ch = index < value.Length ? TChar.CastToUInt32(value[index]) : '\0';
+            TChar* p = str;
+            uint ch = (p < strEnd) ? TChar.CastToUInt32(*p) : '\0';
+            TChar* next;
 
             while (true)
             {
@@ -65,38 +64,30 @@ namespace System
                 // "-Kr 1231.47" is legal but "- 1231.47" is not.
                 if (!IsWhite(ch) || (styles & NumberStyles.AllowLeadingWhite) == 0 || ((state & StateSign) != 0 && (state & StateCurrency) == 0 && info.NumberNegativePattern != 2))
                 {
-                    int nextIndex;
-
-                    if (((styles & NumberStyles.AllowLeadingSign) != 0) && (state & StateSign) == 0 && (((nextIndex = MatchChars(value, index, info.PositiveSignTChar<TChar>())) >= 0) || (((nextIndex = MatchNegativeSignChars(value, index, info)) >= 0) && (number.IsNegative = true))))
+                    if (((styles & NumberStyles.AllowLeadingSign) != 0) && (state & StateSign) == 0 && ((next = MatchChars(p, strEnd, info.PositiveSignTChar<TChar>())) != null || ((next = MatchNegativeSignChars(p, strEnd, info)) != null && (number.IsNegative = true))))
                     {
                         state |= StateSign;
-                        index = nextIndex;
+                        p = next - 1;
                     }
                     else if (ch == '(' && ((styles & NumberStyles.AllowParentheses) != 0) && ((state & StateSign) == 0))
                     {
                         state |= StateSign | StateParens;
                         number.IsNegative = true;
-                        index++;
                     }
-                    else if (!currSymbol.IsEmpty && (nextIndex = MatchChars(value, index, currSymbol)) >= 0)
+                    else if (!currSymbol.IsEmpty && (next = MatchChars(p, strEnd, currSymbol)) != null)
                     {
                         state |= StateCurrency;
                         currSymbol = ReadOnlySpan<TChar>.Empty;
                         // We already found the currency symbol. There should not be more currency symbols. Set
                         // currSymbol to NULL so that we won't search it again in the later code path.
-                        index = nextIndex;
+                        p = next - 1;
                     }
                     else
                     {
                         break;
                     }
                 }
-                else
-                {
-                    index++;
-                }
-
-                ch = index < value.Length ? TChar.CastToUInt32(value[index]) : '\0';
+                ch = ++p < strEnd ? TChar.CastToUInt32(*p) : '\0';
             }
 
             int digCount = 0;
@@ -157,30 +148,20 @@ namespace System
                         number.Scale--;
                     }
                 }
+                else if (((styles & NumberStyles.AllowDecimalPoint) != 0) && ((state & StateDecimal) == 0) && ((next = MatchChars(p, strEnd, decSep)) != null || (parsingCurrency && (state & StateCurrency) == 0 && (next = MatchChars(p, strEnd, info.NumberDecimalSeparatorTChar<TChar>())) != null)))
+                {
+                    state |= StateDecimal;
+                    p = next - 1;
+                }
+                else if (((styles & NumberStyles.AllowThousands) != 0) && ((state & StateDigits) != 0) && ((state & StateDecimal) == 0) && ((next = MatchChars(p, strEnd, groupSep)) != null || (parsingCurrency && (state & StateCurrency) == 0 && (next = MatchChars(p, strEnd, info.NumberGroupSeparatorTChar<TChar>())) != null)))
+                {
+                    p = next - 1;
+                }
                 else
                 {
-                    int nextIndex;
-
-                    if (((styles & NumberStyles.AllowDecimalPoint) != 0) && ((state & StateDecimal) == 0) && ((nextIndex = MatchChars(value, index, decSep)) >= 0 || (parsingCurrency && (state & StateCurrency) == 0 && (nextIndex = MatchChars(value, index, info.NumberDecimalSeparatorTChar<TChar>())) >= 0)))
-                    {
-                        state |= StateDecimal;
-                        index = nextIndex;
-                    }
-                    else if (((styles & NumberStyles.AllowThousands) != 0) && ((state & StateDigits) != 0) && ((state & StateDecimal) == 0) && ((nextIndex = MatchChars(value, index, groupSep)) >= 0 || (parsingCurrency && (state & StateCurrency) == 0 && (nextIndex = MatchChars(value, index, info.NumberGroupSeparatorTChar<TChar>())) >= 0)))
-                    {
-                        index = nextIndex;
-                    }
-                    else
-                    {
-                        break;
-                    }
+                    break;
                 }
-                if (IsDigit(ch))
-                {
-                    index++;
-                }
-
-                ch = index < value.Length ? TChar.CastToUInt32(value[index]) : '\0';
+                ch = ++p < strEnd ? TChar.CastToUInt32(*p) : '\0';
             }
 
             bool negExp = false;
@@ -190,23 +171,17 @@ namespace System
             {
                 if ((ch == 'E' || ch == 'e') && ((styles & NumberStyles.AllowExponent) != 0))
                 {
-                    int exponentIndex = index;
-                    index++;
-                    ch = index < value.Length ? TChar.CastToUInt32(value[index]) : '\0';
-
-                    int nextIndex = MatchChars(value, index, info.PositiveSignTChar<TChar>());
-                    if (nextIndex >= 0)
+                    TChar* temp = p;
+                    ch = ++p < strEnd ? TChar.CastToUInt32(*p) : '\0';
+                    if ((next = MatchChars(p, strEnd, info.PositiveSignTChar<TChar>())) != null)
                     {
-                        index = nextIndex;
-                        ch = index < value.Length ? TChar.CastToUInt32(value[index]) : '\0';
+                        ch = (p = next) < strEnd ? TChar.CastToUInt32(*p) : '\0';
                     }
-                    else if ((nextIndex = MatchNegativeSignChars(value, index, info)) >= 0)
+                    else if ((next = MatchNegativeSignChars(p, strEnd, info)) != null)
                     {
-                        index = nextIndex;
-                        ch = index < value.Length ? TChar.CastToUInt32(value[index]) : '\0';
+                        ch = (p = next) < strEnd ? TChar.CastToUInt32(*p) : '\0';
                         negExp = true;
                     }
-
                     if (IsDigit(ch))
                     {
                         int exp = 0;
@@ -222,15 +197,13 @@ namespace System
                                 // Finish parsing the number, a FormatException could still occur later on.
                                 while (IsDigit(ch))
                                 {
-                                    index++;
-                                    ch = index < value.Length ? TChar.CastToUInt32(value[index]) : '\0';
+                                    ch = ++p < strEnd ? TChar.CastToUInt32(*p) : '\0';
                                 }
                                 break;
                             }
 
                             exp = (exp * 10) + (int)(ch - '0');
-                            index++;
-                            ch = index < value.Length ? TChar.CastToUInt32(value[index]) : '\0';
+                            ch = ++p < strEnd ? TChar.CastToUInt32(*p) : '\0';
                         } while (IsDigit(ch));
                         if (negExp)
                         {
@@ -240,8 +213,8 @@ namespace System
                     }
                     else
                     {
-                        index = exponentIndex;
-                        ch = TChar.CastToUInt32(value[index]);
+                        p = temp;
+                        ch = p < strEnd ? TChar.CastToUInt32(*p) : '\0';
                     }
                 }
 
@@ -262,40 +235,32 @@ namespace System
                 {
                     if (!IsWhite(ch) || (styles & NumberStyles.AllowTrailingWhite) == 0)
                     {
-                        int nextIndex;
-
-                        if ((styles & NumberStyles.AllowTrailingSign) != 0 && ((state & StateSign) == 0) && (((nextIndex = MatchChars(value, index, info.PositiveSignTChar<TChar>())) >= 0) || ((((nextIndex = MatchNegativeSignChars(value, index, info)) >= 0)) && (number.IsNegative = true))))
+                        if ((styles & NumberStyles.AllowTrailingSign) != 0 && ((state & StateSign) == 0) && ((next = MatchChars(p, strEnd, info.PositiveSignTChar<TChar>())) != null || (((next = MatchNegativeSignChars(p, strEnd, info)) != null) && (number.IsNegative = true))))
                         {
                             state |= StateSign;
-                            index = nextIndex;
+                            p = next - 1;
                         }
                         else if (ch == ')' && ((state & StateParens) != 0))
                         {
                             state &= ~StateParens;
-                            index++;
                         }
-                        else if (!currSymbol.IsEmpty && (nextIndex = MatchChars(value, index, currSymbol)) >= 0)
+                        else if (!currSymbol.IsEmpty && (next = MatchChars(p, strEnd, currSymbol)) != null)
                         {
                             currSymbol = ReadOnlySpan<TChar>.Empty;
-                            index = nextIndex;
+                            p = next - 1;
                         }
                         else
                         {
                             break;
                         }
                     }
-                    else
-                    {
-                        index++;
-                    }
-
-                    ch = index < value.Length ? TChar.CastToUInt32(value[index]) : '\0';
+                    ch = ++p < strEnd ? TChar.CastToUInt32(*p) : '\0';
                 }
                 if ((state & StateParens) == 0)
                 {
                     if ((state & StateNonZero) == 0)
                     {
-                        if (number.Kind is not (NumberBufferKind.Decimal or NumberBufferKind.DecimalIeee754))
+                        if (number.Kind != NumberBufferKind.Decimal)
                         {
                             number.Scale = 0;
                         }
@@ -304,42 +269,41 @@ namespace System
                             number.IsNegative = false;
                         }
                     }
-
-                    // For compatibility we still need to process any trailing
-                    // nulls that exist and report them as having been consumed.
-
-                    index = ConsumeTrailingNulls(value, index);
-
-                    if ((index == value.Length) || ((styles & AllowTrailingInvalidCharacters) != 0))
-                    {
-                        elementsConsumed = index;
-                        return true;
-                    }
+                    str = p;
+                    return true;
                 }
             }
-
-            elementsConsumed = 0;
+            str = p;
             return false;
         }
 
-        internal static bool TryStringToNumber<TChar>(ReadOnlySpan<TChar> value, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info, out int elementsConsumed)
+        internal static unsafe bool TryStringToNumber<TChar>(ReadOnlySpan<TChar> value, NumberStyles styles, ref NumberBuffer number, NumberFormatInfo info)
             where TChar : unmanaged, IUtfChar<TChar>
         {
             Debug.Assert(info != null);
 
-            bool succeeded = TryParseNumber(value, styles, ref number, info, out elementsConsumed);
+            fixed (TChar* stringPointer = &MemoryMarshal.GetReference(value))
+            {
+                TChar* p = stringPointer;
+
+                if (!TryParseNumber(ref p, p + value.Length, styles, ref number, info)
+                    || ((int)(p - stringPointer) < value.Length && !TrailingZeros(value, (int)(p - stringPointer))))
+                {
+                    number.CheckConsistency();
+                    return false;
+                }
+            }
+
             number.CheckConsistency();
-            return succeeded;
+            return true;
         }
 
-        private static int ConsumeTrailingNulls<TChar>(ReadOnlySpan<TChar> value, int index)
+        [MethodImpl(MethodImplOptions.NoInlining)] // rare slow path that shouldn't impact perf of the main use case
+        private static bool TrailingZeros<TChar>(ReadOnlySpan<TChar> value, int index)
             where TChar : unmanaged, IUtfChar<TChar>
         {
-            // For compatibility, we need to allow trailing nulls at the end of a number string
-            var remainder = value.Slice(index);
-
-            var nullsToConsume = remainder.IndexOfAnyExcept(TChar.CastFrom('\0'));
-            return index + ((nullsToConsume >= 0) ? nullsToConsume : remainder.Length);
+            // For compatibility, we need to allow trailing zeros at the end of a number string
+            return !value.Slice(index).ContainsAnyExcept(TChar.CastFrom('\0'));
         }
 
         private static bool IsWhite(uint ch) => (ch == 0x20) || ((ch - 0x09) <= (0x0D - 0x09));
@@ -353,125 +317,58 @@ namespace System
             Overflow
         }
 
-        private static bool IsSpaceReplacingChar(uint c) => c is '\u00a0' or '\u202f';
+        private static bool IsSpaceReplacingChar(uint c) => (c == '\u00a0') || (c == '\u202f');
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static uint NormalizeSpaceReplacingChar(uint c) => IsSpaceReplacingChar(c) ? '\u0020' : c;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static int MatchNegativeSignChars<TChar>(ReadOnlySpan<TChar> value, int index, NumberFormatInfo info)
+        private static unsafe TChar* MatchNegativeSignChars<TChar>(TChar* p, TChar* pEnd, NumberFormatInfo info)
             where TChar : unmanaged, IUtfChar<TChar>
         {
-            int nextIndex = MatchChars(value, index, info.NegativeSignTChar<TChar>());
+            TChar* ret = MatchChars(p, pEnd, info.NegativeSignTChar<TChar>());
 
-            if ((nextIndex < 0) && info.AllowHyphenDuringParsing() && ((uint)index < (uint)value.Length) && (TChar.CastToUInt32(value[index]) == '-'))
+            if ((ret is null) && info.AllowHyphenDuringParsing() && (p < pEnd) && (TChar.CastToUInt32(*p) == '-'))
             {
-                nextIndex = index + 1;
+                ret = p + 1;
             }
 
-            return nextIndex;
+            return ret;
         }
 
-        private static int MatchChars<TChar>(ReadOnlySpan<TChar> source, int index, ReadOnlySpan<TChar> value)
+        private static unsafe TChar* MatchChars<TChar>(TChar* p, TChar* pEnd, ReadOnlySpan<TChar> value)
             where TChar : unmanaged, IUtfChar<TChar>
         {
-            if (value.IsEmpty)
-            {
-                return -1;
-            }
+            Debug.Assert((p != null) && (pEnd != null) && (p <= pEnd));
 
-            if (value.Length > (source.Length - index))
+            fixed (TChar* stringPointer = &MemoryMarshal.GetReference(value))
             {
-                if (!TChar.IsUtf8)
+                TChar* str = stringPointer;
+
+                if (TChar.CastToUInt32(*str) != '\0')
                 {
-                    return -1;
-                }
-
-                ReadOnlySpan<byte> input = Unsafe.BitCast<ReadOnlySpan<TChar>, ReadOnlySpan<byte>>(source.Slice(index));
-                ReadOnlySpan<byte> utf8Value = Unsafe.BitCast<ReadOnlySpan<TChar>, ReadOnlySpan<byte>>(value);
-                int matchedLength = MatchUtf8SpaceReplacingChars(input, utf8Value);
-
-                return matchedLength >= 0 ? index + matchedLength : -1;
-            }
-
-            for (int i = 0; i < value.Length; i++)
-            {
-                uint cp = TChar.CastToUInt32(source[index + i]);
-                uint val = TChar.CastToUInt32(value[i]);
-
-                if (cp != val)
-                {
-                    if (TChar.IsUtf8)
+                    // We only hurt the failure case
+                    // This fix is for French or Kazakh cultures. Since a user cannot type 0xA0 or 0x202F as a
+                    // space character we use 0x20 space character instead to mean the same.
+                    while (true)
                     {
-                        ReadOnlySpan<byte> input = Unsafe.BitCast<ReadOnlySpan<TChar>, ReadOnlySpan<byte>>(source.Slice(index));
-                        ReadOnlySpan<byte> utf8Value = Unsafe.BitCast<ReadOnlySpan<TChar>, ReadOnlySpan<byte>>(value);
-                        int matchedLength = MatchUtf8SpaceReplacingChars(input, utf8Value);
+                        uint cp = (p < pEnd) ? TChar.CastToUInt32(*p) : '\0';
+                        uint val = TChar.CastToUInt32(*str);
 
-                        return matchedLength >= 0 ? index + matchedLength : -1;
-                    }
+                        if ((cp != val) && !(IsSpaceReplacingChar(val) && (cp == '\u0020')))
+                        {
+                            break;
+                        }
 
-                    if (NormalizeSpaceReplacingChar(cp) != NormalizeSpaceReplacingChar(val))
-                    {
-                        return -1;
+                        p++;
+                        str++;
+
+                        if (TChar.CastToUInt32(*str) == '\0')
+                        {
+                            return p;
+                        }
                     }
                 }
             }
 
-            return index + value.Length;
-        }
-
-        private static int MatchUtf8SpaceReplacingChars(ReadOnlySpan<byte> input, ReadOnlySpan<byte> value)
-        {
-            int inputIndex = 0;
-            int valueIndex = 0;
-
-            while (valueIndex < value.Length)
-            {
-                if (inputIndex >= input.Length)
-                {
-                    return -1;
-                }
-
-                if (input[inputIndex] == value[valueIndex])
-                {
-                    inputIndex++;
-                    valueIndex++;
-                    continue;
-                }
-
-                int inputLength = GetUtf8SpaceCharLength(input.Slice(inputIndex));
-                int valueLength = GetUtf8SpaceCharLength(value.Slice(valueIndex));
-
-                if (inputLength == 0 || valueLength == 0)
-                {
-                    return -1;
-                }
-
-                inputIndex += inputLength;
-                valueIndex += valueLength;
-            }
-
-            return inputIndex;
-        }
-
-        private static int GetUtf8SpaceCharLength(ReadOnlySpan<byte> value)
-        {
-            if (value[0] == ' ')
-            {
-                return 1;
-            }
-
-            if (value.StartsWith("\u00A0"u8))
-            {
-                return 2;
-            }
-
-            if (value.StartsWith("\u202F"u8))
-            {
-                return 3;
-            }
-
-            return 0;
+            return null;
         }
     }
 }

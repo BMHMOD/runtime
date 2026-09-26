@@ -35,13 +35,17 @@ namespace System
             public TimeSpan TotalTime => UserTime + PrivilegedTime;
         }
 
+        public static int ProcessorCount { get; } = GetProcessorCount();
+
         /// <summary>
         /// Gets whether the current machine has only a single processor.
         /// </summary>
-        internal static bool IsSingleProcessor => RuntimeFeature.IsMultithreadingSupported ? ProcessorCount == 1 : true;
-        public static int ProcessorCount { get; } = RuntimeFeature.IsMultithreadingSupported ? GetProcessorCount() : 1;
-
-        private static NullableBool s_privilegedProcess;
+#if !FEATURE_SINGLE_THREADED
+        internal static bool IsSingleProcessor => ProcessorCount == 1;
+#else
+        internal const bool IsSingleProcessor = true;
+#endif
+        private static volatile sbyte s_privilegedProcess;
 
         /// <summary>
         /// Gets whether the current process is authorized to perform security-relevant functions.
@@ -50,12 +54,12 @@ namespace System
         {
             get
             {
-                NullableBool privilegedProcess = s_privilegedProcess;
-                if (privilegedProcess == NullableBool.Undefined)
+                sbyte privilegedProcess = s_privilegedProcess;
+                if (privilegedProcess == 0)
                 {
-                    s_privilegedProcess = privilegedProcess = IsPrivilegedProcessCore() ? NullableBool.True : NullableBool.False;
+                    s_privilegedProcess = privilegedProcess = IsPrivilegedProcessCore() ? (sbyte)1 : (sbyte)-1;
                 }
-                return privilegedProcess == NullableBool.True;
+                return privilegedProcess > 0;
             }
         }
 
@@ -162,7 +166,7 @@ namespace System
             return GetFolderPathCore(folder, option);
         }
 
-        private static int s_processId;
+        private static volatile int s_processId;
 
         /// <summary>Gets the unique identifier for the current process.</summary>
         public static int ProcessId
@@ -180,7 +184,7 @@ namespace System
             }
         }
 
-        private static string? s_processPath;
+        private static volatile string? s_processPath;
 
         /// <summary>
         /// Returns the path of the executable that started the currently executing process. Returns null when the path is not available.
@@ -212,7 +216,7 @@ namespace System
 
         public static string NewLine => NewLineConst;
 
-        private static OperatingSystem? s_osVersion;
+        private static volatile OperatingSystem? s_osVersion;
 
         public static OperatingSystem OSVersion
         {
@@ -235,7 +239,7 @@ namespace System
             get => new StackTrace(true).ToString(Diagnostics.StackTrace.TraceFormat.Normal);
         }
 
-        private static int s_systemPageSize;
+        private static volatile int s_systemPageSize;
 
         public static int SystemPageSize
         {

@@ -3,8 +3,18 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.ResumableFrame))]
-internal partial class ResumableFrame : IData<ResumableFrame>
+internal class ResumableFrame : IData<ResumableFrame>
 {
-    [Field] public partial TargetPointer TargetContextPtr { get; }
+    static ResumableFrame IData<ResumableFrame>.Create(Target target, TargetPointer address)
+        => new ResumableFrame(target, address);
+
+    public ResumableFrame(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.ResumableFrame);
+        TargetContextPtr = target.ReadPointer(address + (ulong)type.Fields[nameof(TargetContextPtr)].Offset);
+        Address = address;
+    }
+
+    public TargetPointer Address { get; }
+    public TargetPointer TargetContextPtr { get; }
 }

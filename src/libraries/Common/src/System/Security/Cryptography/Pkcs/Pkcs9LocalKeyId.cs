@@ -28,15 +28,12 @@ namespace System.Security.Cryptography.Pkcs
         {
         }
 
-        public Pkcs9LocalKeyId(ReadOnlySpan<byte> keyId) : base(Oids.LocalKeyIdOid.CopyOid(), EncodeFromKeyId(keyId))
-        {
-        }
-
-        private static byte[] EncodeFromKeyId(ReadOnlySpan<byte> keyId)
+        public Pkcs9LocalKeyId(ReadOnlySpan<byte> keyId)
+            : this()
         {
             AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
             writer.WriteOctetString(keyId);
-            return writer.Encode();
+            RawData = writer.Encode();
         }
 
         public ReadOnlyMemory<byte> KeyId =>

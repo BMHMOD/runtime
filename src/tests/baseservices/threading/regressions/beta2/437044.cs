@@ -4,7 +4,6 @@
 using System;
 using System.Threading;
 using Xunit;
-using TestLibrary;
 
 public class Test
 {    
@@ -13,8 +12,7 @@ public class Test
     static ManualResetEvent _mre;
     static AutoResetEvent _are = new AutoResetEvent(false);
 
-    [SkipOnCoreClr("This test isn't technically incompatible with GC stress, but it runs very slowly in some configurations, e.g. GCStress=3 on Linux/arm32 measured at 20 minutes.", RuntimeTestModes.AnyGCStress)]
-    [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+    [Fact]
     public static int TestEntryPoint()
     {
         Thread th = new Thread(new ThreadStart(Thread2));
@@ -119,3 +117,4 @@ public class Test
         }
     }
 }
+

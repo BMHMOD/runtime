@@ -3,11 +3,9 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 public class Program
 {
-    [ActiveIssue("needs triage", TestPlatforms.tvOS)]
     [Fact]
     public static void TestEntryPoint()
     {

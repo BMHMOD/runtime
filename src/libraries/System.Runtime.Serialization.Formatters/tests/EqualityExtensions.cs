@@ -17,7 +17,6 @@ using System.Linq;
 using System.Net;
 using System.Net.NetworkInformation;
 using System.Net.Sockets;
-using System.Net.WebSockets;
 using System.Reflection;
 using System.Security;
 using System.Threading;
@@ -1171,8 +1170,7 @@ namespace System.Runtime.Serialization.Formatters.Tests
                 {
                     if (!(@this is ActiveDirectoryServerDownException ||
                         @this is NetworkInformationException ||
-                        @this is SocketException ||
-                        @this is WebSocketException))
+                        @this is SocketException))
                     {
                         Assert.Equal(@this.ToString(), other.ToString());
                     }

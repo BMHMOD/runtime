@@ -1,29 +1,35 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+using System.Runtime.InteropServices;
+
 namespace System.Security.Cryptography.EcDsa.Tests
 {
-    public partial class DefaultECDsaProvider : ECDsaProvider
+    public partial class ECDsaProvider : IECDsaProvider
     {
-        public static readonly DefaultECDsaProvider Instance = new DefaultECDsaProvider();
-
-        private DefaultECDsaProvider() { }
-
-        public override ECDsa Create()
+        public ECDsa Create()
         {
             return ECDsa.Create();
         }
 
-        public override ECDsa Create(int keySize)
+        public ECDsa Create(int keySize)
         {
             ECDsa ec = Create();
             ec.KeySize = keySize;
             return ec;
         }
 
-        public override ECDsa Create(ECCurve curve)
+#if NET
+        public ECDsa Create(ECCurve curve)
         {
             return ECDsa.Create(curve);
         }
+#endif
     }
+
+    public partial class ECDsaFactory
+    {
+        private static readonly IECDsaProvider s_provider = new ECDsaProvider();
+    }
+
 }

@@ -3,8 +3,6 @@
 
 .assembly extern System.Console { }
 .assembly extern xunit.core {}
-.assembly extern Microsoft.DotNet.XUnitExtensions { .publickeytoken = (31 BF 38 56 AD 36 4E 35 ) }
-.assembly extern TestLibrary { .ver 0:0:0:0 }
 
 .assembly extern mscorlib
 {
@@ -13,7 +11,7 @@
 }
 .assembly HelloWorld
 {
-  .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(int32) = ( 01 00 08 00 00 00 00 00 )
+  .custom instance void [mscorlib]System.Runtime.CompilerServices.CompilationRelaxationsAttribute::.ctor(int32) = ( 01 00 08 00 00 00 00 00 ) 
   .custom instance void [mscorlib]System.Runtime.CompilerServices.RuntimeCompatibilityAttribute::.ctor() = ( 01 00 01 00 54 02 16 57 72 61 70 4E 6F 6E 45 78   // ....T..WrapNonEx
                                                                                                              63 65 70 74 69 6F 6E 54 68 72 6F 77 73 01 )       // ceptionThrows.
   .hash algorithm 0x00008004
@@ -33,7 +31,7 @@
 .class private auto ansi beforefieldinit HelloWorld
        extends [mscorlib]System.Object
 {
-  .method private hidebysig static int32
+  .method private hidebysig static int32 
           Main() cil managed
   {
     .custom instance void [xunit.core]Xunit.FactAttribute::.ctor() = (
@@ -96,7 +94,7 @@
       IL_0061:  leave.s    IL_0080
 
     }  // end .try
-    catch [mscorlib]System.Object
+    catch [mscorlib]System.Object 
     {
       IL_0063:  pop
       IL_0064:  nop
@@ -143,7 +141,7 @@
     IL_00aa:  ret
   } // end of method HelloWorld::Main
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_B() cil managed
   {
     // Code size       16 (0x10)
@@ -159,7 +157,7 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_B
 
-  .method public hidebysig static class [mscorlib]System.Type
+  .method public hidebysig static class [mscorlib]System.Type 
           Test_C() cil managed
   {
     // Code size       16 (0x10)
@@ -175,7 +173,7 @@
     IL_000f:  ret
   } // end of method HelloWorld::Test_C
 
-  .method public hidebysig specialname rtspecialname
+  .method public hidebysig specialname rtspecialname 
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)
@@ -190,7 +188,7 @@
 .class private auto ansi beforefieldinit A
        extends [mscorlib]System.Object
 {
-  .method public hidebysig newslot virtual
+  .method public hidebysig newslot virtual 
           instance void  Print() cil managed
   {
     // Code size       13 (0xd)
@@ -202,7 +200,7 @@
     IL_000c:  ret
   } // end of method A::Print
 
-  .method public hidebysig specialname rtspecialname
+  .method public hidebysig specialname rtspecialname 
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)
@@ -217,7 +215,7 @@
 .class private auto ansi beforefieldinit B
        extends A
 {
-  .method public hidebysig newslot virtual
+  .method public hidebysig newslot virtual 
           instance void  Print1() cil managed
   {
 	.override A::Print
@@ -230,7 +228,7 @@
     IL_000c:  ret
   } // end of method B::Print1
 
-  .method public hidebysig newslot virtual
+  .method public hidebysig newslot virtual 
           instance void  Print2() cil managed
   {
 	.override A::Print
@@ -243,7 +241,7 @@
     IL_000c:  ret
   } // end of method B::Print2
 
-  .method public hidebysig specialname rtspecialname
+  .method public hidebysig specialname rtspecialname 
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)
@@ -258,7 +256,7 @@
 .class private auto ansi beforefieldinit CBase
        extends A
 {
-  .method public hidebysig virtual instance void
+  .method public hidebysig virtual instance void 
           Print() cil managed
   {
     // Code size       13 (0xd)
@@ -270,7 +268,7 @@
     IL_000c:  ret
   } // end of method CBase::Print
 
-  .method public hidebysig specialname rtspecialname
+  .method public hidebysig specialname rtspecialname 
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)
@@ -285,7 +283,7 @@
 .class private auto ansi beforefieldinit C
        extends CBase
 {
-  .method public hidebysig newslot virtual
+  .method public hidebysig newslot virtual 
           instance void  Print1() cil managed
   {
 	.override A::Print
@@ -298,7 +296,7 @@
     IL_000c:  ret
   } // end of method C::Print1
 
-  .method public hidebysig newslot virtual
+  .method public hidebysig newslot virtual 
           instance void  Print2() cil managed
   {
 	.override CBase::Print
@@ -311,7 +309,7 @@
     IL_000c:  ret
   } // end of method C::Print2
 
-  .method public hidebysig specialname rtspecialname
+  .method public hidebysig specialname rtspecialname 
           instance void  .ctor() cil managed
   {
     // Code size       7 (0x7)

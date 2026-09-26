@@ -91,7 +91,7 @@ namespace Microsoft.Extensions.Hosting
         {
             IHostApplicationLifetime applicationLifetime = host.Services.GetRequiredService<IHostApplicationLifetime>();
 
-            using var _ = token.Register(static state =>
+            token.Register(state =>
             {
                 ((IHostApplicationLifetime)state!).StopApplication();
             },

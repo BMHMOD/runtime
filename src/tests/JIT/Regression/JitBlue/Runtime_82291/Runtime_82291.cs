@@ -2,9 +2,6 @@ using System;
 using System.Runtime.CompilerServices;
 using Xunit;
 
-
-namespace Runtime_82291;
-
 public class Runtime_82291 
 {
     [MethodImpl(MethodImplOptions.NoInlining)]

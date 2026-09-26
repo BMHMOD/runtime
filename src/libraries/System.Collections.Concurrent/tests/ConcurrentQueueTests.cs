@@ -20,52 +20,7 @@ namespace System.Collections.Concurrent.Tests
 
         protected override string CopyToNoLengthParamName => null;
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
-        public void Concurrent_TryDequeue_DoesNotReportEmptyWhileItemsAreQueued()
-        {
-            // Each worker holds at most one of the seeded items at a time, so an item is always
-            // queued and TryDequeue must never report empty
-            const int WorkerCount = 4;
-
-            var q = new ConcurrentQueue<object>();
-            for (int i = 0; i < WorkerCount; i++) q.Enqueue(new object());
-
-            bool stop = false;
-            int falseEmpties = 0;
-
-            // Snapshotting freezes the tail segment, racing the freeze against the empty check
-            Task snapshotter = Task.Run(() =>
-            {
-                while (!Volatile.Read(ref stop)) q.ToArray();
-            });
-
-            // Workers dequeue and immediately re-enqueue, counting any spurious empty
-            Task[] workers = new Task[WorkerCount];
-            for (int i = 0; i < WorkerCount; i++)
-            {
-                workers[i] = Task.Run(() =>
-                {
-                    while (!Volatile.Read(ref stop))
-                    {
-                        if (!q.TryDequeue(out object item))
-                        {
-                            Interlocked.Increment(ref falseEmpties);
-                            item = new object();
-                        }
-                        q.Enqueue(item);
-                    }
-                });
-            }
-
-            Thread.Sleep(TimeSpan.FromMilliseconds(200));
-            Volatile.Write(ref stop, true);
-            Task.WaitAll(workers);
-            snapshotter.Wait();
-
-            Assert.Equal(0, falseEmpties);
-        }
-
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public void Concurrent_Enqueue_TryDequeue_AllItemsReceived()
         {
             int items = 1000;
@@ -101,7 +56,7 @@ namespace System.Collections.Concurrent.Tests
             Task.WaitAll(producer, consumer);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public void Concurrent_Enqueue_TryPeek_TryDequeue_AllItemsSeen()
         {
             int items = 1000;
@@ -135,7 +90,7 @@ namespace System.Collections.Concurrent.Tests
             Task.WaitAll(producer, consumer);
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(1, 4, 1024)]
         [InlineData(4, 1, 1024)]
         [InlineData(3, 3, 1024)]
@@ -291,7 +246,7 @@ namespace System.Collections.Concurrent.Tests
             GC.KeepAlive(queue);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public void ManySegments_ConcurrentDequeues_RemainsConsistent()
         {
             var cq = new ConcurrentQueue<int>();
@@ -321,7 +276,7 @@ namespace System.Collections.Concurrent.Tests
             Assert.Equal(Iters, dequeues);
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public void ManySegments_ConcurrentEnqueues_RemainsConsistent()
         {
             var cq = new ConcurrentQueue<int>();
@@ -402,7 +357,7 @@ namespace System.Collections.Concurrent.Tests
             }
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(1, 10)]
         [InlineData(3, 100)]
         [InlineData(8, 1000)]

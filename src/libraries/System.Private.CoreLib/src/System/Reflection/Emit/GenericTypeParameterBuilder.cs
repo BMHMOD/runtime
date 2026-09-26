@@ -11,9 +11,6 @@ namespace System.Reflection.Emit
         {
         }
 
-        // A generic type parameter is not a Nullable<T> instantiation.
-        public override Type? GetNullableUnderlyingType() => null;
-
         public void SetCustomAttribute(ConstructorInfo con, byte[] binaryAttribute) => SetCustomAttributeCore(con, binaryAttribute);
 
         protected abstract void SetCustomAttributeCore(ConstructorInfo con, ReadOnlySpan<byte> binaryAttribute);

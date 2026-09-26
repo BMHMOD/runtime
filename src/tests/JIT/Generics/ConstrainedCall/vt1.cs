@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-namespace JitTest_Generics_ConstrainedCall_vt1;
-
 using System;
 using Xunit;
 interface IncrDecr
@@ -60,7 +58,6 @@ class MyCounter<T> where T : IncrDecr
 }
 public class test
 {
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

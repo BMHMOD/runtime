@@ -61,6 +61,7 @@ BOOL ETW::GCLog::ShouldTrackMovementForEtw()
 BOOL ETW::GCLog::ShouldWalkStaticsAndCOMForEtw()
 {
     LIMITED_METHOD_CONTRACT;
+
     return s_forcedGCInProgress &&
         ETW_TRACING_CATEGORY_ENABLED(MICROSOFT_WINDOWS_DOTNETRUNTIME_PROVIDER_DOTNET_Context,
                                      TRACE_LEVEL_INFORMATION,
@@ -408,24 +409,6 @@ VOID ETW::GCLog::EndMovedReferences(size_t profilingContext, BOOL fAllowProfApiN
     delete pContext;
 }
 
-#if defined(TARGET_BROWSER)
-#include "wasm/entrypoints.h"
-
-static size_t ForceGCForDiagnosticsJob(void* data)
-{
-    CONTRACTL
-    {
-        NOTHROW;
-        GC_TRIGGERS;
-        MODE_ANY;
-    }
-    CONTRACTL_END;
-
-    ETW::GCLog::ForceGCForDiagnostics();
-    return 1; // done
-}
-#endif // TARGET_BROWSER
-
 // This implements the public runtime provider's GCHeapCollectKeyword.  It
 // performs a full, gen-2, blocking GC.
 VOID ETW::GCLog::ForceGC(LONGLONG l64ClientSequenceNumber)
@@ -445,14 +428,7 @@ VOID ETW::GCLog::ForceGC(LONGLONG l64ClientSequenceNumber)
 
     InterlockedExchange64(&s_l64LastClientSequenceNumber, l64ClientSequenceNumber);
 
-#if defined(TARGET_BROWSER)
-    // On single-threaded browser, we cannot call ForceGCForDiagnostics synchronously
-    // from within the provider callback (which runs during ep_init_session_3 under the
-    // EventPipe lock). Defer the GC to the next event loop turn.
-    SystemJS_DiagnosticServerQueueJob(ForceGCForDiagnosticsJob, NULL);
-#else
     ForceGCForDiagnostics();
-#endif // TARGET_BROWSER
 }
 
 //---------------------------------------------------------------------------------------
@@ -529,6 +505,7 @@ HRESULT ETW::GCLog::ForceGCForDiagnostics()
 //---------------------------------------------------------------------------------------
 // WalkStaticsAndCOMForETW walks both CCW/RCW objects and static variables.
 //---------------------------------------------------------------------------------------
+
 VOID ETW::GCLog::WalkStaticsAndCOMForETW()
 {
     CONTRACTL
@@ -542,11 +519,9 @@ VOID ETW::GCLog::WalkStaticsAndCOMForETW()
     {
         BulkTypeEventLogger typeLogger;
 
-#ifdef FEATURE_COMINTEROP
         // Walk RCWs/CCWs
         BulkComLogger comLogger(&typeLogger);
         comLogger.LogAllComObjects();
-#endif // FEATURE_COMINTEROP
 
         // Walk static variables
         BulkStaticsLogger staticLogger(&typeLogger);
@@ -554,9 +529,7 @@ VOID ETW::GCLog::WalkStaticsAndCOMForETW()
 
         // Ensure all loggers have written all events, fire type logger last to batch events
         // (FireBulkComEvent or FireBulkStaticsEvent may queue up additional types).
-#ifdef FEATURE_COMINTEROP
         comLogger.FireBulkComEvent();
-#endif // FEATURE_COMINTEROP
         staticLogger.FireBulkStaticsEvent();
         typeLogger.FireBulkTypeEvent();
     }

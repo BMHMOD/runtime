@@ -74,8 +74,6 @@ namespace System.Net
 
                 if (sslAuthenticationOptions.ApplicationProtocols != null && sslAuthenticationOptions.ApplicationProtocols.Count != 0)
                 {
-                    ValidateAlpnProtocolListSize(sslAuthenticationOptions.ApplicationProtocols);
-
                     if (sslAuthenticationOptions.IsClient)
                     {
                         // On macOS coreTls supports only client side.
@@ -191,10 +189,9 @@ namespace System.Net
 
         private void SslSetConnection(SafeSslHandle sslContext)
         {
-            var handle = new GCHandle<SafeDeleteSslContext>(this);
-            sslContext.SetConnectionGCHandle(handle);
+            GCHandle handle = GCHandle.Alloc(this, GCHandleType.Weak);
 
-            Interop.AppleCrypto.SslSetConnection(sslContext, GCHandle<SafeDeleteSslContext>.ToIntPtr(handle));
+            Interop.AppleCrypto.SslSetConnection(sslContext, GCHandle.ToIntPtr(handle));
         }
 
         public override bool IsInvalid => _sslContext?.IsInvalid ?? true;
@@ -221,7 +218,8 @@ namespace System.Net
         [UnmanagedCallersOnly]
         private static unsafe int WriteToConnection(IntPtr connection, byte* data, void** dataLength)
         {
-            SafeDeleteSslContext context = GCHandle<SafeDeleteSslContext>.FromIntPtr(connection).Target;
+            SafeDeleteSslContext? context = (SafeDeleteSslContext?)GCHandle.FromIntPtr(connection).Target;
+            Debug.Assert(context != null);
 
             // We don't pool these buffers and we can't because there's a race between their us in the native
             // read/write callbacks and being disposed when the SafeHandle is disposed. This race is benign currently,
@@ -255,7 +253,8 @@ namespace System.Net
         [UnmanagedCallersOnly]
         private static unsafe int ReadFromConnection(IntPtr connection, byte* data, void** dataLength)
         {
-            SafeDeleteSslContext context = GCHandle<SafeDeleteSslContext>.FromIntPtr(connection).Target;
+            SafeDeleteSslContext? context = (SafeDeleteSslContext?)GCHandle.FromIntPtr(connection).Target;
+            Debug.Assert(context != null);
 
             try
             {
@@ -369,12 +368,7 @@ namespace System.Net
         {
             Debug.Assert(sslContext != null);
 
-            const int StackallocThreshold = 128;
-
-            int certCount = context!.IntermediateCertificates.Count + 1;
-            Span<IntPtr> ptrs = certCount <= StackallocThreshold ?
-                stackalloc IntPtr[certCount] :
-                new IntPtr[certCount];
+            IntPtr[] ptrs = new IntPtr[context!.IntermediateCertificates.Count + 1];
 
             for (int i = 0; i < context.IntermediateCertificates.Count; i++)
             {
@@ -397,19 +391,6 @@ namespace System.Net
             ptrs[0] = context!.TargetCertificate.Handle;
 
             Interop.AppleCrypto.SslSetCertificate(sslContext, ptrs);
-        }
-
-        private static void ValidateAlpnProtocolListSize(List<SslApplicationProtocol> applicationProtocols)
-        {
-            int protocolListSize = 0;
-            foreach (SslApplicationProtocol protocol in applicationProtocols)
-            {
-                protocolListSize += protocol.Protocol.Length + 1;
-                if (protocolListSize > ushort.MaxValue)
-                {
-                    throw new ArgumentException(SR.net_ssl_app_protocols_invalid, nameof(applicationProtocols));
-                }
-            }
         }
     }
 }

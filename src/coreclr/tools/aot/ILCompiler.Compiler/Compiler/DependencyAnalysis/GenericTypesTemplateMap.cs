@@ -13,8 +13,9 @@ namespace ILCompiler.DependencyAnalysis
     /// <summary>
     /// Hashtable of all generic type templates used by the TypeLoader at runtime
     /// </summary>
-    public sealed class GenericTypesTemplateMap : ObjectNode, ISymbolDefinitionNode
+    public sealed class GenericTypesTemplateMap : ObjectNode, ISymbolDefinitionNode, INodeWithSize
     {
+        private int? _size;
         private ExternalReferencesTableNode _externalReferences;
 
         public GenericTypesTemplateMap(ExternalReferencesTableNode externalReferences)
@@ -27,6 +28,7 @@ namespace ILCompiler.DependencyAnalysis
             sb.Append(nameMangler.CompilationUnitPrefix).Append("__GenericTypesTemplateMap"u8);
         }
 
+        int INodeWithSize.Size => _size.Value;
         public int Offset => 0;
         public override bool IsShareable => false;
         public override ObjectNodeSection GetSection(NodeFactory factory) => _externalReferences.GetSection(factory);
@@ -64,6 +66,8 @@ namespace ILCompiler.DependencyAnalysis
             }
 
             byte[] streamBytes = nativeWriter.Save();
+
+            _size = streamBytes.Length;
 
             return new ObjectData(streamBytes, Array.Empty<Relocation>(), 1, new ISymbolDefinitionNode[] { this });
         }

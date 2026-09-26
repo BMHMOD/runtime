@@ -12,15 +12,18 @@ public class Runtime_105474
 {
     private static Vector<double> s_3;
 
-    [ConditionalFact(typeof(Sve), nameof(Sve.IsSupported))]
+    [Fact]
     public static void TestEntryPoint()
     {
-        TestMethod1();
-        TestMethod2(Vector<double>.Zero);
-        TestMethod3(Vector<double>.Zero);
-        TestMethod4(Vector<double>.Zero);
-        TestMethod5(Vector<double>.Zero);
-        TestMethod6(Vector<double>.Zero);
+        if (Sve.IsSupported)
+        {
+            TestMethod1();
+            TestMethod2(Vector<double>.Zero);
+            TestMethod3(Vector<double>.Zero);
+            TestMethod4(Vector<double>.Zero);
+            TestMethod5(Vector<double>.Zero);
+            TestMethod6(Vector<double>.Zero);
+        }
     }
 
     [method: MethodImpl(MethodImplOptions.NoInlining)]

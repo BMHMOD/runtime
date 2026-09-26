@@ -5,7 +5,6 @@ using System;
 
 using System.Collections.Generic;
 using Xunit;
-using TestLibrary;
 
 //Repro from http://www.simple-talk.com/dotnet/.net-framework/the-dangers-of-the-large-object-heap/
 
@@ -116,8 +115,6 @@ namespace LOH_test
 
 
 
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/5933", TestRuntimes.CoreCLR)]
-        [SkipOnCoreClr("This test is not compatible with GC stress.", RuntimeTestModes.AnyGCStress)]
         [Fact]
         public static int TestEntryPoint()
         {

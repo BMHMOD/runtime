@@ -224,7 +224,7 @@ namespace System.Formats.Tar.Tests
                     int directoriesCount = entries.Count(e => e.EntryType == TarEntryType.Directory);
                     Assert.Equal(10, directoriesCount);
 
-                    TarEntryType actualEntryType = GetRegularFileEntryTypeForFormat(format);
+                    TarEntryType actualEntryType = format is TarEntryFormat.V7 ? TarEntryType.V7RegularFile : TarEntryType.RegularFile;
 
                     for (int i = 0; i < 10; i++)
                     {
@@ -423,7 +423,7 @@ namespace System.Formats.Tar.Tests
                 Assert.Equal(expectedContents, contents);
             }
 
-            TarEntryType expectedEntryType = GetRegularFileEntryTypeForFormat(format);
+            TarEntryType expectedEntryType = format == TarEntryFormat.V7 ? TarEntryType.V7RegularFile : TarEntryType.RegularFile;
             Assert.Equal(expectedEntryType, file.EntryType);
 
             Assert.Equal(AssetGid, file.Gid);

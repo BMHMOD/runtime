@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Buffers.Binary;
+using System.Diagnostics;
 using System.Globalization;
 using System.Security.Authentication;
 using System.Text;
@@ -63,7 +64,7 @@ namespace System.Net.Security
         DecryptError = 51, // error
         ExportRestriction = 60, // reserved
         ProtocolVersion = 70, // error
-        InsufficientSecurity = 71, // error
+        InsuffientSecurity = 71, // error
         InternalError = 80, // error
         UserCanceled = 90, // warning or error
         NoRenegotiation = 100, // warning
@@ -73,7 +74,7 @@ namespace System.Net.Security
     internal enum ExtensionType : ushort
     {
         ServerName = 0,
-        MaximumFragmentLength = 1,
+        MaximumFagmentLength = 1,
         ClientCertificateUrl = 2,
         TrustedCaKeys = 3,
         TruncatedHmac = 4,
@@ -98,6 +99,7 @@ namespace System.Net.Security
         [Flags]
         public enum ProcessingOptions
         {
+            All = 0,
             ServerName = 0x1,
             ApplicationProtocol = 0x2,
             Versions = 0x4,
@@ -201,7 +203,7 @@ namespace System.Net.Security
                 // max frame for SSLv2 is 32767.
                 // However, we expect something reasonable for initial HELLO
                 // We don't have enough logic to verify full validity,
-                // the limits below are guesses.
+                // the limits bellow are queses.
 #pragma warning disable CS0618 // Ssl2 and Ssl3 are obsolete
                 header.Version = SslProtocols.Ssl2;
 #pragma warning restore CS0618
@@ -210,9 +212,7 @@ namespace System.Net.Security
             }
             else
             {
-                // unknown format
                 header.Length = -1;
-                return false;
             }
 
             return true;
@@ -220,11 +220,11 @@ namespace System.Net.Security
 
         // This function will try to parse TLS hello frame and fill details in provided info structure.
         // If frame was fully processed without any error, function returns true.
-        // Otherwise, it returns false and info may have partial data.
+        // Otherwise it returns false and info may have partial data.
         // It is OK to call it again if more data becomes available.
         // It is also possible to limit what information is processed.
         // If callback delegate is provided, it will be called on ALL extensions.
-        public static bool TryGetFrameInfo(ReadOnlySpan<byte> frame, ref TlsFrameInfo info, ProcessingOptions options = ProcessingOptions.ServerName, HelloExtensionCallback? callback = null)
+        public static bool TryGetFrameInfo(ReadOnlySpan<byte> frame, ref TlsFrameInfo info, ProcessingOptions options = ProcessingOptions.All, HelloExtensionCallback? callback = null)
         {
             const int HandshakeTypeOffset = 5;
             if (frame.Length < HeaderSize)
@@ -232,11 +232,9 @@ namespace System.Net.Security
                 return false;
             }
 
-            if (!TryGetFrameHeader(frame, ref info.Header))
-            {
-                // Unknown or malformed frame format.
-                return false;
-            }
+            // This will not fail since we have enough data.
+            bool gotHeader = TryGetFrameHeader(frame, ref info.Header);
+            Debug.Assert(gotHeader);
 
             info.SupportedVersions = info.Header.Version;
 
@@ -289,7 +287,7 @@ namespace System.Net.Security
             return isComplete;
         }
 
-        // This is similar to TryGetFrameInfo, but it will only process SNI.
+        // This is similar to TryGetFrameInfo but it will only process SNI.
         // It returns TargetName as string or NULL if SNI is missing or parsing error happened.
         public static string? GetServerName(ReadOnlySpan<byte> frame)
         {
@@ -302,7 +300,7 @@ namespace System.Net.Security
             return info.TargetName;
         }
 
-        // This function will parse the TLS Alert message, and return the alert level and description.
+        // This function will parse TLS Alert message and it will return alert level and description.
         public static bool TryGetAlertInfo(ReadOnlySpan<byte> frame, ref TlsAlertLevel level, ref TlsAlertDescription description)
         {
             if (frame.Length < 7 || frame[0] != (byte)TlsContentType.Alert)
@@ -338,7 +336,7 @@ namespace System.Net.Security
                 return CreateProtocolVersionAlert(version);
             }
 #pragma warning disable SYSLIB0039 // TLS 1.0 and 1.1 are obsolete
-            else if ((int)version >= (int)SslProtocols.Tls)
+            else if ((int)version > (int)SslProtocols.Tls)
 #pragma warning restore SYSLIB0039
             {
                 // Create TLS1.2 alert
@@ -391,7 +389,7 @@ namespace System.Net.Security
             int helloLength = ReadUInt24BigEndian(sslHandshake.Slice(HelloLengthOffset));
             ReadOnlySpan<byte> helloData = sslHandshake.Slice(HelloOffset);
 
-            if (helloLength < ProtocolVersionSize || helloData.Length < helloLength)
+            if (helloData.Length < helloLength)
             {
                 return false;
             }
@@ -437,11 +435,6 @@ namespace System.Net.Security
                 return true;
             }
 
-            if (p.Length < sizeof(ushort))
-            {
-                return false;
-            }
-
             // client_hello_extension_list (max size 2^16-1 => size fits in 2 bytes)
             int extensionListLength = BinaryPrimitives.ReadUInt16BigEndian(p);
             p = SkipBytes(p, sizeof(ushort));
@@ -467,20 +460,15 @@ namespace System.Net.Security
             // }
             // ServerHello;
             const int CipherSuiteLength = 2;
-            const int CompressionMethodLength = 1;
+            const int CompressionMethiodLength = 1;
 
             ReadOnlySpan<byte> p = SkipBytes(serverHello, ProtocolVersionSize + RandomSize);
             // Skip SessionID (max size 32 => size fits in 1 byte)
             p = SkipOpaqueType1(p);
-            p = SkipBytes(p, CipherSuiteLength + CompressionMethodLength);
+            p = SkipBytes(p, CipherSuiteLength + CompressionMethiodLength);
 
             // is invalid structure or no extensions?
             if (p.IsEmpty)
-            {
-                return false;
-            }
-
-            if (p.Length < sizeof(ushort))
             {
                 return false;
             }
@@ -517,7 +505,8 @@ namespace System.Net.Security
 
                 ReadOnlySpan<byte> extensionData = extensions.Slice(0, extensionLength);
 
-                if (extensionType == ExtensionType.ServerName && (options & ProcessingOptions.ServerName) != 0)
+                if (extensionType == ExtensionType.ServerName && (options == ProcessingOptions.All ||
+                   (options & ProcessingOptions.ServerName) == ProcessingOptions.ServerName))
                 {
                     if (!TryGetSniFromServerNameList(extensionData, out string? sni))
                     {
@@ -526,7 +515,8 @@ namespace System.Net.Security
 
                     info.TargetName = sni!;
                 }
-                else if (extensionType == ExtensionType.SupportedVersions && (options & ProcessingOptions.Versions) != 0)
+                else if (extensionType == ExtensionType.SupportedVersions && (options == ProcessingOptions.All ||
+                          (options & ProcessingOptions.Versions) == ProcessingOptions.Versions))
                 {
                     if (!TryGetSupportedVersionsFromExtension(extensionData, out SslProtocols versions))
                     {
@@ -535,8 +525,8 @@ namespace System.Net.Security
 
                     info.SupportedVersions |= versions;
                 }
-                else if (extensionType == ExtensionType.ApplicationProtocols &&
-                          (options & (ProcessingOptions.ApplicationProtocol | ProcessingOptions.RawApplicationProtocol)) != 0)
+                else if (extensionType == ExtensionType.ApplicationProtocols && (options == ProcessingOptions.All ||
+                          (options.HasFlag(ProcessingOptions.ApplicationProtocol) || options.HasFlag(ProcessingOptions.RawApplicationProtocol))))
                 {
                     if (!TryGetApplicationProtocolsFromExtension(extensionData, out ApplicationProtocolInfo alpn))
                     {
@@ -626,12 +616,6 @@ namespace System.Net.Security
             const int HostNameLengthOffset = 0;
             const int HostNameOffset = HostNameLengthOffset + sizeof(ushort);
 
-            if (hostNameStruct.Length < HostNameOffset)
-            {
-                invalid = true;
-                return null;
-            }
-
             int hostNameLength = BinaryPrimitives.ReadUInt16BigEndian(hostNameStruct);
             ReadOnlySpan<byte> hostName = hostNameStruct.Slice(HostNameOffset);
             if (hostNameLength != hostName.Length)
@@ -661,11 +645,6 @@ namespace System.Net.Security
 
             protocols = SslProtocols.None;
 
-            if (extensionData.IsEmpty)
-            {
-                return false;
-            }
-
             byte supportedVersionLength = extensionData[VersionListLengthOffset];
             extensionData = extensionData.Slice(VersionListNameOffset);
 
@@ -674,7 +653,7 @@ namespace System.Net.Security
                 return false;
             }
 
-            // Get list of protocols we support. Ignore the rest.
+            // Get list of protocols we support.I nore the rest.
             while (extensionData.Length >= VersionLength)
             {
                 if (extensionData[ProtocolVersionMajorOffset] == ProtocolVersionTlsMajorValue)

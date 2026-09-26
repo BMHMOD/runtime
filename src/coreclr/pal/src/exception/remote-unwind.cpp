@@ -2,10 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 /*++
+
 Module Name:
+
     remote-unwind.cpp
 
 Abstract:
+
     Implementation of out of context unwind using libunwind8
     remote unwind API.
 
@@ -32,6 +35,7 @@ NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
 LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 --*/
 
 #ifdef HOST_UNIX
@@ -42,6 +46,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "pal/debug.h"
 #include "pal_endian.h"
 #include "pal.h"
+#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include <dlfcn.h>
 
@@ -62,16 +67,19 @@ SET_DEFAULT_DEBUG_CHANNEL(EXCEPT);
 
 #include "crosscomp.h"
 
+#define KNONVOLATILE_CONTEXT_POINTERS T_KNONVOLATILE_CONTEXT_POINTERS
 #define CONTEXT T_CONTEXT
 
 #else // HOST_UNIX
 
 #include <windows.h>
+#define __STDC_FORMAT_MACROS
 #include <inttypes.h>
 #include <libunwind.h>
 #include "debugmacros.h"
 #include "crosscomp.h"
 
+#define KNONVOLATILE_CONTEXT_POINTERS T_KNONVOLATILE_CONTEXT_POINTERS
 #define CONTEXT T_CONTEXT
 
 typedef BOOL(*UnwindReadMemoryCallback)(PVOID address, PVOID buffer, SIZE_T size);
@@ -2200,9 +2208,9 @@ find_proc_info(unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pip, int nee
         }
     }
 
-#if HAVE_GET_PROC_INFO_IN_RANGE || defined(__APPLE__) || !defined(HOST_UNIX)
+#if HAVE_GET_PROC_INFO_IN_RANGE || !defined(HOST_UNIX)
     return unw_get_proc_info_in_range(start_ip, end_ip, ehFrameHdrAddr, ehFrameHdrLen, exidxFrameHdrAddr, exidxFrameHdrLen, as, ip, pip, need_unwind_info, arg);
-#else // HAVE_GET_PROC_INFO_IN_RANGE || defined(__APPLE__) || !defined(HOST_UNIX)
+#else // HAVE_GET_PROC_INFO_IN_RANGE || !defined(HOST_UNIX)
 
     // This branch is executed when using llvm-libunwind (macOS and similar platforms)
     // or HP-libunwind version 1.6 and earlier.
@@ -2326,22 +2334,16 @@ Parameters:
     functionStart - the pointer to return the starting address of the function or nullptr
     baseAddress - base address of the module to find the unwind info
     readMemoryCallback - reads memory from the target
-    isSignalFrame - output parameter: set to true if the unwound-to frame is a signal trampoline
 --*/
 BOOL
 PALAPI
-PAL_VirtualUnwindOutOfProc(CONTEXT *context, PULONG64 functionStart, SIZE_T baseAddress, UnwindReadMemoryCallback readMemoryCallback, bool *isSignalFrame)
+PAL_VirtualUnwindOutOfProc(CONTEXT *context, PULONG64 functionStart, SIZE_T baseAddress, UnwindReadMemoryCallback readMemoryCallback)
 {
     unw_addr_space_t addrSpace = 0;
     unw_cursor_t cursor;
     libunwindInfo info;
     BOOL result = FALSE;
     int st;
-
-    if (isSignalFrame)
-    {
-        *isSignalFrame = false;
-    }
 
     info.BaseAddress = baseAddress;
     info.Context = context;
@@ -2412,14 +2414,6 @@ PAL_VirtualUnwindOutOfProc(CONTEXT *context, PULONG64 functionStart, SIZE_T base
     {
         result = FALSE;
         goto exit;
-    }
-
-    // Check if the frame we landed on is a signal trampoline. When a signal handler uses
-    // SA_ONSTACK, stepping from a signal frame crosses from the alternate signal stack to the
-    // original thread stack, which can cause the SP to decrease.
-    if (isSignalFrame && unw_is_signal_frame(&cursor) > 0)
-    {
-        *isSignalFrame = true;
     }
 
     UnwindContextToContext(&cursor, context);
@@ -2584,7 +2578,7 @@ PAL_GetUnwindInfoSize(SIZE_T baseAddress, ULONG64 ehFrameHdrAddr, UnwindReadMemo
 
 BOOL
 PALAPI
-PAL_VirtualUnwindOutOfProc(CONTEXT *context, PULONG64 functionStart, SIZE_T baseAddress, UnwindReadMemoryCallback readMemoryCallback, bool *isSignalFrame)
+PAL_VirtualUnwindOutOfProc(CONTEXT *context, PULONG64 functionStart, SIZE_T baseAddress, UnwindReadMemoryCallback readMemoryCallback)
 {
     return FALSE;
 }

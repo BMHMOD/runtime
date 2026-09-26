@@ -5,7 +5,7 @@ using System;
 using System.Net;
 using Xunit;
 
-namespace dev11_76013
+namespace Test
 {
     class MyException : Exception
     {
@@ -19,7 +19,6 @@ namespace dev11_76013
 
     public class Program
     {
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

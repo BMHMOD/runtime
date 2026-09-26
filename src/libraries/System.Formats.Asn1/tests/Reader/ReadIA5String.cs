@@ -10,35 +10,8 @@ using Xunit;
 
 namespace System.Formats.Asn1.Tests.Reader
 {
-    public sealed class ReadIA5StringAsnReaderTests : ReadIA5StringBase
+    public sealed class ReadIA5String
     {
-        internal override AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default)
-        {
-            return AsnReaderWrapper.CreateClassReader(data, ruleSet, options);
-        }
-    }
-
-    public sealed class ReadIA5StringValueAsnReaderTests : ReadIA5StringBase
-    {
-        internal override AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default)
-        {
-            return AsnReaderWrapper.CreateValueReader(data, ruleSet, options);
-        }
-    }
-
-    public abstract class ReadIA5StringBase
-    {
-        internal abstract AsnReaderWrapper CreateWrapper(
-            ReadOnlyMemory<byte> data,
-            AsnEncodingRules ruleSet,
-            AsnReaderOptions options = default);
-
         public static IEnumerable<object[]> ValidEncodingData { get; } =
             new object[][]
             {
@@ -140,23 +113,17 @@ namespace System.Formats.Asn1.Tests.Reader
                       "0000",
                     "Dr. & Mrs. Smith-Jones & children",
                 },
-                new object[]
-                {
-                    AsnEncodingRules.BER,
-                    "1640" + new string('4', 128),
-                    new string('D', 64),
-                },
             };
 
         [Theory]
         [MemberData(nameof(ValidEncodingData))]
-        public void GetIA5String_Success(
+        public static void GetIA5String_Success(
             AsnEncodingRules ruleSet,
             string inputHex,
             string expectedValue)
         {
             byte[] inputData = inputHex.HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
             string value = reader.ReadCharacterString(UniversalTagNumber.IA5String);
 
             Assert.Equal(expectedValue, value);
@@ -164,7 +131,7 @@ namespace System.Formats.Asn1.Tests.Reader
 
         [Theory]
         [MemberData(nameof(ValidEncodingData))]
-        public void TryCopyIA5String(
+        public static void TryCopyIA5String(
             AsnEncodingRules ruleSet,
             string inputHex,
             string expectedValue)
@@ -172,7 +139,7 @@ namespace System.Formats.Asn1.Tests.Reader
             byte[] inputData = inputHex.HexToByteArray();
             char[] output = new char[expectedValue.Length];
 
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
             bool copied;
             int charsWritten;
 
@@ -199,7 +166,7 @@ namespace System.Formats.Asn1.Tests.Reader
 
         [Theory]
         [MemberData(nameof(ValidEncodingData))]
-        public void TryCopyIA5StringBytes(
+        public static void TryCopyIA5StringBytes(
             AsnEncodingRules ruleSet,
             string inputHex,
             string expectedString)
@@ -208,7 +175,7 @@ namespace System.Formats.Asn1.Tests.Reader
             string expectedHex = Text.Encoding.ASCII.GetBytes(expectedString).ByteArrayToHex();
             byte[] output = new byte[expectedHex.Length / 2];
 
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
             bool copied;
             int bytesWritten;
 
@@ -240,15 +207,15 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER, "160120", true)]
         [InlineData(AsnEncodingRules.BER, "3680" + "040120" + "0000", false)]
         [InlineData(AsnEncodingRules.BER, "3603" + "040120", false)]
-        public void TryGetIA5StringBytes(
+        public static void TryGetIA5StringBytes(
             AsnEncodingRules ruleSet,
             string inputHex,
             bool expectSuccess)
         {
             byte[] inputData = inputHex.HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
-            bool got = reader.TryGetIA5StringBytes(out ReadOnlySpan<byte> contents);
+            bool got = reader.TryGetIA5StringBytes(out ReadOnlyMemory<byte> contents);
 
             if (expectSuccess)
             {
@@ -256,7 +223,7 @@ namespace System.Formats.Asn1.Tests.Reader
 
                 Assert.True(
                     Unsafe.AreSame(
-                        ref MemoryMarshal.GetReference(contents),
+                        ref MemoryMarshal.GetReference(contents.Span),
                         ref inputData[2]));
             }
             else
@@ -280,18 +247,17 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData("Length Too Long", AsnEncodingRules.CER, "16034869")]
         [InlineData("Length Too Long", AsnEncodingRules.DER, "16034869")]
         [InlineData("Constructed Form", AsnEncodingRules.DER, "3603040149")]
-        public void TryGetIA5StringBytes_Throws(
+        public static void TryGetIA5StringBytes_Throws(
             string description,
             AsnEncodingRules ruleSet,
             string inputHex)
         {
             _ = description;
             byte[] inputData = inputHex.HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.TryGetIA5StringBytes(out _));
+                () => reader.TryGetIA5StringBytes(out ReadOnlyMemory<byte> contents));
         }
 
         [Theory]
@@ -337,7 +303,7 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData("NonEmpty Null", AsnEncodingRules.BER, "3680000100")]
         [InlineData("NonEmpty Null", AsnEncodingRules.CER, "3680000100")]
         [InlineData("LongLength Null", AsnEncodingRules.BER, "3680008100")]
-        public void TryCopyIA5StringBytes_Throws(
+        public static void TryCopyIA5StringBytes_Throws(
             string description,
             AsnEncodingRules ruleSet,
             string inputHex)
@@ -348,27 +314,25 @@ namespace System.Formats.Asn1.Tests.Reader
             outputData[0] = 252;
 
             int bytesWritten = -1;
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                (ref reader) => reader.TryCopyIA5StringBytes(outputData, out bytesWritten));
+                () => reader.TryCopyIA5StringBytes(outputData, out bytesWritten));
 
             Assert.Equal(-1, bytesWritten);
             Assert.Equal(252, outputData[0]);
         }
 
-        private void TryCopyIA5String_Throws_Helper(AsnEncodingRules ruleSet, byte[] inputData)
+        private static void TryCopyIA5String_Throws_Helper(AsnEncodingRules ruleSet, byte[] inputData)
         {
             char[] outputData = new char[inputData.Length + 1];
             outputData[0] = 'a';
 
             int bytesWritten = -1;
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                (ref reader) => reader.TryCopyIA5String(outputData, out bytesWritten));
+                () => reader.TryCopyIA5String(outputData, out bytesWritten));
 
             Assert.Equal(-1, bytesWritten);
             Assert.Equal('a', outputData[0]);
@@ -378,20 +342,18 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData("Bad IA5 value", AsnEncodingRules.BER, "1602E280")]
         [InlineData("Bad IA5 value", AsnEncodingRules.CER, "1602E280")]
         [InlineData("Bad IA5 value", AsnEncodingRules.DER, "1602E280")]
-        [InlineData("Bad IA5 value after vector prefix", AsnEncodingRules.BER, "1621414141414141414141414141414141414141414141414141414141414141414180")]
         [InlineData("Wrong Tag", AsnEncodingRules.BER, "04024869")]
-        public void GetIA5String_Throws(
+        public static void GetIA5String_Throws(
             string description,
             AsnEncodingRules ruleSet,
             string inputHex)
         {
             _ = description;
             byte[] inputData = inputHex.HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.ReadCharacterString(UniversalTagNumber.IA5String));
+                () => reader.ReadCharacterString(UniversalTagNumber.IA5String));
         }
 
         [Theory]
@@ -438,8 +400,7 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData("NonEmpty Null", AsnEncodingRules.CER, "3680000100")]
         [InlineData("LongLength Null", AsnEncodingRules.BER, "3680008100")]
         [InlineData("Bad IA5 value", AsnEncodingRules.BER, "1602E280")]
-        [InlineData("Bad IA5 value after vector prefix", AsnEncodingRules.BER, "1621414141414141414141414141414141414141414141414141414141414141414180")]
-        public void TryCopyIA5String_Throws(
+        public static void TryCopyIA5String_Throws(
             string description,
             AsnEncodingRules ruleSet,
             string inputHex)
@@ -450,7 +411,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void TryCopyIA5String_Throws_CER_NestedTooLong()
+        public static void TryCopyIA5String_Throws_CER_NestedTooLong()
         {
             // CER says that the maximum encoding length for a IA5String primitive
             // is 1000.
@@ -479,7 +440,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void TryCopyIA5String_Throws_CER_NestedTooShortIntermediate()
+        public static void TryCopyIA5String_Throws_CER_NestedTooShortIntermediate()
         {
             // CER says that the maximum encoding length for a IA5String primitive
             // is 1000, and in the constructed form the lengths must be
@@ -517,7 +478,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void TryCopyIA5StringBytes_Success_CER_MaxPrimitiveLength()
+        public static void TryCopyIA5StringBytes_Success_CER_MaxPrimitiveLength()
         {
             // CER says that the maximum encoding length for a IA5String primitive
             // is 1000.
@@ -539,7 +500,7 @@ namespace System.Formats.Asn1.Tests.Reader
 
             byte[] output = new byte[1000];
 
-            AsnReaderWrapper reader = CreateWrapper(input, AsnEncodingRules.CER);
+            AsnReader reader = new AsnReader(input, AsnEncodingRules.CER);
 
             bool success = reader.TryCopyIA5StringBytes(output,
                 out int bytesWritten);
@@ -553,7 +514,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void TryCopyIA5StringBytes_Success_CER_MinConstructedLength()
+        public static void TryCopyIA5StringBytes_Success_CER_MinConstructedLength()
         {
             // CER says that the maximum encoding length for a IA5String primitive
             // is 1000, and that a constructed form must be used for values greater
@@ -605,7 +566,7 @@ namespace System.Formats.Asn1.Tests.Reader
 
             byte[] output = new byte[1001];
 
-            AsnReaderWrapper reader = CreateWrapper(input, AsnEncodingRules.CER);
+            AsnReader reader = new AsnReader(input, AsnEncodingRules.CER);
 
             bool success = reader.TryCopyIA5StringBytes(output,
                 out int bytesWritten);
@@ -622,25 +583,23 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void TagMustBeCorrect_Universal(AsnEncodingRules ruleSet)
+        public static void TagMustBeCorrect_Universal(AsnEncodingRules ruleSet)
         {
             byte[] inputData = { 0x16, 2, (byte)'e', (byte)'l' };
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
-            Assert.Throws<ArgumentException>(
-                ref reader,
+            AssertExtensions.Throws<ArgumentException>(
                 "expectedTag",
-                static (ref reader) => reader.TryGetIA5StringBytes(Asn1Tag.Null, out _));
+                () => reader.TryGetIA5StringBytes(Asn1Tag.Null, out _));
 
             Assert.True(reader.HasData, "HasData after bad universal tag");
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.TryGetIA5StringBytes(new Asn1Tag(TagClass.ContextSpecific, 0), out _));
+                () => reader.TryGetIA5StringBytes(new Asn1Tag(TagClass.ContextSpecific, 0), out _));
 
             Assert.True(reader.HasData, "HasData after wrong tag");
 
-            Assert.True(reader.TryGetIA5StringBytes(out ReadOnlySpan<byte> value));
+            Assert.True(reader.TryGetIA5StringBytes(out ReadOnlyMemory<byte> value));
             Assert.Equal("656C", value.ByteArrayToHex());
             Assert.False(reader.HasData, "HasData after read");
         }
@@ -649,40 +608,35 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER)]
         [InlineData(AsnEncodingRules.CER)]
         [InlineData(AsnEncodingRules.DER)]
-        public void TagMustBeCorrect_Custom(AsnEncodingRules ruleSet)
+        public static void TagMustBeCorrect_Custom(AsnEncodingRules ruleSet)
         {
             byte[] inputData = { 0x87, 2, (byte)'h', (byte)'i' };
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
-            Assert.Throws<ArgumentException>(
-                ref reader,
+            AssertExtensions.Throws<ArgumentException>(
                 "expectedTag",
-                static (ref reader) => reader.TryGetIA5StringBytes(Asn1Tag.Null, out _));
+                () => reader.TryGetIA5StringBytes(Asn1Tag.Null, out _));
 
             Assert.True(reader.HasData, "HasData after bad universal tag");
 
-            Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.TryGetIA5StringBytes(out _));
+            Assert.Throws<AsnContentException>(() => reader.TryGetIA5StringBytes(out _));
 
             Assert.True(reader.HasData, "HasData after default tag");
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.TryGetIA5StringBytes(new Asn1Tag(TagClass.Application, 0), out _));
+                () => reader.TryGetIA5StringBytes(new Asn1Tag(TagClass.Application, 0), out _));
 
             Assert.True(reader.HasData, "HasData after wrong custom class");
 
             Assert.Throws<AsnContentException>(
-                ref reader,
-                static (ref reader) => reader.TryGetIA5StringBytes(new Asn1Tag(TagClass.ContextSpecific, 1), out _));
+                () => reader.TryGetIA5StringBytes(new Asn1Tag(TagClass.ContextSpecific, 1), out _));
 
             Assert.True(reader.HasData, "HasData after wrong custom tag value");
 
             Assert.True(
                 reader.TryGetIA5StringBytes(
                     new Asn1Tag(TagClass.ContextSpecific, 7),
-                    out ReadOnlySpan<byte> value));
+                    out ReadOnlyMemory<byte> value));
 
             Assert.Equal("6869", value.ByteArrayToHex());
             Assert.False(reader.HasData, "HasData after reading value");
@@ -695,7 +649,7 @@ namespace System.Formats.Asn1.Tests.Reader
         [InlineData(AsnEncodingRules.BER, "80023132", TagClass.ContextSpecific, 0)]
         [InlineData(AsnEncodingRules.CER, "4C023132", TagClass.Application, 12)]
         [InlineData(AsnEncodingRules.DER, "DF8A46023132", TagClass.Private, 1350)]
-        public void ExpectedTag_IgnoresConstructed(
+        public static void ExpectedTag_IgnoresConstructed(
             AsnEncodingRules ruleSet,
             string inputHex,
             TagClass tagClass,
@@ -704,41 +658,41 @@ namespace System.Formats.Asn1.Tests.Reader
             byte[] inputData = inputHex.HexToByteArray();
             Asn1Tag correctCons = new Asn1Tag(tagClass, tagValue, true);
             Asn1Tag correctPrim = new Asn1Tag(tagClass, tagValue, false);
-            AsnReaderWrapper reader = CreateWrapper(inputData, ruleSet);
+            AsnReader reader = new AsnReader(inputData, ruleSet);
 
             Assert.True(
                 reader.TryGetIA5StringBytes(
                     correctCons,
-                    out ReadOnlySpan<byte> val1));
+                    out ReadOnlyMemory<byte> val1));
 
             Assert.False(reader.HasData);
 
-            reader = CreateWrapper(inputData, ruleSet);
+            reader = new AsnReader(inputData, ruleSet);
 
             Assert.True(
                 reader.TryGetIA5StringBytes(
                     correctPrim,
-                    out ReadOnlySpan<byte> val2));
+                    out ReadOnlyMemory<byte> val2));
 
             Assert.False(reader.HasData);
 
             Assert.Equal(val1.ByteArrayToHex(), val2.ByteArrayToHex());
 
 #if NET
-            string expected = Encoding.ASCII.GetString(val1);
+            string expected = Encoding.ASCII.GetString(val1.Span);
 #else
             string expected = Encoding.ASCII.GetString(val1.ToArray());
 #endif
 
-            reader = CreateWrapper(inputData, ruleSet);
+            reader = new AsnReader(inputData, ruleSet);
             Assert.Equal(expected, reader.ReadCharacterString(UniversalTagNumber.IA5String, correctPrim));
 
-            reader = CreateWrapper(inputData, ruleSet);
+            reader = new AsnReader(inputData, ruleSet);
             Assert.Equal(expected, reader.ReadCharacterString(UniversalTagNumber.IA5String, correctCons));
 
             char[] output = new char[28];
 
-            reader = CreateWrapper(inputData, ruleSet);
+            reader = new AsnReader(inputData, ruleSet);
 
             Assert.True(
                 reader.TryReadCharacterString(
@@ -749,7 +703,7 @@ namespace System.Formats.Asn1.Tests.Reader
 
             Assert.Equal(expected, output.AsSpan(1, charsWritten).ToString());
 
-            reader = CreateWrapper(inputData, ruleSet);
+            reader = new AsnReader(inputData, ruleSet);
 
             Assert.True(
                 reader.TryReadCharacterString(
@@ -762,23 +716,22 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         [Fact]
-        public void TryReadCharacterStringBytes_WrongKind()
+        public static void TryReadCharacterStringBytes_WrongKind()
         {
             byte[] inputData = "16026869".HexToByteArray();
-            AsnReaderWrapper reader = CreateWrapper(inputData, AsnEncodingRules.BER);
+            AsnReader reader = new AsnReader(inputData, AsnEncodingRules.BER);
 
-            Assert.Throws<ArgumentException>(
-                ref reader,
+            AssertExtensions.Throws<ArgumentException>(
                 "expectedTag",
-                static (ref reader) => reader.TryReadCharacterStringBytes(Span<byte>.Empty, Asn1Tag.Boolean, out _));
+                () => reader.TryReadCharacterStringBytes(Span<byte>.Empty, Asn1Tag.Boolean, out _));
         }
     }
 
     internal static class ReaderIA5Extensions
     {
         public static bool TryGetIA5StringBytes(
-            this ref AsnReaderWrapper reader,
-            out ReadOnlySpan<byte> contents)
+            this AsnReader reader,
+            out ReadOnlyMemory<byte> contents)
         {
             return reader.TryReadPrimitiveCharacterStringBytes(
                 new Asn1Tag(UniversalTagNumber.IA5String),
@@ -786,9 +739,9 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         public static bool TryGetIA5StringBytes(
-            this ref AsnReaderWrapper reader,
+            this AsnReader reader,
             Asn1Tag expectedTag,
-            out ReadOnlySpan<byte> contents)
+            out ReadOnlyMemory<byte> contents)
         {
             return reader.TryReadPrimitiveCharacterStringBytes(
                 expectedTag,
@@ -796,7 +749,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         public static bool TryCopyIA5StringBytes(
-            this ref AsnReaderWrapper reader,
+            this AsnReader reader,
             Span<byte> destination,
             out int bytesWritten)
         {
@@ -807,7 +760,7 @@ namespace System.Formats.Asn1.Tests.Reader
         }
 
         public static bool TryCopyIA5String(
-            this ref AsnReaderWrapper reader,
+            this AsnReader reader,
             Span<char> destination,
             out int charsWritten)
         {

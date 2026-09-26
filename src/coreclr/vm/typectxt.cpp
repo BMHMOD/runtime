@@ -40,6 +40,7 @@ void SigTypeContext::InitTypeContext(MethodDesc *md, SigTypeContext *pRes)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
+        FORBID_FAULT;
         SUPPORTS_DAC;
 
         PRECONDITION(CheckPointer(md));
@@ -62,6 +63,7 @@ void SigTypeContext::InitTypeContext(MethodDesc *md, TypeHandle declaringType, S
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
+        FORBID_FAULT;
         SUPPORTS_DAC;
 
         PRECONDITION(CheckPointer(md));
@@ -172,6 +174,7 @@ void SigTypeContext::InitTypeContext(FieldDesc *pFD, TypeHandle declaringType, S
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
+        FORBID_FAULT;
 
         PRECONDITION(CheckPointer(declaringType, NULL_OK));
         PRECONDITION(CheckPointer(pFD));
@@ -186,6 +189,7 @@ void SigTypeContext::InitTypeContext(TypeHandle th, SigTypeContext *pRes)
     CONTRACTL {
         NOTHROW;
         GC_NOTRIGGER;
+        FORBID_FAULT;
     } CONTRACTL_END;
 
     if (th.IsNull())

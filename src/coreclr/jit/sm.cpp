@@ -38,7 +38,7 @@ const SM_OPCODE smOpcodeMap[] = {
 
 void CodeSeqSM::Start(Compiler* comp)
 {
-    m_compiler     = comp;
+    pComp          = comp;
     States         = gp_SMStates;
     JumpTableCells = gp_SMJumpTableCells;
     StateWeights   = gp_StateWeights;
@@ -56,7 +56,7 @@ void CodeSeqSM::End()
 {
     if (States[curState].term)
     {
-        TermStateMatch(curState DEBUGARG(m_compiler->verbose));
+        TermStateMatch(curState DEBUGARG(pComp->verbose));
     }
 }
 
@@ -83,7 +83,7 @@ _Next:
 
     if (States[curState].term)
     {
-        TermStateMatch(curState DEBUGARG(m_compiler->verbose));
+        TermStateMatch(curState DEBUGARG(pComp->verbose));
         curState = SM_STATE_ID_START;
         goto _Next;
     }
@@ -91,7 +91,7 @@ _Next:
     // This is hard. We need to rollback to the longest matched term state and restart from there.
 
     rollbackState = States[curState].longestTermState;
-    TermStateMatch(rollbackState DEBUGARG(m_compiler->verbose));
+    TermStateMatch(rollbackState DEBUGARG(pComp->verbose));
 
     assert(States[curState].length > States[rollbackState].length);
 

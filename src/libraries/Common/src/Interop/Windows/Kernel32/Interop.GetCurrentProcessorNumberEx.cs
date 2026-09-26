@@ -16,7 +16,6 @@ internal static partial class Interop
             public byte Reserved;
         }
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Kernel32)]
         [SuppressGCTransition]
         internal static partial uint GetCurrentProcessorNumberEx(out PROCESSOR_NUMBER ProcNumber);

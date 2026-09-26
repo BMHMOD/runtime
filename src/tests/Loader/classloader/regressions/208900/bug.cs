@@ -4,7 +4,6 @@
 // Regression test for bug VSWhidbey 208900
 // "Corrupt OBJECTREF when calling a virtual generic method instantiated at a struct which returns that struct"
 
-using TestLibrary;
 #pragma warning disable 0414
 using System;
 
@@ -25,7 +24,6 @@ class M
 
 public class Test_bug
 {
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint()
     {

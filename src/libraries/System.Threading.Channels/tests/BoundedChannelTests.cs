@@ -3,10 +3,6 @@
 
 using System.Collections.Generic;
 using System.Linq;
-#if NET
-using System.Runtime.CompilerServices;
-using System.Threading.Tasks.Sources;
-#endif
 using System.Threading.Tasks;
 using Microsoft.DotNet.XUnitExtensions;
 using Xunit;
@@ -15,30 +11,6 @@ namespace System.Threading.Channels.Tests
 {
     public class BoundedChannelTests : ChannelTestBase
     {
-#if NET
-        private static class AsyncOperationAccessors<TResult>
-        {
-            private const string AsyncOperationTypeName = "System.Threading.Channels.AsyncOperation, System.Threading.Channels";
-            private const string BlockedReadAsyncOperationTypeName = "System.Threading.Channels.BlockedReadAsyncOperation`1[[!0]], System.Threading.Channels";
-
-            [UnsafeAccessor(UnsafeAccessorKind.Constructor)]
-            [return: UnsafeAccessorType(BlockedReadAsyncOperationTypeName)]
-            internal static extern object CreateBlockedReadAsyncOperation(
-                bool runContinuationsAsynchronously,
-                CancellationToken cancellationToken,
-                bool pooled,
-                Action<object, CancellationToken> cancellationCallback);
-
-            [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "TryReserveCompletionIfCancelable")]
-            internal static extern bool TryReserveCompletionIfCancelable([UnsafeAccessorType(AsyncOperationTypeName)] object operation);
-
-            [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "TrySetCanceled")]
-            internal static extern bool TrySetCanceled(
-                [UnsafeAccessorType(AsyncOperationTypeName)] object operation,
-                CancellationToken cancellationToken);
-        }
-#endif
-
         protected override Channel<T> CreateChannel<T>() => Channel.CreateBounded<T>(new BoundedChannelOptions(1) { AllowSynchronousContinuations = AllowSynchronousContinuations });
         protected override Channel<T> CreateFullChannel<T>()
         {
@@ -388,7 +360,7 @@ namespace System.Threading.Channels.Tests
             Assert.Equal(10, droppedItems.Count);
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [MemberData(nameof(ChannelDropModes))]
         public void DroppedDelegateCalledAfterLockReleased_SyncWrites(BoundedChannelFullMode boundedChannelFullMode)
         {
@@ -427,7 +399,7 @@ namespace System.Threading.Channels.Tests
             Assert.True(dropDelegateCalled);
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [MemberData(nameof(ChannelDropModes))]
         public async Task DroppedDelegateCalledAfterLockReleased_AsyncWrites(BoundedChannelFullMode boundedChannelFullMode)
         {
@@ -522,25 +494,6 @@ namespace System.Threading.Channels.Tests
             await write2;
         }
 
-#if NET
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsNotMonoRuntime))]
-        public async Task AsyncOperation_SynchronousCancellationDuringRegistration_ReservesCompletion()
-        {
-            using var cts = new CancellationTokenSource();
-            cts.Cancel();
-
-            object operation = AsyncOperationAccessors<int>.CreateBlockedReadAsyncOperation(
-                runContinuationsAsynchronously: true,
-                cts.Token,
-                pooled: false,
-                static (state, token) => Assert.True(AsyncOperationAccessors<int>.TrySetCanceled(state, token)));
-
-            var valueTask = new ValueTask<int>((IValueTaskSource<int>)operation, token: 0);
-            await AssertExtensions.CanceledAsync(cts.Token, async () => await valueTask);
-            Assert.False(AsyncOperationAccessors<int>.TryReserveCompletionIfCancelable(operation));
-        }
-#endif
-
         [Theory]
         [InlineData(1)]
         [InlineData(10)]
@@ -558,7 +511,7 @@ namespace System.Threading.Channels.Tests
             }
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(10000)]
@@ -584,7 +537,7 @@ namespace System.Threading.Channels.Tests
                 }));
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(1)]
         [InlineData(10)]
         [InlineData(10000)]
@@ -659,7 +612,7 @@ namespace System.Threading.Channels.Tests
             Assert.True(await write2);
         }
 
-        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [MemberData(nameof(ThreeBools))]
         public void AllowSynchronousContinuations_Reading_ContinuationsInvokedAccordingToSetting(bool allowSynchronousContinuations, bool cancelable, bool waitToReadAsync)
         {
@@ -684,9 +637,9 @@ namespace System.Threading.Channels.Tests
         [InlineData(true)]
         public void AllowSynchronousContinuations_CompletionTask_ContinuationsInvokedAccordingToSetting(bool allowSynchronousContinuations)
         {
-            if (!allowSynchronousContinuations && !PlatformDetection.IsMultithreadingSupported)
+            if (!allowSynchronousContinuations && !PlatformDetection.IsThreadingSupported)
             {
-                throw new SkipTestException(nameof(PlatformDetection.IsMultithreadingSupported));
+                throw new SkipTestException(nameof(PlatformDetection.IsThreadingSupported));
             }
 
             var c = Channel.CreateBounded<int>(new BoundedChannelOptions(1) { AllowSynchronousContinuations = allowSynchronousContinuations });

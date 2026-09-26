@@ -10,7 +10,7 @@ namespace System.IO.Tests
 {
     public class FileStream_DeleteOnClose : FileSystemTest
     {
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsFileLockingEnabled), nameof(PlatformDetection.IsMultithreadingSupported))]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsFileLockingEnabled), nameof(PlatformDetection.IsThreadingSupported))]
         [OuterLoop]
         public async Task OpenOrCreate_DeleteOnClose_UsableAsMutex()
         {

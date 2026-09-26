@@ -2,10 +2,8 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-
-using Internal.Text;
-
 using Debug = System.Diagnostics.Debug;
+
 #if TYPE_LOADER_IMPLEMENTATION
 using MetadataType = Internal.TypeSystem.DefType;
 #endif
@@ -40,7 +38,7 @@ namespace Internal.TypeSystem
             }
         }
 
-        public override Utf8Span Name
+        public override ReadOnlySpan<byte> Name
         {
             get
             {

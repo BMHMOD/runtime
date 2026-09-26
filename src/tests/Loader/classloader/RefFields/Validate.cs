@@ -8,7 +8,6 @@ using System.Runtime.InteropServices;
 using InvalidCSharp;
 
 using Xunit;
-using TestLibrary;
 
 public class Validate
 {
@@ -19,7 +18,6 @@ public class Validate
         [FieldOffset(0)] public Guid Guid;
     }
 
-    [ActiveIssue("expected failure: unsupported type with ref field fails at AOT compile time, not runtime", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoFULLAOT))]
     [Fact]
     public static void Validate_Invalid_RefField_Fails()
     {
@@ -54,7 +52,6 @@ public class Validate
         });
     }
 
-    [ActiveIssue("expected failure: unsupported type with ref field fails at AOT compile time, not runtime", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoFULLAOT))]
     [Fact]
     public static void Validate_RefStructWithRefField_Load()
     {
@@ -78,7 +75,6 @@ public class Validate
         Assert.True(s.ConfirmFieldInstance(str));
     }
 
-    [ActiveIssue("expected failure: unsupported type with ref field fails at AOT compile time, not runtime", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoFULLAOT))]
     [Fact]
     public static void Validate_Create_RefField()
     {
@@ -102,7 +98,6 @@ public class Validate
         Assert.True(t.ConfirmFieldInstance(ref s));
     }
 
-    [ActiveIssue("expected failure: unsupported type with ref field fails at AOT compile time, not runtime", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoFULLAOT))]
     [Fact]
     public static void Validate_Create_RefStructField()
     {
@@ -126,7 +121,6 @@ public class Validate
         Assert.True(s.ConfirmFieldInstance(v));
     }
 
-    [ActiveIssue("expected failure: unsupported type with ref field fails at AOT compile time, not runtime", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoFULLAOT))]
     [Fact]
     public static void Validate_Create_TypedReferenceRefField()
     {

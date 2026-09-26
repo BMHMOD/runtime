@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Buffers;
@@ -105,7 +105,7 @@ namespace System.Security.Cryptography
                 }
             }
 
-            public override unsafe bool TryDecrypt(
+            public override bool TryDecrypt(
                 ReadOnlySpan<byte> data,
                 Span<byte> destination,
                 RSAEncryptionPadding padding,
@@ -400,53 +400,58 @@ namespace System.Security.Cryptography
                 SetKeySizeFromHandle(key);
             }
 
-            public override void ImportRSAPublicKey(ReadOnlySpan<byte> source, out int bytesRead)
+            public override unsafe void ImportRSAPublicKey(ReadOnlySpan<byte> source, out int bytesRead)
             {
                 ThrowIfDisposed();
 
-                ReadOnlySpan<byte> subjectPublicKey;
-
-                try
+                fixed (byte* ptr = &MemoryMarshal.GetReference(source))
                 {
-                    ValueAsnReader reader = new ValueAsnReader(source, AsnEncodingRules.BER);
-                    subjectPublicKey = reader.PeekEncodedValue();
-                }
-                catch (AsnContentException e)
-                {
-                    throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding, e);
-                }
-
-                // Decoding the key on Android requires the encoded SubjectPublicKeyInfo,
-                // not just the SubjectPublicKey, so we construct one.
-                ValueSubjectPublicKeyInfoAsn spki = new ValueSubjectPublicKeyInfoAsn
-                {
-                    Algorithm = new ValueAlgorithmIdentifierAsn
+                    using (MemoryManager<byte> manager = new PointerMemoryManager<byte>(ptr, source.Length))
                     {
-                        Algorithm = Oids.Rsa,
-                        Parameters = AlgorithmIdentifierAsn.ExplicitDerNull.Span,
-                    },
-                    SubjectPublicKey = subjectPublicKey,
-                };
+                        ReadOnlyMemory<byte> subjectPublicKey;
+                        try
+                        {
+                            AsnReader reader = new AsnReader(manager.Memory, AsnEncodingRules.BER);
+                            subjectPublicKey = reader.PeekEncodedValue();
+                        }
+                        catch (AsnContentException e)
+                        {
+                            throw new CryptographicException(SR.Cryptography_Der_Invalid_Encoding, e);
+                        }
 
-                AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
-                spki.Encode(writer);
+                        // Decoding the key on Android requires the encoded SubjectPublicKeyInfo,
+                        // not just the SubjectPublicKey, so we construct one.
+                        SubjectPublicKeyInfoAsn spki = new SubjectPublicKeyInfoAsn
+                        {
+                            Algorithm = new AlgorithmIdentifierAsn
+                            {
+                                Algorithm = Oids.Rsa,
+                                Parameters = AlgorithmIdentifierAsn.ExplicitDerNull,
+                            },
+                            SubjectPublicKey = subjectPublicKey,
+                        };
 
-                SafeRsaHandle key = writer.Encode(static (encoded) =>
-                {
-                    return Interop.AndroidCrypto.DecodeRsaSubjectPublicKeyInfo(encoded);
-                });
+                        AsnWriter writer = new AsnWriter(AsnEncodingRules.DER);
+                        spki.Encode(writer);
 
-                if (key is null || key.IsInvalid)
-                {
-                    key?.Dispose();
-                    throw new CryptographicException();
+                        SafeRsaHandle key = writer.Encode(static (encoded) =>
+                        {
+                            return Interop.AndroidCrypto.DecodeRsaSubjectPublicKeyInfo(encoded);
+                        });
+
+                        if (key is null || key.IsInvalid)
+                        {
+                            key?.Dispose();
+                            throw new CryptographicException();
+                        }
+
+                        FreeKey();
+                        _key = new Lazy<SafeRsaHandle>(key);
+                        SetKeySizeFromHandle(key);
+
+                        bytesRead = subjectPublicKey.Length;
+                    }
                 }
-
-                FreeKey();
-                _key = new Lazy<SafeRsaHandle>(key);
-                SetKeySizeFromHandle(key);
-
-                bytesRead = subjectPublicKey.Length;
             }
 
             public override void ImportEncryptedPkcs8PrivateKey(

@@ -10,9 +10,6 @@
 // Correct Expected output: 
 //     It should print out "Pass".
 
-
-namespace b151497;
-
 using System;
 using Xunit;
 
@@ -30,7 +27,6 @@ public class MainApp
         return new MyStruct();
     }
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

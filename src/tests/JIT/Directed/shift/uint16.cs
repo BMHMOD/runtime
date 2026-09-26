@@ -5,7 +5,7 @@
 using System;
 using Xunit;
 
-namespace JitTest_Directed_shift_uint16
+namespace ShiftTest
 {
     public class CL
     {

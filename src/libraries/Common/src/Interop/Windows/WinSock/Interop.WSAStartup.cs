@@ -10,12 +10,12 @@ internal static partial class Interop
 {
     internal static partial class Winsock
     {
-        private static bool s_initialized;
+        private static int s_initialized;
 
         internal static void EnsureInitialized()
         {
             // No volatile needed here. Reading stale information is just going to cause a harmless extra startup.
-            if (!s_initialized)
+            if (s_initialized == 0)
                 Initialize();
 
             static unsafe void Initialize()
@@ -29,7 +29,7 @@ internal static partial class Interop
                     throw new SocketException((int)errorCode);
                 }
 
-                if (Interlocked.Exchange(ref s_initialized, true))
+                if (Interlocked.CompareExchange(ref s_initialized, 1, 0) != 0)
                 {
                     // Keep the winsock initialization count balanced if other thread beats us to finish the initialization.
                     // This cleanup is just for good hygiene. A few extra startups would not matter.
@@ -39,11 +39,9 @@ internal static partial class Interop
             }
         }
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Ws2_32)]
         private static unsafe partial SocketError WSAStartup(short wVersionRequested, WSAData* lpWSAData);
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Ws2_32)]
         private static partial SocketError WSACleanup();
 

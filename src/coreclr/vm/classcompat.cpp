@@ -3438,6 +3438,7 @@ MethodHashEntry *MethodNameHash::Lookup(LPCUTF8 pszName, DWORD dwHash)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
 
 
     if (!dwHash)

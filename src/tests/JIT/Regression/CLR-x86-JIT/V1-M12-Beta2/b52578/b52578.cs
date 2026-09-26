@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b52578
+namespace Test
 {
     using System;
     public class App

@@ -19,7 +19,7 @@ namespace Microsoft.Extensions.Hosting.IntegrationTesting
             Path = path;
         }
 
-        public virtual void Dispose()
+        public void Dispose()
         {
             RetryHelper.RetryOperation(
                 () => Directory.Delete(Path, true),

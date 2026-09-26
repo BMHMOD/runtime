@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace GitHub_19171;
-
 using System;
 using System.Threading;
 using System.Runtime.CompilerServices;
@@ -30,7 +27,6 @@ public class GitHub_19171
             returnVal = -1;
         }
     }
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

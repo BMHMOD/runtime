@@ -66,7 +66,6 @@ unsafe class CdeclMemberFunctionNative
 public unsafe class CdeclMemberFunctionTest
 {
     [Fact]
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/50440", TestPlatforms.Windows, runtimes: TestRuntimes.Mono)]
     public static int TestEntryPoint()
     {
         try

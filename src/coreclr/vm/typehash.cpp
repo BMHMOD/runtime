@@ -29,6 +29,7 @@ EETypeHashTable *EETypeHashTable::Create(LoaderAllocator* pAllocator, Module *pM
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
     }
     CONTRACTL_END
 
@@ -432,6 +433,8 @@ BOOL EETypeHashTable::CompareFnPtrType(TypeHandle t, BYTE callConv, DWORD numArg
     if (!t.IsFnPtrType())
         return FALSE;
 
+#ifndef DACCESS_COMPILE
+
     FnPtrTypeDesc* pTD = t.AsFnPtrType();
 
     if (pTD->GetNumArgs() != numArgs || pTD->GetCallConv() != callConv)
@@ -448,6 +451,11 @@ BOOL EETypeHashTable::CompareFnPtrType(TypeHandle t, BYTE callConv, DWORD numArg
     }
 
     return TRUE;
+
+#else
+    DacNotImpl();
+    return FALSE;
+#endif // #ifndef DACCESS_COMPILE
 }
 
 TypeHandle EETypeHashTable::GetValue(const TypeKey *pKey)
@@ -496,6 +504,7 @@ VOID EETypeHashTable::InsertValue(TypeHandle data)
         THROWS;
         GC_NOTRIGGER;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM(););
         PRECONDITION(IsUnsealed());          // If we are sealed then we should not be adding to this hashtable
         PRECONDITION(CheckPointer(data));
         PRECONDITION(!data.IsGenericTypeDefinition()); // Generic type defs live in typedef table (availableClasses)

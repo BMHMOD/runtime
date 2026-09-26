@@ -569,156 +569,185 @@ namespace Microsoft.Extensions.Caching.Memory
         }
 
         [Fact]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/72879")] // issue in cache
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/72890")] // issue in test
         public void GetAndSet_AreThreadSafe_AndUpdatesNeverLeavesNullValues()
         {
             var cache = CreateCache();
             string key = "myKey";
-            bool readValueIsNull = false;
+            var cts = new CancellationTokenSource();
+            var readValueIsNull = false;
 
             cache.Set(key, new Guid());
 
-            const int WriterCount = 2;
-            const int WriterIterations = 20_000;
-            int activeWriters = WriterCount;
-            using var barrier = new Barrier(WriterCount + 1);
-
-            var workers = new Task[WriterCount + 1];
-            for (int i = 0; i < WriterCount; i++)
+            var task0 = Task.Run(() =>
             {
-                workers[i] = StartWorker(() =>
+                while (!cts.IsCancellationRequested)
                 {
-                    try
-                    {
-                        barrier.SignalAndWait();
-                        for (int j = 0; j < WriterIterations; j++)
-                        {
-                            cache.Set(key, Guid.NewGuid());
-                        }
-                    }
-                    finally
-                    {
-                        Interlocked.Decrement(ref activeWriters);
-                    }
-                });
-            }
+                    cache.Set(key, Guid.NewGuid());
+                }
+            });
 
-            // The reader keeps polling for as long as any writer is still replacing the entry, so it
-            // covers the whole write window rather than a fixed number of iterations of its own.
-            workers[WriterCount] = StartWorker(() =>
+            var task1 = Task.Run(() =>
             {
-                barrier.SignalAndWait();
-                while (Volatile.Read(ref activeWriters) > 0)
+                while (!cts.IsCancellationRequested)
                 {
-                    if (cache.Get(key) is null)
+                    cache.Set(key, Guid.NewGuid());
+                }
+            });
+
+            var task2 = Task.Run(() =>
+            {
+                while (!cts.IsCancellationRequested)
+                {
+                    if (cache.Get(key) == null)
                     {
+                        // Stop this task and update flag for assertion
                         readValueIsNull = true;
-                        return;
+                        break;
                     }
                 }
             });
 
-            WaitForWorkers(workers);
+            var task3 = Task.Delay(TimeSpan.FromSeconds(7));
+
+            Task.WaitAny(task0, task1, task2, task3);
 
             Assert.False(readValueIsNull);
+            Assert.Equal(TaskStatus.Running, task0.Status);
+            Assert.Equal(TaskStatus.Running, task1.Status);
+            Assert.Equal(TaskStatus.Running, task2.Status);
+            Assert.Equal(TaskStatus.RanToCompletion, task3.Status);
+
+            cts.Cancel();
+            Task.WaitAll(task0, task1, task2, task3);
         }
 
         [Fact]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/72890")]
         public void OvercapacityPurge_AreThreadSafe()
         {
-            const long SizeLimit = 10;
-            using var cache = new MemoryCache(new MemoryCacheOptions
+            var cache = new MemoryCache(new MemoryCacheOptions
             {
                 ExpirationScanFrequency = TimeSpan.Zero,
-                SizeLimit = SizeLimit,
+                SizeLimit = 10,
                 CompactionPercentage = 0.5
             });
+            var cts = new CancellationTokenSource();
+            var limitExceeded = false;
 
-            const int WorkerCount = 3;
-            const int IterationsPerWorker = 10_000;
-            using var barrier = new Barrier(WorkerCount);
-            long sizeOverLimit = 0;
-
-            var workers = new Task[WorkerCount];
-            for (int i = 0; i < WorkerCount; i++)
+            var task0 = Task.Run(() =>
             {
-                workers[i] = StartWorker(() =>
+                while (!cts.IsCancellationRequested)
                 {
-                    barrier.SignalAndWait();
-                    for (int j = 0; j < IterationsPerWorker; j++)
+                    if (cache.Size > 10)
                     {
-                        long size = cache.Size;
-                        if (size > SizeLimit)
-                        {
-                            Interlocked.CompareExchange(ref sizeOverLimit, size, 0);
-                            return;
-                        }
-
-                        cache.Set(Guid.NewGuid(), Guid.NewGuid(), new MemoryCacheEntryOptions { Size = 1 });
+                        limitExceeded = true;
+                        break;
                     }
-                });
-            }
+                    cache.Set(Guid.NewGuid(), Guid.NewGuid(), new MemoryCacheEntryOptions { Size = 1 });
+                }
+            }, cts.Token);
 
-            WaitForWorkers(workers);
-
-            Assert.True(sizeOverLimit == 0, $"Cache size reached {sizeOverLimit}, above the limit of {SizeLimit}.");
-
-            // Overcapacity compaction is queued to the thread pool, so entries can still be evicted for a
-            // short while after the writers stop. Re-read both values on every attempt: capturing one of
-            // them up front compares a stale snapshot against a value a late compaction is still moving.
-            CapacityTests.AssertEventually(() =>
+            var task1 = Task.Run(() =>
             {
-                long count = cache.Count;
-                Assert.Equal(count, cache.Size);
-                Assert.InRange(count, 0L, SizeLimit);
-            });
+                while (!cts.IsCancellationRequested)
+                {
+                    if (cache.Size > 10)
+                    {
+                        limitExceeded = true;
+                        break;
+                    }
+                    cache.Set(Guid.NewGuid(), Guid.NewGuid(), new MemoryCacheEntryOptions { Size = 1 });
+                }
+            }, cts.Token);
+
+            var task2 = Task.Run(() =>
+            {
+                while (!cts.IsCancellationRequested)
+                {
+                    if (cache.Size > 10)
+                    {
+                        limitExceeded = true;
+                        break;
+                    }
+                    cache.Set(Guid.NewGuid(), Guid.NewGuid(), new MemoryCacheEntryOptions { Size = 1 });
+                }
+            }, cts.Token);
+
+            cts.CancelAfter(TimeSpan.FromSeconds(5));
+            var task3 = Task.Delay(TimeSpan.FromSeconds(7));
+
+            Task.WaitAll(task0, task1, task2, task3);
+
+            Assert.Equal(TaskStatus.RanToCompletion, task0.Status);
+            Assert.Equal(TaskStatus.RanToCompletion, task1.Status);
+            Assert.Equal(TaskStatus.RanToCompletion, task2.Status);
+            Assert.Equal(TaskStatus.RanToCompletion, task3.Status);
+            CapacityTests.AssertCacheSize(cache.Count, cache);
+            Assert.InRange(cache.Count, 0, 10);
+            Assert.False(limitExceeded);
         }
 
         [Fact]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/72890")]
         public void AddAndReplaceEntries_AreThreadSafe()
         {
-            const int KeyCount = 10;
-            using var cache = new MemoryCache(new MemoryCacheOptions
+            var cache = new MemoryCache(new MemoryCacheOptions
             {
                 ExpirationScanFrequency = TimeSpan.Zero,
                 SizeLimit = 20,
                 CompactionPercentage = 0.5
             });
+            var cts = new CancellationTokenSource();
 
-            const int WorkerCount = 3;
-            const int IterationsPerWorker = 10_000;
-            using var barrier = new Barrier(WorkerCount);
+            var random = new Random();
 
-            var workers = new Task[WorkerCount];
-            for (int i = 0; i < WorkerCount; i++)
+            var task0 = Task.Run(() =>
             {
-                // Random is not thread safe, so every worker gets its own seeded instance.
-                var random = new Random(i);
-                workers[i] = StartWorker(() =>
+                while (!cts.IsCancellationRequested)
                 {
-                    barrier.SignalAndWait();
-                    for (int j = 0; j < IterationsPerWorker; j++)
-                    {
-                        int entrySize = random.Next(0, 5);
-                        cache.Set(random.Next(0, KeyCount), entrySize, new MemoryCacheEntryOptions { Size = entrySize });
-                    }
-                });
+                    var entrySize = random.Next(0, 5);
+                    cache.Set(random.Next(0, 10), entrySize, new MemoryCacheEntryOptions { Size = entrySize });
+                }
+            });
+
+            var task1 = Task.Run(() =>
+            {
+                while (!cts.IsCancellationRequested)
+                {
+                    var entrySize = random.Next(0, 5);
+                    cache.Set(random.Next(0, 10), entrySize, new MemoryCacheEntryOptions { Size = entrySize });
+                }
+            });
+
+            var task2 = Task.Run(() =>
+            {
+                while (!cts.IsCancellationRequested)
+                {
+                    var entrySize = random.Next(0, 5);
+                    cache.Set(random.Next(0, 10), entrySize, new MemoryCacheEntryOptions { Size = entrySize });
+                }
+            });
+
+            cts.CancelAfter(TimeSpan.FromSeconds(5));
+            var task3 = Task.Delay(TimeSpan.FromSeconds(7));
+
+            Task.WaitAll(task0, task1, task2, task3);
+
+            Assert.Equal(TaskStatus.RanToCompletion, task0.Status);
+            Assert.Equal(TaskStatus.RanToCompletion, task1.Status);
+            Assert.Equal(TaskStatus.RanToCompletion, task2.Status);
+            Assert.Equal(TaskStatus.RanToCompletion, task3.Status);
+
+            var cacheSize = 0;
+            for (var i = 0; i < 10; i++)
+            {
+                cacheSize += cache.Get<int>(i);
             }
 
-            WaitForWorkers(workers);
-
-            // Each entry stores its own size as its value, so the sum over every possible key is the size
-            // the cache should be tracking. See OvercapacityPurge_AreThreadSafe for why this is retried.
-            CapacityTests.AssertEventually(() =>
-            {
-                long expectedSize = 0;
-                for (int i = 0; i < KeyCount; i++)
-                {
-                    expectedSize += cache.Get<int>(i);
-                }
-
-                Assert.Equal(expectedSize, cache.Size);
-                Assert.InRange(cache.Count, 0, KeyCount);
-            });
+            CapacityTests.AssertCacheSize(cacheSize, cache);
+            Assert.InRange(cache.Count, 0, 20);
         }
 
         [Fact]
@@ -835,24 +864,6 @@ namespace Microsoft.Extensions.Caching.Memory
             Assert.Equal("string value", cache.Get(key0));
             Assert.Equal("decimal value", cache.Get(key1));
         }
-
-        /// <summary>
-        /// Runs <paramref name="work"/> on a dedicated thread rather than a thread pool thread. The
-        /// concurrency tests above hammer the cache for their whole run without ever yielding, so leaving
-        /// them on the pool would delay the cache's own background work (overcapacity compaction, expired
-        /// item scans) and the sibling test collections xunit runs in parallel. Note this frees pool
-        /// threads, not cores, so the workers still compete for CPU with whatever runs alongside them.
-        /// </summary>
-        private static Task StartWorker(Action work) =>
-            Task.Factory.StartNew(work, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
-
-        /// <summary>
-        /// Waits for the workers, failing rather than hanging if they do not finish. Those tests exist to
-        /// catch deadlocks and livelocks in <see cref="MemoryCache"/>, so an unbounded wait would turn the
-        /// very bug they hunt into an unattributable CI job timeout instead of a test failure.
-        /// </summary>
-        private static void WaitForWorkers(Task[] workers) =>
-            Assert.True(Task.WaitAll(workers, TimeSpan.FromMinutes(2)), "Cache workers did not complete.");
 
         private class TestKey
         {

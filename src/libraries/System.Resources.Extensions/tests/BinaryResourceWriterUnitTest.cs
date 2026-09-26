@@ -342,7 +342,7 @@ namespace System.Resources.Extensions.Tests
                 }
             }
         }
-        [ConditionalFact(typeof(PreserializedResourceWriterTests), nameof(AllowsCustomResourceTypes))]
+        [ConditionalFact(nameof(AllowsCustomResourceTypes))]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/34495", TestPlatforms.Windows, TargetFrameworkMonikers.Netcoreapp, TestRuntimes.Mono)]
         public static void TypeConverterByteArrayResources()
         {
@@ -375,7 +375,7 @@ namespace System.Resources.Extensions.Tests
             }
         }
 
-        [ConditionalFact(typeof(PreserializedResourceWriterTests), nameof(AllowsCustomResourceTypes))]
+        [ConditionalFact(nameof(AllowsCustomResourceTypes))]
         public static void TypeConverterStringResources()
         {
             var values = TestData.StringConverter;
@@ -405,7 +405,7 @@ namespace System.Resources.Extensions.Tests
             }
         }
 
-        [ConditionalFact(typeof(PreserializedResourceWriterTests), nameof(AllowsCustomResourceTypes))]
+        [ConditionalFact(nameof(AllowsCustomResourceTypes))]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/34495", TestPlatforms.Windows, TargetFrameworkMonikers.Netcoreapp, TestRuntimes.Mono)]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/34008", TestPlatforms.Linux, TargetFrameworkMonikers.Netcoreapp, TestRuntimes.Mono)]
         public static void StreamResources()
@@ -471,7 +471,7 @@ namespace System.Resources.Extensions.Tests
             }
         }
 
-        [ConditionalFact(typeof(PreserializedResourceWriterTests), nameof(AllowsCustomResourceTypes))]
+        [ConditionalFact(nameof(AllowsCustomResourceTypes))]
         public static void ResourceManagerLoadsCorrectReader()
         {
             ResourceManager resourceManager = new ResourceManager(typeof(TestData));
@@ -517,7 +517,7 @@ namespace System.Resources.Extensions.Tests
         [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsBinaryFormatterSupported))]
         [InlineData(false)]
         [InlineData(true)]
-        public static async Task TestResourceManagerIsSafeForConcurrentAccessAndEnumeration(bool useEnumeratorEntry)
+        public static void TestResourceManagerIsSafeForConcurrentAccessAndEnumeration(bool useEnumeratorEntry)
         {
             ResourceManager manager = new(
                 typeof(TestData).FullName,
@@ -534,10 +534,7 @@ namespace System.Resources.Extensions.Tests
                     TaskScheduler.Default))
                 .ToArray();
 
-            Task allTasks = Task.WhenAll(tasks);
-            Task completed = await Task.WhenAny(allTasks, Task.Delay(TimeSpan.FromSeconds(120)));
-            Assert.True(completed == allTasks, "Timed out waiting for concurrent enumeration tasks");
-            await allTasks; // propagates any real exceptions
+            Assert.True(Task.WaitAll(tasks, TimeSpan.FromSeconds(30)));
 
             void WaitForBarrierThenEnumerateResources()
             {

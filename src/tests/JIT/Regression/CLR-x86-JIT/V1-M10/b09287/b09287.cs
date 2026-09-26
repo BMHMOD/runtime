@@ -13,7 +13,6 @@ namespace Default
     //
     public class X
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

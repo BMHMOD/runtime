@@ -13,8 +13,8 @@ namespace System.Reflection.TypeLoading.Ecma
         private readonly CustomAttributeHandle _handle;
         private readonly EcmaModule _module;
 
-        private IList<CustomAttributeTypedArgument<RoType>>? _lazyFixedArguments;
-        private IList<CustomAttributeNamedArgument<RoType>>? _lazyNamedArguments;
+        private volatile IList<CustomAttributeTypedArgument<RoType>>? _lazyFixedArguments;
+        private volatile IList<CustomAttributeNamedArgument<RoType>>? _lazyNamedArguments;
 
         internal EcmaCustomAttributeData(CustomAttributeHandle handle, EcmaModule module)
         {

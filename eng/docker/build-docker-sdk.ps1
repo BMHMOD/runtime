@@ -15,6 +15,8 @@ $REPO_ROOT_DIR=$(git -C "$PSScriptRoot" rev-parse --show-toplevel)
 [xml]$xml = Get-Content (Join-Path $REPO_ROOT_DIR "eng\Versions.props")
 $VERSION="$($xml.Project.PropertyGroup.MajorVersion[0]).$($xml.Project.PropertyGroup.MinorVersion[0])"
 
+$dockerFilePrefix="$PSScriptRoot/libraries-sdk"
+
 if ($buildWindowsContainers)
 {
   # Due to size concerns, we don't currently do docker builds on windows.
@@ -26,6 +28,8 @@ if ($buildWindowsContainers)
   {
     exit $LASTEXITCODE
   }
+
+  $dockerFile="$dockerFilePrefix.windows.Dockerfile"
 
   # Collect the following artifacts to folder, that will be used as build context for the container,
   # so projects can build and test against the live-built runtime:
@@ -51,8 +55,6 @@ if ($buildWindowsContainers)
                      -Destination $dockerContext\targetingpacks.targets
   Copy-Item -Recurse -Path $REPO_ROOT_DIR\src\libraries\System.Net.Quic\src\System\Net\Quic\Interop `
                      -Destination $dockerContext\msquic-interop
-  Copy-Item          -Path $PSScriptRoot\libraries-sdk.windows.Dockerfile `
-                     -Destination $dockerContext
 
   # In case of non-CI builds, testhost may already contain Microsoft.AspNetCore.App (see build-local.ps1 in HttpStress):
   $testHostAspNetCorePath="$dockerContext\testhost\net$VERSION-windows-$configuration-x64/shared/Microsoft.AspNetCore.App"
@@ -63,17 +65,18 @@ if ($buildWindowsContainers)
   docker build --tag $imageName `
     --build-arg CONFIGURATION=$configuration `
     --build-arg VERSION=$VERSION `
-    --file $dockerContext\libraries-sdk.windows.Dockerfile `
+    --file $dockerFile `
     $dockerContext
 }
 else
 {
   # Docker build libraries and copy to dotnet sdk image
+  $dockerFile="$dockerFilePrefix.linux.Dockerfile"
 
   docker build --tag $imageName `
       --build-arg CONFIGURATION=$configuration `
       --build-arg "VERSION=$VERSION" `
-      --file $PSScriptRoot/libraries-sdk.linux.Dockerfile `
+      --file $dockerFile `
       $REPO_ROOT_DIR
 }
 

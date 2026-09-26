@@ -1,4 +1,4 @@
-// Licensed to the .NET Foundation under one or more agreements.
+﻿// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Immutable;
@@ -20,7 +20,7 @@ namespace System.Text.RegularExpressions.Generator
         private const string GeneratedRegexAttributeName = "System.Text.RegularExpressions.GeneratedRegexAttribute";
 
         /// <summary>
-        /// Returns null if nothing to do, a <see cref="Diagnostic"/> if there's an error to report,
+        /// Returns null if nothing to do, <see cref="DiagnosticData"/> if there's an error to report,
         /// or <see cref="RegexPatternAndSyntax"/> if the type was analyzed successfully.
         /// </summary>
         private static object? GetRegexMethodDataOrFailureDiagnostic(
@@ -32,7 +32,7 @@ namespace System.Text.RegularExpressions.Generator
                 // of being able to flag invalid use when [GeneratedRegex] is applied incorrectly.
                 // Otherwise, if the ForAttributeWithMetadataName call excluded these, [GeneratedRegex]
                 // could be applied to them and we wouldn't be able to issue a diagnostic.
-                return Diagnostic.Create(DiagnosticDescriptors.RegexMemberMustHaveValidSignature, context.TargetNode.GetLocation());
+                return new DiagnosticData(DiagnosticDescriptors.RegexMemberMustHaveValidSignature, GetComparableLocation(context.TargetNode));
             }
 
             var memberSyntax = (MemberDeclarationSyntax)context.TargetNode;
@@ -62,19 +62,19 @@ namespace System.Text.RegularExpressions.Generator
             ImmutableArray<AttributeData> boundAttributes = context.Attributes;
             if (boundAttributes.Length != 1)
             {
-                return Diagnostic.Create(DiagnosticDescriptors.MultipleGeneratedRegexAttributes, memberSyntax.GetLocation());
+                return new DiagnosticData(DiagnosticDescriptors.MultipleGeneratedRegexAttributes, GetComparableLocation(memberSyntax));
             }
             AttributeData generatedRegexAttr = boundAttributes[0];
 
             if (generatedRegexAttr.ConstructorArguments.Any(ca => ca.Kind == TypedConstantKind.Error))
             {
-                return Diagnostic.Create(DiagnosticDescriptors.InvalidGeneratedRegexAttribute, memberSyntax.GetLocation());
+                return new DiagnosticData(DiagnosticDescriptors.InvalidGeneratedRegexAttribute, GetComparableLocation(memberSyntax));
             }
 
             ImmutableArray<TypedConstant> items = generatedRegexAttr.ConstructorArguments;
             if (items.Length is 0 or > 4)
             {
-                return Diagnostic.Create(DiagnosticDescriptors.InvalidGeneratedRegexAttribute, memberSyntax.GetLocation());
+                return new DiagnosticData(DiagnosticDescriptors.InvalidGeneratedRegexAttribute, GetComparableLocation(memberSyntax));
             }
 
             string? pattern = items[0].Value as string;
@@ -106,7 +106,7 @@ namespace System.Text.RegularExpressions.Generator
 
             if (pattern is null || cultureName is null)
             {
-                return Diagnostic.Create(DiagnosticDescriptors.InvalidRegexArguments, memberSyntax.GetLocation(), "(null)");
+                return new DiagnosticData(DiagnosticDescriptors.InvalidRegexArguments, GetComparableLocation(memberSyntax), "(null)");
             }
 
             bool nullableRegex;
@@ -118,7 +118,7 @@ namespace System.Text.RegularExpressions.Generator
                     regexMethodSymbol.Arity != 0 ||
                     !SymbolEqualityComparer.Default.Equals(regexMethodSymbol.ReturnType, regexSymbol))
                 {
-                    return Diagnostic.Create(DiagnosticDescriptors.RegexMemberMustHaveValidSignature, memberSyntax.GetLocation());
+                    return new DiagnosticData(DiagnosticDescriptors.RegexMemberMustHaveValidSignature, GetComparableLocation(memberSyntax));
                 }
 
                 nullableRegex = regexMethodSymbol.ReturnNullableAnnotation == NullableAnnotation.Annotated;
@@ -132,7 +132,7 @@ namespace System.Text.RegularExpressions.Generator
                     regexPropertySymbol.SetMethod is not null ||
                     !SymbolEqualityComparer.Default.Equals(regexPropertySymbol.Type, regexSymbol))
                 {
-                    return Diagnostic.Create(DiagnosticDescriptors.RegexMemberMustHaveValidSignature, memberSyntax.GetLocation());
+                    return new DiagnosticData(DiagnosticDescriptors.RegexMemberMustHaveValidSignature, GetComparableLocation(memberSyntax));
                 }
 
                 nullableRegex = regexPropertySymbol.NullableAnnotation == NullableAnnotation.Annotated;
@@ -154,7 +154,7 @@ namespace System.Text.RegularExpressions.Generator
             }
             catch (Exception e)
             {
-                return Diagnostic.Create(DiagnosticDescriptors.InvalidRegexArguments, memberSyntax.GetLocation(), e.Message);
+                return new DiagnosticData(DiagnosticDescriptors.InvalidRegexArguments, GetComparableLocation(memberSyntax), e.Message);
             }
 
             if ((regexOptionsWithPatternOptions & RegexOptions.IgnoreCase) != 0 && !string.IsNullOrEmpty(cultureName))
@@ -162,7 +162,7 @@ namespace System.Text.RegularExpressions.Generator
                 if ((regexOptions & RegexOptions.CultureInvariant) != 0)
                 {
                     // User passed in both a culture name and set RegexOptions.CultureInvariant which causes an explicit conflict.
-                    return Diagnostic.Create(DiagnosticDescriptors.InvalidRegexArguments, memberSyntax.GetLocation(), "cultureName");
+                    return new DiagnosticData(DiagnosticDescriptors.InvalidRegexArguments, GetComparableLocation(memberSyntax), "cultureName");
                 }
 
                 try
@@ -171,7 +171,7 @@ namespace System.Text.RegularExpressions.Generator
                 }
                 catch (CultureNotFoundException)
                 {
-                    return Diagnostic.Create(DiagnosticDescriptors.InvalidRegexArguments, memberSyntax.GetLocation(), "cultureName");
+                    return new DiagnosticData(DiagnosticDescriptors.InvalidRegexArguments, GetComparableLocation(memberSyntax), "cultureName");
                 }
             }
 
@@ -186,17 +186,16 @@ namespace System.Text.RegularExpressions.Generator
                 RegexOptions.Multiline |
                 RegexOptions.NonBacktracking |
                 RegexOptions.RightToLeft |
-                RegexOptions.Singleline |
-                RegexOptions.AnyNewLine;
+                RegexOptions.Singleline;
             if ((regexOptions & ~SupportedOptions) != 0)
             {
-                return Diagnostic.Create(DiagnosticDescriptors.InvalidRegexArguments, memberSyntax.GetLocation(), "options");
+                return new DiagnosticData(DiagnosticDescriptors.InvalidRegexArguments, GetComparableLocation(memberSyntax), "options");
             }
 
             // Validate the timeout
             if (matchTimeout is 0 or < -1)
             {
-                return Diagnostic.Create(DiagnosticDescriptors.InvalidRegexArguments, memberSyntax.GetLocation(), "matchTimeout");
+                return new DiagnosticData(DiagnosticDescriptors.InvalidRegexArguments, GetComparableLocation(memberSyntax), "matchTimeout");
             }
 
             // Determine the namespace the class is declared in, if any
@@ -215,7 +214,7 @@ namespace System.Text.RegularExpressions.Generator
             var result = new RegexPatternAndSyntax(
                 regexType,
                 IsProperty: regexMemberSymbol is IPropertySymbol,
-                memberSyntax.GetLocation(),
+                GetComparableLocation(memberSyntax),
                 regexMemberSymbol.Name,
                 memberSyntax.Modifiers.ToString(),
                 nullableRegex,
@@ -247,13 +246,21 @@ namespace System.Text.RegularExpressions.Generator
                 SyntaxKind.RecordDeclaration or
                 SyntaxKind.RecordStructDeclaration or
                 SyntaxKind.InterfaceDeclaration;
+
+            // Get a Location object that doesn't store a reference to the compilation.
+            // That allows it to compare equally across compilations.
+            static Location GetComparableLocation(SyntaxNode syntax)
+            {
+                var location = syntax.GetLocation();
+                return Location.Create(location.SourceTree?.FilePath ?? string.Empty, location.SourceSpan, location.GetLineSpan().Span);
+            }
         }
 
         /// <summary>Data about a regex directly from the GeneratedRegex attribute.</summary>
         internal sealed record RegexPatternAndSyntax(RegexType DeclaringType, bool IsProperty, Location DiagnosticLocation, string MemberName, string Modifiers, bool NullableRegex, string Pattern, RegexOptions Options, int? MatchTimeout, CultureInfo Culture, CompilationData CompilationData);
 
         /// <summary>Data about a regex, including a fully parsed RegexTree and subsequent analysis.</summary>
-        internal sealed record RegexMethod(RegexType DeclaringType, bool IsProperty, string MemberName, string Modifiers, bool NullableRegex, string Pattern, RegexOptions Options, int? MatchTimeout, RegexTree Tree, AnalysisResults Analysis, CompilationData CompilationData)
+        internal sealed record RegexMethod(RegexType DeclaringType, bool IsProperty, Location DiagnosticLocation, string MemberName, string Modifiers, bool NullableRegex, string Pattern, RegexOptions Options, int? MatchTimeout, RegexTree Tree, AnalysisResults Analysis, CompilationData CompilationData)
         {
             public string? GeneratedName { get; set; }
             public bool IsDuplicate { get; set; }

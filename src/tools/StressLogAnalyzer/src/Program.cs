@@ -347,18 +347,19 @@ public static class Program
         using var stressLogData = MemoryMappedFile.CreateFromFile(options.InputFile.FullName, FileMode.Open, null, 0, MemoryMappedFileAccess.Read);
         using MemoryMappedViewAccessor accessor = stressLogData.CreateViewAccessor(0, 0, MemoryMappedFileAccess.Read);
 
-        if (accessor.Capacity < sizeof(StressLogHeader))
+        if (accessor.Capacity < Unsafe.SizeOf<StressLogHeader>())
         {
             Console.WriteLine("Invalid memory-mapped stress log");
             return 1;
         }
         try
         {
-            (Func<Target> targetFactory, StressLogHeader.ModuleTable moduleTable, TargetPointer logs) = CreateTarget(accessor.SafeMemoryMappedViewHandle);
+            (Func<Target> targetFactory, StressLogHeader.ModuleTable moduleTable, int contractVersion, TargetPointer logs) = CreateTarget(accessor.SafeMemoryMappedViewHandle);
 
             Target globalTarget = targetFactory();
 
-            IStressLog globalStressLogContract = globalTarget.Contracts.GetContract<IStressLog>();
+            StressLogFactory factory = new();
+            IStressLog globalStressLogContract = factory.CreateContract(globalTarget, contractVersion);
 
             using TextWriter? outputFile = options.OutputFile is not null ? File.CreateText(options.OutputFile.FullName) : null;
 
@@ -374,7 +375,7 @@ public static class Program
             TimeTracker timeTracker = CreateTimeTracker(accessor.SafeMemoryMappedViewHandle, options);
 
             var analyzer = new StressLogAnalyzer(
-                globalTarget.Contracts.GetContract<IStressLog>,
+                () => factory.CreateContract(globalTarget, contractVersion),
                 stringFinder,
                 messageFilter,
                 options.ThreadFilter,
@@ -471,7 +472,7 @@ public static class Program
         return filter;
     }
 
-    private static unsafe (Func<Target> targetFactory, StressLogHeader.ModuleTable table, TargetPointer logs) CreateTarget(SafeMemoryMappedViewHandle handle)
+    private static unsafe (Func<Target> targetFactory, StressLogHeader.ModuleTable table, int contractVersion, TargetPointer logs) CreateTarget(SafeMemoryMappedViewHandle handle)
     {
         byte* buffer = null;
         handle.AcquirePointer(ref buffer);
@@ -484,9 +485,9 @@ public static class Program
             throw new InvalidOperationException("Invalid memory-mapped stress log.");
         }
 
-        string contractVersion = $"c{(int)(header->version & 0xFFFF)}";
+        int contractVersion = (int)(header->version & 0xFFFF);
 
-        return (CreateTarget, header->moduleTable, header->logs);
+        return (CreateTarget, header->moduleTable, contractVersion, header->logs);
 
         ContractDescriptorTarget CreateTarget() => ContractDescriptorTarget.Create(
             GetDescriptor(contractVersion),
@@ -494,11 +495,9 @@ public static class Program
             (address, buffer) => ReadFromMemoryMappedLog(address, buffer, header),
             (address, buffer) => throw new NotImplementedException("StressLogAnalyzer does not provide WriteToTarget implementation"),
             (threadId, contextFlags, bufferToFill) => throw new NotImplementedException("StressLogAnalyzer does not provide GetTargetThreadContext implementation"),
-            (threadId, context) => throw new NotImplementedException("StressLogAnalyzer does not provide SetTargetThreadContext implementation"),
-            (ulong size, out ulong allocatedAddress) => throw new NotImplementedException("StressLogAnalyzer does not provide AllocVirtual implementation"),
             true,
             nuint.Size,
-            [CoreCLRContracts.Register]);
+            []);
     }
 
     private static unsafe TimeTracker CreateTimeTracker(SafeMemoryMappedViewHandle handle, Options options)
@@ -516,7 +515,7 @@ public static class Program
         }
     }
 
-    private static ContractDescriptorParser.ContractDescriptor GetDescriptor(string stressLogVersion)
+    private static ContractDescriptorParser.ContractDescriptor GetDescriptor(int stressLogVersion)
     {
         return new ContractDescriptorParser.ContractDescriptor
         {
@@ -586,7 +585,7 @@ public static class Program
                     "StressLogModuleTable": [[ 1 ], "pointer" ],
                 },
                 "contracts": {
-                    "StressLog": "c2",
+                    "StressLog": 2,
                 }
             }
             """"u8)!;

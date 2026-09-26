@@ -3,7 +3,7 @@
 
 #include "pal_jni.h"
 
-__attribute__((weak)) JNIEXPORT jint JNICALL
+JNIEXPORT jint JNICALL
 JNI_OnLoad(JavaVM *vm, void *reserved)
 {
 	return AndroidCryptoNative_InitLibraryOnLoad (vm, reserved);

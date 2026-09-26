@@ -121,10 +121,5 @@ namespace System.Security.Cryptography.Xml
         {
             return _excCanonicalXml!.GetDigestedBytes(hash);
         }
-
-        internal override void ClearState()
-        {
-            _excCanonicalXml = null;
-        }
     }
 }

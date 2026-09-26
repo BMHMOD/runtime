@@ -4,9 +4,8 @@ using System;
 using Xunit;
 
 delegate int Int32_VoidDelegate();
-public class Co6031GetHashCode
+public class TestClass
 {
-	[OuterLoop]
 	[Fact]
 	public static int TestEntryPoint() 
 	{
@@ -42,7 +41,7 @@ public class Co6031GetHashCode
 				LocStr = "loc_002";
 				iTestCount++;
 				Console.WriteLine( "test1: GetHashCode of delegate pointing to instance method " );
-				Co6031GetHashCode obj = new Co6031GetHashCode();
+				TestClass obj = new TestClass();
 				Int32_VoidDelegate sdg2 = new Int32_VoidDelegate( obj.instanceMethInt32_Void );
 			
 				int ihc1 = sdg2.GetHashCode();

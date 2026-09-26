@@ -63,12 +63,6 @@ ABIPassingInformation SysVX64Classifier::Classify(Compiler*    comp,
                                                   ClassLayout* structLayout,
                                                   WellKnownArg wellKnownParam)
 {
-    if (wellKnownParam == WellKnownArg::SecretStubParam)
-    {
-        return ABIPassingInformation::FromSegmentByValue(comp, ABIPassingSegment::InRegister(REG_SECRET_STUB_PARAM, 0,
-                                                                                             TARGET_POINTER_SIZE));
-    }
-
     bool                                                canEnreg = false;
     SYSTEMV_AMD64_CORINFO_STRUCT_REG_PASSING_DESCRIPTOR structDesc;
     if (varTypeIsStruct(type))
@@ -172,12 +166,6 @@ ABIPassingInformation WinX64Classifier::Classify(Compiler*    comp,
                                                  ClassLayout* structLayout,
                                                  WellKnownArg wellKnownParam)
 {
-    if (wellKnownParam == WellKnownArg::SecretStubParam)
-    {
-        return ABIPassingInformation::FromSegmentByValue(comp, ABIPassingSegment::InRegister(REG_SECRET_STUB_PARAM, 0,
-                                                                                             TARGET_POINTER_SIZE));
-    }
-
     // On windows-x64 ABI all parameters take exactly 1 stack slot (structs
     // that do not fit are passed implicitly by reference). Passing a parameter
     // in an int register also consumes the corresponding float register and

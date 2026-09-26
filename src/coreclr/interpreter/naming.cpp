@@ -48,10 +48,13 @@ void AppendCorInfoType(TArray<char, MallocAllocator>* printer, CorInfoType corIn
         "nuint",
         "float",
         "double",
+        "string",
         "ptr",
         "byref",
         "struct",
-        "class"
+        "class",
+        "typedbyref",
+        "var"
     };
 
     const char *corInfoTypeName = "CORINFO_TYPE_INVALID";
@@ -206,8 +209,11 @@ void AppendMethodName(COMP_HANDLE comp,
             CorInfoType type = strip(withMod);
             switch (type)
             {
+                case CORINFO_TYPE_STRING:
                 case CORINFO_TYPE_CLASS:
+                case CORINFO_TYPE_VAR:
                 case CORINFO_TYPE_VALUECLASS:
+                case CORINFO_TYPE_REFANY:
                 {
                     CORINFO_CLASS_HANDLE clsHnd = comp->getArgClass(sig, argLst);
                     // For some SIMD struct types we can get a nullptr back from eeGetArgClass on Linux/X64
@@ -237,8 +243,11 @@ void AppendMethodName(COMP_HANDLE comp,
                 printer->Add(':');
                 switch (retType)
                 {
+                    case CORINFO_TYPE_STRING:
                     case CORINFO_TYPE_CLASS:
+                    case CORINFO_TYPE_VAR:
                     case CORINFO_TYPE_VALUECLASS:
+                    case CORINFO_TYPE_REFANY:
                     {
                         CORINFO_CLASS_HANDLE clsHnd = sig->retTypeClass;
                         if (clsHnd != NO_CLASS_HANDLE)
@@ -257,7 +266,7 @@ void AppendMethodName(COMP_HANDLE comp,
 
         // Does it have a 'this' pointer? Don't count explicit this, which has
         // the this pointer type as the first element of the arg type list
-        if (includeThisSpecifier && sig->hasImplicitThis())
+        if (includeThisSpecifier && sig->hasThis() && !sig->hasExplicitThis())
         {
             printer->Append(":this", 5);
         }

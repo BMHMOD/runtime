@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Xunit;
-namespace b53226a
+namespace Test
 {
     using System;
 
@@ -10,7 +10,6 @@ namespace b53226a
     {
         private static void Func(TypedReference tr) { }
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

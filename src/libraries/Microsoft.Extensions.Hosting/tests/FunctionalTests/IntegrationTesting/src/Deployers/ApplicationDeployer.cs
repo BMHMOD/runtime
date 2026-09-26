@@ -18,6 +18,8 @@ namespace Microsoft.Extensions.Hosting.IntegrationTesting
     /// </summary>
     public abstract class ApplicationDeployer : IDisposable
     {
+        public static readonly string DotnetCommandName = "dotnet";
+
         private readonly Stopwatch _stopwatch = new Stopwatch();
 
         private PublishedApplication _publishedApplication;
@@ -98,21 +100,33 @@ namespace Microsoft.Extensions.Hosting.IntegrationTesting
             }
         }
 
-        protected static string GetDotNetMuxerPath()
-            => DotNetCommands.DotNetMuxerPath
-                ?? throw new Exception($"Unable to find '{DotNetCommands.DotNetExecutableName}'.");
+        protected string GetDotNetExeForArchitecture()
+        {
+            var executableName = DotnetCommandName;
+            // We expect x64 dotnet.exe to be on the path but we have to go searching for the x86 version.
+            if (DotNetCommands.IsRunningX86OnX64(DeploymentParameters.RuntimeArchitecture))
+            {
+                executableName = DotNetCommands.GetDotNetExecutable(DeploymentParameters.RuntimeArchitecture);
+                if (!File.Exists(executableName))
+                {
+                    throw new Exception($"Unable to find '{executableName}'.'");
+                }
+            }
+
+            return executableName;
+        }
 
         protected void ShutDownIfAnyHostProcess(Process hostProcess)
         {
-            if (hostProcess is not null && IsRunning(hostProcess))
+            if (hostProcess != null && !hostProcess.HasExited)
             {
                 Logger.LogInformation("Attempting to cancel process {0}", hostProcess.Id);
 
                 // Shutdown the host process.
                 hostProcess.KillTree();
-                if (IsRunning(hostProcess))
+                if (!hostProcess.HasExited)
                 {
-                    Logger.LogWarning("Unable to terminate the host process with process Id '{processId}'", hostProcess.Id);
+                    Logger.LogWarning("Unable to terminate the host process with process Id '{processId}", hostProcess.Id);
                 }
                 else
                 {
@@ -122,22 +136,6 @@ namespace Microsoft.Extensions.Hosting.IntegrationTesting
             else
             {
                 Logger.LogWarning("Host process already exited or never started successfully.");
-            }
-        }
-
-        // Process.HasExited throws InvalidOperationException ("No process is associated with this object")
-        // when the process was never started (and also after the Process has been disposed, which disassociates
-        // it). Treat that as "not running" so shutdown cleanup stays non-throwing rather than masking the
-        // original start failure with a misleading exception.
-        private static bool IsRunning(Process hostProcess)
-        {
-            try
-            {
-                return !hostProcess.HasExited;
-            }
-            catch (InvalidOperationException)
-            {
-                return false;
             }
         }
 

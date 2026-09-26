@@ -7,9 +7,6 @@
 // 
 //     File: D:\a\_work\1\s\src\coreclr\jit\fgehopt.cpp Line: 1903
 // 
-
-namespace Runtime_115700;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;

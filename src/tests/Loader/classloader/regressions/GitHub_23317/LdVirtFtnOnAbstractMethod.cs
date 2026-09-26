@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 
 delegate int Del(object p);
@@ -35,7 +34,6 @@ class Top : Middle
 
 public class Test_LdVirtFtnOnAbstractMethod
 {
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static int TestEntryPoint() 
     {

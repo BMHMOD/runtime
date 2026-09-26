@@ -21,7 +21,7 @@ namespace System.Reflection
             : base(message)
         {
             Types = classes ?? [];
-            LoaderExceptions = exceptions ?? [];
+            LoaderExceptions = exceptions ?? Array.Empty<Exception>();
             HResult = HResults.COR_E_REFLECTIONTYPELOAD;
         }
 
@@ -30,7 +30,7 @@ namespace System.Reflection
             : base(info, context)
         {
             Types = [];
-            LoaderExceptions = (Exception?[]?)info.GetValue("Exceptions", typeof(Exception[])) ?? [];
+            LoaderExceptions = (Exception?[]?)info.GetValue("Exceptions", typeof(Exception[])) ?? Array.Empty<Exception?>();
         }
 
         [Obsolete(Obsoletions.LegacyFormatterImplMessage, DiagnosticId = Obsoletions.LegacyFormatterImplDiagId, UrlFormat = Obsoletions.SharedUrlFormat)]

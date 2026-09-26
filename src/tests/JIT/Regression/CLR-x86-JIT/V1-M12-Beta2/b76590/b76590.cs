@@ -12,9 +12,6 @@
 //</Expects>
 
 
-
-namespace b76590;
-
 using System;
 using System.IO;
 using Xunit;
@@ -27,7 +24,6 @@ public class Bug26518
         one = 1,
     }
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

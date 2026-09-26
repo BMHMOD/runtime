@@ -9,11 +9,7 @@ internal static partial class Interop
 {
     internal static partial class Sys
     {
-        [LibraryImport(Libraries.SystemNative, EntryPoint = "SystemNative_IsATty")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        internal static partial bool IsATty(IntPtr fd);
-
-        [LibraryImport(Libraries.SystemNative, EntryPoint = "SystemNative_IsATty")]
+        [LibraryImport(Libraries.SystemNative, EntryPoint = "SystemNative_IsATty", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static partial bool IsATty(SafeFileHandle fd);
     }

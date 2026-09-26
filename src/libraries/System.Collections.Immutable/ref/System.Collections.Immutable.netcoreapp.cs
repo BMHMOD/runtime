@@ -9,11 +9,6 @@ namespace System.Collections.Frozen
     public abstract partial class FrozenSet<T> : System.Collections.Generic.IReadOnlySet<T>
     {
     }
-    
-    [System.Runtime.CompilerServices.CollectionBuilder(typeof(FrozenDictionary), nameof(FrozenDictionary.Create))]
-    public abstract partial class FrozenDictionary<TKey, TValue>
-    {   
-    }
 }
 namespace System.Collections.Immutable
 {

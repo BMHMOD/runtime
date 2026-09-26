@@ -3,11 +3,16 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.ProfControlBlock))]
-internal sealed partial class ProfControlBlock : IData<ProfControlBlock>
+internal sealed class ProfControlBlock : IData<ProfControlBlock>
 {
-    [Field] public partial ulong GlobalEventMask { get; }
-    [Field] public partial bool RejitOnAttachEnabled { get; }
-    [Field] public partial TargetPointer MainProfilerProfInterface { get; }
-    [Field] public partial int NotificationProfilerCount { get; }
+    static ProfControlBlock IData<ProfControlBlock>.Create(Target target, TargetPointer address)
+        => new ProfControlBlock(target, address);
+
+    public ProfControlBlock(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.ProfControlBlock);
+        GlobalEventMask = target.Read<ulong>(address + (ulong)type.Fields[nameof(GlobalEventMask)].Offset);
+    }
+
+    public ulong GlobalEventMask { get; init; }
 }

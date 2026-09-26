@@ -55,12 +55,12 @@ namespace System.Diagnostics.Tracing
                 }
                 else if (parameterType == typeof(byte) || enumType == typeof(byte))
                 {
-                    decodedFields[i] = payload[0];
+                    decodedFields[i] = MemoryMarshal.Read<byte>(payload);
                     payload = payload.Slice(sizeof(byte));
                 }
                 else if (parameterType == typeof(sbyte) || enumType == typeof(sbyte))
                 {
-                    decodedFields[i] = (sbyte)payload[0];
+                    decodedFields[i] = MemoryMarshal.Read<sbyte>(payload);
                     payload = payload.Slice(sizeof(sbyte));
                 }
                 else if (parameterType == typeof(short) || enumType == typeof(short))

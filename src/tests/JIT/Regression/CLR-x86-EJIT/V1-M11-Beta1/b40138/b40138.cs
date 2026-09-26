@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b40138
+namespace Test
 {
     using System;
 
@@ -16,7 +16,6 @@ namespace b40138
 
         static bool Static1(float[] param1) { return false; }
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

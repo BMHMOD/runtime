@@ -44,7 +44,6 @@ namespace BadBox1
         }
 
 
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

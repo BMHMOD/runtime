@@ -92,7 +92,7 @@ PALTEST(threading_WaitForSingleObject_WFSOSemaphoreTest_paltest_waitforsingleobj
 
 
     /* Test running */
-    returnCode = WaitForMultipleObjectsEx( NUMBER_OF_WORKER_THREADS, hThread, TRUE, 5000, FALSE);
+    returnCode = WaitForMultipleObjects( NUMBER_OF_WORKER_THREADS, hThread, TRUE, 5000);
     if( WAIT_OBJECT_0 != returnCode )
     {
         Trace("Wait for Object(s) returned %d, and GetLastError value is %d\n", returnCode, GetLastError());

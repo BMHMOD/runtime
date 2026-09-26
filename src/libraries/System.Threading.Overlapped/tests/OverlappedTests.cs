@@ -160,7 +160,6 @@ public static partial class OverlappedTests
             Assert.True(ThreadPool.UnsafeQueueNativeOverlapped(nativeOverlapped));
 
             Assert.True(helper.Wait());
-            GC.KeepAlive(helper);
         }
         finally
         {
@@ -185,7 +184,6 @@ public static partial class OverlappedTests
             Assert.True(ThreadPool.UnsafeQueueNativeOverlapped(nativeOverlapped));
 
             Assert.True(helper.Wait());
-            GC.KeepAlive(helper);
         }
         finally
         {

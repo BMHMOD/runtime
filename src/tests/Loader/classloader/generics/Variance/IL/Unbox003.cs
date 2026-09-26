@@ -2,9 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.Diagnostics.CodeAnalysis;
 using Xunit;
-using TestLibrary;
 
 public class Base {}
 public class Sub : Base {}
@@ -34,17 +32,17 @@ public class TestClass
 			Console.WriteLine("Test Failed at location: {0} @ count {1} ", location, iTestCount);
 		}
 	}
-	private static void UnboxUToTInternal<T, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] U>()
+	private static void UnboxUToTInternal<T,U>()
 	{
 		T t = (T) Activator.CreateInstance(typeof(U));
 	}
 
-	private static void CaseClassUToTWrapper<T, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] U>()
+	private static void CaseClassUToTWrapper<T,U>()
 	{
 		UnboxUToTInternal<T,U>();
 	}
 
-	public static bool UnboxUToT<T, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicParameterlessConstructor)] U>(bool expected)
+	public static bool UnboxUToT<T,U>(bool expected)
 	{
 		try
 		{
@@ -171,7 +169,6 @@ public class TestClass
 		}	
 	}
 	
- [ActiveIssue("Doesn't compile with LLVM AOT.", typeof(PlatformDetection), nameof(PlatformDetection.IsMonoMiniJIT), nameof(PlatformDetection.IsArm64Process), nameof(PlatformDetection.IsNotWindows))]
 	[Fact]
 	public static int TestEntryPoint()
 	{			

@@ -13,7 +13,9 @@ namespace System.Text.Json.Serialization.Metadata
     public class JsonPolymorphismOptions
     {
         private DerivedTypeList? _derivedTypes;
-        private bool _isConfigured;
+        private bool _ignoreUnrecognizedTypeDiscriminators;
+        private JsonUnknownDerivedTypeHandling _unknownDerivedTypeHandling;
+        private string? _typeDiscriminatorPropertyName;
 
         /// <summary>
         /// Creates an empty <see cref="JsonPolymorphismOptions"/> instance.
@@ -37,12 +39,11 @@ namespace System.Text.Json.Serialization.Metadata
         /// </exception>
         public bool IgnoreUnrecognizedTypeDiscriminators
         {
-            get;
+            get => _ignoreUnrecognizedTypeDiscriminators;
             set
             {
                 VerifyMutable();
-                _isConfigured = true;
-                field = value;
+                _ignoreUnrecognizedTypeDiscriminators = value;
             }
         }
 
@@ -54,12 +55,11 @@ namespace System.Text.Json.Serialization.Metadata
         /// </exception>
         public JsonUnknownDerivedTypeHandling UnknownDerivedTypeHandling
         {
-            get;
+            get => _unknownDerivedTypeHandling;
             set
             {
                 VerifyMutable();
-                _isConfigured = true;
-                field = value;
+                _unknownDerivedTypeHandling = value;
             }
         }
 
@@ -73,12 +73,11 @@ namespace System.Text.Json.Serialization.Metadata
         [AllowNull]
         public string TypeDiscriminatorPropertyName
         {
-            get => field ?? JsonSerializer.TypePropertyName;
+            get => _typeDiscriminatorPropertyName ?? JsonSerializer.TypePropertyName;
             set
             {
                 VerifyMutable();
-                _isConfigured = true;
-                field = value;
+                _typeDiscriminatorPropertyName = value;
             }
         }
 
@@ -86,16 +85,24 @@ namespace System.Text.Json.Serialization.Metadata
 
         internal JsonTypeInfo? DeclaringTypeInfo { get; set; }
 
-        internal bool IsEmpty => !_isConfigured && _derivedTypes is not { Count: > 0 };
+        private sealed class DerivedTypeList : ConfigurationList<JsonDerivedType>
+        {
+            private readonly JsonPolymorphismOptions _parent;
 
-        internal static JsonPolymorphismOptions? CreateFromAttributeDeclarations(
-            Type baseType,
-            out JsonPolymorphicAttribute? polymorphicAttribute)
+            public DerivedTypeList(JsonPolymorphismOptions parent)
+            {
+                _parent = parent;
+            }
+
+            public override bool IsReadOnly => _parent.DeclaringTypeInfo?.IsReadOnly == true;
+            protected override void OnCollectionModifying() => _parent.DeclaringTypeInfo?.VerifyMutable();
+        }
+
+        internal static JsonPolymorphismOptions? CreateFromAttributeDeclarations(Type baseType)
         {
             JsonPolymorphismOptions? options = null;
-            polymorphicAttribute = baseType.GetCustomAttribute<JsonPolymorphicAttribute>(inherit: false);
 
-            if (polymorphicAttribute is not null)
+            if (baseType.GetCustomAttribute<JsonPolymorphicAttribute>(inherit: false) is JsonPolymorphicAttribute polymorphicAttribute)
             {
                 options = new()
                 {
@@ -112,19 +119,5 @@ namespace System.Text.Json.Serialization.Metadata
 
             return options;
         }
-
-        private sealed class DerivedTypeList : ConfigurationList<JsonDerivedType>
-        {
-            private readonly JsonPolymorphismOptions _parent;
-
-            public DerivedTypeList(JsonPolymorphismOptions parent)
-            {
-                _parent = parent;
-            }
-
-            public override bool IsReadOnly => _parent.DeclaringTypeInfo?.IsReadOnly == true;
-            protected override void OnCollectionModifying() => _parent.DeclaringTypeInfo?.VerifyMutable();
-        }
-
     }
 }

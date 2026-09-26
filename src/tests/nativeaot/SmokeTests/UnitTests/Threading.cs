@@ -46,15 +46,11 @@ internal static class Threading
         Console.WriteLine("    ThreadPoolTests.RunMoreThanMaxJobsMakesOneJobWaitForStarvationDetection");
         ThreadPoolTests.RunMoreThanMaxJobsMakesOneJobWaitForStarvationDetection();
 
-        if (!OperatingSystem.IsAndroid())
-        {
-            // Disabled on Android due to https://github.com/dotnet/runtime/issues/121216
-            Console.WriteLine("    ThreadPoolTests.ThreadPoolCanPickUpOneJobWhenThreadIsAvailable");
-            ThreadPoolTests.ThreadPoolCanPickUpOneJobWhenThreadIsAvailable();
+        Console.WriteLine("    ThreadPoolTests.ThreadPoolCanPickUpOneJobWhenThreadIsAvailable");
+        ThreadPoolTests.ThreadPoolCanPickUpOneJobWhenThreadIsAvailable();
 
-            Console.WriteLine("    ThreadPoolTests.ThreadPoolCanPickUpMultipleJobsWhenThreadsAreAvailable");
-            ThreadPoolTests.ThreadPoolCanPickUpMultipleJobsWhenThreadsAreAvailable();
-        }
+        Console.WriteLine("    ThreadPoolTests.ThreadPoolCanPickUpMultipleJobsWhenThreadsAreAvailable");
+        ThreadPoolTests.ThreadPoolCanPickUpMultipleJobsWhenThreadsAreAvailable();
 
         Console.WriteLine("    ThreadPoolTests.ThreadPoolCanProcessManyWorkItemsInParallelWithoutDeadlocking");
         ThreadPoolTests.ThreadPoolCanProcessManyWorkItemsInParallelWithoutDeadlocking();

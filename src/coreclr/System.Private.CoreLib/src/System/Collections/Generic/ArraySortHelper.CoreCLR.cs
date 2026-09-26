@@ -23,7 +23,7 @@ namespace System.Collections.Generic
         {
             IArraySortHelper<T> defaultArraySortHelper;
 
-            if (RuntimeFeature.IsDynamicCodeCompiled && typeof(IComparable<T>).IsAssignableFrom(typeof(T)))
+            if (typeof(IComparable<T>).IsAssignableFrom(typeof(T)))
             {
                 defaultArraySortHelper = (IArraySortHelper<T>)RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(GenericArraySortHelper<string>), (RuntimeType)typeof(T));
             }
@@ -56,7 +56,7 @@ namespace System.Collections.Generic
         {
             IArraySortHelper<TKey, TValue> defaultArraySortHelper;
 
-            if (RuntimeFeature.IsDynamicCodeCompiled && typeof(IComparable<TKey>).IsAssignableFrom(typeof(TKey)))
+            if (typeof(IComparable<TKey>).IsAssignableFrom(typeof(TKey)))
             {
                 defaultArraySortHelper = (IArraySortHelper<TKey, TValue>)RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(GenericArraySortHelper<string, string>), (RuntimeType)typeof(TKey), (RuntimeType)typeof(TValue));
             }

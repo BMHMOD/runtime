@@ -12,12 +12,11 @@ namespace NetClient
         private readonly Server.Contract.Servers.ErrorMarshalTesting server;
         public ErrorTests()
         {
-            this.server = new Server.Contract.Servers.ErrorMarshalTesting();
+            this.server = (Server.Contract.Servers.ErrorMarshalTesting)new Server.Contract.Servers.ErrorMarshalTestingClass();
         }
 
         public void Run()
         {
-            Console.WriteLine(nameof(ErrorTests));
             this.VerifyExpectedException();
             this.VerifyReturnHResult();
             this.VerifyHelpLink();

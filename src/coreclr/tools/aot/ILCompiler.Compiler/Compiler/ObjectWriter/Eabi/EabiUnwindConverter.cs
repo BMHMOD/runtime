@@ -121,10 +121,6 @@ namespace ILCompiler.ObjectWriter
                             EmitSpAdjustment(cfiOffset);
                         }
                         break;
-
-                    case CFI_OPCODE.CFI_NEGATE_RA_STATE:
-                        // Do nothing here.
-                        break;
                 }
             }
 

@@ -11,7 +11,7 @@ namespace System.DirectoryServices.Tests
 {
     public partial class DirectoryServicesTests
     {
-        [ConditionalFact(typeof(DirectoryServicesTests), nameof(IsActiveDirectoryServer))]
+        [ConditionalFact(nameof(IsActiveDirectoryServer))]
         public void TestComInterfaces()
         {
             using (DirectoryEntry de = CreateRootEntry())

@@ -175,8 +175,7 @@ bool ParseGCHeapAffinitizeRanges(const char* cpu_index_ranges, AffinitySet* conf
                     break;
                 }
 
-                size_t maxCpuCount = GCToOSInterface::GetMaxProcessorCount();
-                if ((start_index >= maxCpuCount) || (end_index >= maxCpuCount) || (end_index < start_index))
+                if ((start_index >= MAX_SUPPORTED_CPUS) || (end_index >= MAX_SUPPORTED_CPUS) || (end_index < start_index))
                 {
                     // Invalid CPU index values or range
                     break;

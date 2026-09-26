@@ -63,7 +63,7 @@ namespace System.Reflection.Runtime.Assemblies
         {
             get
             {
-                return System.Runtime.Loader.AssemblyLoadContext.ResolveAssemblyLocation(this, string.Empty);
+                return string.Empty;
             }
         }
 
@@ -112,7 +112,7 @@ namespace System.Reflection.Runtime.EventInfos
     }
 }
 
-namespace System.Reflection
+namespace System.Reflection.Runtime.MethodInfos
 {
     internal abstract partial class RuntimeMethodInfo
     {

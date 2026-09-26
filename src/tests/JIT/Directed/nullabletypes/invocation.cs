@@ -6,11 +6,6 @@
 //</Description>
 
 
-namespace JitTest_Directed_nullabletypes_invocation;
-
-using JitTest_Directed_nullabletypes_invokecommon;
-using Xunit;
-
 using System;
 
 
@@ -52,7 +47,7 @@ struct CloseGenImplGenAndImplStruct<T> : BaseInter, GenInter<int>
 
 class Foo { }
 
-public class NullableTests
+class NullableTests
 {
     static Struct?  s = default(Struct);
     static ImplStruct? imps = default(ImplStruct);
@@ -60,8 +55,6 @@ public class NullableTests
     static CloseGenImplStruct? cgis = default(CloseGenImplStruct);
     static CloseGenImplGenAndImplStruct<int>? cgiis = default(CloseGenImplGenAndImplStruct<int>);
 
-    [OuterLoop]
-    [Fact]
     public static void Run()
     {
         Test_nullabletypes.Eval(s.Value.Foo() == 0x0001);

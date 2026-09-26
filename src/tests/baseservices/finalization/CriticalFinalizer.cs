@@ -10,7 +10,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.ConstrainedExecution;
 using System.Threading.Tasks;
 using Xunit;
-using TestLibrary;
 
 class Normal
 {
@@ -47,7 +46,6 @@ public static class CriticalFinalizerTest
         GC.KeepAlive(arr);
     }
 
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/76041", TestPlatforms.Any)]
     [Fact]
     public static int TestEntryPoint()
     {

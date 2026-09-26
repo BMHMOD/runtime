@@ -7,7 +7,6 @@
 using System;
 using System.Threading;
 using Xunit;
-using TestLibrary;
 
 public delegate T D<T>(T t);
     
@@ -71,7 +70,6 @@ public class Test_test
         }
     }
     
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static void TestEntryPoint()
     {

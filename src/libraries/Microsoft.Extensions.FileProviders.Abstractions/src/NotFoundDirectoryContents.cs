@@ -13,11 +13,6 @@ namespace Microsoft.Extensions.FileProviders
     public class NotFoundDirectoryContents : IDirectoryContents
     {
         /// <summary>
-        /// Initializes a new instance of the <see cref="NotFoundDirectoryContents"/> class.
-        /// </summary>
-        public NotFoundDirectoryContents() { }
-
-        /// <summary>
         /// Gets a shared instance of <see cref="NotFoundDirectoryContents"/>.
         /// </summary>
         public static NotFoundDirectoryContents Singleton { get; } = new();

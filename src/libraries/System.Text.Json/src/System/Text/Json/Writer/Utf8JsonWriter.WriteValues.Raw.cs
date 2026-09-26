@@ -190,7 +190,7 @@ namespace System.Text.Json
             SetFlagToAddListSeparatorBeforeNextItem();
         }
 
-        private unsafe void TranscodeAndWriteRawValue(ReadOnlySpan<char> json, bool skipInputValidation)
+        private void TranscodeAndWriteRawValue(ReadOnlySpan<char> json, bool skipInputValidation)
         {
             if (json.Length > JsonConstants.MaxUtf16RawValueLength)
             {
@@ -217,7 +217,7 @@ namespace System.Text.Json
             }
             finally
             {
-                if (tempArray is not null)
+                if (tempArray != null)
                 {
                     utf8Json.Clear();
                     ArrayPool<byte>.Shared.Return(tempArray);

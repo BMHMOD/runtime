@@ -12,7 +12,4 @@
   <ItemGroup>
     <Compile Include="test89834.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

@@ -14,9 +14,6 @@
 // - When we try to reload it, we were incorrectly returning false from 'isRegInUse()'
 //   for the inactive interval in the second half.
 
-
-namespace DevDiv_543057a;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;

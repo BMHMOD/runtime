@@ -1,19 +1,24 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.StressMsg))]
-internal sealed partial class StressMsg : IData<StressMsg>
+internal sealed class StressMsg : IData<StressMsg>
 {
-    [FieldAddress]
-    public partial TargetPointer Header { get; }
+    static StressMsg IData<StressMsg>.Create(Target target, TargetPointer address)
+        => new StressMsg(target, address);
 
-    [FieldAddress]
-    public partial TargetPointer Args { get; }
-}
+    public StressMsg(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.StressMsg);
 
-[CdacType(nameof(DataType.StressMsgHeader))]
-internal sealed partial class StressMsgHeader : IData<StressMsgHeader>
-{
+        Header = address + (ulong)type.Fields[nameof(Header)].Offset;
+        Args = address + (ulong)type.Fields[nameof(Args)].Offset;
+    }
+
+    public TargetPointer Header { get; init; }
+    public TargetPointer Args { get; init; }
 }

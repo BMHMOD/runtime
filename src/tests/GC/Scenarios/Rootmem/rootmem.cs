@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Xunit;
-using TestLibrary;
 /*******************************************************************/
 /* Test: RootMem
 /* Purpose: Test if Root class manage memory correctly against GC
@@ -26,8 +25,6 @@ namespace DefaultNamespace {
         {
         }
 
-        [ActiveIssue("PlatformDetection.IsPreciseGcSupported false on mono", TestRuntimes.Mono)]
-        [SkipOnCoreClr("This test is not compatible with GC stress.", RuntimeTestModes.AnyGCStress)]
         [Fact]
         public static int TestEntryPoint()
         {
@@ -82,8 +79,6 @@ namespace DefaultNamespace {
             Console.WriteLine("test failed");
             return 1;
         }
-
-        public RootMem() { }
 
         private RootMem( int i )
         {

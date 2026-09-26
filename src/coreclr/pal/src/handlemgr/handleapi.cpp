@@ -107,9 +107,31 @@ CorUnix::InternalDuplicateHandle(
     PAL_ERROR palError = NO_ERROR;
     IPalObject *pobjSource = NULL;
 
-    /* We do not support other process in PAL */
-    _ASSERTE(hSourceProcess == hPseudoCurrentProcess);
-    _ASSERTE(hTargetProcess == hPseudoCurrentProcess);
+    DWORD source_process_id;
+    DWORD target_process_id;
+    DWORD cur_process_id;
+
+    cur_process_id = GetCurrentProcessId();
+    source_process_id = PROCGetProcessIDFromHandle(hSourceProcess);
+    target_process_id = PROCGetProcessIDFromHandle(hTargetProcess);
+
+    /* Check validity of process handles */
+    if (0 == source_process_id || 0 == target_process_id)
+    {
+        ASSERT("Can't duplicate handle: invalid source or destination process");
+        palError = ERROR_INVALID_PARAMETER;
+        goto InternalDuplicateHandleExit;
+    }
+
+    /* At least source or target process should be the current process. */
+    if (source_process_id != cur_process_id
+        && target_process_id != cur_process_id)
+    {
+        ASSERT("Can't duplicate handle : neither source or destination"
+               "processes are from current process");
+        palError = ERROR_INVALID_PARAMETER;
+        goto InternalDuplicateHandleExit;
+    }
 
     if (FALSE != bInheritHandle)
     {
@@ -147,6 +169,16 @@ CorUnix::InternalDuplicateHandle(
         goto InternalDuplicateHandleExit;
     }
 
+    // Handles can't be remoted cross-process.
+    // Just return the same handle.
+    if (source_process_id != cur_process_id
+        || target_process_id != cur_process_id)
+    {
+        *phDuplicate = hSource;
+        palError = NO_ERROR;
+        goto InternalDuplicateHandleExit;
+    }
+
     //
     // Obtain the source IPalObject
     //
@@ -168,10 +200,10 @@ CorUnix::InternalDuplicateHandle(
     }
     else if (hPseudoCurrentProcess == hSource)
     {
-        /* The only pseudo handle is invariant */
         TRACE("Duplicating process pseudo handle(%p)\n", hSource);
-        *phDuplicate = hPseudoCurrentProcess;
-        goto InternalDuplicateHandleExit;
+
+        pobjSource = g_pobjProcess;
+        pobjSource->AddReference();
     }
     else if (hPseudoCurrentThread == hSource)
     {

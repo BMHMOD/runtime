@@ -15,8 +15,6 @@ namespace System.Security.Cryptography.EcDsa.Tests
     [SkipOnPlatform(TestPlatforms.Browser, "Not supported on Browser")]
     public abstract class ECDsaTestsBase : EccTestBase
     {
-        protected abstract ECDsaProvider ECDsaFactory { get; }
-
 #if NET
         internal static void Verify256(ECDsa e, bool expected)
         {
@@ -28,7 +26,7 @@ namespace System.Security.Cryptography.EcDsa.Tests
 
         // On CentOS, secp224r1 (also called nistP224) appears to be disabled. To prevent test failures on that platform,
         // probe for this capability before depending on it.
-        internal bool ECDsa224Available
+        internal static bool ECDsa224Available
         {
             get
             {
@@ -36,7 +34,7 @@ namespace System.Security.Cryptography.EcDsa.Tests
             }
         }
 
-        internal bool ECExplicitCurvesSupported
+        internal static bool ECExplicitCurvesSupported
         {
             get
             {

@@ -58,17 +58,17 @@ namespace System.Runtime.Serialization.DataContracts
 
         [RequiresDynamicCode(DataContract.SerializerAOTWarning)]
         [RequiresUnreferencedCode(DataContract.SerializerTrimmerWarning)]
-        internal static DataContract GetDataContract(Type type, bool verifyConstructor = true)
+        internal static DataContract GetDataContract(Type type)
         {
-            return GetDataContract(type.TypeHandle, verifyConstructor);
+            return GetDataContract(type.TypeHandle);
         }
 
         [RequiresDynamicCode(DataContract.SerializerAOTWarning)]
         [RequiresUnreferencedCode(DataContract.SerializerTrimmerWarning)]
-        internal static DataContract GetDataContract(RuntimeTypeHandle typeHandle, bool verifyConstructor = true)
+        internal static DataContract GetDataContract(RuntimeTypeHandle typeHandle)
         {
             int id = GetId(typeHandle);
-            DataContract dataContract = GetDataContractSkipValidation(id, typeHandle, null, verifyConstructor);
+            DataContract dataContract = GetDataContractSkipValidation(id, typeHandle, null);
             return dataContract.GetValidContract();
         }
 
@@ -82,9 +82,9 @@ namespace System.Runtime.Serialization.DataContracts
 
         [RequiresDynamicCode(DataContract.SerializerAOTWarning)]
         [RequiresUnreferencedCode(DataContract.SerializerTrimmerWarning)]
-        internal static DataContract GetDataContractSkipValidation(int id, RuntimeTypeHandle typeHandle, Type? type, bool verifyConstructor = true)
+        internal static DataContract GetDataContractSkipValidation(int id, RuntimeTypeHandle typeHandle, Type? type)
         {
-            return DataContractCriticalHelper.GetDataContractSkipValidation(id, typeHandle, type, verifyConstructor);
+            return DataContractCriticalHelper.GetDataContractSkipValidation(id, typeHandle, type);
         }
 
         [RequiresDynamicCode(DataContract.SerializerAOTWarning)]
@@ -350,7 +350,7 @@ namespace System.Runtime.Serialization.DataContracts
 
             [RequiresDynamicCode(DataContract.SerializerAOTWarning)]
             [RequiresUnreferencedCode(DataContract.SerializerTrimmerWarning)]
-            internal static DataContract GetDataContractSkipValidation(int id, RuntimeTypeHandle typeHandle, Type? type, bool verifyConstructor = true)
+            internal static DataContract GetDataContractSkipValidation(int id, RuntimeTypeHandle typeHandle, Type? type)
             {
                 DataContract? dataContract = s_dataContractCache.GetItem(id);
                 if (dataContract == null)
@@ -359,7 +359,7 @@ namespace System.Runtime.Serialization.DataContracts
                 }
                 else
                 {
-                    return dataContract.GetValidContract(verifyConstructor);
+                    return dataContract.GetValidContract(verifyConstructor: true);
                 }
                 return dataContract;
             }
@@ -392,7 +392,7 @@ namespace System.Runtime.Serialization.DataContracts
                 int currentDataContractId = DataContractCriticalHelper.s_dataContractID;
                 for (int i = 0; i < currentDataContractId; i++)
                 {
-                    if (ContractMatches(classContract, s_dataContractCache.GetItem(i)))
+                    if (ContractMatches(classContract, s_dataContractCache.GetItem(id)))
                     {
                         return i;
                     }
@@ -1666,7 +1666,7 @@ namespace System.Runtime.Serialization.DataContracts
             ns = GetDefaultXmlNamespace(ns);
         }
 
-        private static unsafe void CheckExplicitDataContractNamespaceUri(string dataContractNs, Type type)
+        private static void CheckExplicitDataContractNamespaceUri(string dataContractNs, Type type)
         {
             if (dataContractNs.Length > 0)
             {

@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b52839
+namespace Test
 {
     using System;
 
@@ -14,7 +14,6 @@ namespace b52839
     public struct CC
     {
         float Method1() { return 0; }
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

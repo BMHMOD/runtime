@@ -29,18 +29,9 @@ namespace Internal.IL
 
     class VerifierException : Exception
     {
-        internal VerifierException(string message)
-            : this(VerifierError.None, message)
+        internal VerifierException(string message) : base(message)
         {
         }
-
-        internal VerifierException(VerifierError code, string message)
-            : base(message)
-        {
-            Code = code;
-        }
-
-        internal VerifierError Code { get; }
     }
 
     partial class ILImporter
@@ -218,9 +209,6 @@ namespace Internal.IL
 
         public void Verify()
         {
-            // Check code size before any other processing
-            FatalCheck(_ilBytes.Length > 0, VerifierError.CodeSizeZero);
-
             _instructionBoundaries = new bool[_ilBytes.Length];
 
             FindBasicBlocks();
@@ -298,6 +286,8 @@ namespace Internal.IL
         /// </summary>
         private void InitialPass()
         {
+            FatalCheck(_ilBytes.Length > 0, VerifierError.CodeSizeZero);
+
             _modifiesThisPtr = false;
             _validTargetOffsets = new bool[_ilBytes.Length];
 
@@ -1885,22 +1875,7 @@ namespace Internal.IL
 
             var declaredReturnType = _method.Signature.ReturnType;
 
-            // For async methods, unwrap Task/ValueTask return types
-            TypeDesc expectedReturnType = declaredReturnType;
-            if (_method.IsAsync)
-            {
-                if (IsTaskOrValueTaskType(declaredReturnType, out TypeDesc unwrappedType))
-                {
-                    expectedReturnType = unwrappedType;
-                }
-                else
-                {
-                    // Async methods must return Task or ValueTask
-                    VerificationError(VerifierError.StackUnexpected);
-                }
-            }
-
-            if (expectedReturnType.IsVoid)
+            if (declaredReturnType.IsVoid)
             {
                 Debug.Assert(_stackTop >= 0);
 
@@ -1916,49 +1891,11 @@ namespace Internal.IL
                     Check(_stackTop == 1, VerifierError.ReturnEmpty);
 
                     var actualReturnType = Pop();
-                    CheckIsAssignable(actualReturnType, StackValue.CreateFromType(expectedReturnType));
+                    CheckIsAssignable(actualReturnType, StackValue.CreateFromType(declaredReturnType));
 
-                    Check((!expectedReturnType.IsByRef && !expectedReturnType.IsByRefLike) || actualReturnType.IsPermanentHome, VerifierError.ReturnPtrToStack);
+                    Check((!declaredReturnType.IsByRef && !declaredReturnType.IsByRefLike) || actualReturnType.IsPermanentHome, VerifierError.ReturnPtrToStack);
                 }
             }
-        }
-
-        bool IsTaskOrValueTaskType(TypeDesc type, out TypeDesc unwrappedType)
-        {
-            unwrappedType = null;
-
-            if (type is not MetadataType metadataType)
-                return false;
-
-            if (metadataType.Namespace != "System.Threading.Tasks"u8)
-                return false;
-
-            // Check for Task (non-generic)
-            if (metadataType.Name == "Task"u8 && !metadataType.HasInstantiation)
-            {
-                unwrappedType = _typeSystemContext.GetWellKnownType(WellKnownType.Void);
-                return true;
-            }
-
-            // Check for ValueTask (non-generic)
-            if (metadataType.Name == "ValueTask"u8 && !metadataType.HasInstantiation)
-            {
-                unwrappedType = _typeSystemContext.GetWellKnownType(WellKnownType.Void);
-                return true;
-            }
-
-            // Check for Task<T> and ValueTask<T>
-            if (metadataType.HasInstantiation && metadataType.Instantiation.Length == 1)
-            {
-                if (metadataType.Name == "Task`1"u8 ||
-                    metadataType.Name == "ValueTask`1"u8)
-                {
-                    unwrappedType = metadataType.Instantiation[0];
-                    return true;
-                }
-            }
-
-            return false;
         }
 
         void ImportFallthrough(BasicBlock next)
@@ -2793,7 +2730,7 @@ namespace Internal.IL
             {
                 foreach (var data in signature.GetEmbeddedSignatureData())
                 {
-                    if (data.type is MetadataType mdType && mdType.Namespace == "System.Runtime.CompilerServices"u8 && mdType.Name == "IsExternalInit"u8 &&
+                    if (data.type is MetadataType mdType && mdType.Namespace.SequenceEqual("System.Runtime.CompilerServices"u8) && mdType.Name.SequenceEqual("IsExternalInit"u8) &&
                         data.index == MethodSignature.IndexOfCustomModifiersOnReturnType)
                         return true;
                 }
@@ -2831,12 +2768,6 @@ namespace Internal.IL
         void ReportInvalidInstruction(ILOpcode opcode)
         {
             VerificationError(VerifierError.UnknownOpcode);
-        }
-
-        void ReportInvalidExceptionRegion()
-        {
-            VerificationError(VerifierError.EHClauseOutOfRange);
-            AbortMethodVerification();
         }
 
         //

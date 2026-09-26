@@ -2,7 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using Xunit;
-namespace b66533
+namespace Test
 {
     using System;
     using System.Collections;
@@ -126,7 +126,6 @@ namespace b66533
 
     public class App
     {
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

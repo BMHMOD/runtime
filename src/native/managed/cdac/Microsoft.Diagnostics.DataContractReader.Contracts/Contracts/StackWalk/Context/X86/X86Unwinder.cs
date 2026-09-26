@@ -5,7 +5,6 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.Diagnostics.DataContractReader.Contracts.Extensions;
-using Microsoft.Diagnostics.DataContractReader.Contracts.GCInfoHelpers.X86;
 using static Microsoft.Diagnostics.DataContractReader.Contracts.StackWalkHelpers.X86Context;
 
 namespace Microsoft.Diagnostics.DataContractReader.Contracts.StackWalkHelpers.X86;
@@ -52,18 +51,18 @@ public class X86Unwinder(Target target)
     {
         IExecutionManager eman = _target.Contracts.ExecutionManager;
 
-        if (eman.GetCodeBlockHandle(context.InstructionPointer) is not CodeBlockHandle cbh)
+        if (eman.GetCodeBlockHandle(context.InstructionPointer.Value) is not CodeBlockHandle cbh)
         {
             throw new InvalidOperationException("Unwind failed, unable to find code block for the instruction pointer.");
         }
 
         eman.GetGCInfo(cbh, out TargetPointer gcInfoAddress, out uint gcInfoVersion);
         uint relOffset = (uint)eman.GetRelativeOffset(cbh).Value;
-        TargetPointer methodStart = eman.GetStartAddress(cbh);
-        TargetPointer funcletStart = eman.GetFuncletStartAddress(cbh);
+        TargetPointer methodStart = eman.GetStartAddress(cbh).AsTargetPointer;
+        TargetPointer funcletStart = eman.GetFuncletStartAddress(cbh).AsTargetPointer;
         bool isFunclet = eman.IsFunclet(cbh);
 
-        X86GCInfo gcInfo = new(_target, gcInfoAddress, gcInfoVersion, relOffset);
+        GCInfo gcInfo = new(_target, gcInfoAddress, gcInfoVersion, relOffset);
 
         if (gcInfo.IsInEpilog)
         {
@@ -97,7 +96,7 @@ public class X86Unwinder(Target target)
     #endregion
     #region Unwind Logic
 
-    private void UnwindEpilog(ref X86Context context, X86GCInfo gcInfo, TargetPointer epilogBase)
+    private void UnwindEpilog(ref X86Context context, GCInfo gcInfo, TargetPointer epilogBase)
     {
         Debug.Assert(gcInfo.IsInEpilog);
         Debug.Assert(gcInfo.EpilogOffset > 0);
@@ -115,7 +114,7 @@ public class X86Unwinder(Target target)
         context.Esp += ESPIncrementOnReturn(gcInfo);
     }
 
-    private void UnwindEbpDoubleAlignFrameEpilog(ref X86Context context, X86GCInfo gcInfo, TargetPointer epilogBase)
+    private void UnwindEbpDoubleAlignFrameEpilog(ref X86Context context, GCInfo gcInfo, TargetPointer epilogBase)
     {
         /* See how many instructions we have executed in the
             epilog to determine which callee-saved registers
@@ -242,7 +241,7 @@ public class X86Unwinder(Target target)
         context.Esp = esp;
     }
 
-    private void UnwindEspFrameEpilog(ref X86Context context, X86GCInfo gcInfo, TargetPointer epilogBase)
+    private void UnwindEspFrameEpilog(ref X86Context context, GCInfo gcInfo, TargetPointer epilogBase)
     {
         Debug.Assert(gcInfo.IsInEpilog);
         Debug.Assert(!gcInfo.Header.EbpFrame && !gcInfo.Header.DoubleAlign);
@@ -308,10 +307,12 @@ public class X86Unwinder(Target target)
         context.Esp = esp;
     }
 
-    private void UnwindEspFrame(ref X86Context context, X86GCInfo gcInfo, TargetPointer methodStart)
+    private void UnwindEspFrame(ref X86Context context, GCInfo gcInfo, TargetPointer methodStart)
     {
         Debug.Assert(!gcInfo.Header.EbpFrame && !gcInfo.Header.DoubleAlign);
         Debug.Assert(!gcInfo.IsInEpilog);
+
+        Console.WriteLine(methodStart);
 
         uint esp = context.Esp;
 
@@ -348,7 +349,7 @@ public class X86Unwinder(Target target)
         context.Esp = esp + ESPIncrementOnReturn(gcInfo);
     }
 
-    private void UnwindEspFrameProlog(ref X86Context context, X86GCInfo gcInfo, TargetPointer methodStart)
+    private void UnwindEspFrameProlog(ref X86Context context, GCInfo gcInfo, TargetPointer methodStart)
     {
         Debug.Assert(gcInfo.IsInProlog);
         Debug.Assert(!gcInfo.Header.EbpFrame && !gcInfo.Header.DoubleAlign);
@@ -369,7 +370,7 @@ public class X86Unwinder(Target target)
         TargetPointer savedRegPtr = esp;
 
         // Find out how many callee-saved regs have already been pushed
-        foreach (RegMask regMask in registerOrder.Reverse())
+        foreach (RegMask regMask in registerOrder)
         {
             if (!gcInfo.SavedRegsMask.HasFlag(regMask))
                 continue;
@@ -427,7 +428,7 @@ public class X86Unwinder(Target target)
 
     private bool UnwindEbpDoubleAlignFrame(
         ref X86Context context,
-        X86GCInfo gcInfo,
+        GCInfo gcInfo,
         TargetPointer methodStart,
         TargetPointer funcletStart,
         bool isFunclet)
@@ -465,6 +466,9 @@ public class X86Unwinder(Target target)
                 context.Esp = (uint)baseSP + _pointerSize;
                 return true;
             }
+
+            /* The cDAC only supports FEATURE_EH_FUNCLETS and therefore does not
+               support unwinding filters without funclets. */
         }
 
         //
@@ -511,7 +515,7 @@ public class X86Unwinder(Target target)
         return true;
     }
 
-    private void UnwindEbpDoubleAlignFrameProlog(ref X86Context context, X86GCInfo gcInfo, TargetPointer methodStart)
+    private void UnwindEbpDoubleAlignFrameProlog(ref X86Context context, GCInfo gcInfo, TargetPointer methodStart)
     {
         Debug.Assert(gcInfo.IsInProlog);
         Debug.Assert(gcInfo.Header.EbpFrame || gcInfo.Header.DoubleAlign);
@@ -565,7 +569,7 @@ public class X86Unwinder(Target target)
             {
                 // "and esp,-8"
                 offset = SKIP_ARITH_REG(-8, methodStart, offset);
-                if ((curEBP & 0x04) != 0) pSavedRegs -= _pointerSize;
+                if ((curEBP & 0x04) != 0) pSavedRegs--;
             }
 
             /* Increment "offset" in steps to see which callee-saved
@@ -590,7 +594,7 @@ public class X86Unwinder(Target target)
 
         /* The caller's saved EBP is pointed to by our EBP */
         context.Ebp = (uint)_target.ReadPointer(curEBP);
-        context.Esp = curEBP + _pointerSize;
+        context.Esp = (uint)_target.ReadPointer(curEBP + _pointerSize);
 
         /* Stack pointer points to return address */
         context.Eip = (uint)_target.ReadPointer(context.Esp);
@@ -611,7 +615,7 @@ public class X86Unwinder(Target target)
         return walkOffset < actualHaltOffset;
     }
 
-    private uint ESPIncrementOnReturn(X86GCInfo gcInfo)
+    private uint ESPIncrementOnReturn(GCInfo gcInfo)
     {
 
         uint stackParameterSize = gcInfo.Header.VarArgs ? 0 // varargs are caller-popped
@@ -679,7 +683,7 @@ public class X86Unwinder(Target target)
         Debug.Assert(
             CheckInstrBytePattern((byte)(ReadByteAt(baseAddress + offset) & 0xFD), 0x89, ReadByteAt(baseAddress + offset))
             &&
-            (ReadByteAt(baseAddress + offset + 1) & 0xC0) == 0xC0
+            (ReadByteAt(baseAddress + offset) & 0xC0) == 0xC0
         );
         return offset + 2;
     }
@@ -857,7 +861,7 @@ public class X86Unwinder(Target target)
 
     private static bool CAN_COMPRESS(int val)
     {
-        return (sbyte)val == val;
+        return ((byte)val) == val;
     }
 
     private static void SetRegValue(ref X86Context context, RegMask regMask, TargetPointer value)

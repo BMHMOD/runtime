@@ -7,12 +7,6 @@ namespace System.IO.Compression
 {
     internal sealed class InflaterManaged
     {
-        // The maximum match length emitted by a Deflate64 length code. Length code 285 carries
-        // 16 extra bits and a base length of 3, so the maximum length is 3 + 65535 = 65538.
-        // Deflate (non-64) special-cases code 285 to length 258, so this bound is conservative
-        // there as well.
-        private const int MaxMatchLength = 65538;
-
         // const tables used in decoding:
 
         // Extra bits for length code 257 - 285.
@@ -343,11 +337,10 @@ namespace System.IO.Compression
             end_of_block_code_seen = false;
 
             int freeBytes = _output.FreeBytes;   // it is a little bit faster than frequently accessing the property
-            while (freeBytes >= MaxMatchLength)
+            while (freeBytes > 65536)
             {
-                // With Deflate64 a length/distance pair can produce up to 65538 bytes, so we ensure
-                // at least that much space is available in the OutputWindow before decoding the next
-                // symbol to avoid overwriting previous unflushed output data.
+                // With Deflate64 we can have up to a 64kb length, so we ensure at least that much space is available
+                // in the OutputWindow to avoid overwriting previous unflushed output data.
 
                 int symbol;
                 switch (_state)
@@ -622,8 +615,10 @@ namespace System.IO.Compression
                                     throw new InvalidDataException();
                                 }
 
-                                _codeList.AsSpan(_loopCounter, repeatCount).Fill(previousCode);
-                                _loopCounter += repeatCount;
+                                for (int j = 0; j < repeatCount; j++)
+                                {
+                                    _codeList[_loopCounter++] = previousCode;
+                                }
                             }
                             else if (_lengthCode == 17)
                             {
@@ -640,8 +635,10 @@ namespace System.IO.Compression
                                     throw new InvalidDataException();
                                 }
 
-                                _codeList.AsSpan(_loopCounter, repeatCount).Clear();
-                                _loopCounter += repeatCount;
+                                for (int j = 0; j < repeatCount; j++)
+                                {
+                                    _codeList[_loopCounter++] = 0;
+                                }
                             }
                             else
                             {
@@ -659,8 +656,10 @@ namespace System.IO.Compression
                                     throw new InvalidDataException();
                                 }
 
-                                _codeList.AsSpan(_loopCounter, repeatCount).Clear();
-                                _loopCounter += repeatCount;
+                                for (int j = 0; j < repeatCount; j++)
+                                {
+                                    _codeList[_loopCounter++] = 0;
+                                }
                             }
                         }
                         _state = InflaterState.ReadingTreeCodesBefore; // we want to read the next code.

@@ -3,8 +3,16 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.FixupPrecodeData))]
-internal sealed partial class FixupPrecodeData : IData<FixupPrecodeData>
+internal sealed class FixupPrecodeData : IData<FixupPrecodeData>
 {
-    [Field] public partial TargetPointer MethodDesc { get; }
+    static FixupPrecodeData IData<FixupPrecodeData>.Create(Target target, TargetPointer address)
+        => new FixupPrecodeData(target, address);
+
+    public FixupPrecodeData(Target target, TargetPointer address)
+    {
+        Target.TypeInfo type = target.GetTypeInfo(DataType.FixupPrecodeData);
+        MethodDesc = target.ReadPointer(address + (ulong)type.Fields[nameof(MethodDesc)].Offset);
+    }
+
+    public TargetPointer MethodDesc { get; init; }
 }

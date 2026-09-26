@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Speech.Internal.SrgsParser;
 using System.Speech.Recognition;
 
@@ -20,11 +19,11 @@ namespace System.Speech.Internal.GrammarBuilding
         }
 
         internal ItemElement(int minRepeat, int maxRepeat)
-            : this((GrammarBuilderBase?)null, minRepeat, maxRepeat)
+            : this((GrammarBuilderBase)null, minRepeat, maxRepeat)
         {
         }
 
-        internal ItemElement(GrammarBuilderBase? builder, int minRepeat, int maxRepeat)
+        internal ItemElement(GrammarBuilderBase builder, int minRepeat, int maxRepeat)
         {
             if (builder != null)
             {
@@ -55,9 +54,10 @@ namespace System.Speech.Internal.GrammarBuilding
         #endregion
 
         #region Public Methods
-        public override bool Equals([NotNullWhen(true)] object? obj)
+        public override bool Equals(object obj)
         {
-            if (obj is not ItemElement refObj)
+            ItemElement refObj = obj as ItemElement;
+            if (refObj == null)
             {
                 return false;
             }

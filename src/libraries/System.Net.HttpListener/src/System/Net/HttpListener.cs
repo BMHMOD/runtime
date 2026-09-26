@@ -113,11 +113,11 @@ namespace System.Net
             {
                 CheckDisposed();
                 int i;
-                if (uriPrefix.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+                if (string.Compare(uriPrefix, 0, "http://", 0, 7, StringComparison.OrdinalIgnoreCase) == 0)
                 {
                     i = 7;
                 }
-                else if (uriPrefix.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+                else if (string.Compare(uriPrefix, 0, "https://", 0, 8, StringComparison.OrdinalIgnoreCase) == 0)
                 {
                     i = 8;
                 }

@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace DevDiv_653853;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;

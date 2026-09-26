@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b15783
+namespace DefaultNamespace
 {
     using System;
     public class jitbug
@@ -13,7 +13,6 @@ namespace b15783
             return UInt16.MaxValue;
         }
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

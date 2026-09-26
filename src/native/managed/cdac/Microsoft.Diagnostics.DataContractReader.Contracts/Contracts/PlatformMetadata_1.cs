@@ -5,17 +5,15 @@ using System;
 
 namespace Microsoft.Diagnostics.DataContractReader.Contracts;
 
-internal readonly struct PlatformMetadata_1 : IPlatformMetadata
+internal readonly partial struct PlatformMetadata_1 : IPlatformMetadata
 {
     internal readonly Target _target;
-    private readonly TargetPointer _cdacMetadataAddress;
-    private Data.PlatformMetadata _cdacMetadata
-        => _target.ProcessedData.GetOrAdd<Data.PlatformMetadata>(_cdacMetadataAddress);
+    private readonly Data.PlatformMetadata _cdacMetadata;
 
-    public PlatformMetadata_1(Target target)
+    public PlatformMetadata_1(Target target, Data.PlatformMetadata cdacMetadata)
     {
         _target = target;
-        _cdacMetadataAddress = target.ReadGlobalPointer(Constants.Globals.PlatformMetadata);
+        _cdacMetadata = cdacMetadata;
     }
 
     TargetPointer IPlatformMetadata.GetPrecodeMachineDescriptor()

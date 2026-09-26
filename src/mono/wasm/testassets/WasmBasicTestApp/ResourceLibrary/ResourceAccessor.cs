@@ -15,6 +15,5 @@ public static class ResourceAccessor
         var rm = new ResourceManager("ResourceLibrary.words", typeof(ResourceAccessor).Assembly);
         testOuput($"default: {rm.GetString("hello", CultureInfo.CurrentCulture)}");
         testOuput($"es-ES {(hasSatellites ? "with" : "without")} satellite: {rm.GetString("hello", new CultureInfo("es-ES"))}");
-        testOuput($"fr-FR {(hasSatellites ? "with" : "without")} satellite: {rm.GetString("hello", new CultureInfo("fr-FR"))}");
     }
 }

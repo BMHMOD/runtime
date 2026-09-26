@@ -36,7 +36,7 @@ namespace System.ComponentModel.Tests
 
         private static bool IsPreciseGcSupportedAndRemoteExecutorSupported => PlatformDetection.IsPreciseGcSupported && RemoteExecutor.IsSupported;
 
-        [ConditionalFact(typeof(AsyncOperationFinalizerTests), nameof(IsPreciseGcSupportedAndRemoteExecutorSupported))]
+        [ConditionalFact(nameof(IsPreciseGcSupportedAndRemoteExecutorSupported))]
         public void Finalizer_OperationNotCompleted_CompletesOperation()
         {
             RemoteExecutor.Invoke(() =>

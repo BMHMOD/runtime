@@ -107,7 +107,7 @@ namespace System.Diagnostics.Metrics
                 unit: "{work_item}",
                 description: "The number of work items that the thread pool has completed since the process has started.");
 
-            s_meter.CreateObservableUpDownCounter(
+            s_meter.CreateObservableCounter(
                 "dotnet.thread_pool.queue.length",
                 () => ThreadPool.PendingWorkItemCount,
                 unit: "{work_item}",

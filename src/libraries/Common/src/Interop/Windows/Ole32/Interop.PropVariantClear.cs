@@ -8,7 +8,6 @@ internal static partial class Interop
 {
     internal static partial class Ole32
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Interop.Libraries.Ole32)]
         internal static partial void PropVariantClear(IntPtr pObject);
     }

@@ -22,7 +22,7 @@ namespace System.Runtime.InteropServices.JavaScript.Tests
             Assert.True(JavaScriptTestHelper.IsPromiseThenHit());
         }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsNotMultithreadingSupported))]
+        [Fact]
         public async Task TaskDelay0DoesNotYieldToBrowserLoop()
         {
             JavaScriptTestHelper.BeforeYield();

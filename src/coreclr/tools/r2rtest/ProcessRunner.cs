@@ -13,11 +13,8 @@ public class ProcessParameters
 {
     /// <summary>
     /// Maximum time for CPAOT / Crossgen compilation.
-    /// System.Private.CoreLib is by far the largest single assembly and, when compiled
-    /// with limited per-process parallelism (--crossgen2-parallelism 1), can take a long
-    /// time on slower CI machines, so allow a generous timeout to avoid spurious failures.
     /// </summary>
-    public const int DefaultIlcTimeout = 15 * 60 * 1000;
+    public const int DefaultIlcTimeout = 10 * 60 * 1000;
 
     /// <summary>
     /// Increase compilation timeout for composite builds.
@@ -287,10 +284,7 @@ public class ProcessRunner : IDisposable
         if (!string.IsNullOrEmpty(data))
         {
             WriteLog(data);
-            lock (_outputCapture)
-            {
-                _outputCapture.AppendLine("  " + data);
-            }
+            _outputCapture.AppendLine("  " + data);
         }
     }
 
@@ -300,10 +294,7 @@ public class ProcessRunner : IDisposable
         if (!string.IsNullOrEmpty(data))
         {
             WriteLog(data);
-            lock (_outputCapture)
-            {
-                _outputCapture.AppendLine("!! " + data);
-            }
+            _outputCapture.AppendLine("!! " + data);
         }
     }
 

@@ -63,7 +63,7 @@ inline bool IS_ALIGNED(T* val, uintptr_t alignment);
 #ifndef DACCESS_COMPILE
 
 #ifndef ZeroMemory
-#define ZeroMemory(Destination,Length) memset((Destination),0,(Length))
+#define ZeroMemory(_dst, _size) memset((_dst), 0, (_size))
 #endif
 
 #endif // !DACCESS_COMPILE
@@ -82,6 +82,12 @@ inline bool IS_ALIGNED(T* val, uintptr_t alignment);
 #define POINTER_SIZE 4
 
 #endif // HOST_64BIT
+
+#ifndef __GCENV_BASE_INCLUDED__
+
+#define OS_PAGE_SIZE    PalOsPageSize()
+
+#endif // __GCENV_BASE_INCLUDED__
 
 #if defined(TARGET_ARM)
 #define THUMB_CODE 1
@@ -257,6 +263,8 @@ typedef int32_t FC_BOOL_ARG;
 #define IN_DAC(x) x
 #define NOT_IN_DAC(x)
 #endif
+
+#define INLINE inline
 
 enum STARTUP_TIMELINE_EVENT_ID
 {

@@ -39,12 +39,12 @@ namespace System.Security.Cryptography
                         // is used.
                         RSAParameters key;
 
-                        ValueAsnReader reader = new(keyBlob, AsnEncodingRules.BER);
-                        ValueAsnReader sequenceReader = reader.ReadSequence();
+                        AsnReader reader = new AsnReader(keyBlob, AsnEncodingRules.BER);
+                        AsnReader sequenceReader = reader.ReadSequence();
 
                         if (sequenceReader.PeekTag().Equals(Asn1Tag.Integer))
                         {
-                            ValueAlgorithmIdentifierAsn ignored = default;
+                            AlgorithmIdentifierAsn ignored = default;
                             RSAKeyFormatHelper.ReadRsaPublicKey(keyBlob, ignored, out key);
                         }
                         else

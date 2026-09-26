@@ -34,9 +34,6 @@ namespace System.Runtime.Intrinsics.Arm
             /// <summary>  A64: CLS Xd, Xn</summary>
             public static int LeadingSignCount(long value) => LeadingSignCount(value);
 
-            /// <summary>  A64: CLS Xd, Xn</summary>
-            public static int LeadingSignCount(nint value) => LeadingSignCount(value);
-
             /// <summary>  A64: CLZ Xd, Xn</summary>
             public static int LeadingZeroCount(long value) => LeadingZeroCount(value);
 
@@ -69,18 +66,6 @@ namespace System.Runtime.Intrinsics.Arm
         public static int LeadingZeroCount(uint value) => LeadingZeroCount(value);
 
         /// <summary>
-        ///   <para>  A32: CLZ Rd, Rm</para>
-        ///   <para>  A64: CLZ Xd, Xn</para>
-        /// </summary>
-        public static int LeadingZeroCount(nint value) => LeadingZeroCount(value);
-
-        /// <summary>
-        ///   <para>  A32: CLZ Rd, Rm</para>
-        ///   <para>  A64: CLZ Xd, Xn</para>
-        /// </summary>
-        public static int LeadingZeroCount(nuint value) => LeadingZeroCount(value);
-
-        /// <summary>
         ///   <para>  A32: RBIT Rd, Rm</para>
         ///   <para>  A64: RBIT Wd, Wn</para>
         /// </summary>
@@ -91,18 +76,6 @@ namespace System.Runtime.Intrinsics.Arm
         ///   <para>  A64: RBIT Wd, Wn</para>
         /// </summary>
         public static uint ReverseElementBits(uint value) => ReverseElementBits(value);
-
-        /// <summary>
-        ///   <para>  A32: RBIT Rd, Rm</para>
-        ///   <para>  A64: RBIT Xd, Xn</para>
-        /// </summary>
-        public static nint ReverseElementBits(nint value) => ReverseElementBits(value);
-
-        /// <summary>
-        ///   <para>  A32: RBIT Rd, Rm</para>
-        ///   <para>  A64: RBIT Xd, Xn</para>
-        /// </summary>
-        public static nuint ReverseElementBits(nuint value) => ReverseElementBits(value);
 
         /// <summary>
         ///   <para>  A32: YIELD</para>

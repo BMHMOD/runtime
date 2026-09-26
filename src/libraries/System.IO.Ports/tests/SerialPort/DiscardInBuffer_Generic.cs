@@ -38,7 +38,7 @@ namespace System.IO.Ports.Tests
         }
 
 
-        [ConditionalFact(typeof(DiscardInBuffer_Generic), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void DiscardAfterClose()
         {
             using (SerialPort com = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))
@@ -53,7 +53,7 @@ namespace System.IO.Ports.Tests
         }
 
 
-        [ConditionalFact(typeof(DiscardInBuffer_Generic), nameof(HasOneSerialPort))]
+        [ConditionalFact(nameof(HasOneSerialPort))]
         public void DiscardAfterOpen()
         {
             using (SerialPort com = new SerialPort(TCSupport.LocalMachineSerialInfo.FirstAvailablePortName))

@@ -16,7 +16,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Xunit;
-using TestLibrary;
 //using BenchmarkDotNet.Attributes;
 //using MicroBenchmarks;
 
@@ -25,7 +24,6 @@ namespace BenchmarksGame
     //[BenchmarkCategory(Categories.Runtime, Categories.BenchmarksGame, Categories.JIT)]
     public unsafe class FannkuchRedux_9
     {
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/86772", TestPlatforms.Browser | TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         [Fact]
         public static int TestEntryPoint()
         {

@@ -16,7 +16,6 @@ internal static partial class Interop
             DsRolePrimaryDomainInfoBasicEx = 4
         }
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Dsrole, StringMarshalling = StringMarshalling.Utf16)]
         internal static partial int DsRoleGetPrimaryDomainInformation(
             [MarshalAs(UnmanagedType.LPTStr)] string lpServer,

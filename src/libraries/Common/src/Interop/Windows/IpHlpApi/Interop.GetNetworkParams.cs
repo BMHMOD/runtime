@@ -8,7 +8,6 @@ internal static partial class Interop
 {
     internal static partial class IpHlpApi
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Interop.Libraries.IpHlpApi)]
         internal static unsafe partial uint GetNetworkParams(IntPtr pFixedInfo, uint* pOutBufLen);
     }

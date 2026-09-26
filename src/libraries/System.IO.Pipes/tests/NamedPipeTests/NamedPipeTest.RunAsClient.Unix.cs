@@ -21,7 +21,7 @@ namespace System.IO.Pipes.Tests
 
         public static bool IsRemoteExecutorSupportedAndPrivilegedProcess => RemoteExecutor.IsSupported && PlatformDetection.IsPrivilegedProcess;
 
-        [ConditionalFact(typeof(NamedPipeTest_RunAsClient), nameof(IsRemoteExecutorSupportedAndPrivilegedProcess))]
+        [ConditionalFact(nameof(IsRemoteExecutorSupportedAndPrivilegedProcess))]
         [ActiveIssue("https://github.com/dotnet/runtime/issues/0")]
         public void RunAsClient_Unix()
         {

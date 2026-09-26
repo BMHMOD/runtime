@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b55197
+namespace Test
 {
     using System;
 
@@ -117,7 +117,6 @@ namespace b55197
 
     public class App
     {
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

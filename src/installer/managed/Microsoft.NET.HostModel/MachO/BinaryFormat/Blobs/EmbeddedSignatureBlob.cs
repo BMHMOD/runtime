@@ -111,8 +111,7 @@ internal sealed class EmbeddedSignatureBlob : IBlob
         size += sizeof(uint); // Blob size
         size += sizeof(CodeDirectoryBlob.CodeDirectoryHeader); // CodeDirectory header
         size += CodeDirectoryBlob.GetIdentifierLength(identifier); // Identifier
-        // Uses the smallest code directory page size (4 KiB) so the code slot count is the maximum possible for any architecture.
-        size += (long)CodeDirectoryBlob.GetCodeSlotCount(fileSize, MachObjectFile.DefaultCodeDirectoryPageSize) * usedHashSize; // Code hashes
+        size += (long)CodeDirectoryBlob.GetCodeSlotCount(fileSize) * usedHashSize; // Code hashes
         size += (long)(uint)CodeDirectorySpecialSlot.Requirements * usedHashSize; // Special code hashes
 
         size += RequirementsBlob.Empty.Size; // Requirements is always written as an empty blob
@@ -124,7 +123,7 @@ internal sealed class EmbeddedSignatureBlob : IBlob
     /// Returns the size of a signature used to replace an existing one.
     /// If the existing signature is null, it will assume sizing using the default signature, which includes the Requirements and CMS blobs.
     /// </summary>
-    internal static unsafe long GetSignatureSize(uint fileSize, string identifier, uint pageSize, byte? hashSize = null)
+    internal static unsafe long GetSignatureSize(uint fileSize, string identifier, byte? hashSize = null)
     {
         byte usedHashSize = hashSize ?? CodeDirectoryBlob.DefaultHashType.GetHashSize();
         uint specialCodeSlotCount = (uint)CodeDirectorySpecialSlot.Requirements;
@@ -143,7 +142,7 @@ internal sealed class EmbeddedSignatureBlob : IBlob
         size += sizeof(CodeDirectoryBlob.CodeDirectoryHeader); // CodeDirectory header
         size += CodeDirectoryBlob.GetIdentifierLength(identifier); // Identifier
         size += specialCodeSlotCount * usedHashSize; // Special code hashes
-        size += CodeDirectoryBlob.GetCodeSlotCount(fileSize, pageSize) * usedHashSize; // Code hashes
+        size += CodeDirectoryBlob.GetCodeSlotCount(fileSize) * usedHashSize; // Code hashes
         // RequirementsBlob
         size += RequirementsBlob.Empty.Size;
         // CmsWrapperBlob

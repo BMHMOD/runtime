@@ -6,11 +6,22 @@
 
 #include <stdlib.h>
 
-// Format attribute for printf-style functions
-#ifdef __GNUC__
-#define MINIPAL_ATTR_FORMAT_PRINTF(fmt_pos, arg_pos) __attribute__ ((__format__(__printf__, fmt_pos, arg_pos)))
+#if defined(TARGET_32BIT) || defined(TARGET_OSX) || defined(TARGET_WINDOWS)
+#define FORMAT_PREFIX "l"
 #else
-#define MINIPAL_ATTR_FORMAT_PRINTF(fmt_pos, arg_pos)
+#define FORMAT_PREFIX ""
+#endif
+
+#ifndef PRIX64
+#define PRIX64 FORMAT_PREFIX "lX"
+#endif
+
+#ifndef PRIx64
+#define PRIx64 FORMAT_PREFIX "lx"
+#endif
+
+#ifndef PRIu64
+#define PRIu64 FORMAT_PREFIX "lu"
 #endif
 
 #ifdef TARGET_WINDOWS

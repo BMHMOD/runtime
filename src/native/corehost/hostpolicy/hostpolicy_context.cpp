@@ -38,11 +38,7 @@ namespace
         if (!pal::clr_palstring(path, &file_path))
         {
             trace::warning(_X("Failure probing contents of the application bundle."));
-#ifdef TARGET_UNIX
-            trace::warning(_X("Failed to convert path [%s] to UTF8"), path);
-#else
             trace::warning(_X("Failed to convert path [%hs] to UTF8"), path);
-#endif
 
             return false;
         }
@@ -126,14 +122,6 @@ namespace
             return pal::pal_utf8string(get_filename_without_ext(context->application), value_buffer, value_buffer_size);
         }
 
-        if (::strcmp(key, HOST_PROPERTY_ARGV0) == 0)
-        {
-            if (context->invocation_name.empty())
-                return -1;
-
-            return pal::pal_utf8string(context->invocation_name, value_buffer, value_buffer_size);
-        }
-
         if (::strcmp(key, HOST_PROPERTY_BUNDLE_EXTRACTION_PATH) == 0)
         {
             if (!bundle::info_t::is_single_file_bundle())
@@ -179,7 +167,6 @@ int hostpolicy_context_t::initialize(const hostpolicy_init_t &hostpolicy_init, c
     application = args.managed_application;
     host_mode = hostpolicy_init.host_mode;
     host_path = hostpolicy_init.host_info.host_path;
-    invocation_name = args.invocation_name;
     breadcrumbs_enabled = enable_breadcrumbs;
 
     deps_json_t::rid_resolution_options_t rid_resolution_options
@@ -205,11 +192,29 @@ int hostpolicy_context_t::initialize(const hostpolicy_init_t &hostpolicy_init, c
         return StatusCode::ResolverInitFailure;
     }
 
-    // Resolve probe paths and setup breadcrumbs if enabled
     probe_paths_t probe_paths;
-    if (!resolver.resolve_probe_paths(&probe_paths, breadcrumbs_enabled ? &breadcrumbs : nullptr))
+
+    // Setup breadcrumbs.
+    if (breadcrumbs_enabled)
     {
-        return StatusCode::ResolverResolveFailure;
+        pal::string_t policy_name = _STRINGIFY(HOST_POLICY_PKG_NAME);
+        pal::string_t policy_version = _STRINGIFY(HOST_VERSION);
+
+        // Always insert the hostpolicy that the code is running on.
+        breadcrumbs.insert(policy_name);
+        breadcrumbs.insert(policy_name + _X(",") + policy_version);
+
+        if (!resolver.resolve_probe_paths(&probe_paths, &breadcrumbs))
+        {
+            return StatusCode::ResolverResolveFailure;
+        }
+    }
+    else
+    {
+        if (!resolver.resolve_probe_paths(&probe_paths, nullptr))
+        {
+            return StatusCode::ResolverResolveFailure;
+        }
     }
 
     clr_path = probe_paths.coreclr;

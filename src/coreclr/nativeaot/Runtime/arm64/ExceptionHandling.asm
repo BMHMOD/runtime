@@ -252,24 +252,6 @@
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;
-;; RhpThrowExact
-;;
-;; SUMMARY:  Similar to RhpThrowEx, except that it sets the rethrow flag
-;;
-;; INPUT:  X0:  exception object
-;;
-;; OUTPUT:
-;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    LEAF_ENTRY RhpThrowExact
-
-        mov         w4, #4                                          ;; w4 = ExKind.RethrowFlag
-        b           RhpThrowImpl
-
-    LEAF_END RhpThrowExact
-
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;
 ;; RhpThrowEx
 ;;
 ;; INPUT:  X0:  exception object
@@ -277,14 +259,7 @@
 ;; OUTPUT:
 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-    LEAF_ENTRY RhpThrowEx
-
-        mov         w4, #1                                          ;; w4 = ExKind.Throw
-        b           RhpThrowImpl
-
-    LEAF_END RhpThrowEx
-
-    NESTED_ENTRY RhpThrowImpl
+    NESTED_ENTRY RhpThrowEx
 
         ALLOC_THROW_FRAME SOFTWARE_EXCEPTION
 
@@ -333,7 +308,6 @@ ClearThreadState
         ;; clear the Thread's hijack state
         str         xzr, [x2, #OFFSETOF__Thread__m_ppvHijackedReturnAddressLocation]
         str         xzr, [x2, #OFFSETOF__Thread__m_pvHijackedReturnAddress]
-        str         xzr, [x2, #OFFSETOF__Thread__m_pSpForPacSign]
 
 NotHijacked
 
@@ -343,7 +317,8 @@ NotHijacked
         strb        w3, [x1, #OFFSETOF__ExInfo__m_passNumber]       ;; pExInfo->m_passNumber = 1
         mov         w3, #0xFFFFFFFF
         str         w3, [x1, #OFFSETOF__ExInfo__m_idxCurClause]     ;; pExInfo->m_idxCurClause = MaxTryRegionIdx
-        strb        w4, [x1, #OFFSETOF__ExInfo__m_kind]             ;; pExInfo->m_kind = ExKind (from w4)
+        mov         w3, #1
+        strb        w3, [x1, #OFFSETOF__ExInfo__m_kind]             ;; pExInfo->m_kind = ExKind.Throw
 
         ;; link the ExInfo into the thread's ExInfo chain
         ldr         x3, [x2, #OFFSETOF__Thread__m_pExInfoStackHead]
@@ -358,11 +333,11 @@ NotHijacked
         ;; x1: ExInfo*
         bl          RhThrowEx
 
-    ALTERNATE_ENTRY RhpThrowImpl2
+    ALTERNATE_ENTRY RhpThrowEx2
 
         ;; no return
         EMIT_BREAKPOINT
-    NESTED_END RhpThrowImpl
+    NESTED_END RhpThrowEx
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;

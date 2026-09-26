@@ -59,10 +59,19 @@ internal sealed class ClassInfo
             // however it's impossible to get such output with BinaryFormatter,
             // so we prohibit that on purpose.
             string memberName = reader.ReadString();
-            if (!memberNames.TryAdd(memberName, i))
+#if NET
+            if (memberNames.TryAdd(memberName, i))
             {
-                ThrowHelper.ThrowDuplicateMemberName();
+                continue;
             }
+#else
+            if (!memberNames.ContainsKey(memberName))
+            {
+                memberNames.Add(memberName, i);
+                continue;
+            }
+#endif
+            ThrowHelper.ThrowDuplicateMemberName();
         }
 
         return new ClassInfo(id, typeName, memberNames);

@@ -5,9 +5,6 @@
    IndexOutOfRange Exception When Using UShort or Short as an Input Array Type
 */
 
-
-namespace b402658;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
@@ -37,7 +34,6 @@ public class small_repro
         return new short[] { 0x100, 0x101, 0x102 };
     }
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

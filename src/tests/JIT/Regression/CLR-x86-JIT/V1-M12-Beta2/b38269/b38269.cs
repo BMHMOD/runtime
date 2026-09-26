@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b38269
+namespace Test
 {
     using System;
 
@@ -20,7 +20,6 @@ namespace b38269
     {
         static AA s_aa = new AA(0);
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

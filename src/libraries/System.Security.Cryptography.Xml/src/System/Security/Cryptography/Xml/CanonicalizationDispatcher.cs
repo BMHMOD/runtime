@@ -10,32 +10,15 @@ namespace System.Security.Cryptography.Xml
     // implement ICanonicalizableNode; so a manual dispatch is sometimes necessary.
     internal static class CanonicalizationDispatcher
     {
-        [ThreadStatic]
-        private static int t_depth;
-
         public static void Write(XmlNode node, StringBuilder strBuilder, DocPosition docPos, AncestralNamespaceContextManager anc)
         {
-            int maxDepth = LocalAppContextSwitches.DangerousMaxRecursionDepth;
-            if (maxDepth > 0 && t_depth > maxDepth)
+            if (node is ICanonicalizableNode)
             {
-                throw new CryptographicException(SR.Cryptography_Xml_MaxDepthExceeded);
+                ((ICanonicalizableNode)node).Write(strBuilder, docPos, anc);
             }
-
-            t_depth++;
-            try
+            else
             {
-                if (node is ICanonicalizableNode canonicalizableNode)
-                {
-                    canonicalizableNode.Write(strBuilder, docPos, anc);
-                }
-                else
-                {
-                    WriteGenericNode(node, strBuilder, docPos, anc);
-                }
-            }
-            finally
-            {
-                t_depth--;
+                WriteGenericNode(node, strBuilder, docPos, anc);
             }
         }
 
@@ -52,27 +35,13 @@ namespace System.Security.Cryptography.Xml
 
         public static void WriteHash(XmlNode node, HashAlgorithm hash, DocPosition docPos, AncestralNamespaceContextManager anc)
         {
-            int maxDepth = LocalAppContextSwitches.DangerousMaxRecursionDepth;
-            if (maxDepth > 0 && t_depth > maxDepth)
+            if (node is ICanonicalizableNode)
             {
-                throw new CryptographicException(SR.Cryptography_Xml_MaxDepthExceeded);
+                ((ICanonicalizableNode)node).WriteHash(hash, docPos, anc);
             }
-
-            t_depth++;
-            try
+            else
             {
-                if (node is ICanonicalizableNode canonicalizableNode)
-                {
-                    canonicalizableNode.WriteHash(hash, docPos, anc);
-                }
-                else
-                {
-                    WriteHashGenericNode(node, hash, docPos, anc);
-                }
-            }
-            finally
-            {
-                t_depth--;
+                WriteHashGenericNode(node, hash, docPos, anc);
             }
         }
 

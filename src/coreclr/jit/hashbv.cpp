@@ -12,7 +12,7 @@
 #ifdef DEBUG
 void hashBvNode::dump()
 {
-    printf("base: %llu { ", (unsigned long long)baseIndex);
+    printf("base: %d { ", baseIndex);
     this->foreachBit(pBit);
     printf("}\n");
 }
@@ -115,6 +115,29 @@ bool hashBvNode::belongsIn(indexType index)
     return true;
 }
 
+int countBitsInWord(unsigned int bits)
+{
+    // In-place adder tree: perform 16 1-bit adds, 8 2-bit adds,
+    // 4 4-bit adds, 2 8=bit adds, and 1 16-bit add.
+    bits = ((bits >> 1) & 0x55555555) + (bits & 0x55555555);
+    bits = ((bits >> 2) & 0x33333333) + (bits & 0x33333333);
+    bits = ((bits >> 4) & 0x0F0F0F0F) + (bits & 0x0F0F0F0F);
+    bits = ((bits >> 8) & 0x00FF00FF) + (bits & 0x00FF00FF);
+    bits = ((bits >> 16) & 0x0000FFFF) + (bits & 0x0000FFFF);
+    return (int)bits;
+}
+
+int countBitsInWord(uint64_t bits)
+{
+    bits = ((bits >> 1) & 0x5555555555555555) + (bits & 0x5555555555555555);
+    bits = ((bits >> 2) & 0x3333333333333333) + (bits & 0x3333333333333333);
+    bits = ((bits >> 4) & 0x0F0F0F0F0F0F0F0F) + (bits & 0x0F0F0F0F0F0F0F0F);
+    bits = ((bits >> 8) & 0x00FF00FF00FF00FF) + (bits & 0x00FF00FF00FF00FF);
+    bits = ((bits >> 16) & 0x0000FFFF0000FFFF) + (bits & 0x0000FFFF0000FFFF);
+    bits = ((bits >> 32) & 0x00000000FFFFFFFF) + (bits & 0x00000000FFFFFFFF);
+    return (int)bits;
+}
+
 int hashBvNode::countBits()
 {
     int result = 0;
@@ -123,7 +146,7 @@ int hashBvNode::countBits()
     {
         elemType bits = elements[i];
 
-        result += BitOperations::PopCount(bits);
+        result += countBitsInWord(bits);
 
         result += (int)bits;
     }
@@ -333,7 +356,7 @@ bool hashBvNode::sameAs(hashBvNode* other)
 
 hashBv::hashBv(Compiler* comp)
 {
-    this->m_compiler    = comp;
+    this->compiler      = comp;
     this->log2_hashSize = 0;
 
     int hts = hashtable_size();
@@ -364,7 +387,7 @@ hashBv* hashBv::Create(Compiler* compiler)
         result->nodeArr = result->initialVector;
     }
 
-    result->m_compiler    = compiler;
+    result->compiler      = compiler;
     result->log2_hashSize = 0;
     result->numNodes      = 0;
 
@@ -378,7 +401,7 @@ void hashBv::Init(Compiler* compiler)
 
 hashBvGlobalData* hashBv::globalData()
 {
-    return &m_compiler->hbvGlobalData;
+    return &compiler->hbvGlobalData;
 }
 
 hashBvNode** hashBv::getNewVector(int vectorLength)
@@ -386,7 +409,7 @@ hashBvNode** hashBv::getNewVector(int vectorLength)
     assert(vectorLength > 0);
     assert(isPow2(vectorLength));
 
-    hashBvNode** newVector = new (m_compiler, CMK_hashBv) hashBvNode*[vectorLength]();
+    hashBvNode** newVector = new (compiler, CMK_hashBv) hashBvNode*[vectorLength]();
     return newVector;
 }
 
@@ -599,7 +622,7 @@ void hashBv::dump()
         {
             printf(" ");
         }
-        printf("%llu", (unsigned long long)index);
+        printf("%d", index);
         first = false;
         return HbvWalk::Continue;
     });
@@ -618,11 +641,11 @@ void hashBv::dumpFancy()
         {
             if (last_0 + 1 != last_1)
             {
-                printf(" %llu-%llu", (unsigned long long)(last_0 + 1), (unsigned long long)last_1);
+                printf(" %d-%d", last_0 + 1, last_1);
             }
             else
             {
-                printf(" %llu", (unsigned long long)last_1);
+                printf(" %d", last_1);
             }
             last_0 = index - 1;
         }
@@ -634,11 +657,11 @@ void hashBv::dumpFancy()
     // Print the last one
     if (last_0 + 1 != last_1)
     {
-        printf(" %llu-%llu", (unsigned long long)(last_0 + 1), (unsigned long long)last_1);
+        printf(" %d-%d", last_0 + 1, last_1);
     }
     else
     {
-        printf(" %llu", (unsigned long long)last_1);
+        printf(" %d", last_1);
     }
 
     printf("}\n");
@@ -731,7 +754,7 @@ hashBvNode* hashBv::getNodeForIndexHelper(indexType index, bool canAdd)
     else if (canAdd)
     {
         // missing node, insert it before the current one
-        hashBvNode* temp = hashBvNode::Create(index, this->m_compiler);
+        hashBvNode* temp = hashBvNode::Create(index, this->compiler);
         temp->next       = node;
         *prev            = temp;
         this->numNodes++;
@@ -1045,7 +1068,7 @@ public:
         // it's in other, not this
         // so put one in
         result           = true;
-        hashBvNode* temp = hashBvNode::Create(r->baseIndex, lhs->m_compiler);
+        hashBvNode* temp = hashBvNode::Create(r->baseIndex, lhs->compiler);
         lhs->numNodes++;
         temp->XorWith(r);
         temp->next = (*l)->next;
@@ -1077,7 +1100,7 @@ public:
         // it's in other, not this
         // so put one in
         result           = true;
-        hashBvNode* temp = hashBvNode::Create(r->baseIndex, lhs->m_compiler);
+        hashBvNode* temp = hashBvNode::Create(r->baseIndex, lhs->compiler);
         lhs->numNodes++;
         temp->XorWith(r);
         temp->next = nullptr;
@@ -1115,7 +1138,7 @@ public:
         // it's in other, not this
         // so put one in
         result           = true;
-        hashBvNode* temp = hashBvNode::Create(r->baseIndex, lhs->m_compiler);
+        hashBvNode* temp = hashBvNode::Create(r->baseIndex, lhs->compiler);
         lhs->numNodes++;
         temp->OrWith(r);
         temp->next = *l;
@@ -1145,7 +1168,7 @@ public:
         // copy it
         // LeftGap(lhs, l, r, result, terminate);
         result           = true;
-        hashBvNode* temp = hashBvNode::Create(r->baseIndex, lhs->m_compiler);
+        hashBvNode* temp = hashBvNode::Create(r->baseIndex, lhs->compiler);
         lhs->numNodes++;
         temp->OrWith(r);
         temp->next = nullptr;
@@ -1528,7 +1551,7 @@ void hashBv::Subtract(hashBv* other)
 
 void hashBv::Subtract3(hashBv* o1, hashBv* o2)
 {
-    this->copyFrom(o1, m_compiler);
+    this->copyFrom(o1, compiler);
     this->Subtract(o2);
 }
 
@@ -1618,7 +1641,7 @@ void hashBv::copyFrom(hashBv* other, Compiler* comp)
             }
             else
             {
-                newNode = hashBvNode::Create(otherNode->baseIndex, this->m_compiler);
+                newNode = hashBvNode::Create(otherNode->baseIndex, this->compiler);
             }
             newNode->copyFrom(otherNode);
 
@@ -1654,7 +1677,7 @@ void hashBv::InorderTraverse(nodeAction n)
 {
     int hts = hashtable_size();
 
-    hashBvNode** x = new (m_compiler, CMK_hashBv) hashBvNode*[hts];
+    hashBvNode** x = new (compiler, CMK_hashBv) hashBvNode*[hts];
 
     {
         // keep an array of the current pointers
@@ -1704,8 +1727,8 @@ void hashBv::InorderTraverseTwo(hashBv* other, dualNodeAction a)
     sizeThis  = this->hashtable_size();
     sizeOther = other->hashtable_size();
 
-    nodesThis  = new (m_compiler, CMK_hashBv) hashBvNode*[sizeThis];
-    nodesOther = new (m_compiler, CMK_hashBv) hashBvNode*[sizeOther];
+    nodesThis  = new (compiler, CMK_hashBv) hashBvNode*[sizeThis];
+    nodesOther = new (compiler, CMK_hashBv) hashBvNode*[sizeOther];
 
     // populate the arrays
     for (int i = 0; i < sizeThis; i++)
@@ -1797,7 +1820,7 @@ void hashBv::InorderTraverseTwo(hashBv* other, dualNodeAction a)
 #ifdef DEBUG
 void SimpleDumpNode(hashBvNode* n)
 {
-    printf("base: %llu\n", (unsigned long long)n->baseIndex);
+    printf("base: %d\n", n->baseIndex);
 }
 
 void DumpNode(hashBvNode* n)
@@ -1810,7 +1833,7 @@ void SimpleDumpDualNode(hashBv* a, hashBv* b, hashBvNode* n, hashBvNode* m)
     printf("nodes: ");
     if (n)
     {
-        printf("%llu,", (unsigned long long)n->baseIndex);
+        printf("%d,", n->baseIndex);
     }
     else
     {
@@ -1818,7 +1841,7 @@ void SimpleDumpDualNode(hashBv* a, hashBv* b, hashBvNode* n, hashBvNode* m)
     }
     if (m)
     {
-        printf("%llu\n", (unsigned long long)m->baseIndex);
+        printf("%d\n", m->baseIndex);
     }
     else
     {

@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Security.Authentication.ExtendedProtection;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -32,7 +33,7 @@ namespace System.Net.Tests
         public void Dispose() => _factory.Dispose();
 
         // [ActiveIssue("https://github.com/dotnet/runtime/issues/22195", TestPlatforms.Unix)] // Managed implementation connects successfully.
-        [ConditionalTheory(typeof(Helpers), nameof(Helpers.IsWindowsImplementation))]
+        [ConditionalTheory(nameof(Helpers) + "." + nameof(Helpers.IsWindowsImplementation))]
         [InlineData("Basic")]
         [InlineData("NTLM")]
         [InlineData("Negotiate")]
@@ -49,7 +50,7 @@ namespace System.Net.Tests
         }
 
         // [ActiveIssue("https://github.com/dotnet/runtime/issues/22195", TestPlatforms.Unix)] Managed implementation connects successfully.
-        [ConditionalTheory(typeof(Helpers), nameof(Helpers.IsWindowsImplementation))]
+        [ConditionalTheory(nameof(Helpers) + "." + nameof(Helpers.IsWindowsImplementation))]
         [InlineData("Basic")]
         [InlineData("NTLM")]
         [InlineData("Negotiate")]
@@ -162,7 +163,7 @@ namespace System.Net.Tests
             await ValidateNullUser();
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.IsWindowsImplementation))] // [PlatformSpecific(TestPlatforms.Windows, "Managed impl doesn't support NTLM")]
+        [ConditionalFact(nameof(Helpers) + "." + nameof(Helpers.IsWindowsImplementation))] // [PlatformSpecific(TestPlatforms.Windows, "Managed impl doesn't support NTLM")]
         public async Task NtlmAuthentication_Conversation_ReturnsExpectedType2Message()
         {
             _listener.AuthenticationSchemes = AuthenticationSchemes.Ntlm;
@@ -184,7 +185,7 @@ namespace System.Net.Tests
             yield return new object[] { "abcd", HttpStatusCode.BadRequest };
         }
 
-        [ConditionalTheory(typeof(Helpers), nameof(Helpers.IsWindowsImplementation))] // [PlatformSpecific(TestPlatforms.Windows, "Managed impl doesn't support NTLM")]
+        [ConditionalTheory(nameof(Helpers) + "." + nameof(Helpers.IsWindowsImplementation))] // [PlatformSpecific(TestPlatforms.Windows, "Managed impl doesn't support NTLM")]
         [MemberData(nameof(InvalidNtlmNegotiateAuthentication_TestData))]
         public async Task NtlmAuthentication_InvalidRequestHeaders_ReturnsExpectedStatusCode(string header, HttpStatusCode statusCode)
         {
@@ -206,7 +207,7 @@ namespace System.Net.Tests
             }
         }
 
-        [ConditionalFact(typeof(Helpers), nameof(Helpers.IsWindowsImplementation))] // [PlatformSpecific(TestPlatforms.Windows, "Managed impl doesn't support Negotiate")]
+        [ConditionalFact(nameof(Helpers) + "." + nameof(Helpers.IsWindowsImplementation))] // [PlatformSpecific(TestPlatforms.Windows, "Managed impl doesn't support Negotiate")]
         public async Task NegotiateAuthentication_Conversation_ReturnsExpectedType2Message()
         {
             _listener.AuthenticationSchemes = AuthenticationSchemes.Negotiate;
@@ -220,7 +221,7 @@ namespace System.Net.Tests
             }
         }
 
-        [ConditionalTheory(typeof(Helpers), nameof(Helpers.IsWindowsImplementation))] // [PlatformSpecific(TestPlatforms.Windows, "Managed impl doesn't support Negotiate")]
+        [ConditionalTheory(nameof(Helpers) + "." + nameof(Helpers.IsWindowsImplementation))] // [PlatformSpecific(TestPlatforms.Windows, "Managed impl doesn't support Negotiate")]
         [MemberData(nameof(InvalidNtlmNegotiateAuthentication_TestData))]
         public async Task NegotiateAuthentication_InvalidRequestHeaders_ReturnsExpectedStatusCode(string header, HttpStatusCode statusCode)
         {
@@ -404,9 +405,13 @@ namespace System.Net.Tests
         public async Task<HttpResponseMessage> AuthenticationFailure(HttpClient client, HttpStatusCode errorCode)
         {
             Task<HttpResponseMessage> clientTask = client.GetAsync(_factory.ListeningUrl);
-            Task<HttpListenerContext> serverTask = _listener.GetContextAsync();
+
+            // The server task will hang forever if it is not cancelled.
+            var tokenSource = new CancellationTokenSource();
+            Task<HttpListenerContext> serverTask = Task.Run(() => _listener.GetContext(), tokenSource.Token);
 
             Task resultTask = await Task.WhenAny(clientTask, serverTask);
+            tokenSource.Cancel();
             if (resultTask == serverTask)
             {
                 await serverTask;
@@ -414,10 +419,8 @@ namespace System.Net.Tests
 
             Assert.Same(clientTask, resultTask);
 
-            HttpResponseMessage response = await clientTask;
-            Assert.Equal(errorCode, response.StatusCode);
-
-            return response;
+            Assert.Equal(errorCode, clientTask.Result.StatusCode);
+            return clientTask.Result;
         }
 
         public async Task<HttpResponseMessage> AuthenticationFailureAsyncContext(HttpClient client, HttpStatusCode errorCode)
@@ -433,10 +436,8 @@ namespace System.Net.Tests
 
             Assert.Same(clientTask, resultTask);
 
-            HttpResponseMessage response = await clientTask;
-            Assert.Equal(errorCode, response.StatusCode);
-
-            return response;
+            Assert.Equal(errorCode, clientTask.Result.StatusCode);
+            return clientTask.Result;
         }
 
         private async Task ValidateNullUser()

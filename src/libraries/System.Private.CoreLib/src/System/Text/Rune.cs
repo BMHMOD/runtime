@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Buffers;
@@ -32,8 +32,6 @@ namespace System.Text
 #pragma warning disable SA1001 // Commas should be spaced correctly
         , ISpanFormattable
         , IUtf8SpanFormattable
-        , IParsable<Rune>
-        , ISpanParsable<Rune>
         , IUtf8SpanParsable<Rune>
 #pragma warning restore SA1001
 #endif
@@ -224,7 +222,7 @@ namespace System.Text
         public int Value => (int)_value;
 
 #if SYSTEM_PRIVATE_CORELIB
-        private static unsafe Rune ChangeCaseCultureAware(Rune rune, TextInfo textInfo, bool toUpper)
+        private static Rune ChangeCaseCultureAware(Rune rune, TextInfo textInfo, bool toUpper)
         {
             Debug.Assert(!GlobalizationMode.Invariant, "This should've been checked by the caller.");
             Debug.Assert(textInfo != null, "This should've been checked by the caller.");
@@ -259,7 +257,7 @@ namespace System.Text
             }
         }
 #else
-        private static unsafe Rune ChangeCaseCultureAware(Rune rune, CultureInfo culture, bool toUpper)
+        private static Rune ChangeCaseCultureAware(Rune rune, CultureInfo culture, bool toUpper)
         {
             Debug.Assert(culture != null, "This should've been checked by the caller.");
 
@@ -795,7 +793,7 @@ namespace System.Text
         /// <param name="other">The rune to compare with the current instance.</param>
         /// <param name="comparisonType">One of the enumeration values that specifies the rules to use in the comparison.</param>
         /// <returns><see langword="true"/> if the current instance and <paramref name="other"/> are equal; otherwise, <see langword="false"/>.</returns>
-        public unsafe bool Equals(Rune other, StringComparison comparisonType)
+        public bool Equals(Rune other, StringComparison comparisonType)
         {
             if (comparisonType is StringComparison.Ordinal)
             {
@@ -938,7 +936,7 @@ namespace System.Text
         /// <summary>
         /// Returns a <see cref="string"/> representation of this <see cref="Rune"/> instance.
         /// </summary>
-        public override unsafe string ToString()
+        public override string ToString()
         {
 #if SYSTEM_PRIVATE_CORELIB
             if (IsBmp)
@@ -996,54 +994,6 @@ namespace System.Text
             }
 
             return result;
-        }
-
-        /// <inheritdoc cref="IParsable{TSelf}.Parse(string, IFormatProvider?)" />
-        static Rune IParsable<Rune>.Parse(string s, IFormatProvider? provider)
-        {
-            ArgumentNullException.ThrowIfNull(s);
-
-            if (DecodeFromUtf16(s, out Rune result, out int charsConsumed) != OperationStatus.Done || charsConsumed != s.Length)
-            {
-                ThrowHelper.ThrowFormatInvalidString();
-            }
-
-            return result;
-        }
-
-        /// <inheritdoc cref="IParsable{TSelf}.TryParse(string?, IFormatProvider?, out TSelf)" />
-        static bool IParsable<Rune>.TryParse([NotNullWhen(true)] string? s, IFormatProvider? provider, out Rune result)
-        {
-            if (DecodeFromUtf16(s, out result, out int charsConsumed) != OperationStatus.Done || charsConsumed != s!.Length)
-            {
-                result = ReplacementChar;
-                return false;
-            }
-
-            return true;
-        }
-
-        /// <inheritdoc cref="ISpanParsable{TSelf}.Parse(ReadOnlySpan{char}, IFormatProvider?)" />
-        static Rune ISpanParsable<Rune>.Parse(ReadOnlySpan<char> s, IFormatProvider? provider)
-        {
-            if (DecodeFromUtf16(s, out Rune result, out int charsConsumed) != OperationStatus.Done || charsConsumed != s.Length)
-            {
-                ThrowHelper.ThrowFormatInvalidString();
-            }
-
-            return result;
-        }
-
-        /// <inheritdoc cref="ISpanParsable{TSelf}.TryParse(ReadOnlySpan{char}, IFormatProvider?, out TSelf)" />
-        static bool ISpanParsable<Rune>.TryParse(ReadOnlySpan<char> s, IFormatProvider? provider, out Rune result)
-        {
-            if (DecodeFromUtf16(s, out result, out int charsConsumed) != OperationStatus.Done || charsConsumed != s.Length)
-            {
-                result = ReplacementChar;
-                return false;
-            }
-
-            return true;
         }
 
         string IFormattable.ToString(string? format, IFormatProvider? formatProvider) => ToString();
@@ -1591,50 +1541,6 @@ namespace System.Text
 #endif
         }
 
-#if SYSTEM_PRIVATE_CORELIB
-        /// <summary>
-        /// Returns a copy of <paramref name="value"/> converted to uppercase using the casing rules used by
-        /// <see cref="StringComparison.OrdinalIgnoreCase"/> comparisons.
-        /// </summary>
-        /// <param name="value">The character to convert.</param>
-        /// <returns>The uppercase equivalent of <paramref name="value"/>.</returns>
-        public static Rune ToUpperOrdinal(Rune value)
-        {
-            if (value.IsAscii)
-            {
-                return UnsafeCreate(Utf16Utility.ConvertAllAsciiCharsInUInt32ToUppercase(value._value));
-            }
-
-            if (value.IsBmp)
-            {
-                return UnsafeCreate(TextInfo.ToUpperOrdinal((char)value._value));
-            }
-
-            // Supplementary characters use the same simple scalar mapping as OrdinalIgnoreCase comparisons.
-            return UnsafeCreate(CharUnicodeInfo.ToUpper(value._value));
-        }
-
-        /// <summary>
-        /// Returns a copy of <paramref name="value"/> converted to lowercase using ordinal (simple, one-to-one) casing rules.
-        /// </summary>
-        /// <param name="value">The character to convert.</param>
-        /// <returns>The lowercase equivalent of <paramref name="value"/>.</returns>
-        public static Rune ToLowerOrdinal(Rune value)
-        {
-            if (value.IsAscii)
-            {
-                return UnsafeCreate(Utf16Utility.ConvertAllAsciiCharsInUInt32ToLowercase(value._value));
-            }
-
-            if (value.IsBmp)
-            {
-                return UnsafeCreate(TextInfo.ToLowerOrdinal((char)value._value));
-            }
-
-            return UnsafeCreate(CharUnicodeInfo.ToLower(value._value));
-        }
-#endif
-
         /// <inheritdoc cref="IComparable.CompareTo" />
         int IComparable.CompareTo(object? obj)
         {
@@ -1648,7 +1554,7 @@ namespace System.Text
                 return this.CompareTo(other);
             }
 
-#if SYSTEM_PRIVATE_CORELIB
+#if SYSTEM_PRIVATE_CORLIB
             throw new ArgumentException(SR.Arg_MustBeRune);
 #else
             throw new ArgumentException();

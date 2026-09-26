@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-namespace JitTest_Directed_BitTest_BitTest;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;
@@ -85,7 +83,6 @@ public class Program
     static bool I8_BT_reg_min_1(long x) => (x & (1L << 62)) != 0;
 
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

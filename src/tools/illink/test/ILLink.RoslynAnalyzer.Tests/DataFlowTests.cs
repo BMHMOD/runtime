@@ -29,12 +29,6 @@ namespace ILLink.RoslynAnalyzer.Tests
         }
 
         [Fact]
-        public Task AssemblyGetTypeDataFlow()
-        {
-            return RunTest();
-        }
-
-        [Fact]
         public Task AssemblyQualifiedNameDataflow()
         {
             return RunTest(nameof(AssemblyQualifiedNameDataflow));
@@ -149,18 +143,6 @@ namespace ILLink.RoslynAnalyzer.Tests
         }
 
         [Fact]
-        public Task DeconstructFieldTarget()
-        {
-            return RunTest();
-        }
-
-        [Fact]
-        public Task DeconstructUserDefinedConversion()
-        {
-            return RunTest();
-        }
-
-        [Fact]
         public Task DependencyInjectionPattern()
         {
             return RunTest();
@@ -270,7 +252,7 @@ namespace ILLink.RoslynAnalyzer.Tests
         }
 
         [Fact]
-        public Task RequiresDynamicCodeAnalyzerIntrinsics()
+        public Task MakeGenericDataflowIntrinsics()
         {
             return RunTest();
         }

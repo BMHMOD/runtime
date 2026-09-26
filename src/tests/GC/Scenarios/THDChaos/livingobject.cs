@@ -24,7 +24,7 @@ namespace DefaultNamespace {
         {
             // console synchronization Console.SetOut(TextWriter.Synchronized(Console.Out));
 
-            if( Volatile.Read( ref iCounter )%100 == 0)
+            if( iCounter%100 == 0)
             {
                 Console.Out.WriteLine( iCounter + " number of threads has been started" );
             }
@@ -43,9 +43,9 @@ namespace DefaultNamespace {
             MethodContainer[ 0 ] = ( byte ) 1;
             MethodContainer[ MethodContainer.Length - 1 ] = ( byte ) 1;
 
-            // Atomically reserve a thread creation slot before starting a successor thread,
-            // so that no more than ThdChaos.iThrd successor threads are ever created.
-            if( IncreatCount( ) <= ThdChaos.iThrd )
+            IncreatCount( );
+
+            if( LivingObject.iCounter < ThdChaos.iThrd )
             {
                 Thread Mv_Thread = new Thread( new ThreadStart (this.ThreadStart) );
                 Mv_Thread.Start( );
@@ -54,9 +54,12 @@ namespace DefaultNamespace {
         }
 
 
-        public int IncreatCount()
+        public void IncreatCount()
         {
-            return Interlocked.Increment( ref iCounter );
+            lock(this)
+            {
+                iCounter += 1;
+            }
         }
 
     }

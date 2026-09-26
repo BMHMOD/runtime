@@ -3,8 +3,7 @@
 //
 
 using Xunit;
-using TestLibrary;
-namespace b31746
+namespace Test
 {
     using System;
 
@@ -16,7 +15,7 @@ namespace b31746
         public static float[] Static1(ref float param1) { return new float[7]; }
         public static double[] Static2(float param2) { return (new double[7]); }
 
-        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsVarArgSupported))]
+        [ConditionalFact(typeof(TestLibrary.PlatformDetection), nameof(TestLibrary.PlatformDetection.IsVarArgSupported))]
         public static void TestEntryPoint()
         {
             Method2(

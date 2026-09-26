@@ -18,7 +18,7 @@ namespace Internal.TypeSystem
         }
     }
 
-    public static partial class TypeSystemConstraintsHelpers
+    public static class TypeSystemConstraintsHelpers
     {
         private static bool VerifyGenericParamConstraint(InstantiationContext genericParamContext, GenericParameterDesc genericParam,
             InstantiationContext instantiationParamContext, TypeDesc instantiationParam)
@@ -29,8 +29,7 @@ namespace Internal.TypeSystem
             if ((constraints & GenericConstraints.ReferenceTypeConstraint) != 0)
             {
                 if (!instantiationParam.IsGCPointer
-                    && !CheckGenericSpecialConstraint(instantiationParam, GenericConstraints.ReferenceTypeConstraint)
-                    && !IsSpecialTypeMeetingConstraint(instantiationParam, GenericConstraints.ReferenceTypeConstraint))
+                    && !CheckGenericSpecialConstraint(instantiationParam, GenericConstraints.ReferenceTypeConstraint))
                     return false;
             }
 
@@ -38,8 +37,7 @@ namespace Internal.TypeSystem
             if ((constraints & GenericConstraints.DefaultConstructorConstraint) != 0)
             {
                 if (!instantiationParam.HasExplicitOrImplicitDefaultConstructor()
-                    && !CheckGenericSpecialConstraint(instantiationParam, GenericConstraints.DefaultConstructorConstraint)
-                    && !IsSpecialTypeMeetingConstraint(instantiationParam, GenericConstraints.DefaultConstructorConstraint))
+                    && !CheckGenericSpecialConstraint(instantiationParam, GenericConstraints.DefaultConstructorConstraint))
                     return false;
             }
 
@@ -47,8 +45,7 @@ namespace Internal.TypeSystem
             if ((constraints & GenericConstraints.NotNullableValueTypeConstraint) != 0)
             {
                 if ((!instantiationParam.IsValueType || instantiationParam.IsNullable)
-                    && !CheckGenericSpecialConstraint(instantiationParam, GenericConstraints.NotNullableValueTypeConstraint)
-                    && !IsSpecialTypeMeetingConstraint(instantiationParam, GenericConstraints.NotNullableValueTypeConstraint))
+                    && !CheckGenericSpecialConstraint(instantiationParam, GenericConstraints.NotNullableValueTypeConstraint))
                     return false;
             }
 
@@ -65,15 +62,12 @@ namespace Internal.TypeSystem
                 if (CanCastConstraint(ref instantiatedConstraints, instantiatedType))
                     continue;
 
-                if (CanCastToConstraintWithCanon(instantiationParam, instantiatedType))
-                    continue;
-
                 // CanCastTo below assumes thisType is boxed and that allows additional cases
                 // to be considered castable. But int is not castable to Nullable<int> and neither are enums.
                 if (instantiationParam.IsValueType && instantiatedType.IsValueType && !instantiationParam.IsEquivalentTo(instantiatedType))
                     return false;
 
-                if (!instantiationParam.CanCastToWithCanon(instantiatedType))
+                if (!instantiationParam.CanCastTo(instantiatedType))
                     return false;
             }
 
@@ -164,7 +158,7 @@ namespace Internal.TypeSystem
         {
             for (int i = 0; i < instantiatedConstraints.Count; ++i)
             {
-                if (instantiatedConstraints[i].CanCastToWithCanon(instantiatedType))
+                if (instantiatedConstraints[i].CanCastTo(instantiatedType))
                     return true;
             }
 

@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Speech.Synthesis.TtsEngine;
 
 namespace System.Speech.Internal.Synthesis
@@ -12,15 +11,9 @@ namespace System.Speech.Internal.Synthesis
     {
         #region Constructors
 
-        internal SpeechSeg(TTSVoice voice)
+        internal SpeechSeg(TTSVoice voice, AudioData audio)
         {
-            System.Diagnostics.Debug.Assert(voice != null);
             _voice = voice;
-        }
-
-        internal SpeechSeg(AudioData audio)
-        {
-            System.Diagnostics.Debug.Assert(audio != null);
             _audio = audio;
         }
 
@@ -36,7 +29,7 @@ namespace System.Speech.Internal.Synthesis
             }
         }
 
-        internal AudioData? Audio
+        internal AudioData Audio
         {
             get
             {
@@ -44,7 +37,7 @@ namespace System.Speech.Internal.Synthesis
             }
         }
 
-        internal TTSVoice? Voice
+        internal TTSVoice Voice
         {
             get
             {
@@ -52,10 +45,6 @@ namespace System.Speech.Internal.Synthesis
             }
         }
 
-        [MemberNotNullWhen(false, nameof(_audio))]
-        [MemberNotNullWhen(false, nameof(Audio))]
-        [MemberNotNullWhen(true, nameof(_voice))]
-        [MemberNotNullWhen(true, nameof(Voice))]
         internal bool IsText
         {
             get
@@ -82,10 +71,10 @@ namespace System.Speech.Internal.Synthesis
 
         #region private Fields
 
-        private TTSVoice? _voice;
+        private TTSVoice _voice;
         private List<TextFragment> _textFragments = new();
 #pragma warning disable 56524 // The _audio are not created in this module and should not be disposed
-        private AudioData? _audio;
+        private AudioData _audio;
 #pragma warning restore 56524
 
         #endregion

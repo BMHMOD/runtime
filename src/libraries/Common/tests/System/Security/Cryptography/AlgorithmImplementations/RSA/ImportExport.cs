@@ -3,19 +3,17 @@
 
 using System.Linq;
 using System.Numerics;
-using System.Security.Cryptography.Tests;
-using Microsoft.DotNet.XUnitExtensions;
 using Xunit;
 
 namespace System.Security.Cryptography.Rsa.Tests
 {
     [SkipOnPlatform(TestPlatforms.Browser, "Not supported on Browser")]
-    public abstract class ImportExport
+    public partial class ImportExport
     {
-        protected abstract RSAProvider RSAFactory { get; }
+        public static bool Supports16384 { get; } = TestRsa16384();
 
         [Fact]
-        public void ExportAutoKey()
+        public static void ExportAutoKey()
         {
             RSAParameters privateParams;
             RSAParameters publicParams;
@@ -45,7 +43,7 @@ namespace System.Security.Cryptography.Rsa.Tests
         }
 
         [Fact]
-        public void PaddedExport()
+        public static void PaddedExport()
         {
             // OpenSSL's numeric type for the storage of RSA key parts disregards zero-valued
             // prefix bytes.
@@ -71,11 +69,9 @@ namespace System.Security.Cryptography.Rsa.Tests
             RSATestHelpers.AssertKeyEquals(diminishedDPParameters, exported);
         }
 
-        [ConditionalFact]
-        public void LargeKeyImportExport()
+        [Fact]
+        public static void LargeKeyImportExport()
         {
-            SkipTestException.ThrowUnless(RSAFactory.Supports16384);
-
             RSAParameters imported = TestData.RSA16384Params;
 
             using (RSA rsa = RSAFactory.Create())
@@ -103,7 +99,7 @@ namespace System.Security.Cryptography.Rsa.Tests
         }
 
         [Fact]
-        public void UnusualExponentImportExport()
+        public static void UnusualExponentImportExport()
         {
             // Most choices for the Exponent value in an RSA key use a Fermat prime.
             // Since a Fermat prime is 2^(2^m) + 1, it always only has two bits set, and
@@ -127,7 +123,7 @@ namespace System.Security.Cryptography.Rsa.Tests
         }
 
         [Fact]
-        public void ImportExport1032()
+        public static void ImportExport1032()
         {
             RSAParameters imported = TestData.RSA1032Parameters;
             RSAParameters exported;
@@ -148,7 +144,7 @@ namespace System.Security.Cryptography.Rsa.Tests
         }
 
         [Fact]
-        public void ImportReset()
+        public static void ImportReset()
         {
             using (RSA rsa = RSAFactory.Create())
             {
@@ -178,7 +174,7 @@ namespace System.Security.Cryptography.Rsa.Tests
         }
 
         [Fact]
-        public void ImportPrivateExportPublic()
+        public static void ImportPrivateExportPublic()
         {
             RSAParameters imported = TestData.RSA1024Params;
 
@@ -196,7 +192,7 @@ namespace System.Security.Cryptography.Rsa.Tests
         }
 
         [Fact]
-        public void MultiExport()
+        public static void MultiExport()
         {
             RSAParameters imported = TestData.RSA1024Params;
 
@@ -227,7 +223,7 @@ namespace System.Security.Cryptography.Rsa.Tests
         }
 
         [Fact]
-        public void PublicOnlyPrivateExport()
+        public static void PublicOnlyPrivateExport()
         {
             RSAParameters imported = new RSAParameters
             {
@@ -243,7 +239,7 @@ namespace System.Security.Cryptography.Rsa.Tests
         }
 
         [Fact]
-        public void ImportNoExponent()
+        public static void ImportNoExponent()
         {
             RSAParameters imported = new RSAParameters
             {
@@ -260,7 +256,7 @@ namespace System.Security.Cryptography.Rsa.Tests
         }
 
         [Fact]
-        public void ImportNoModulus()
+        public static void ImportNoModulus()
         {
             RSAParameters imported = new RSAParameters
             {
@@ -280,7 +276,7 @@ namespace System.Security.Cryptography.Rsa.Tests
 #if TESTING_CNG_IMPLEMENTATION
         [ActiveIssue("https://github.com/dotnet/runtime/issues/21341", TargetFrameworkMonikers.NetFramework)]
 #endif
-        public void ImportNoDP()
+        public static void ImportNoDP()
         {
             // Because RSAParameters is a struct, this is a copy,
             // so assigning DP is not destructive to other tests.
@@ -296,7 +292,7 @@ namespace System.Security.Cryptography.Rsa.Tests
         [Theory]
         [InlineData(true)]
         [InlineData(false)]
-        public void ExportAfterDispose(bool importKey)
+        public static void ExportAfterDispose(bool importKey)
         {
             RSA rsa = importKey ? RSAFactory.Create(TestData.RSA2048Params) : RSAFactory.Create(1024);
 
@@ -315,10 +311,10 @@ namespace System.Security.Cryptography.Rsa.Tests
             }
         }
 
-        [Theory]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsNotWindows7))]
         [InlineData(true)]
         [InlineData(false)]
-        public void ImportZeroModulus(bool includePrivateParameters)
+        public static void ImportZeroModulus(bool includePrivateParameters)
         {
             RSAParameters zeroModulus = CopyRSAParameters(TestData.RSA2048Params);
             zeroModulus.Modulus.AsSpan().Clear();
@@ -367,6 +363,24 @@ namespace System.Security.Cryptography.Rsa.Tests
                 Modulus = rsaParams.Modulus,
                 Exponent = rsaParams.Exponent,
             };
+        }
+
+        private static bool TestRsa16384()
+        {
+            try
+            {
+                using (RSA rsa = RSAFactory.Create())
+                {
+                    rsa.ImportParameters(TestData.RSA16384Params);
+                }
+
+                return true;
+            }
+            catch (Exception e) when (e is CryptographicException or PlatformNotSupportedException)
+            {
+                // The key is too big for this platform or the platform is not supported.
+                return false;
+            }
         }
 
         private static RSAParameters CopyRSAParameters(in RSAParameters rsaParams)

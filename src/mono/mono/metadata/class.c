@@ -7099,10 +7099,8 @@ mono_class_set_deferred_type_load_failure (MonoClass *klass, const char * fmt, .
 		va_list args;
 
 		va_start (args, fmt);
-		gchar *message = g_strdup_vprintf (fmt, args);
+		g_warning ("Warning: %s", fmt, args);
 		va_end (args);
-		g_warning ("Warning: %s", message);
-		g_free (message);
 
 		mono_class_set_deferred_failure (klass);
 	}

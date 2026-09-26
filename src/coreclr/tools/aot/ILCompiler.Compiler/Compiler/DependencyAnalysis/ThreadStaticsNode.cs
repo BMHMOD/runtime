@@ -37,7 +37,7 @@ namespace ILCompiler.DependencyAnalysis
             factory.ThreadStaticsRegion.AddEmbeddedObject(this);
         }
 
-        public static Utf8String GetMangledName(TypeDesc type, NameMangler nameMangler)
+        public static string GetMangledName(TypeDesc type, NameMangler nameMangler)
         {
             return nameMangler.NodeMangler.ThreadStatics(type);
         }
@@ -48,7 +48,7 @@ namespace ILCompiler.DependencyAnalysis
 
         public void AppendMangledName(NameMangler nameMangler, Utf8StringBuilder sb)
         {
-            Utf8String mangledName = _type == null ? new Utf8String("_inlinedThreadStatics"u8) : GetMangledName(_type, nameMangler);
+            string mangledName = _type == null ? "_inlinedThreadStatics" : GetMangledName(_type, nameMangler);
             sb.Append(mangledName);
         }
 

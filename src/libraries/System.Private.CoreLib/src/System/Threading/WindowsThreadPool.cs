@@ -27,29 +27,6 @@ namespace System.Threading
 
         private static IntPtr s_work;
 
-        [StructLayout(LayoutKind.Sequential)]
-        private struct CacheLineSeparated
-        {
-            private readonly Internal.PaddingFor32 pad1;
-
-            // This flag is used for communication between item enqueuing and workers that process the items.
-            // There are two states of this flag:
-            // 0: has no guarantees
-            // 1: means a worker will check work queues and ensure that
-            //    any work items inserted in work queue before setting the flag
-            //    are picked up.
-            //    Note: The state must be cleared by the worker thread _before_
-            //       checking. Otherwise there is a window between finding no work
-            //       and resetting the flag, when the flag is in a wrong state.
-            //       A new work item may be added right before the flag is reset
-            //       without asking for a worker, while the last worker is quitting.
-            public int _hasOutstandingThreadRequest;
-
-            private readonly Internal.PaddingFor32 pad2;
-        }
-
-        private static CacheLineSeparated _separated;
-
         private sealed class ThreadCountHolder
         {
             internal ThreadCountHolder() => Interlocked.Increment(ref s_threadCount);
@@ -76,24 +53,24 @@ namespace System.Threading
         private static readonly ThreadInt64PersistentCounter s_completedWorkItemCounter = new ThreadInt64PersistentCounter();
 
         [ThreadStatic]
-        private static ThreadInt64PersistentCounter.ThreadLocalNode? t_completionCountNode;
+        private static object? t_completionCountObject;
 
         internal static void InitializeForThreadPoolThread() => t_threadCountHolder = new ThreadCountHolder();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static void IncrementCompletedWorkItemCount() => GetOrCreateThreadLocalCompletionCountNode().Increment();
+        internal static void IncrementCompletedWorkItemCount() => ThreadInt64PersistentCounter.Increment(GetOrCreateThreadLocalCompletionCountObject());
 
-        internal static ThreadInt64PersistentCounter.ThreadLocalNode GetOrCreateThreadLocalCompletionCountNode() =>
-            t_completionCountNode ?? CreateThreadLocalCompletionCountNode();
+        internal static object GetOrCreateThreadLocalCompletionCountObject() =>
+            t_completionCountObject ?? CreateThreadLocalCompletionCountObject();
 
         [MethodImpl(MethodImplOptions.NoInlining)]
-        private static ThreadInt64PersistentCounter.ThreadLocalNode CreateThreadLocalCompletionCountNode()
+        private static object CreateThreadLocalCompletionCountObject()
         {
-            Debug.Assert(t_completionCountNode == null);
+            Debug.Assert(t_completionCountObject == null);
 
-            ThreadInt64PersistentCounter.ThreadLocalNode threadLocalCompletionCountNode = s_completedWorkItemCounter.CreateThreadLocalCountObject();
-            t_completionCountNode = threadLocalCompletionCountNode;
-            return threadLocalCompletionCountNode;
+            object threadLocalCompletionCountObject = s_completedWorkItemCounter.CreateThreadLocalCountObject();
+            t_completionCountObject = threadLocalCompletionCountObject;
+            return threadLocalCompletionCountObject;
         }
 
 #pragma warning disable IDE0060 // Remove unused parameter
@@ -155,9 +132,9 @@ namespace System.Threading
         internal static void NotifyWorkItemProgress() => IncrementCompletedWorkItemCount();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal static bool NotifyWorkItemComplete(ThreadInt64PersistentCounter.ThreadLocalNode threadLocalCompletionCountNode, int _ /*currentTimeMs*/)
+        internal static bool NotifyWorkItemComplete(object threadLocalCompletionCountObject, int _ /*currentTimeMs*/)
         {
-            threadLocalCompletionCountNode.Increment();
+            ThreadInt64PersistentCounter.Increment(threadLocalCompletionCountObject);
             return true;
         }
 
@@ -170,10 +147,6 @@ namespace System.Threading
             var wrapper = ThreadPoolCallbackWrapper.Enter();
 
             Debug.Assert(s_work == work);
-            // Before looking for work items, acknowledge that the thread request has been satisfied
-            _separated._hasOutstandingThreadRequest = 0;
-            // NOTE: the thread request must be cleared before doing Dispatch.
-            //       the following Interlocked.Increment will guarantee the ordering.
             Interlocked.Increment(ref s_workingThreadCounter.Count);
             ThreadPoolWorkQueue.Dispatch();
             Interlocked.Decrement(ref s_workingThreadCounter.Count);
@@ -182,17 +155,7 @@ namespace System.Threading
             wrapper.Exit(resetThread: false);
         }
 
-        internal static void EnsureWorkerRequested()
-        {
-            // Only one worker is requested at a time to mitigate Thundering Herd problem.
-            if (_separated._hasOutstandingThreadRequest == 0 &&
-                Interlocked.Exchange(ref _separated._hasOutstandingThreadRequest, 1) == 0)
-            {
-                RequestWorkerThread();
-            }
-        }
-
-        private static unsafe void RequestWorkerThread()
+        internal static unsafe void RequestWorkerThread()
         {
             if (s_work == IntPtr.Zero)
             {

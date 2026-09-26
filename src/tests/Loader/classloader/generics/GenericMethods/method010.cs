@@ -4,7 +4,6 @@
 using System;
 using System.Threading;
 using Xunit;
-using TestLibrary;
 
 interface IFoo<T> 
 {	
@@ -34,7 +33,6 @@ public class Test_method010
 	
 	}
 	
- [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
 	[Fact]
 	public static int TestEntryPoint()
 	{

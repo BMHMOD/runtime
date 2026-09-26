@@ -5,13 +5,11 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Xunit;
-using TestLibrary;
 
 namespace ConsoleApplication3
 {
     public class Program
     {
-        [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
         [Fact]
         public static void TestEntryPoint()
         {

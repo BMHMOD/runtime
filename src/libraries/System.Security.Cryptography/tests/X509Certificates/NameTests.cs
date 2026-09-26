@@ -162,12 +162,12 @@ namespace System.Security.Cryptography.X509Certificates.Tests
             X500DistinguishedName name = new(distinguishedName, X500DistinguishedNameFlags.ForceUTF8Encoding);
             byte[] encoded = name.RawData;
 
-            ValueAsnReader reader = new(encoded, AsnEncodingRules.DER);
-            ValueAsnReader component = reader.ReadSequence();
+            AsnValueReader reader = new(encoded, AsnEncodingRules.DER);
+            AsnValueReader component = reader.ReadSequence();
             reader.ThrowIfNotEmpty();
-            ValueAsnReader rdn = component.ReadSetOf();
+            AsnValueReader rdn = component.ReadSetOf();
             component.ThrowIfNotEmpty();
-            ValueAsnReader value = rdn.ReadSequence();
+            AsnValueReader value = rdn.ReadSequence();
             rdn.ThrowIfNotEmpty();
 
             value.ReadObjectIdentifier();

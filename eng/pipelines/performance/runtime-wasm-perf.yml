@@ -7,10 +7,7 @@ trigger: none
 pr:
   branches:
     include:
-    - '*'
-    exclude:
-    - release/*
-    - internal/release/*
+    - main
   paths:
     include:
     - eng/pipelines/performance/*

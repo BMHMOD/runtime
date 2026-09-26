@@ -6,9 +6,7 @@ using System;
 using System.Numerics;
 using System.IO;
 
-namespace SIMDTests;
-
-public class VectorTestBase
+public partial class VectorTest
 {
     public static bool CheckValue<T>(T value, T expectedValue)
     {
@@ -39,7 +37,7 @@ public class VectorTestBase
         return returnVal;
     }
 
-    protected static bool CheckVector<T>(Vector<T> V, T value) where T : struct, IComparable<T>, IEquatable<T>
+    private static bool CheckVector<T>(Vector<T> V, T value) where T : struct, IComparable<T>, IEquatable<T>
     {
         for (int i = 0; i < Vector<T>.Count; i++)
         {
@@ -114,7 +112,7 @@ public class VectorTestBase
         }
     }
 
-    protected static void VectorPrint<T>(string mesg, Vector<T> v) where T : struct, IComparable<T>, IEquatable<T>
+    private static void VectorPrint<T>(string mesg, Vector<T> v) where T : struct, IComparable<T>, IEquatable<T>
     {
         Console.Write(mesg + "[");
         for (int i = 0; i < Vector<T>.Count; i++)
@@ -125,7 +123,7 @@ public class VectorTestBase
         Console.WriteLine(" ]");
     }
 
-    protected static T Add<T>(T left, T right) where T : struct, IComparable<T>, IEquatable<T>
+    private static T Add<T>(T left, T right) where T : struct, IComparable<T>, IEquatable<T>
     {
         if (typeof(T) == typeof(float))
         {
@@ -180,7 +178,7 @@ public class VectorTestBase
             throw new ArgumentException();
         }
     }
-    protected static T Multiply<T>(T left, T right) where T : struct, IComparable<T>, IEquatable<T>
+    private static T Multiply<T>(T left, T right) where T : struct, IComparable<T>, IEquatable<T>
     {
         if (typeof(T) == typeof(float))
         {

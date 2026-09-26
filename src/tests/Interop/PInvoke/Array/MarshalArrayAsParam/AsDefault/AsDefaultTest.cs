@@ -4,12 +4,9 @@
 using System;
 using System.Runtime.InteropServices;
 using Xunit;
-using TestLibrary;
 
 namespace MarshalArrayAsParam.Default;
 
-[ActiveIssue("https://github.com/dotnet/runtime/issues/91388", typeof(TestLibrary.PlatformDetection), nameof(TestLibrary.PlatformDetection.PlatformDoesNotSupportNativeTestAssets))]
-[SkipOnMono("needs triage")]
 public class ArrayMarshal
 {
     public struct TestStruct
@@ -315,8 +312,7 @@ public class ArrayMarshal
         return array;
     }
 
-    [Fact]
-    public static void TestMarshalByVal_NoAttributes()
+    private static void TestMarshalByVal_NoAttributes()
     {
         Console.WriteLine("ByVal marshaling CLR array as c-style-array no attributes");
 
@@ -349,8 +345,7 @@ public class ArrayMarshal
         }
     }
 
-    [Fact]
-    public static void TestMarshalByVal_In()
+    private static void TestMarshalByVal_In()
     {
         Console.WriteLine("ByVal marshaling  CLR array as c-style-array with InAttribute applied");
 
@@ -386,8 +381,7 @@ public class ArrayMarshal
 
     #region Marshal InOut ByVal
 
-    [Fact]
-    public static void TestMarshalInOut_ByVal()
+    private static void TestMarshalInOut_ByVal()
     {
         Console.WriteLine("By value marshaling CLR array as c-style-array with InAttribute and OutAttribute applied");
         Console.WriteLine("CStyle_Array_Int_InOut");
@@ -551,8 +545,7 @@ public class ArrayMarshal
 
     #region Marshal Out ByVal
 
-    [Fact]
-    public static void TestMarshalOut_ByVal()
+    private static void TestMarshalOut_ByVal()
     {
         Console.WriteLine("By value marshaling CLR array as c-style-array with OutAttribute applied");
 
@@ -648,9 +641,7 @@ public class ArrayMarshal
 
     #endregion
 
-    [Fact]
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/126467", typeof(Utilities), nameof(Utilities.IsNativeAot))]
-    public static void TestMultidimensional()
+    private static void TestMultidimensional()
     {
         Console.WriteLine("================== [Get_Multidimensional_Array_Sum] ============");
         int[,] array = InitMultidimensionalBlittableArray(ROWS, COLUMNS);
@@ -661,5 +652,29 @@ public class ArrayMarshal
         }
 
         Assert.Equal(sum, Get_Multidimensional_Array_Sum(array, ROWS, COLUMNS));
+    }
+
+    [Fact]
+    [SkipOnMono("needs triage")]
+    [ActiveIssue("https://github.com/dotnet/runtime/issues/81674", typeof(TestLibrary.Utilities), nameof(TestLibrary.Utilities.IsNativeAot))]
+    [ActiveIssue("https://github.com/dotnet/runtime/issues/91388", typeof(TestLibrary.PlatformDetection), nameof(TestLibrary.PlatformDetection.PlatformDoesNotSupportNativeTestAssets))]
+    public static int TestEntryPoint()
+    {
+        try
+        {
+            TestMarshalByVal_NoAttributes();
+            TestMarshalByVal_In();
+            TestMarshalInOut_ByVal();
+            TestMarshalOut_ByVal();
+            TestMultidimensional();
+
+            Console.WriteLine("\nTest PASS.");
+            return 100;
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine($"\nTEST FAIL: {e}");
+            return 101;
+        }
     }
 }

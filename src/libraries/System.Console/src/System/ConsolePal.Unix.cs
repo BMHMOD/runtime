@@ -36,38 +36,28 @@ namespace System
         private static int s_cursorTop;     // Cached CursorTop, invalid when s_cursorLeft == -1.
         private static int s_windowWidth;   // Cached WindowWidth, -1 when invalid.
         private static int s_windowHeight;  // Cached WindowHeight, invalid when s_windowWidth == -1.
-        private static byte s_invalidateCachedSettings = 1; // Tracks whether we should invalidate the cached settings.
+        private static int s_invalidateCachedSettings = 1; // Tracks whether we should invalidate the cached settings.
         private static SafeFileHandle? s_terminalHandle; // Tracks the handle used for writing to the terminal.
 
         /// <summary>Gets the lazily-initialized terminal information for the terminal.</summary>
-        public static TerminalFormatStrings TerminalFormatStringsInstance =>
-            field ??
-            Interlocked.CompareExchange(ref field, new TerminalFormatStrings(TermInfo.DatabaseFactory.ReadActiveDatabase()), null) ??
-            field;
+        public static TerminalFormatStrings TerminalFormatStringsInstance { get { return s_terminalFormatStringsInstance.Value; } }
+        private static readonly Lazy<TerminalFormatStrings> s_terminalFormatStringsInstance = new(() => new TerminalFormatStrings(TermInfo.DatabaseFactory.ReadActiveDatabase()));
 
         public static Stream OpenStandardInput()
         {
-            return new UnixConsoleStream(OpenStandardInputHandle(), FileAccess.Read,
+            return new UnixConsoleStream(Interop.CheckIo(Interop.Sys.Dup(Interop.Sys.FileDescriptors.STDIN_FILENO)), FileAccess.Read,
                                          useReadLine: !Console.IsInputRedirected);
         }
 
         public static Stream OpenStandardOutput()
         {
-            return new UnixConsoleStream(OpenStandardOutputHandle(), FileAccess.Write);
+            return new UnixConsoleStream(Interop.CheckIo(Interop.Sys.Dup(Interop.Sys.FileDescriptors.STDOUT_FILENO)), FileAccess.Write);
         }
 
         public static Stream OpenStandardError()
         {
-            return new UnixConsoleStream(OpenStandardErrorHandle(), FileAccess.Write);
+            return new UnixConsoleStream(Interop.CheckIo(Interop.Sys.Dup(Interop.Sys.FileDescriptors.STDERR_FILENO)), FileAccess.Write);
         }
-
-        public static SafeFileHandle OpenStandardInputHandle() => OpenStandardHandle(0);
-
-        public static SafeFileHandle OpenStandardOutputHandle() => OpenStandardHandle(1);
-
-        public static SafeFileHandle OpenStandardErrorHandle() => OpenStandardHandle(2);
-
-        private static SafeFileHandle OpenStandardHandle(IntPtr fd) => new SafeFileHandle(fd, ownsHandle: false);
 
         public static Encoding InputEncoding
         {
@@ -438,7 +428,7 @@ namespace System
         /// <param name="left">Cursor column.</param>
         /// <param name="top">Cursor row.</param>
         /// <param name="reinitializeForRead">Indicates whether this method is called as part of a on-going Read operation.</param>
-        internal static unsafe bool TryGetCursorPosition(out int left, out int top, bool reinitializeForRead = false)
+        internal static bool TryGetCursorPosition(out int left, out int top, bool reinitializeForRead = false)
         {
             Debug.Assert(!Console.IsInputRedirected);
 
@@ -670,7 +660,7 @@ namespace System
         /// Gets whether the specified file descriptor was redirected.
         /// It's considered redirected if it doesn't refer to a terminal.
         /// </summary>
-        private static bool IsHandleRedirected(IntPtr fd)
+        private static bool IsHandleRedirected(SafeFileHandle fd)
         {
             return !Interop.Sys.IsATty(fd);
         }
@@ -681,7 +671,7 @@ namespace System
         /// </summary>
         public static bool IsInputRedirectedCore()
         {
-            return IsHandleRedirected(0);
+            return IsHandleRedirected(Interop.Sys.FileDescriptors.STDIN_FILENO);
         }
 
         /// <summary>Gets whether Console.Out is redirected.
@@ -689,7 +679,7 @@ namespace System
         /// </summary>
         public static bool IsOutputRedirectedCore()
         {
-            return IsHandleRedirected(1);
+            return IsHandleRedirected(Interop.Sys.FileDescriptors.STDOUT_FILENO);
         }
 
         /// <summary>Gets whether Console.Error is redirected.
@@ -697,7 +687,7 @@ namespace System
         /// </summary>
         public static bool IsErrorRedirectedCore()
         {
-            return IsHandleRedirected(2);
+            return IsHandleRedirected(Interop.Sys.FileDescriptors.STDERR_FILENO);
         }
 
         /// <summary>Creates an encoding from the current environment.</summary>
@@ -899,8 +889,8 @@ namespace System
                     // This also resets it for termination due to an unhandled exception.
                     AppDomain.CurrentDomain.UnhandledException += (_, _) => { Interop.Sys.UninitializeTerminal(); };
 
-                    s_terminalHandle = !Console.IsOutputRedirected ? OpenStandardOutputHandle() :
-                                       !Console.IsInputRedirected  ? OpenStandardInputHandle() :
+                    s_terminalHandle = !Console.IsOutputRedirected ? Interop.Sys.FileDescriptors.STDOUT_FILENO :
+                                       !Console.IsInputRedirected  ? Interop.Sys.FileDescriptors.STDIN_FILENO :
                                        null;
 
                     // Provide the native lib with the correct code from the terminfo to transition us into
@@ -1114,17 +1104,17 @@ namespace System
             Volatile.Write(ref s_invalidateCachedSettings, 1);
         }
 
-        // ANSI colors are enabled when stdout is a terminal, when
-        // FORCE_COLOR is set, or when DOTNET_SYSTEM_CONSOLE_ALLOW_ANSI_COLOR_REDIRECTION is set.
-        // In all cases, they are written to stdout.
+        // Ansi colors are enabled when stdout is a terminal or when
+        // DOTNET_SYSTEM_CONSOLE_ALLOW_ANSI_COLOR_REDIRECTION is set.
+        // In both cases, they are written to stdout.
         internal static void WriteTerminalAnsiColorString(string? value)
-            => WriteTerminalAnsiString(value, OpenStandardOutputHandle(), mayChangeCursorPosition: false);
+            => WriteTerminalAnsiString(value, Interop.Sys.FileDescriptors.STDOUT_FILENO, mayChangeCursorPosition: false);
 
         /// <summary>Writes a terminfo-based ANSI escape string to stdout.</summary>
         /// <param name="value">The string to write.</param>
         /// <param name="handle">Handle to use instead of s_terminalHandle.</param>
         /// <param name="mayChangeCursorPosition">Writing this value may change the cursor position.</param>
-        internal static unsafe void WriteTerminalAnsiString(string? value, SafeFileHandle? handle = null, bool mayChangeCursorPosition = true)
+        internal static void WriteTerminalAnsiString(string? value, SafeFileHandle? handle = null, bool mayChangeCursorPosition = true)
         {
             if (string.IsNullOrEmpty(value))
                 return;

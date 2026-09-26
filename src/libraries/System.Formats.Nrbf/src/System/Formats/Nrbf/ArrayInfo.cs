@@ -16,7 +16,11 @@ namespace System.Formats.Nrbf;
 [DebuggerDisplay("{ArrayType}, rank={Rank}")]
 internal readonly struct ArrayInfo
 {
-    internal static int MaxArrayLength => Array.MaxLength;
+#if NET
+    internal static int MaxArrayLength => Array.MaxLength; // dynamic lookup in case the value changes in a future runtime
+#else
+    internal const int MaxArrayLength = 2147483591; // hardcode legacy Array.MaxLength for downlevel runtimes
+#endif
 
     internal ArrayInfo(SerializationRecordId id, long totalElementsCount, BinaryArrayType arrayType = BinaryArrayType.Single, int rank = 1)
     {

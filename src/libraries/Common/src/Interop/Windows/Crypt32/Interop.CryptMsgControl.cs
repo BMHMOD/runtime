@@ -8,7 +8,6 @@ internal static partial class Interop
 {
     internal static partial class Crypt32
     {
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Crypt32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static partial bool CryptMsgControl(
@@ -17,7 +16,6 @@ internal static partial class Interop
             MsgControlType dwCtrlType,
             ref CMSG_CTRL_DECRYPT_PARA pvCtrlPara);
 
-        [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         [LibraryImport(Libraries.Crypt32, SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         internal static partial bool CryptMsgControl(

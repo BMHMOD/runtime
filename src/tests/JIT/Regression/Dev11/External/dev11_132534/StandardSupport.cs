@@ -4,7 +4,7 @@
 using System;
 using Xunit;
 
-namespace dev11_132534
+namespace Test
 {
     public struct BasicStruct
     {
@@ -160,7 +160,6 @@ namespace dev11_132534
 
     public static class App
     {
-        [OuterLoop]
         [Fact]
         public static int TestEntryPoint()
         {

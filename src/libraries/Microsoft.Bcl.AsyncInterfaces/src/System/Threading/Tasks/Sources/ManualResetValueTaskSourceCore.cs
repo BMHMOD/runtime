@@ -203,8 +203,7 @@ namespace System.Threading.Tasks.Sources
             }
             _completed = true;
 
-            if (Volatile.Read(ref _continuation) != null ||
-                Interlocked.CompareExchange(ref _continuation, ManualResetValueTaskSourceCoreShared.s_sentinel, null) != null)
+            if (_continuation != null || Interlocked.CompareExchange(ref _continuation, ManualResetValueTaskSourceCoreShared.s_sentinel, null) != null)
             {
                 if (_executionContext != null)
                 {

@@ -4,7 +4,6 @@
 using System;
 using System.Runtime.InteropServices;
 using Xunit;
-using TestLibrary;
 
 [StructLayout(LayoutKind.Explicit, Size = 24)]
 public struct ComplexStruct
@@ -49,7 +48,6 @@ public class Test_NestedStructsWithExplicitLayout_Case01
         currentCount = x;
     }
 
-    [ActiveIssue("needs triage", typeof(PlatformDetection), nameof(PlatformDetection.IsSimulator))]
     [Fact]
     public static int TestEntryPoint()
     {

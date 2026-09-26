@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b26496;
-
 using System;
 using System.Collections;
 using System.Runtime.InteropServices;

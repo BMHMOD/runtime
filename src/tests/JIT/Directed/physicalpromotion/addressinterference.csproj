@@ -1,8 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- Needed for CLRTestEnvironmentVariable -->
-    <RequiresProcessIsolation>true</RequiresProcessIsolation>
-    <DisableProjectBuild Condition="'$(TargetsMobile)' == 'true' and ('$(TargetsBrowser)' != 'true' or '$(RuntimeFlavor)' != 'coreclr')">true</DisableProjectBuild>
     <Optimize>True</Optimize>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>

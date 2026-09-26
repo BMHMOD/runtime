@@ -2,9 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b610750_32vs64;
-
 using System;
 using Xunit;
 
@@ -77,7 +74,6 @@ public class RandomTwister64
 
 public class Program
 {
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

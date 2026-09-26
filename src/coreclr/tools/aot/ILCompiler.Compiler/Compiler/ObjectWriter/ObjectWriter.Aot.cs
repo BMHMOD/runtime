@@ -9,7 +9,6 @@ using System.IO;
 using System.Linq;
 using ILCompiler.DependencyAnalysis;
 using ILCompiler.DependencyAnalysisFramework;
-using Internal.Text;
 using Internal.TypeSystem;
 using Internal.TypeSystem.TypesDebugInfo;
 using ObjectData = ILCompiler.DependencyAnalysis.ObjectNode.ObjectData;
@@ -19,31 +18,13 @@ namespace ILCompiler.ObjectWriter
 {
     public abstract partial class ObjectWriter
     {
-        public static void EmitObject(string objectFilePath, IReadOnlyCollection<DependencyNode> nodes, NodeFactory factory, ObjectWritingOptions options, IObjectDumper dumper, Logger logger)
-        {
-            var stopwatch = Stopwatch.StartNew();
-
-            ObjectWriter objectWriter =
-                factory.Target.IsApplePlatform ? new MachObjectWriter(factory, options) :
-                factory.Target.OperatingSystem == TargetOS.Windows ? new CoffObjectWriter(factory, options) :
-                factory.Target.Architecture == TargetArchitecture.Wasm32 ? new WasmRelocatableObjectWriter(factory, options) :
-                new ElfObjectWriter(factory, options);
-
-            using Stream outputFileStream = new FileStream(objectFilePath, FileMode.Create);
-            objectWriter.EmitObject(outputFileStream, nodes, dumper, logger);
-
-            stopwatch.Stop();
-            if (logger.IsVerbose)
-                logger.LogMessage($"Done writing object file in {stopwatch.Elapsed}");
-        }
-
         // Debugging
         private UserDefinedTypeDescriptor _userDefinedTypeDescriptor;
 
         private protected abstract void EmitUnwindInfo(
             SectionWriter sectionWriter,
             INodeWithCodeInfo nodeWithCodeInfo,
-            Utf8String currentSymbolName);
+            string currentSymbolName);
 
         private protected uint GetVarTypeIndex(bool isStateMachineMoveNextMethod, DebugVarInfoMetadata debugVar)
         {
@@ -74,19 +55,19 @@ namespace ILCompiler.ObjectWriter
 
         private protected abstract void EmitDebugFunctionInfo(
             uint methodTypeIndex,
-            Utf8String methodDisplayName,
-            Utf8String methodName,
+            string methodName,
             SymbolDefinition methodSymbol,
-            INodeWithDebugInfo debugNode);
+            INodeWithDebugInfo debugNode,
+            bool hasSequencePoints);
 
         private protected virtual void EmitDebugThunkInfo(
-            Utf8String methodName,
+            string methodName,
             SymbolDefinition methodSymbol,
             INodeWithDebugInfo debugNode)
         {
         }
 
-        private protected abstract void EmitDebugSections(IDictionary<Utf8String, SymbolDefinition> definedSymbols);
+        private protected abstract void EmitDebugSections(IDictionary<string, SymbolDefinition> definedSymbols);
 
         partial void EmitDebugInfo(IReadOnlyCollection<DependencyNode> nodes, Logger logger)
         {
@@ -118,14 +99,14 @@ namespace ILCompiler.ObjectWriter
 
                 if (node is INodeWithDebugInfo debugNode and ISymbolDefinitionNode symbolDefinitionNode)
                 {
-                    Utf8String methodName = GetMangledName(symbolDefinitionNode);
+                    string methodName = GetMangledName(symbolDefinitionNode);
                     if (_definedSymbols.TryGetValue(methodName, out var methodSymbol))
                     {
                         if (node is IMethodNode methodNode)
                         {
-                            uint methodTypeIndex = _userDefinedTypeDescriptor.GetMethodFunctionIdTypeIndex(methodNode.Method);
-                            Utf8String methodDisplayName = new Utf8String(CSharpTypeNameFormatter.Instance.FormatName(methodNode.Method));
-                            EmitDebugFunctionInfo(methodTypeIndex, methodDisplayName, methodName, methodSymbol, debugNode);
+                            bool hasSequencePoints = debugNode.GetNativeSequencePoints().Any();
+                            uint methodTypeIndex = hasSequencePoints ? _userDefinedTypeDescriptor.GetMethodFunctionIdTypeIndex(methodNode.Method) : 0;
+                            EmitDebugFunctionInfo(methodTypeIndex, methodName, methodSymbol, debugNode, hasSequencePoints);
                         }
                         else
                         {
@@ -148,7 +129,7 @@ namespace ILCompiler.ObjectWriter
 
         partial void PrepareForUnwindInfo() => CreateEhSections();
 
-        partial void EmitUnwindInfoForNode(ObjectNode node, Utf8String currentSymbolName, SectionWriter sectionWriter)
+        partial void EmitUnwindInfoForNode(ObjectNode node, string currentSymbolName, SectionWriter sectionWriter)
         {
             if (node is INodeWithCodeInfo nodeWithCodeInfo)
             {
@@ -156,7 +137,7 @@ namespace ILCompiler.ObjectWriter
             }
         }
 
-        partial void HandleControlFlowForRelocation(ISymbolNode relocTarget, Utf8String relocSymbolName)
+        partial void HandleControlFlowForRelocation(ISymbolNode relocTarget, string relocSymbolName)
         {
             if (relocTarget is IMethodNode or AssemblyStubNode or AddressTakenExternFunctionSymbolNode)
             {

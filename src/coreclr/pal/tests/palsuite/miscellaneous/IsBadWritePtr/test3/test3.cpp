@@ -12,7 +12,6 @@
 **=========================================================*/
 
 #include <palsuite.h>
-#include <minipal/ospagesize.h>
 
 PALTEST(miscellaneous_IsBadWritePtr_test3_paltest_isbadwriteptr_test3, "miscellaneous/IsBadWritePtr/test3/paltest_isbadwriteptr_test3")
 {
@@ -29,7 +28,7 @@ PALTEST(miscellaneous_IsBadWritePtr_test3_paltest_isbadwriteptr_test3, "miscella
     */
     
     PageOne = VirtualAlloc(NULL, 
-			   minipal_getpagesize(), 
+			   GetOsPageSize(), 
 			   MEM_COMMIT, 
 			   PAGE_READONLY);
 
@@ -38,7 +37,7 @@ PALTEST(miscellaneous_IsBadWritePtr_test3_paltest_isbadwriteptr_test3, "miscella
 	Fail("ERROR: VirtualAlloc failed to commit the required memory.\n");
     }
 
-    if(IsBadWritePtr(PageOne,minipal_getpagesize()) == 0)
+    if(IsBadWritePtr(PageOne,GetOsPageSize()) == 0)
     {
 	VirtualFree(PageOne,0,MEM_RELEASE);
 

@@ -9,7 +9,6 @@ namespace QQ
     public class AA
     {
         private static void Test(TypedReference arg, String result) { }
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

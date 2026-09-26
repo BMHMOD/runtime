@@ -136,18 +136,14 @@ namespace ILCompiler
             if (_resilient)
                 options |= RyuJitCompilationOptions.UseResilience;
 
-            MethodBodyDeduplicator methodBodyDeduplicator = _methodBodyFolding switch
+            ObjectDataInterner interner = _methodBodyFolding switch
             {
-                MethodBodyFoldingMode.Generic => new MethodBodyDeduplicator(genericsOnly: true),
-                MethodBodyFoldingMode.All => new MethodBodyDeduplicator(genericsOnly: false),
-                _ => null,
+                MethodBodyFoldingMode.Generic => new ObjectDataInterner(genericsOnly: true),
+                MethodBodyFoldingMode.All => new ObjectDataInterner(genericsOnly: false),
+                _ => ObjectDataInterner.Null,
             };
 
-            ObjectDataInterner interner = methodBodyDeduplicator is not null
-                ? new ObjectDataInterner(methodBodyDeduplicator)
-                : ObjectDataInterner.Null;
-
-            var factory = new RyuJitNodeFactory(_context, _compilationGroup, _metadataManager, _interopStubManager, _nameMangler, _vtableSliceProvider, _dictionaryLayoutProvider, _inlinedThreadStatics, GetPreinitializationManager(), _devirtualizationManager, interner, methodBodyDeduplicator, _typeMapManager);
+            var factory = new RyuJitNodeFactory(_context, _compilationGroup, _metadataManager, _interopStubManager, _nameMangler, _vtableSliceProvider, _dictionaryLayoutProvider, _inlinedThreadStatics, GetPreinitializationManager(), _devirtualizationManager, interner, _typeMapManager);
 
             JitConfigProvider.Initialize(_context.Target, jitFlagBuilder.ToArray(), _ryujitOptions, _jitPath);
             DependencyAnalyzerBase<NodeFactory> graph = CreateDependencyGraph(factory, new ObjectNode.ObjectNodeComparer(CompilerComparer.Instance));

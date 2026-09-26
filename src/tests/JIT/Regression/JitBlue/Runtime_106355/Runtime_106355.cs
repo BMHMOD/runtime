@@ -12,9 +12,6 @@
 //    at Fuzzlyn.ExecutionServer.Program.RunPairAsync(System.Runtime.Loader.AssemblyLoadContext, Fuzzlyn.ExecutionServer.ProgramPair)
 //    at Fuzzlyn.ExecutionServer.Program+<>c__DisplayClass0_0.<Main>b__0()
 //
-
-namespace Runtime_106355;
-
 using System.Runtime.CompilerServices;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.X86;
@@ -25,9 +22,12 @@ public class Runtime_106355
     private static ulong s_3;
     private static Vector128<ulong> s_5;
 
-    [ConditionalFact(typeof(Sse2), nameof(Sse2.IsSupported))]
+    [Fact]
     public static void TestEntrypoint()
     {
-        s_5 = Sse2.ShiftLeftLogical(s_5, Vector128.Create<ulong>(s_3));
+        if (Sse2.IsSupported)
+        {
+            s_5 = Sse2.ShiftLeftLogical(s_5, Vector128.Create<ulong>(s_3));
+        }
     }
 }

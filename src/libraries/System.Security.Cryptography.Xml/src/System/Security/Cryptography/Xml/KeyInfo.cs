@@ -64,56 +64,48 @@ namespace System.Security.Cryptography.Xml
         {
             ArgumentNullException.ThrowIfNull(value);
 
-            EncryptedType.IncrementLoadXmlCurrentThreadDepth();
-            try
-            {
-                XmlElement keyInfoElement = value;
-                _id = Utils.GetAttribute(keyInfoElement, "Id", SignedXml.XmlDsigNamespaceUrl);
-                if (!Utils.VerifyAttributes(keyInfoElement, "Id"))
-                    throw new CryptographicException(SR.Cryptography_Xml_InvalidElement, "KeyInfo");
+            XmlElement keyInfoElement = value;
+            _id = Utils.GetAttribute(keyInfoElement, "Id", SignedXml.XmlDsigNamespaceUrl);
+            if (!Utils.VerifyAttributes(keyInfoElement, "Id"))
+                throw new CryptographicException(SR.Cryptography_Xml_InvalidElement, "KeyInfo");
 
-                XmlNode? child = keyInfoElement.FirstChild;
-                while (child != null)
+            XmlNode? child = keyInfoElement.FirstChild;
+            while (child != null)
+            {
+                XmlElement? elem = child as XmlElement;
+                if (elem != null)
                 {
-                    XmlElement? elem = child as XmlElement;
-                    if (elem != null)
+                    // Create the right type of KeyInfoClause; we use a combination of the namespace and tag name (local name)
+                    string kicString = elem.NamespaceURI + " " + elem.LocalName;
+                    // Special-case handling for KeyValue -- we have to go one level deeper
+                    if (kicString == "http://www.w3.org/2000/09/xmldsig# KeyValue")
                     {
-                        // Create the right type of KeyInfoClause; we use a combination of the namespace and tag name (local name)
-                        string kicString = elem.NamespaceURI + " " + elem.LocalName;
-                        // Special-case handling for KeyValue -- we have to go one level deeper
-                        if (kicString == "http://www.w3.org/2000/09/xmldsig# KeyValue")
+                        if (!Utils.VerifyAttributes(elem, (string[]?)null))
                         {
-                            if (!Utils.VerifyAttributes(elem, (string[]?)null))
+                            throw new CryptographicException(SR.Cryptography_Xml_InvalidElement, "KeyInfo/KeyValue");
+                        }
+                        XmlNodeList nodeList2 = elem.ChildNodes;
+                        foreach (XmlNode node2 in nodeList2)
+                        {
+                            XmlElement? elem2 = node2 as XmlElement;
+                            if (elem2 != null)
                             {
-                                throw new CryptographicException(SR.Cryptography_Xml_InvalidElement, "KeyInfo/KeyValue");
-                            }
-                            XmlNodeList nodeList2 = elem.ChildNodes;
-                            foreach (XmlNode node2 in nodeList2)
-                            {
-                                XmlElement? elem2 = node2 as XmlElement;
-                                if (elem2 != null)
-                                {
-                                    kicString += "/" + elem2.LocalName;
-                                    break;
-                                }
+                                kicString += "/" + elem2.LocalName;
+                                break;
                             }
                         }
-
-                        KeyInfoClause? keyInfoClause = CryptoHelpers.CreateNonTransformFromName<KeyInfoClause>(kicString);
-                        // if we don't know what kind of KeyInfoClause we're looking at, use a generic KeyInfoNode:
-                        keyInfoClause ??= new KeyInfoNode();
-
-                        // Ask the create clause to fill itself with the corresponding XML
-                        keyInfoClause.LoadXml(elem);
-                        // Add it to our list of KeyInfoClauses
-                        AddClause(keyInfoClause);
                     }
-                    child = child.NextSibling;
+
+                    KeyInfoClause? keyInfoClause = CryptoHelpers.CreateNonTransformFromName<KeyInfoClause>(kicString);
+                    // if we don't know what kind of KeyInfoClause we're looking at, use a generic KeyInfoNode:
+                    keyInfoClause ??= new KeyInfoNode();
+
+                    // Ask the create clause to fill itself with the corresponding XML
+                    keyInfoClause.LoadXml(elem);
+                    // Add it to our list of KeyInfoClauses
+                    AddClause(keyInfoClause);
                 }
-            }
-            finally
-            {
-                EncryptedType.DecrementLoadXmlCurrentThreadDepth();
+                child = child.NextSibling;
             }
         }
 

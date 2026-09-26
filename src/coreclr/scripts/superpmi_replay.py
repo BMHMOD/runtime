@@ -15,11 +15,11 @@
 import argparse
 import os
 from coreclr_arguments import *
-from jitutil import run_command, determine_jit_name
+from jitutil import run_command
 
 parser = argparse.ArgumentParser(description="description")
 
-parser.add_argument("-type", required=True, help="Type of replay (standard, apx, wasm)")
+parser.add_argument("-type", required=True, help="Type of replay (standard, apx)")
 parser.add_argument("-arch", help="Architecture")
 parser.add_argument("-platform", help="OS platform")
 parser.add_argument("-jit_directory", help="path to the directory containing clrjit binaries")
@@ -46,12 +46,6 @@ configuration_apx = [
     [ "RunAltJitCode=0", "EnableAPX=1", "JitStressPromotedEvexEncoding=1" ],
     [ "RunAltJitCode=0", "EnableAPX=1", "JitStressRegs=4000" ],
     [ "RunAltJitCode=0", "EnableAPX=1", "EnableApxNDD=1", "JitStressRex2Encoding=1", "JitStressPromotedEvexEncoding=1", "JitStressRegs=4000" ]
-]
-
-# Single wasm replay configuration; the wasm cross-target JIT is loaded as an altjit, so
-# RunAltJitCode=0 prevents the host runtime from attempting to execute generated code.
-configuration_wasm = [
-    [ "RunAltJitCode=0" ]
 ]
 
 
@@ -85,7 +79,7 @@ def setup_args(args):
 
     coreclr_args.verify(args,
                         "type",
-                        lambda type: type in ["standard", "apx", "wasm"],
+                        lambda type: type in ["standard", "apx"],
                         "Invalid type \"{}\"".format)
 
     coreclr_args.verify(args,
@@ -153,33 +147,17 @@ def main(main_args):
     spmi_location = os.path.join(cwd, "artifacts", "spmi")
     log_directory = coreclr_args.log_directory
     platform_name = coreclr_args.platform
+    os_name = "win" if platform_name.lower() == "windows" else "unix"
     arch_name = coreclr_args.arch
     host_arch_name = "x64" if arch_name.endswith("64") else "x86"
-
-    # For wasm replay the -arch / -platform passed to this script describe the *target*
-    # (browser/wasm), not the *host*. Re-derive the host OS / arch from the running
-    # machine, since the wasm jit is a cross-targeting altjit (clrjit_universal_wasm_<host_arch>.dll).
-    if coreclr_args.type == 'wasm':
-        host_os_name = CoreclrArguments.provide_default_host_os()
-        host_arch_name = CoreclrArguments.provide_default_arch()
-        target_os_name = "browser"
-        target_arch_name = "wasm"
-        jit_name = determine_jit_name(host_os_name, target_os_name, host_arch_name, target_arch_name, use_cross_compile_jit=True)
-        jit_path = os.path.join(coreclr_args.jit_directory, jit_name)
-    else:
-        target_os_name = platform_name
-        target_arch_name = arch_name
-        os_name = "win" if platform_name.lower() == "windows" else "unix"
-        os_name = "universal" if arch_name.startswith("arm") else os_name
-        jit_path = os.path.join(coreclr_args.jit_directory, 'clrjit_{}_{}_{}.dll'.format(os_name, arch_name, host_arch_name))
+    os_name = "universal" if arch_name.startswith("arm") else os_name
+    jit_path = os.path.join(coreclr_args.jit_directory, 'clrjit_{}_{}_{}.dll'.format(os_name, arch_name, host_arch_name))
 
     type_configuration_settings = None
     if coreclr_args.type == 'standard':
         type_configuration_settings = configuration_standard
     elif coreclr_args.type == 'apx':
         type_configuration_settings = configuration_apx
-    elif coreclr_args.type == 'wasm':
-        type_configuration_settings = configuration_wasm
 
     configuration_settings_partitioned = split(type_configuration_settings, coreclr_args.partition_count)
     partition_configuration_settings = configuration_settings_partitioned[coreclr_args.partition - 1] # partition number is 1-based
@@ -189,8 +167,8 @@ def main(main_args):
             os.path.join(cwd, "superpmi.py"),
             "download",
             "--no_progress",
-            "-target_os", target_os_name,
-            "-target_arch", target_arch_name,
+            "-target_os", platform_name,
+            "-target_arch", arch_name,
             "-core_root", cwd,
             "-spmi_location", spmi_location,
             "-log_level", "debug"], _exit_on_fail=True)
@@ -208,7 +186,7 @@ def main(main_args):
             config_display += " " + flag
 
         # Special case: setting altjit requires passing `--altjit` to superpmi.py.
-        if coreclr_args.type == 'apx' or coreclr_args.type == 'wasm':
+        if coreclr_args.type == 'apx':
             config_arguments += [ "--altjit" ]
             config_display += " --altjit"
 
@@ -219,8 +197,8 @@ def main(main_args):
             os.path.join(cwd, "superpmi.py"),
             "replay",
             "-core_root", cwd,
-            "-target_os", target_os_name,
-            "-target_arch", target_arch_name,
+            "-target_os", platform_name,
+            "-target_arch", arch_name,
             "-arch", host_arch_name,
             "-jit_path", jit_path,
             "-spmi_location", spmi_location,

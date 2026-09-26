@@ -3,9 +3,6 @@
 
 // Found by Antigen
 
-
-namespace Runtime_91108;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;

@@ -612,8 +612,6 @@ namespace ILCompiler
             {
                 case MetadataLayoutKind.CStruct:
                     return ComputeCStructFieldLayout(type, numInstanceFields);
-                case MetadataLayoutKind.CUnion:
-                    return ComputeCUnionFieldLayout(type, numInstanceFields);
                 case MetadataLayoutKind.Explicit:
                     // Works around https://github.com/dotnet/runtime/issues/102868
                     if (type is { IsValueType: false, BaseType.IsSequentialLayout: true })

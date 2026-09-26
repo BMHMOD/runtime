@@ -2,24 +2,28 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 #include <string.h>
-#include <sal.h>
-#include <stdmacros.h>
+
+#define _In_z_
+#define _In_
 #include "pinvokeoverride.h"
 
-const void* callhelpers_pinvoke_override(const char* library_name, const char* entry_point_name);
+extern "C" const void* SystemResolveDllImport(const char* name);
+
+// pinvoke_override:
+// Check if given function belongs to one of statically linked libraries and return a pointer if found.
+static const void* pinvoke_override(const char* library_name, const char* entry_point_name)
+{
+    // This function is only called with the library name specified for a p/invoke, not any variations.
+    // It must handle exact matches to the names specified. See Interop.Libraries.cs for each platform.
+    if (strcmp(library_name, "libSystem.Native") == 0)
+    {
+        return SystemResolveDllImport(entry_point_name);
+    }
+
+    return nullptr;
+}
 
 void add_pinvoke_override()
 {
-    PInvokeOverride::SetPInvokeOverride(callhelpers_pinvoke_override, PInvokeOverride::Source::RuntimeConfiguration);
-}
-
-// fake implementations to satisfy the linker
-// to avoid linking corerun against libSystem.Runtime.InteropServices.JavaScript.Native
-extern "C" {
-    void * SystemInteropJS_BindJSImportST (void *) { _ASSERTE(!"Should not be reached"); return nullptr; }
-    void SystemInteropJS_CancelPromise (void *) { _ASSERTE(!"Should not be reached"); }
-    void SystemInteropJS_InvokeJSFunction (void *, void *) { _ASSERTE(!"Should not be reached"); }
-    void SystemInteropJS_InvokeJSImportST (int32_t, void *) { _ASSERTE(!"Should not be reached"); }
-    void SystemInteropJS_ReleaseCSOwnedObject (void *) { _ASSERTE(!"Should not be reached"); }
-    void SystemInteropJS_ResolveOrRejectPromise (void *) { _ASSERTE(!"Should not be reached"); }
+    PInvokeOverride::SetPInvokeOverride(pinvoke_override, PInvokeOverride::Source::RuntimeConfiguration);
 }

@@ -40,7 +40,7 @@ namespace System.Threading
             out bool createdNew)
         {
             Thread.CurrentUserSecurityDescriptorInfo securityDescriptorInfo = default;
-            Interop.Kernel32.SECURITY_ATTRIBUTES securityAttributes;
+            Interop.Kernel32.SECURITY_ATTRIBUTES securityAttributes = default;
             Interop.Kernel32.SECURITY_ATTRIBUTES* securityAttributesPtr = null;
             if (!string.IsNullOrEmpty(name) && options.WasSpecified)
             {
@@ -48,7 +48,8 @@ namespace System.Threading
                 if (options.CurrentUserOnly)
                 {
                     securityDescriptorInfo = new(CurrentUserOnlyAceRights);
-                    securityAttributes = Interop.Kernel32.SECURITY_ATTRIBUTES.Create((void*)securityDescriptorInfo.SecurityDescriptor);
+                    securityAttributes.nLength = (uint)sizeof(Interop.Kernel32.SECURITY_ATTRIBUTES);
+                    securityAttributes.lpSecurityDescriptor = (void*)securityDescriptorInfo.SecurityDescriptor;
                     securityAttributesPtr = &securityAttributes;
                 }
             }

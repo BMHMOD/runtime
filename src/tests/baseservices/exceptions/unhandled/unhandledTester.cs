@@ -9,7 +9,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 using Xunit;
-using TestLibrary;
 
 namespace TestUnhandledExceptionTester
 {
@@ -17,70 +16,64 @@ namespace TestUnhandledExceptionTester
     {
         static void RunExternalProcess(string unhandledType, string assembly)
         {
-            ProcessStartInfo startInfo = new ProcessStartInfo();
-            startInfo.FileName = Path.Combine(Environment.GetEnvironmentVariable("CORE_ROOT"), "corerun");
-            startInfo.Arguments = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), assembly) + " " + unhandledType;
-            startInfo.RedirectStandardOutput = true;
-            startInfo.RedirectStandardError = true;
-            // Disable crash diagnostics since the target process is expected to fail with an unhandled exception
-            startInfo.Environment.Remove("DOTNET_DbgEnableMiniDump");
-            startInfo.Environment.Remove("DOTNET_EnableCrashReport");
-
-            ProcessTextOutput result = Process.RunAndCaptureText(startInfo);
-            Console.WriteLine($"Test process {assembly} with argument {unhandledType} exited");
-
             List<string> lines = new List<string>();
-            foreach (string rawLine in result.StandardError.Split('\n'))
-            {
-                string line = rawLine.TrimEnd('\r');
-                Console.WriteLine($"\"{line}\"");
-                if (!string.IsNullOrEmpty(line))
-                {
-                    lines.Add(line);
-                }
-            }
 
-            int[] expectedExitCodes;
+            Process testProcess = new Process();
+
+            testProcess.StartInfo.FileName = Path.Combine(Environment.GetEnvironmentVariable("CORE_ROOT"), "corerun");
+            testProcess.StartInfo.Arguments = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), assembly) + " " + unhandledType;
+            testProcess.StartInfo.RedirectStandardError = true;
+            // Disable creating dump since the target process is expected to fail with an unhandled exception
+            testProcess.StartInfo.Environment.Remove("DOTNET_DbgEnableMiniDump");
+            testProcess.ErrorDataReceived += (sender, line) => 
+            {
+                Console.WriteLine($"\"{line.Data}\"");
+                if (!string.IsNullOrEmpty(line.Data))
+                {
+                    lines.Add(line.Data);
+                }
+            };
+
+            testProcess.Start();
+            testProcess.BeginErrorReadLine();
+            testProcess.WaitForExit();
+            Console.WriteLine($"Test process {assembly} with argument {unhandledType} exited");
+            testProcess.CancelErrorRead();
+
+            int expectedExitCode;
             if (TestLibrary.Utilities.IsMonoRuntime)
             {
-                expectedExitCodes = new[] { 1 };
+                expectedExitCode = 1;
             }
             else if (!OperatingSystem.IsWindows())
             {
-                expectedExitCodes = new[] { 128 + 6 }; // SIGABRT
+                expectedExitCode = 128 + 6; // SIGABRT
             }
             else if (TestLibrary.Utilities.IsNativeAot)
             {
-                expectedExitCodes = new[] { unchecked((int)0xC0000409) };
+                expectedExitCode = unchecked((int)0xC0000409);
             }
             else
             {
                 if (unhandledType.EndsWith("hardware"))
                 {
                     // Null reference exception code
-                    expectedExitCodes = new[] { unchecked((int)0xC0000005), unchecked((int)0xE0434352) };
+                    expectedExitCode = unchecked((int)0xC0000005);
                 }
                 else if (unhandledType == "collecteddelegate")
                 {
                     // Fail fast exit code
-                    expectedExitCodes = new[] { unchecked((int)0x80131623) };
+                    expectedExitCode = unchecked((int)0x80131623);
                 }
                 else
                 {
-                    expectedExitCodes = new[] { unchecked((int)0xE0434352) };
+                    expectedExitCode = unchecked((int)0xE0434352);
                 }
             }
 
-            if (!Array.Exists(expectedExitCodes, code => result.ExitStatus.ExitCode == code))
+            if (expectedExitCode != testProcess.ExitCode)
             {
-                string separator = string.Empty;
-                StringBuilder expectedListBuilder = new StringBuilder();
-                Array.ForEach(expectedExitCodes, code =>
-                {
-                    expectedListBuilder.Append($"{separator}0x{code:X8}");
-                    separator = " or ";
-                });
-                throw new Exception($"Wrong exit code: 0x{result.ExitStatus.ExitCode:X8}, expected {expectedListBuilder}");
+                throw new Exception($"Wrong exit code 0x{testProcess.ExitCode:X8}, expected 0x{expectedExitCode:X8}");
             }
 
             int exceptionStackFrameLine = 1;
@@ -100,13 +93,6 @@ namespace TestUnhandledExceptionTester
                 else if (unhandledType == "foreign")
                 {
                     if (lines[1] != "System.EntryPointNotFoundException: HelloCpp")
-                    {
-                        throw new Exception("Missing exception type and message");
-                    }
-                }
-                else if (unhandledType.EndsWith("hardware"))
-                {
-                    if (!lines[1].StartsWith("System.NullReferenceException: Object reference not set to an instance of an object"))
                     {
                         throw new Exception("Missing exception type and message");
                     }
@@ -165,9 +151,6 @@ namespace TestUnhandledExceptionTester
             Console.WriteLine("Test process exited with expected error code and produced expected output");
         }
 
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/80356", typeof(PlatformDetection), nameof(PlatformDetection.IsOSX), nameof(PlatformDetection.IsX64Process))]
-        [ActiveIssue("System.Diagnostics.Process is not supported", TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
-        [ActiveIssue("Test expects being run with corerun", typeof(TestLibrary.Utilities), nameof(TestLibrary.Utilities.IsNativeAot))]
         [Fact]
         public static void TestEntryPoint()
         {

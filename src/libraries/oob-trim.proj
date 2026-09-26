@@ -41,13 +41,9 @@
       <OOBILLinkArgs Condition="'@(OOBLibrarySuppressionsXml)' != ''" >$(OOBILLinkArgs) --link-attributes "@(OOBLibrarySuppressionsXml->'%(FullPath)', '" --link-attributes "')"</OOBILLinkArgs>
     </PropertyGroup>
 
-    <ItemGroup>
-      <_OOBRootAssemblyName Include="@(OOBAssemblyToTrim->'%(Filename)')" />
-    </ItemGroup>
-
     <MakeDir Directories="$(OOBAssembliesTrimDir)" />
-    <ILLink AssemblyPaths="@(OOBAssemblyToTrim)"
-        RootAssemblyNames="@(_OOBRootAssemblyName)"
+    <ILLink AssemblyPaths=""
+        RootAssemblyNames="@(OOBAssemblyToTrim)"
         ReferenceAssemblyPaths="@(OOBAssemblyReference)"
         OutputDirectory="$(OOBAssembliesTrimDir)"
         ExtraArgs="$(OOBILLinkArgs)"

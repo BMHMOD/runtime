@@ -12,15 +12,15 @@ namespace ILCompiler.DependencyAnalysis
     public class GenericCompositionNode : ObjectNode, ISymbolDefinitionNode
     {
         private readonly Instantiation _details;
-        private readonly bool _metadataEnabled;
+        private readonly bool _constructed;
 
-        internal GenericCompositionNode(Instantiation details, bool metadataEnabled)
+        internal GenericCompositionNode(Instantiation details, bool constructed)
         {
             _details = details;
-            _metadataEnabled = metadataEnabled;
+            _constructed = constructed;
         }
 
-        public override bool ShouldSkipEmittingObjectNode(NodeFactory factory) => !_metadataEnabled && factory.MetadataEnabledGenericComposition(_details).Marked;
+        public override bool ShouldSkipEmittingObjectNode(NodeFactory factory) => !_constructed && factory.ConstructedGenericComposition(_details).Marked;
 
         public void AppendMangledName(NameMangler nameMangler, Utf8StringBuilder sb)
         {
@@ -66,7 +66,7 @@ namespace ILCompiler.DependencyAnalysis
 
             foreach (var typeArg in _details)
             {
-                IEETypeNode node = _metadataEnabled ? factory.MaximallyMetadataEnabledType(typeArg) : factory.NecessaryTypeSymbol(typeArg);
+                IEETypeNode node = _constructed ? factory.MaximallyConstructableType(typeArg) : factory.NecessaryTypeSymbol(typeArg);
 
                 if (useRelativePointers)
                     builder.EmitReloc(node, RelocType.IMAGE_REL_BASED_RELPTR32);
@@ -87,7 +87,7 @@ namespace ILCompiler.DependencyAnalysis
             if (compare != 0)
                 return compare;
 
-            compare = _metadataEnabled.CompareTo(otherComposition._metadataEnabled);
+            compare = _constructed.CompareTo(otherComposition._constructed);
             if (compare != 0)
                 return compare;
 

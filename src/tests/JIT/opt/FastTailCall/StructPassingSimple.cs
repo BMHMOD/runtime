@@ -25,7 +25,6 @@ public class TailCallStructPassingSimple
         return ImplicitTailCallTenByteStruct(a, count);
     }
 
-    [SkipOnCoreClr("This test is sensitive to JIT optimizations.", RuntimeTestModes.AnyJitOptimizationStress)]
     [Fact]
     public static int TestEntryPoint()
     {

@@ -2,29 +2,30 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 using Mono.Cecil;
-using Xunit;
+using NUnit.Framework;
 
 namespace Mono.Linker.Tests.Tests
 {
     public class AnnotationStoreTest
     {
-        readonly AnnotationStore store;
+        AnnotationStore store;
 
-        public AnnotationStoreTest()
+        [SetUp]
+        public void Setup()
         {
             var ctx = new LinkContext(null, new ConsoleLogger(), string.Empty);
             store = new AnnotationStore(ctx);
         }
 
-        [Fact]
+        [Test]
         public void CustomAnnotations()
         {
             var td = new TypeDefinition("ns", "name", TypeAttributes.Public);
 
-            Assert.Null(store.GetCustomAnnotation("k", td));
+            Assert.IsNull(store.GetCustomAnnotation("k", td));
 
             store.SetCustomAnnotation("k", td, "value");
-            Assert.Equal("value", store.GetCustomAnnotation("k", td));
+            Assert.AreEqual("value", store.GetCustomAnnotation("k", td));
         }
     }
 }

@@ -148,7 +148,7 @@ namespace System.Security.Cryptography.X509Certificates
                 {
                     using (PointerMemoryManager<byte> manager = new(rawDataPtr, rawData.Length))
                     {
-                        ValueAsnReader reader = new ValueAsnReader(rawData, AsnEncodingRules.DER);
+                        AsnValueReader reader = new AsnValueReader(rawData, AsnEncodingRules.DER);
                         CertificateAsn.Decode(ref reader, manager.Memory, out _);
                     }
                 }
@@ -575,14 +575,17 @@ namespace System.Security.Cryptography.X509Certificates
 
         public void Dispose()
         {
-            _privateKey?.Dispose();
-            _privateKey = null;
+            if (_privateKey != null)
+            {
+                _privateKey.Dispose();
+                _privateKey = null;
+            }
 
-            _keyStorePrivateKeyEntry?.Dispose();
-            _keyStorePrivateKeyEntry = null;
-
-            _cert?.Dispose();
-            _cert = null!;
+            if (_cert != null)
+            {
+                _cert.Dispose();
+                _cert = null!;
+            }
         }
 
         public byte[] Export(X509ContentType contentType, SafePasswordHandle password)

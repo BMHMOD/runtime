@@ -86,10 +86,6 @@ Crst AssemblyLoader
     AcquiredBefore DeadlockDetection UniqueStack DebuggerMutex
 End
 
-Crst AsyncContinuations
-    AcquiredBefore LeafLock
-End
-
 Crst AvailableClass
     AcquiredBefore LoaderHeap
 End
@@ -162,6 +158,18 @@ Crst DebuggerMutex
     // AcquiredBefore DebuggerController
     AcquiredBefore DebuggerHeapLock DebuggerJitInfo
 
+End
+
+// This lock is used only for testing data consistency (see code:DataTest::TestDataSafety)
+// and is released before taking any other lock except for CrstDataTest2
+Crst DataTest1
+    AcquiredAfter DebuggerMutex
+End
+
+// This lock is used only for testing data consistency (see code:DataTest::TestDataSafety)
+// and is released before taking any other lockCrst DataTest2
+Crst DataTest2
+    AcquiredAfter DataTest1
 End
 
 Crst DbgTransport
@@ -284,7 +292,7 @@ End
 
 Crst LoaderAllocatorReferences
     AcquiredBefore LoaderAllocator
-    AcquiredAfter PendingTypeLoadEntry InstMethodHashTable ILStubGen
+    AcquiredAfter PendingTypeLoadEntry InstMethodHashTable
 End
 
 Crst AssemblyList
@@ -358,7 +366,7 @@ Crst CodeVersioning
                 ReadyToRunEntryPointToMethodDescMap ClassInit AppDomainCache TypeIDMap FusionAppCtx COMWrapperCache InteropData
 End
 
-// Used to synchronize all global requests which add
+// Used to synchronize all global requests (which may span multiple AppDomains) which add
 // new functions to rejit tables, or request Reverts on existing functions in the rejit
 // tables.  One of these crsts exist per runtime.
 Crst ReJITGlobalRequest
@@ -380,13 +388,8 @@ Crst SingleUseLock
     AcquiredBefore LoaderHeap UniqueStack DebuggerJitInfo
 End
 
-Crst UnwindInfoTablePublishLock
+Crst UnwindInfoTableLock
     AcquiredAfter SingleUseLock
-    AcquiredBefore UnwindInfoTablePendingLock
-End
-
-Crst UnwindInfoTablePendingLock
-    AcquiredAfter UnwindInfoTablePublishLock
     AcquiredBefore StressLog
 End
 
@@ -451,7 +454,7 @@ Crst UnresolvedClassLock
 End
 
 Crst WrapperTemplate
-    AcquiredBefore LoaderHeap
+    AcquiredBefore ExecutableAllocatorLock
 End
 
 Crst UMEntryThunkCache
@@ -505,7 +508,7 @@ Crst MethodDescBackpatchInfoTracker
 End
 
 Crst NativeImageEagerFixups
-    AcquiredBefore PregeneratedStringThunks UnresolvedClassLock
+    AcquiredBefore UnresolvedClassLock
 End
 
 Crst NativeImageLoad
@@ -524,14 +527,4 @@ End
 
 Crst CallStubCache
     AcquiredBefore LoaderHeap
-End
-
-Crst PregeneratedStringThunks
-    AcquiredBefore UnresolvedClassLock
-End
-
-// Guards the de-duplication set used when relocating host-probed webcil (WASM) R2R images.
-// It is a leaf that acquires no other Crst while held, so it is Unordered.
-Crst WebcilImageRelocation
-    Unordered
 End

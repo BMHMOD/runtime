@@ -5,12 +5,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Reflection.Metadata;
-using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.Marshalling;
-using System.Text;
-using System.Threading;
 using Microsoft.Diagnostics.DataContractReader.Contracts;
 using Microsoft.Diagnostics.DataContractReader.Contracts.Extensions;
 
@@ -20,74 +16,13 @@ namespace Microsoft.Diagnostics.DataContractReader.Legacy;
 /// Implementation of IXCLRDataProcess* interfaces intended to be passed out to consumers
 /// interacting with the DAC via those COM interfaces.
 /// </summary>
-public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProcess2, IXCLRDataProcess3
+public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProcess2
 {
-    int IXCLRDataProcess3.GetFunctionTable(
-        ClrDataAddress tableAddress,
-        uint bufferSize,
-        byte* buffer,
-        uint* bytesNeeded,
-        uint* entries)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        if (bytesNeeded is null || entries is null)
-        {
-            if (bytesNeeded is not null)
-                *bytesNeeded = 0;
-            if (entries is not null)
-                *entries = 0;
-
-            return HResults.E_POINTER;
-        }
-
-        *bytesNeeded = 0;
-        *entries = 0;
-
-        try
-        {
-            IExecutionManager executionManager = _target.Contracts.ExecutionManager;
-            IReadOnlyList<TargetPointer> functionEntries =
-                executionManager.GetDynamicFunctionTableEntries(tableAddress.ToTargetPointer(_target));
-
-            uint runtimeFunctionSize = _target.GetTypeInfo(DataType.RuntimeFunction).Size!.Value;
-            uint count = (uint)functionEntries.Count;
-            ulong totalBytes = (ulong)count * runtimeFunctionSize;
-            if (totalBytes > uint.MaxValue)
-                return HResults.E_FAIL;
-
-            *entries = count;
-            *bytesNeeded = (uint)totalBytes;
-
-            // An empty or unmatched table reports zero entries and succeeds.
-            if (count == 0)
-                return HResults.S_OK;
-
-            // A size query (null buffer) or a buffer that is too small writes nothing and reports
-            // the required sizes so the caller can retry with adequate storage.
-            if (buffer is null || bufferSize < totalBytes)
-                return HResults.S_FALSE;
-
-            int entrySize = checked((int)runtimeFunctionSize);
-            for (int i = 0; i < functionEntries.Count; i++)
-            {
-                Span<byte> destination = new(buffer + ((nint)i * entrySize), entrySize);
-                _target.ReadBuffer(functionEntries[i].Value, destination);
-            }
-
-            return HResults.S_OK;
-        }
-        catch (System.Exception ex)
-        {
-            return ex.HResult;
-        }
-    }
-
     int IXCLRDataProcess.Flush()
     {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        _target.Flush(FlushScope.All);
+        _target.ProcessedData.Clear();
 
-        // Flush is always propagated — it's cache management, not data retrieval.
+        // As long as any part of cDAC falls back to the legacy DAC, we need to propagate the Flush call
         if (_legacyProcess is not null)
             return _legacyProcess.Flush();
 
@@ -95,30 +30,19 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
     }
 
     int IXCLRDataProcess.StartEnumTasks(ulong* handle)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
+        => _legacyProcess is not null ? _legacyProcess.StartEnumTasks(handle) : HResults.E_NOTIMPL;
 
-        return HResults.E_NOTIMPL;
-    }
-
-    int IXCLRDataProcess.EnumTask(ulong* handle, DacComNullableByRef<IXCLRDataTask> task)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-
-        return HResults.E_NOTIMPL;
-    }
+    int IXCLRDataProcess.EnumTask(ulong* handle, /*IXCLRDataTask*/ void** task)
+        => _legacyProcess is not null ? _legacyProcess.EnumTask(handle, task) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.EndEnumTasks(ulong handle)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
+        => _legacyProcess is not null ? _legacyProcess.EndEnumTasks(handle) : HResults.E_NOTIMPL;
 
-        return HResults.E_NOTIMPL;
-    }
-
-    int IXCLRDataProcess.GetTaskByOSThreadID(uint osThreadID, DacComNullableByRef<IXCLRDataTask> task)
+    int IXCLRDataProcess.GetTaskByOSThreadID(uint osThreadID, out IXCLRDataTask? task)
     {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        // Find the thread corresponding to the OS thread ID
+        task = default;
+
+        // Find the thread correspending to the OS thread ID
         Contracts.IThread contract = _target.Contracts.Thread;
         TargetPointer thread = contract.GetThreadStoreData().FirstThread;
         TargetPointer matchingThread = TargetPointer.Null;
@@ -140,130 +64,35 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
         IXCLRDataTask? legacyTask = null;
         if (_legacyProcess is not null)
         {
-            DacComNullableByRef<IXCLRDataTask> legacyTaskOut = new(isNullRef: false);
-            int hr = _legacyProcess.GetTaskByOSThreadID(osThreadID, legacyTaskOut);
+            int hr = _legacyProcess.GetTaskByOSThreadID(osThreadID, out legacyTask);
             if (hr < 0)
                 return hr;
-            legacyTask = legacyTaskOut.Interface;
         }
 
-        task.Interface = new ClrDataTask(matchingThread, _target, legacyTask, _apiLock);
+        task = new ClrDataTask(matchingThread, _target, legacyTask);
         return HResults.S_OK;
     }
 
-    int IXCLRDataProcess.GetTaskByUniqueID(ulong taskID, DacComNullableByRef<IXCLRDataTask> task)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.S_OK;
-        int hrLocal = HResults.S_OK;
-        IXCLRDataTask? legacyTask = null;
-
-        if (_legacyProcess is not null)
-        {
-            DacComNullableByRef<IXCLRDataTask> legacyTaskOut = new(isNullRef: task.IsNullRef);
-            hrLocal = _legacyProcess.GetTaskByUniqueID(taskID, legacyTaskOut);
-            legacyTask = legacyTaskOut.Interface;
-        }
-
-        try
-        {
-            TargetPointer thread = _target.Contracts.Thread.IdToThread((uint)taskID);
-            if (thread == TargetPointer.Null)
-                throw new ArgumentException();
-
-            task.Interface = new ClrDataTask(thread, _target, legacyTask, _apiLock);
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-
-#if DEBUG
-        if (_legacyProcess is not null)
-        {
-            Debug.ValidateHResult(hr, hrLocal);
-        }
-#endif
-
-        return hr;
-    }
+    int IXCLRDataProcess.GetTaskByUniqueID(ulong taskID, /*IXCLRDataTask*/ void** task)
+        => _legacyProcess is not null ? _legacyProcess.GetTaskByUniqueID(taskID, task) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.GetFlags(uint* flags)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-
-        return HResults.E_NOTIMPL;
-    }
+        => _legacyProcess is not null ? _legacyProcess.GetFlags(flags) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.IsSameObject(IXCLRDataProcess* process)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
+        => _legacyProcess is not null ? _legacyProcess.IsSameObject(process) : HResults.E_NOTIMPL;
 
-        return HResults.E_NOTIMPL;
-    }
-
-    int IXCLRDataProcess.GetManagedObject(DacComNullableByRef<IXCLRDataValue> value)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-
-        return HResults.E_NOTIMPL;
-    }
+    int IXCLRDataProcess.GetManagedObject(/*IXCLRDataValue*/ void** value)
+        => _legacyProcess is not null ? _legacyProcess.GetManagedObject(value) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.GetDesiredExecutionState(uint* state)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-
-        return HResults.E_NOTIMPL;
-    }
+        => _legacyProcess is not null ? _legacyProcess.GetDesiredExecutionState(state) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.SetDesiredExecutionState(uint state)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
+        => _legacyProcess is not null ? _legacyProcess.SetDesiredExecutionState(state) : HResults.E_NOTIMPL;
 
-        return HResults.E_NOTIMPL;
-    }
-
-    int IXCLRDataProcess.GetAddressType(ClrDataAddress address, CLRDataAddressType* type)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.S_OK;
-        try
-        {
-            if (type is null)
-                throw new ArgumentNullException(nameof(type));
-
-            *type = CLRDataAddressType.CLRDATA_ADDRESS_UNRECOGNIZED;
-            TargetCodePointer codeAddress = address.ToTargetCodePointer(_target);
-            if (_target.TryRead(codeAddress, out byte _))
-            {
-                *type = _target.Contracts.ExecutionManager.GetCodeKind(codeAddress) switch
-                {
-                    CodeKind.Unknown => CLRDataAddressType.CLRDATA_ADDRESS_UNRECOGNIZED,
-                    CodeKind.Jitted or CodeKind.ReadyToRun or CodeKind.Interpreter => CLRDataAddressType.CLRDATA_ADDRESS_MANAGED_METHOD,
-                    _ => CLRDataAddressType.CLRDATA_ADDRESS_RUNTIME_UNMANAGED_STUB,
-                };
-            }
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-
-#if DEBUG
-        if (_legacyProcess is not null)
-        {
-            CLRDataAddressType typeLocal = default;
-            int hrLocal = _legacyProcess.GetAddressType(address, type is null ? null : &typeLocal);
-            Debug.ValidateHResult(hr, hrLocal);
-            if (hr >= 0)
-            {
-                Debug.Assert(*type == typeLocal, $"cDAC: {*type}, DAC: {typeLocal}");
-            }
-        }
-#endif
-
-        return hr;
-    }
+    int IXCLRDataProcess.GetAddressType(ClrDataAddress address, /*CLRDataAddressType*/ uint* type)
+        => _legacyProcess is not null ? _legacyProcess.GetAddressType(address, type) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.GetRuntimeNameByAddress(
         ClrDataAddress address,
@@ -272,524 +101,42 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
         uint* nameLen,
         char* nameBuf,
         ClrDataAddress* displacement)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.S_OK;
-        try
-        {
-            if (flags != 0)
-                throw new ArgumentException("Flags are not supported", nameof(flags));
-
-            TargetCodePointer codeAddr = address.ToTargetCodePointer(_target);
-
-            // IsPossibleCodeAddress - validate the address is readable
-            if (!_target.TryRead(codeAddr, out byte _))
-                throw new ArgumentException("Address is not readable", nameof(address));
-
-            IExecutionManager eman = _target.Contracts.ExecutionManager;
-            string? resultName = null;
-
-            TargetCodePointer managedCodeAddr = _target.Contracts.PrecodeStubs.GetInterpreterCodeFromInterpreterPrecodeIfPresent(codeAddr);
-            if (eman.GetCodeBlockHandle(managedCodeAddr) is CodeBlockHandle codeBlock)
-            {
-                if (displacement is not null)
-                {
-                    *displacement = managedCodeAddr.ToAddress(_target).Value - eman.GetStartAddress(codeBlock).Value;
-                }
-                resultName = GetMethodName(eman.GetMethodDesc(codeBlock));
-            }
-
-            if (resultName is null)
-            {
-                // Try stub classification
-                CodeKind codeKind = eman.GetCodeKind(codeAddr);
-                if (codeKind == CodeKind.StubPrecode || codeKind == CodeKind.FixupPrecode)
-                {
-                    IPrecodeStubs precodeStubs = _target.Contracts.PrecodeStubs;
-                    TargetPointer entryPoint = precodeStubs.GetPrecodeEntryPointFromInteriorAddress(codeAddr, codeKind == CodeKind.FixupPrecode);
-                    TargetPointer methodDesc = eman.NonVirtualEntry2MethodDesc(new TargetCodePointer(entryPoint.Value));
-                    if (methodDesc != TargetPointer.Null)
-                    {
-                        if (displacement is not null)
-                            *displacement = codeAddr.ToAddress(_target).Value - entryPoint;
-                        resultName = GetMethodName(methodDesc);
-                    }
-                }
-                if (resultName is null)
-                {
-                    resultName = GetStubName(codeKind);
-                    if (resultName is not null && displacement is not null)
-                        *displacement = 0;
-                }
-            }
-
-            // try aux symbols
-            if (resultName is null && _target.Contracts.AuxiliarySymbols.TryGetAuxiliarySymbolName(address.ToTargetPointer(_target), out string? auxSymbolName))
-            {
-                resultName = auxSymbolName;
-                if (displacement is not null)
-                    *displacement = 0;
-            }
-
-            if (resultName is null)
-            {
-                throw new InvalidCastException();
-            }
-
-            OutputBufferHelpers.CopyStringToBuffer(nameBuf, bufLen, nameLen, resultName, out bool truncated);
-
-            if (truncated)
-                hr = HResults.S_FALSE;
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-
-#if DEBUG
-        if (_legacyProcess is not null)
-        {
-            uint nameLenLocal = 0;
-            char[] nameBufLocal = new char[bufLen > 0 ? bufLen : 1];
-            ClrDataAddress displacementLocal = default;
-            int hrLocal;
-            fixed (char* pNameBufLocal = nameBufLocal)
-            {
-                hrLocal = _legacyProcess.GetRuntimeNameByAddress(
-                    address, flags, bufLen,
-                    nameLen is null ? null : &nameLenLocal,
-                    nameBuf is null ? null : pNameBufLocal,
-                    displacement is null ? null : &displacementLocal);
-            }
-
-            Debug.ValidateHResult(hr, hrLocal);
-            if (hr == HResults.S_OK || hr == HResults.S_FALSE)
-            {
-                Debug.Assert(nameLen is null || *nameLen == nameLenLocal);
-                if (nameBuf is not null)
-                {
-                    Debug.Assert(new ReadOnlySpan<char>(nameBuf, (int)nameLenLocal)
-                        .SequenceEqual(nameBufLocal.AsSpan(0, (int)nameLenLocal)));
-                }
-                if (displacement is not null)
-                {
-                    Debug.Assert(*displacement == displacementLocal);
-                }
-            }
-        }
-#endif
-
-        return hr;
-    }
-
-    private string GetMethodName(TargetPointer methodDesc)
-    {
-        IRuntimeTypeSystem rts = _target.Contracts.RuntimeTypeSystem;
-        MethodDescHandle mdh = rts.GetMethodDescHandle(methodDesc);
-        StringBuilder sb = new StringBuilder();
-        TypeNameBuilder.AppendMethodInternal(_target, sb, mdh, TypeNameFormat.FormatSignature
-            | TypeNameFormat.FormatNamespace
-            | TypeNameFormat.FormatFullInst);
-        return sb.ToString();
-    }
-
-    private static string? GetStubName(Contracts.CodeKind codeKind)
-    {
-        if (codeKind is Contracts.CodeKind.Unknown
-            or Contracts.CodeKind.Jitted
-            or Contracts.CodeKind.ReadyToRun
-            or Contracts.CodeKind.ThePreStub)
-        {
-            return null;
-        }
-        if (codeKind == Contracts.CodeKind.StubPrecode || codeKind == Contracts.CodeKind.FixupPrecode)
-            return "Prestub";
-        return codeKind.ToString();
-    }
-
-    private sealed class ProcessEnum<T> : IEnum<T>
-    {
-        public IEnumerator<T> Enumerator { get; }
-        public nuint LegacyHandle { get; set; }
-
-        public ProcessEnum(IEnumerable<T> values, nuint legacyHandle)
-        {
-            Enumerator = values.GetEnumerator();
-            LegacyHandle = legacyHandle;
-        }
-    }
-
-    private readonly record struct MethodDefinitionInfo(TargetPointer Module, uint Token);
+        => _legacyProcess is not null ? _legacyProcess.GetRuntimeNameByAddress(address, flags, bufLen, nameLen, nameBuf, displacement) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.StartEnumAppDomains(ulong* handle)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.S_OK;
-        int hrLocal = HResults.S_OK;
-        ulong legacyHandle = 0;
+        => _legacyProcess is not null ? _legacyProcess.StartEnumAppDomains(handle) : HResults.E_NOTIMPL;
 
-        try
-        {
-            if (handle is null)
-                throw new ArgumentNullException(nameof(handle));
-
-            *handle = 0;
-            if (_legacyProcess is not null)
-            {
-                hrLocal = _legacyProcess.StartEnumAppDomains(&legacyHandle);
-            }
-
-            TargetPointer appDomain = _target.Contracts.Loader.GetAppDomain();
-            ProcessEnum<TargetPointer> domains = new([appDomain], (nuint)legacyHandle);
-            *handle = (ulong)((IEnum<TargetPointer>)domains).GetHandle();
-            legacyHandle = 0;
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-        finally
-        {
-            if (_legacyProcess is not null && legacyHandle != 0)
-            {
-                _legacyProcess.EndEnumAppDomains(legacyHandle);
-            }
-        }
-
-#if DEBUG
-        if (_legacyProcess is not null)
-        {
-            Debug.ValidateHResult(hr, hrLocal);
-        }
-#endif
-
-        return hr;
-    }
-
-    int IXCLRDataProcess.EnumAppDomain(ulong* handle, DacComNullableByRef<IXCLRDataAppDomain> appDomain)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.S_OK;
-        int hrLocal = HResults.S_OK;
-        try
-        {
-            if (handle is null)
-                throw new ArgumentNullException(nameof(handle));
-            if (*handle == 0)
-                return HResults.S_FALSE;
-            if (appDomain.IsNullRef)
-                throw new NullReferenceException();
-
-            GCHandle gcHandle = GCHandle.FromIntPtr((IntPtr)(*handle));
-            if (gcHandle.Target is not ProcessEnum<TargetPointer> domains)
-                throw new ArgumentException();
-
-            IXCLRDataAppDomain? legacyAppDomain = null;
-            if (_legacyProcess is not null)
-            {
-                ulong legacyHandle = (ulong)domains.LegacyHandle;
-                DacComNullableByRef<IXCLRDataAppDomain> legacyAppDomainOut = new(isNullRef: false);
-                hrLocal = _legacyProcess.EnumAppDomain(&legacyHandle, legacyAppDomainOut);
-                legacyAppDomain = legacyAppDomainOut.Interface;
-                domains.LegacyHandle = (nuint)legacyHandle;
-            }
-
-            if (domains.Enumerator.MoveNext())
-            {
-                appDomain.Interface = new ClrDataAppDomain(_target, domains.Enumerator.Current, legacyAppDomain, _apiLock);
-            }
-            else
-            {
-                hr = HResults.S_FALSE;
-            }
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-
-#if DEBUG
-        if (_legacyProcess is not null)
-        {
-            Debug.ValidateHResult(hr, hrLocal);
-        }
-#endif
-
-        return hr;
-    }
+    int IXCLRDataProcess.EnumAppDomain(ulong* handle, /*IXCLRDataAppDomain*/ void** appDomain)
+        => _legacyProcess is not null ? _legacyProcess.EnumAppDomain(handle, appDomain) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.EndEnumAppDomains(ulong handle)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        if (handle == 0)
-            return HResults.S_OK;
+        => _legacyProcess is not null ? _legacyProcess.EndEnumAppDomains(handle) : HResults.E_NOTIMPL;
 
-        int hr = HResults.S_OK;
-        ProcessEnum<TargetPointer> domains;
-        try
-        {
-            GCHandle gcHandle = GCHandle.FromIntPtr((IntPtr)handle);
-            if (gcHandle.Target is not ProcessEnum<TargetPointer> domainsLocal)
-                throw new ArgumentException();
-
-            domains = domainsLocal;
-            ((IEnum<TargetPointer>)domains).Dispose();
-            gcHandle.Free();
-        }
-        catch (System.Exception ex)
-        {
-            return ex.HResult;
-        }
-
-        if (_legacyProcess is not null && domains.LegacyHandle != 0)
-        {
-            hr = _legacyProcess.EndEnumAppDomains((ulong)domains.LegacyHandle);
-        }
-
-        return hr;
-    }
-
-    int IXCLRDataProcess.GetAppDomainByUniqueID(ulong id, DacComNullableByRef<IXCLRDataAppDomain> appDomain)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.S_OK;
-        int hrLocal = HResults.S_OK;
-        IXCLRDataAppDomain? legacyAppDomain = null;
-
-        if (_legacyProcess is not null)
-        {
-            DacComNullableByRef<IXCLRDataAppDomain> legacyAppDomainOut = new(isNullRef: appDomain.IsNullRef);
-            hrLocal = _legacyProcess.GetAppDomainByUniqueID(id, legacyAppDomainOut);
-            legacyAppDomain = legacyAppDomainOut.Interface;
-        }
-
-        try
-        {
-            if (id != ClrDataAppDomain.DefaultAppDomainId)
-                throw new ArgumentException();
-
-            TargetPointer domain = _target.Contracts.Loader.GetAppDomain();
-            appDomain.Interface = new ClrDataAppDomain(_target, domain, legacyAppDomain, _apiLock);
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-
-#if DEBUG
-        if (_legacyProcess is not null)
-        {
-            Debug.ValidateHResult(hr, hrLocal);
-        }
-#endif
-
-        return hr;
-    }
+    int IXCLRDataProcess.GetAppDomainByUniqueID(ulong id, /*IXCLRDataAppDomain*/ void** appDomain)
+        => _legacyProcess is not null ? _legacyProcess.GetAppDomainByUniqueID(id, appDomain) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.StartEnumAssemblies(ulong* handle)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
+        => _legacyProcess is not null ? _legacyProcess.StartEnumAssemblies(handle) : HResults.E_NOTIMPL;
 
-        return HResults.E_NOTIMPL;
-    }
-
-    int IXCLRDataProcess.EnumAssembly(ulong* handle, DacComNullableByRef<IXCLRDataAssembly> assembly)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-
-        return HResults.E_NOTIMPL;
-    }
+    int IXCLRDataProcess.EnumAssembly(ulong* handle, /*IXCLRDataAssembly*/ void** assembly)
+        => _legacyProcess is not null ? _legacyProcess.EnumAssembly(handle, assembly) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.EndEnumAssemblies(ulong handle)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-
-        return HResults.E_NOTIMPL;
-    }
+        => _legacyProcess is not null ? _legacyProcess.EndEnumAssemblies(handle) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.StartEnumModules(ulong* handle)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.S_OK;
-        int hrLocal = HResults.S_OK;
-        ulong legacyHandle = 0;
+        => _legacyProcess is not null ? _legacyProcess.StartEnumModules(handle) : HResults.E_NOTIMPL;
 
-        try
-        {
-            if (handle is null)
-                throw new ArgumentNullException(nameof(handle));
-
-            *handle = 0;
-            if (_legacyProcess is not null)
-            {
-                hrLocal = _legacyProcess.StartEnumModules(&legacyHandle);
-            }
-
-            ILoader loader = _target.Contracts.Loader;
-            IEnumerable<Contracts.ModuleHandle> modules = loader.GetModuleHandles(
-                loader.GetAppDomain(),
-                AssemblyIterationFlags.IncludeLoaded | AssemblyIterationFlags.IncludeExecution);
-            ProcessEnum<Contracts.ModuleHandle> moduleEnum = new(modules, (nuint)legacyHandle);
-            *handle = (ulong)((IEnum<Contracts.ModuleHandle>)moduleEnum).GetHandle();
-            legacyHandle = 0;
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-        finally
-        {
-            if (_legacyProcess is not null && legacyHandle != 0)
-            {
-                _legacyProcess.EndEnumModules(legacyHandle);
-            }
-        }
-
-#if DEBUG
-        if (_legacyProcess is not null)
-        {
-            Debug.ValidateHResult(hr, hrLocal);
-        }
-#endif
-
-        return hr;
-    }
-
-    int IXCLRDataProcess.EnumModule(ulong* handle, DacComNullableByRef<IXCLRDataModule> mod)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.S_OK;
-        int hrLocal = HResults.S_OK;
-        try
-        {
-            if (handle is null)
-                throw new ArgumentNullException(nameof(handle));
-            if (*handle == 0)
-                return HResults.S_FALSE;
-            if (mod.IsNullRef)
-                throw new NullReferenceException();
-            GCHandle gcHandle = GCHandle.FromIntPtr((IntPtr)(*handle));
-            if (gcHandle.Target is not ProcessEnum<Contracts.ModuleHandle> modules)
-                throw new ArgumentException();
-
-            IXCLRDataModule? legacyModule = null;
-            if (_legacyProcess is not null)
-            {
-                ulong legacyHandle = (ulong)modules.LegacyHandle;
-                DacComNullableByRef<IXCLRDataModule> legacyModuleOut = new(isNullRef: false);
-                hrLocal = _legacyProcess.EnumModule(&legacyHandle, legacyModuleOut);
-                legacyModule = legacyModuleOut.Interface;
-                modules.LegacyHandle = (nuint)legacyHandle;
-            }
-
-            if (modules.Enumerator.MoveNext())
-            {
-                mod.Interface = new ClrDataModule(modules.Enumerator.Current.Address, _target, legacyModule, _apiLock);
-            }
-            else
-            {
-                hr = HResults.S_FALSE;
-            }
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-
-#if DEBUG
-        if (_legacyProcess is not null)
-        {
-            Debug.ValidateHResult(hr, hrLocal);
-        }
-#endif
-
-        return hr;
-    }
+    int IXCLRDataProcess.EnumModule(ulong* handle, /*IXCLRDataModule*/ void** mod)
+        => _legacyProcess is not null ? _legacyProcess.EnumModule(handle, mod) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.EndEnumModules(ulong handle)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        if (handle == 0)
-            return HResults.S_OK;
+        => _legacyProcess is not null ? _legacyProcess.EndEnumModules(handle) : HResults.E_NOTIMPL;
 
-        int hr = HResults.S_OK;
-        ProcessEnum<Contracts.ModuleHandle> modules;
-        try
-        {
-            GCHandle gcHandle = GCHandle.FromIntPtr((IntPtr)handle);
-            if (gcHandle.Target is not ProcessEnum<Contracts.ModuleHandle> modulesLocal)
-                throw new ArgumentException();
+    int IXCLRDataProcess.GetModuleByAddress(ClrDataAddress address, /*IXCLRDataModule*/ void** mod)
+        => _legacyProcess is not null ? _legacyProcess.GetModuleByAddress(address, mod) : HResults.E_NOTIMPL;
 
-            modules = modulesLocal;
-            ((IEnum<Contracts.ModuleHandle>)modules).Dispose();
-            gcHandle.Free();
-        }
-        catch (System.Exception ex)
-        {
-            return ex.HResult;
-        }
-
-        if (_legacyProcess is not null && modules.LegacyHandle != 0)
-        {
-            hr = _legacyProcess.EndEnumModules((ulong)modules.LegacyHandle);
-        }
-
-        return hr;
-    }
-
-    int IXCLRDataProcess.GetModuleByAddress(ClrDataAddress address, DacComNullableByRef<IXCLRDataModule> mod)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.S_FALSE;
-        int hrLocal = HResults.S_OK;
-        IXCLRDataModule? legacyModule = null;
-
-        if (_legacyProcess is not null)
-        {
-            DacComNullableByRef<IXCLRDataModule> legacyModuleOut = new(isNullRef: mod.IsNullRef);
-            hrLocal = _legacyProcess.GetModuleByAddress(address, legacyModuleOut);
-            legacyModule = legacyModuleOut.Interface;
-        }
-
-        try
-        {
-            if (mod.IsNullRef)
-                throw new NullReferenceException();
-
-            ILoader loader = _target.Contracts.Loader;
-            IEnumerable<Contracts.ModuleHandle> modules = loader.GetModuleHandles(
-                loader.GetAppDomain(),
-                AssemblyIterationFlags.IncludeLoaded | AssemblyIterationFlags.IncludeExecution);
-            foreach (Contracts.ModuleHandle module in modules)
-            {
-                if (!loader.TryGetLoadedImageContents(module, out TargetPointer baseAddress, out uint size, out _))
-                    continue;
-
-                ClrDataAddress imageBase = baseAddress.ToClrDataAddress(_target);
-                if (imageBase <= address && address - imageBase < size)
-                {
-                    mod.Interface = new ClrDataModule(module.Address, _target, legacyModule, _apiLock);
-                    hr = HResults.S_OK;
-                    break;
-                }
-            }
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-
-#if DEBUG
-        if (_legacyProcess is not null)
-        {
-            Debug.ValidateHResult(hr, hrLocal);
-        }
-#endif
-
-        return hr;
-    }
-
-    internal sealed class EnumMethodInstances : IEnum<MethodDescHandle>
+    internal sealed class EnumMethodInstances
     {
         private readonly Target _target;
         private readonly TargetPointer _mainMethodDesc;
@@ -797,8 +144,8 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
         private readonly ILoader _loader;
         private readonly IRuntimeTypeSystem _rts;
         private readonly ICodeVersions _cv;
-        public IEnumerator<MethodDescHandle> Enumerator { get; set; } = Enumerable.Empty<MethodDescHandle>().GetEnumerator();
-        public nuint LegacyHandle { get; set; } = 0;
+        public IEnumerator<MethodDescHandle> methodEnumerator = Enumerable.Empty<MethodDescHandle>().GetEnumerator();
+        public TargetPointer LegacyHandle { get; set; } = TargetPointer.Null;
 
         public EnumMethodInstances(Target target, TargetPointer methodDesc, TargetPointer appDomain)
         {
@@ -806,7 +153,8 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
             _mainMethodDesc = methodDesc;
             if (appDomain == TargetPointer.Null)
             {
-                _appDomain = _target.Contracts.Loader.GetAppDomain();
+                TargetPointer appDomainPointer = _target.ReadGlobalPointer(Constants.Globals.AppDomain);
+                _appDomain = _target.ReadPointer(appDomainPointer);
             }
             else
             {
@@ -826,7 +174,7 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
                 return HResults.S_FALSE;
             }
 
-            Enumerator = IterateMethodInstances().GetEnumerator();
+            methodEnumerator = IterateMethodInstances().GetEnumerator();
 
             return HResults.S_OK;
         }
@@ -841,7 +189,7 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
             }
         }
 
-        private IEnumerable<ITypeHandle> IterateTypeParams(Contracts.ModuleHandle moduleHandle)
+        private IEnumerable<Contracts.TypeHandle> IterateTypeParams(Contracts.ModuleHandle moduleHandle)
         {
             IEnumerable<TargetPointer> typeParams = _loader.GetAvailableTypeParams(moduleHandle);
 
@@ -888,7 +236,7 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
             }
 
             TargetPointer mtAddr = _rts.GetMethodTable(mainMD);
-            ITypeHandle mainMT = _rts.GetTypeHandle(mtAddr);
+            TypeHandle mainMT = _rts.GetTypeHandle(mtAddr);
             TargetPointer mainModule = _rts.GetModule(mainMT);
             uint mainMTToken = _rts.GetTypeDefToken(mainMT);
             uint mainMDToken = _rts.GetMethodToken(mainMD);
@@ -902,7 +250,7 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
                 {
                     foreach (MethodDescHandle methodDesc in IterateMethodInstantiations(moduleHandle))
                     {
-                        ITypeHandle methodTypeHandle = _rts.GetTypeHandle(_rts.GetMethodTable(methodDesc));
+                        TypeHandle methodTypeHandle = _rts.GetTypeHandle(_rts.GetMethodTable(methodDesc));
 
                         if (mainModule != _rts.GetModule(methodTypeHandle)) continue;
                         if (mainMDToken != _rts.GetMethodToken(methodDesc)) continue;
@@ -925,7 +273,7 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
                 {
                     if (HasClassInstantiation(mainMD))
                     {
-                        foreach (ITypeHandle typeParam in IterateTypeParams(moduleHandle))
+                        foreach (Contracts.TypeHandle typeParam in IterateTypeParams(moduleHandle))
                         {
                             uint typeParamToken = _rts.GetTypeDefToken(typeParam);
 
@@ -939,7 +287,7 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
                             if (mainModule != _rts.GetModule(typeParam)) continue;
 
                             TargetPointer cmt = _rts.GetCanonicalMethodTable(typeParam);
-                            ITypeHandle cmtHandle = _rts.GetTypeHandle(cmt);
+                            TypeHandle cmtHandle = _rts.GetTypeHandle(cmt);
 
                             TargetPointer methodDescAddr = _rts.GetMethodDescForSlot(cmtHandle, slotNum);
                             if (methodDescAddr == TargetPointer.Null) continue;
@@ -968,8 +316,8 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
             IRuntimeTypeSystem rts = _target.Contracts.RuntimeTypeSystem;
 
             TargetPointer mtAddr = rts.GetMethodTable(md);
-            ITypeHandle mt = rts.GetTypeHandle(mtAddr);
-            return rts.GetInstantiation(mt).Length > 0;
+            TypeHandle mt = rts.GetTypeHandle(mtAddr);
+            return !rts.GetInstantiation(mt).IsEmpty;
         }
 
         private bool HasMethodInstantiation(MethodDescHandle md)
@@ -977,31 +325,23 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
             IRuntimeTypeSystem rts = _target.Contracts.RuntimeTypeSystem;
 
             if (rts.IsGenericMethodDefinition(md)) return true;
-            return rts.GetGenericMethodInstantiation(md).Length > 0;
+            return !rts.GetGenericMethodInstantiation(md).IsEmpty;
         }
     }
 
-    int IXCLRDataProcess.StartEnumMethodInstancesByAddress(ClrDataAddress address, IXCLRDataAppDomain? appDomain, ulong* handle)
+    int IXCLRDataProcess.StartEnumMethodInstancesByAddress(ClrDataAddress address, /*IXCLRDataAppDomain*/ void* appDomain, ulong* handle)
     {
-        using Lock.Scope scope = _apiLock.EnterScope();
         int hr = HResults.S_FALSE;
         *handle = 0;
 
-        // Start the legacy enumeration to keep it in sync with the cDAC enumeration.
-        // EnumMethodInstanceByAddress passes the legacy method instance to ClrDataMethodInstance,
-        // which delegates some operations to it.
         ulong handleLocal = default;
+#if DEBUG
         int hrLocal = default;
-        IXCLRDataAppDomain? legacyAppDomain = appDomain;
-        if (appDomain is ClrDataAppDomain cdacAppDomain)
-        {
-            legacyAppDomain = cdacAppDomain.LegacyImpl;
-        }
-
         if (_legacyProcess is not null)
         {
-            hrLocal = _legacyProcess.StartEnumMethodInstancesByAddress(address, legacyAppDomain, &handleLocal);
+            hrLocal = _legacyProcess.StartEnumMethodInstancesByAddress(address, appDomain, &handleLocal);
         }
+#endif
 
         try
         {
@@ -1018,70 +358,53 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
                 eman.GetMethodDesc(cbh) is TargetPointer methodDesc)
             {
                 EnumMethodInstances emi = new(_target, methodDesc, TargetPointer.Null);
-                emi.LegacyHandle = (nuint)handleLocal;
+                emi.LegacyHandle = handleLocal;
 
+                GCHandle gcHandle = GCHandle.Alloc(emi);
+                *handle = (ulong)GCHandle.ToIntPtr(gcHandle).ToInt64();
                 hr = emi.Start();
-                if (hr == HResults.S_OK)
-                {
-                    *handle = (ulong)((IEnum<MethodDescHandle>)emi).GetHandle();
-                    // Legacy handle ownership transferred to emi — don't clean up below.
-                    handleLocal = default;
-                }
             }
         }
         catch (System.Exception ex)
         {
             hr = ex.HResult;
         }
-        finally
-        {
-            // The legacy enumeration is started eagerly (before the cDAC try block) so
-            // that EnumMethodInstanceByAddress can advance both enumerations in lockstep.
-            // If the cDAC side fails to produce an enum (exception, no code block found,
-            // or emi.Start() returns S_FALSE), the legacy handle would be orphaned because
-            // the caller receives *handle == 0 and has no way to call End. Clean it up here.
-            if (_legacyProcess is not null && handleLocal != default)
-            {
-                _legacyProcess.EndEnumMethodInstancesByAddress(handleLocal);
-            }
-        }
 
 #if DEBUG
         if (_legacyProcess is not null)
         {
-            Debug.ValidateHResult(hr, hrLocal);
+            Debug.Assert(hrLocal == hr, $"cDAC: {hr:x}, DAC: {hrLocal:x}");
         }
 #endif
         return hr;
     }
 
-    int IXCLRDataProcess.EnumMethodInstanceByAddress(ulong* handle, DacComNullableByRef<IXCLRDataMethodInstance> method)
+    int IXCLRDataProcess.EnumMethodInstanceByAddress(ulong* handle, out IXCLRDataMethodInstance? method)
     {
-        using Lock.Scope scope = _apiLock.EnterScope();
+        method = default;
         int hr = HResults.S_OK;
 
         GCHandle gcHandle = GCHandle.FromIntPtr((IntPtr)(*handle));
         if (gcHandle.Target is not EnumMethodInstances emi) return HResults.E_INVALIDARG;
 
-        // Advance the legacy enumeration to keep it in sync with the cDAC enumeration.
-        // The legacy method instance is passed to ClrDataMethodInstance for delegation.
         IXCLRDataMethodInstance? legacyMethod = null;
+
+#if DEBUG
         int hrLocal = default;
         if (_legacyProcess is not null)
         {
             ulong legacyHandle = emi.LegacyHandle;
-            DacComNullableByRef<IXCLRDataMethodInstance> legacyMethodOut = new(isNullRef: false);
-            hrLocal = _legacyProcess.EnumMethodInstanceByAddress(&legacyHandle, legacyMethodOut);
-            legacyMethod = legacyMethodOut.Interface;
-            emi.LegacyHandle = (nuint)legacyHandle;
+            hrLocal = _legacyProcess.EnumMethodInstanceByAddress(&legacyHandle, out legacyMethod);
+            emi.LegacyHandle = legacyHandle;
         }
+#endif
 
         try
         {
-            if (emi.Enumerator.MoveNext())
+            if (emi.methodEnumerator.MoveNext())
             {
-                MethodDescHandle methodDesc = emi.Enumerator.Current;
-                method.Interface = new ClrDataMethodInstance(_target, methodDesc, emi._appDomain, legacyMethod, _apiLock);
+                MethodDescHandle methodDesc = emi.methodEnumerator.Current;
+                method = new ClrDataMethodInstance(_target, methodDesc, emi._appDomain, legacyMethod);
             }
             else
             {
@@ -1096,7 +419,7 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
 #if DEBUG
         if (_legacyProcess is not null)
         {
-            Debug.ValidateHResult(hr, hrLocal);
+            Debug.Assert(hrLocal == hr, $"cDAC: {hr:x}, DAC: {hrLocal:x}");
         }
 #endif
 
@@ -1105,19 +428,20 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
 
     int IXCLRDataProcess.EndEnumMethodInstancesByAddress(ulong handle)
     {
-        using Lock.Scope scope = _apiLock.EnterScope();
         int hr = HResults.S_OK;
 
         GCHandle gcHandle = GCHandle.FromIntPtr((IntPtr)handle);
         if (gcHandle.Target is not EnumMethodInstances emi) return HResults.E_INVALIDARG;
         gcHandle.Free();
 
-        if (_legacyProcess != null && emi.LegacyHandle != 0)
+#if DEBUG
+        if (_legacyProcess != null && emi.LegacyHandle != TargetPointer.Null)
         {
             int hrLocal = _legacyProcess.EndEnumMethodInstancesByAddress(emi.LegacyHandle);
             if (hrLocal < 0)
                 return hrLocal;
         }
+#endif
 
         return hr;
     }
@@ -1125,433 +449,74 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
     int IXCLRDataProcess.GetDataByAddress(
         ClrDataAddress address,
         uint flags,
-        IXCLRDataAppDomain? appDomain,
-        IXCLRDataTask? tlsTask,
+        /*IXCLRDataAppDomain*/ void* appDomain,
+        /*IXCLRDataTask*/ void* tlsTask,
         uint bufLen,
         uint* nameLen,
         char* nameBuf,
-        DacComNullableByRef<IXCLRDataValue> value,
+        /*IXCLRDataValue*/ void** value,
         ClrDataAddress* displacement)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = flags == 0 ? HResults.E_NOTIMPL : HResults.E_INVALIDARG;
+        => _legacyProcess is not null ? _legacyProcess.GetDataByAddress(address, flags, appDomain, tlsTask, bufLen, nameLen, nameBuf, value, displacement) : HResults.E_NOTIMPL;
 
-#if DEBUG
-        if (_legacyProcess is not null)
-        {
-            int hrLocal = _legacyProcess.GetDataByAddress(address, flags, appDomain, tlsTask, bufLen, nameLen, nameBuf, value, displacement);
-            Debug.ValidateHResult(hr, hrLocal);
-        }
-#endif
+    int IXCLRDataProcess.GetExceptionStateByExceptionRecord(/*struct EXCEPTION_RECORD64*/ void* record, /*IXCLRDataExceptionState*/ void** exState)
+        => _legacyProcess is not null ? _legacyProcess.GetExceptionStateByExceptionRecord(record, exState) : HResults.E_NOTIMPL;
 
-        return hr;
-    }
-
-    int IXCLRDataProcess.GetExceptionStateByExceptionRecord(EXCEPTION_RECORD64* record, DacComNullableByRef<IXCLRDataExceptionState> exState)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-
-        return HResults.E_NOTIMPL;
-    }
-
-    int IXCLRDataProcess.TranslateExceptionRecordToNotification(EXCEPTION_RECORD64* record, [MarshalUsing(typeof(UniqueComInterfaceMarshaller<IXCLRDataExceptionNotification>))] IXCLRDataExceptionNotification notify)
-    {
-        // notify must be unique so that we can cast it to ComObject, call FinalRelease on it, and deterministically release.
-        // This is required because notify is a stack allocated object created by the caller.
-        // If the object goes out of scope before we dispose and finalize it, we can crash during GC.
-        ComObject comObj = (ComObject)(object)notify;
-
-        int hr = HResults.S_OK;
-        try
-        {
-            Action? callback = null;
-            {
-                using Lock.Scope scope = _apiLock.EnterScope();
-
-                // External notification code can call back into the DAC, so prepare everything
-                // needed for the callback while locked and invoke it after releasing the lock.
-                Span<TargetPointer> exInfo = stackalloc TargetPointer[EXCEPTION_RECORD64.ExceptionMaximumParameters];
-                for (int i = 0; i < EXCEPTION_RECORD64.ExceptionMaximumParameters; i++)
-                    exInfo[i] = new TargetPointer(record->ExceptionInformation[i]);
-
-                INotifications notifications = _target.Contracts.Notifications;
-                if (!notifications.TryParseNotification(exInfo, out NotificationData? notification))
-                    return HResults.E_INVALIDARG;
-
-                switch (notification)
-                {
-                    case ModuleLoadNotificationData moduleLoad:
-                    {
-                        IXCLRDataModule? legacyModule = null;
-                        if (_legacyImpl is not null)
-                        {
-                            DacComNullableByRef<IXCLRDataModule> legacyModuleOut = new(isNullRef: false);
-                            _legacyImpl.GetModule(moduleLoad.ModuleAddress.ToClrDataAddress(_target), legacyModuleOut);
-                            legacyModule = legacyModuleOut.Interface;
-                        }
-
-                        ClrDataModule module = new(moduleLoad.ModuleAddress, _target, legacyModule, _apiLock);
-                        callback = () => notify.OnModuleLoaded(module);
-                        break;
-                    }
-
-                    case ModuleUnloadNotificationData moduleUnload:
-                    {
-                        IXCLRDataModule? legacyModule = null;
-                        if (_legacyImpl is not null)
-                        {
-                            DacComNullableByRef<IXCLRDataModule> legacyModuleOut = new(isNullRef: false);
-                            _legacyImpl.GetModule(moduleUnload.ModuleAddress.ToClrDataAddress(_target), legacyModuleOut);
-                            legacyModule = legacyModuleOut.Interface;
-                        }
-
-                        ClrDataModule module = new(moduleUnload.ModuleAddress, _target, legacyModule, _apiLock);
-                        callback = () => notify.OnModuleUnloaded(module);
-                        break;
-                    }
-
-                    case JitNotificationData jit:
-                    {
-                        TargetPointer appDomain = _target.Contracts.Loader.GetAppDomain();
-
-                        IRuntimeTypeSystem rts = _target.Contracts.RuntimeTypeSystem;
-                        MethodDescHandle methodDesc = rts.GetMethodDescHandle(jit.MethodDescAddress);
-
-                        ClrDataMethodInstance methodInst = new(_target, methodDesc, appDomain, null, _apiLock);
-                        ClrDataAddress nativeCodeAddress = jit.NativeCodeAddress.ToClrDataAddress(_target);
-                        if (notify is IXCLRDataExceptionNotification5 notify5)
-                        {
-                            callback = () =>
-                            {
-                                notify.OnCodeGenerated(methodInst);
-                                notify5.OnCodeGenerated2(methodInst, nativeCodeAddress);
-                            };
-                        }
-                        else
-                        {
-                            callback = () => notify.OnCodeGenerated(methodInst);
-                        }
-                        break;
-                    }
-
-                    case ExceptionNotificationData exception:
-                    {
-                        if (notify is IXCLRDataExceptionNotification2 notify2)
-                        {
-                            IThread thread = _target.Contracts.Thread;
-                            Contracts.ThreadData threadData = thread.GetThreadData(exception.ThreadAddress);
-                            TargetPointer thrownObjectHandle = thread.GetCurrentExceptionHandle(exception.ThreadAddress);
-                            ClrDataExceptionState exceptionState = new(
-                                _target,
-                                exception.ThreadAddress,
-                                (uint)CLRDataExceptionStateFlag.CLRDATA_EXCEPTION_DEFAULT,
-                                TargetPointer.Null,
-                                thrownObjectHandle,
-                                threadData.FirstNestedException,
-                                null,
-                                _apiLock);
-                            callback = () => notify2.OnException(exceptionState);
-                        }
-                        else
-                            return HResults.E_INVALIDARG;
-                        break;
-                    }
-
-                    case GcNotificationData gc:
-                    {
-                        if (gc.IsSupportedEvent)
-                        {
-                            if (notify is IXCLRDataExceptionNotification3 notify3)
-                            {
-                                GcEvtArgs args = new()
-                                {
-                                    type = gc.EventData.EventType switch
-                                    {
-                                        GcEventType.MarkEnd => GcEvtArgs.GcEvt_t.GC_MARK_END,
-                                        _ => GcEvtArgs.GcEvt_t.GC_EVENT_TYPE_MAX,
-                                    },
-                                    condemnedGeneration = gc.EventData.CondemnedGeneration,
-                                };
-                                callback = () => notify3.OnGcEvent(args);
-                            }
-                            hr = HResults.S_OK;
-                        }
-                        else
-                        {
-                            hr = HResults.E_FAIL;
-                        }
-                        break;
-                    }
-
-                    case ExceptionCatcherEnterNotificationData exceptionCatcherEnter:
-                    {
-                        if (notify is IXCLRDataExceptionNotification4 notify4)
-                        {
-                            TargetPointer appDomain = _target.Contracts.Loader.GetAppDomain();
-                            IRuntimeTypeSystem rts = _target.Contracts.RuntimeTypeSystem;
-                            MethodDescHandle methodDesc = rts.GetMethodDescHandle(exceptionCatcherEnter.MethodDescAddress);
-                            ClrDataMethodInstance methodInst = new(_target, methodDesc, appDomain, null, _apiLock);
-                            uint nativeOffset = exceptionCatcherEnter.NativeOffset;
-                            callback = () => notify4.ExceptionCatcherEnter(methodInst, nativeOffset);
-                        }
-                        break;
-                    }
-                }
-            }
-
-            callback?.Invoke();
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-        finally
-        {
-            comObj.FinalRelease();
-        }
-        return hr;
-    }
+    int IXCLRDataProcess.TranslateExceptionRecordToNotification(/*struct EXCEPTION_RECORD64*/ void* record, /*IXCLRDataExceptionNotification*/ void* notify)
+        => _legacyProcess is not null ? _legacyProcess.TranslateExceptionRecordToNotification(record, notify) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.Request(uint reqCode, uint inBufferSize, byte* inBuffer, uint outBufferSize, byte* outBuffer)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.E_INVALIDARG;
-
-        if (reqCode == (uint)CLRDataGeneralRequest.CLRDATA_REQUEST_REVISION)
-        {
-            if (inBufferSize == 0 && inBuffer is null && outBufferSize == sizeof(uint) && outBuffer is not null)
-            {
-                // Revision 10: Fixed DefaultCOMImpl::Release() to use pre-decrement (--mRef).
-                // Consumers that previously compensated for the broken ref counting (e.g., ClrMD)
-                // should check this revision to avoid double-freeing.
-                *(uint*)outBuffer = 10;
-                hr = HResults.S_OK;
-            }
-        }
-        else if (StressTestApi.CdacStressApi.IsStressRequest(reqCode))
-        {
-            hr = StressTestApi.CdacStressApi.HandleRequest(_target, reqCode, inBufferSize, inBuffer, outBufferSize, outBuffer);
-        }
-        else
-        {
-            return LegacyFallbackHelper.CanFallback() && _legacyProcess is not null ? _legacyProcess.Request(reqCode, inBufferSize, inBuffer, outBufferSize, outBuffer) : HResults.E_NOTIMPL;
-        }
-#if DEBUG
-        // Private DACSTRESSPRIV_REQUEST_* opcodes are cDAC-only and must NOT be
-        // forwarded to the legacy DAC.
-        if (_legacyProcess is not null && !StressTestApi.CdacStressApi.IsStressRequest(reqCode))
-        {
-            byte[] localBuffer = new byte[(int)outBufferSize];
-            fixed (byte* localOutBuffer = localBuffer)
-            {
-                int hrLocal = _legacyProcess.Request(reqCode, inBufferSize, inBuffer, outBufferSize, localOutBuffer);
-                Debug.ValidateHResult(hr, hrLocal);
-                if (hr == HResults.S_OK && reqCode == (uint)CLRDataGeneralRequest.CLRDATA_REQUEST_REVISION)
-                {
-                    Debug.Assert(outBufferSize == sizeof(uint) && outBuffer is not null);
-                    uint legacyRevision = *(uint*)localOutBuffer;
-                    uint revision = *(uint*)outBuffer;
-                    Debug.Assert(revision == legacyRevision);
-                }
-            }
-        }
-#endif
-        return hr;
-    }
+        => _legacyProcess is not null ? _legacyProcess.Request(reqCode, inBufferSize, inBuffer, outBufferSize, outBuffer) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.CreateMemoryValue(
-        IXCLRDataAppDomain? appDomain,
-        IXCLRDataTask? tlsTask,
-        IXCLRDataTypeInstance? type,
+        /*IXCLRDataAppDomain*/ void* appDomain,
+        /*IXCLRDataTask*/ void* tlsTask,
+        /*IXCLRDataTypeInstance*/ void* type,
         ClrDataAddress addr,
-        DacComNullableByRef<IXCLRDataValue> value)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
+        /*IXCLRDataValue*/ void** value)
+        => _legacyProcess is not null ? _legacyProcess.CreateMemoryValue(appDomain, tlsTask, type, addr, value) : HResults.E_NOTIMPL;
 
-        return HResults.E_NOTIMPL;
-    }
+    int IXCLRDataProcess.SetAllTypeNotifications(/*IXCLRDataModule*/ void* mod, uint flags)
+        => _legacyProcess is not null ? _legacyProcess.SetAllTypeNotifications(mod, flags) : HResults.E_NOTIMPL;
 
-    int IXCLRDataProcess.SetAllTypeNotifications(IXCLRDataModule? mod, uint flags)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-
-        return HResults.E_NOTIMPL;
-    }
-
-    int IXCLRDataProcess.SetAllCodeNotifications(IXCLRDataModule? mod, uint flags)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.S_OK;
-        try
-        {
-            if (!CodeNotificationFlagsConverter.IsValid(flags))
-                throw new ArgumentException("Invalid code notification flags");
-
-            TargetPointer moduleAddr = TargetPointer.Null;
-            if (mod is not null)
-            {
-                if (mod is not ClrDataModule cdm)
-                    throw new ArgumentException();
-                moduleAddr = cdm.Address;
-            }
-
-            _target.Contracts.CodeNotifications.SetAllCodeNotifications(moduleAddr, CodeNotificationFlagsConverter.FromCom(flags));
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-
-        // No #if DEBUG validation: SetAllCodeNotifications is a write operation.
-        // Both the cDAC and legacy DAC independently write to g_pNotificationTable.
-
-        return hr;
-    }
+    int IXCLRDataProcess.SetAllCodeNotifications(/*IXCLRDataModule*/ void* mod, uint flags)
+        => _legacyProcess is not null ? _legacyProcess.SetAllCodeNotifications(mod, flags) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.GetTypeNotifications(
         uint numTokens,
         /*IXCLRDataModule*/ void** mods,
-        IXCLRDataModule? singleMod,
-        [In, MarshalUsing(CountElementName = nameof(numTokens))] /*mdTypeDef*/ uint[]? tokens,
-        [In, Out, MarshalUsing(CountElementName = nameof(numTokens))] uint[]? flags)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-
-        return HResults.E_NOTIMPL;
-    }
+        /*IXCLRDataModule*/ void* singleMod,
+        [In, MarshalUsing(CountElementName = nameof(numTokens))] /*mdTypeDef*/ uint[] tokens,
+        [In, Out, MarshalUsing(CountElementName = nameof(numTokens))] uint[] flags)
+        => _legacyProcess is not null ? _legacyProcess.GetTypeNotifications(numTokens, mods, singleMod, tokens, flags) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.SetTypeNotifications(
         uint numTokens,
         /*IXCLRDataModule*/ void** mods,
-        IXCLRDataModule? singleMod,
-        [In, MarshalUsing(CountElementName = nameof(numTokens))] /*mdTypeDef*/ uint[]? tokens,
-        [In, MarshalUsing(CountElementName = nameof(numTokens))] uint[]? flags,
+        /*IXCLRDataModule*/ void* singleMod,
+        [In, MarshalUsing(CountElementName = nameof(numTokens))] /*mdTypeDef*/ uint[] tokens,
+        [In, MarshalUsing(CountElementName = nameof(numTokens))] uint[] flags,
         uint singleFlags)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-
-        return HResults.E_NOTIMPL;
-    }
+        => _legacyProcess is not null ? _legacyProcess.SetTypeNotifications(numTokens, mods, singleMod, tokens, flags, singleFlags) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.GetCodeNotifications(
         uint numTokens,
         /*IXCLRDataModule*/ void** mods,
-        IXCLRDataModule? singleMod,
-        [In, MarshalUsing(CountElementName = nameof(numTokens))] /*mdMethodDef*/ uint[]? tokens,
-        [In, Out, MarshalUsing(CountElementName = nameof(numTokens))] uint[]? flags)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.S_OK;
-        ICodeNotifications codeNotif = _target.Contracts.CodeNotifications;
-
-        try
-        {
-            // Match legacy DAC (daccess.cpp ClrDataAccess::GetCodeNotifications):
-            // tokens and flags are both required; exactly one of mods/singleMod must be non-null.
-            if (tokens is null || flags is null ||
-                (mods is null && singleMod is null) ||
-                (mods is not null && singleMod is not null))
-                throw new ArgumentException();
-
-            TargetPointer moduleAddr = TargetPointer.Null;
-            if (singleMod is not null)
-            {
-                if (singleMod is not ClrDataModule singleCdm)
-                    throw new ArgumentException();
-                moduleAddr = singleCdm.Address;
-            }
-
-            for (uint i = 0; i < numTokens; i++)
-            {
-                if (singleMod is null)
-                    moduleAddr = GetModuleAddress(mods[i]);
-
-                flags[i] = CodeNotificationFlagsConverter.ToCom(codeNotif.GetCodeNotification(moduleAddr, tokens[i]));
-            }
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-
-        // No #if DEBUG validation: GetCodeNotifications is a read, but both cDAC and
-        // legacy DAC allocate the table on-demand when called, which would cause
-        // dual-allocation. Validation is safe at a higher layer when a dump is used.
-
-        return hr;
-    }
+        /*IXCLRDataModule*/ void* singleMod,
+        [In, MarshalUsing(CountElementName = nameof(numTokens))] /*mdMethodDef*/ uint[] tokens,
+        [In, Out, MarshalUsing(CountElementName = nameof(numTokens))] uint[] flags)
+        => _legacyProcess is not null ? _legacyProcess.GetCodeNotifications(numTokens, mods, singleMod, tokens, flags) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.SetCodeNotifications(
         uint numTokens,
         /*IXCLRDataModule*/ void** mods,
-        IXCLRDataModule? singleMod,
-        [In, MarshalUsing(CountElementName = nameof(numTokens))] /*mdMethodDef */ uint[]? tokens,
-        [In, MarshalUsing(CountElementName = nameof(numTokens))] uint[]? flags,
+        /*IXCLRDataModule*/ void* singleMod,
+        [In, MarshalUsing(CountElementName = nameof(numTokens))] /*mdMethodDef */ uint[] tokens,
+        [In, MarshalUsing(CountElementName = nameof(numTokens))] uint[] flags,
         uint singleFlags)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        // Behavior difference from the legacy DAC: the legacy DAC performs an upfront
-        // capacity check (numTokens > table size returns E_OUTOFMEMORY with no writes
-        // performed). The cDAC's CodeNotifications contract does not expose a capacity
-        // check, so this batch wrapper writes entries one at a time. If the in-target
-        // table fills up part-way through, entries written before the overflow remain
-        // set and the first failing per-entry SetCodeNotification surfaces a COMException
-        // with HResult == E_FAIL, which is mapped to the returned hr below. Callers that
-        // depend on atomic batch semantics should size their batches conservatively.
-        int hr = HResults.S_OK;
-
-        try
-        {
-            if (tokens is null ||
-                (mods is null && singleMod is null) ||
-                (mods is not null && singleMod is not null))
-                throw new ArgumentException();
-
-            // Validate flags.
-            if (flags is not null)
-            {
-                for (uint check = 0; check < numTokens; check++)
-                {
-                    if (!CodeNotificationFlagsConverter.IsValid(flags[check]))
-                        throw new ArgumentException("Invalid code notification flags");
-                }
-            }
-            else if (!CodeNotificationFlagsConverter.IsValid(singleFlags))
-            {
-                throw new ArgumentException("Invalid code notification flags");
-            }
-
-            TargetPointer moduleAddr = TargetPointer.Null;
-            if (singleMod is not null)
-            {
-                if (singleMod is not ClrDataModule singleCdm)
-                    throw new ArgumentException();
-                moduleAddr = singleCdm.Address;
-            }
-
-            for (uint i = 0; i < numTokens; i++)
-            {
-                if (singleMod is null)
-                    moduleAddr = GetModuleAddress(mods[i]);
-
-                uint f = flags is not null ? flags[i] : singleFlags;
-                _target.Contracts.CodeNotifications.SetCodeNotification(moduleAddr, tokens[i], CodeNotificationFlagsConverter.FromCom(f));
-            }
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-
-        // No #if DEBUG validation: SetCodeNotifications is a write operation.
-        // Both the cDAC and legacy DAC independently write to g_pNotificationTable.
-
-        return hr;
-    }
+        => _legacyProcess is not null ? _legacyProcess.SetCodeNotifications(numTokens, mods, singleMod, tokens, flags, singleFlags) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.GetOtherNotificationFlags(uint* flags)
     {
-        using Lock.Scope scope = _apiLock.EnterScope();
         int hr = HResults.S_OK;
         try
         {
@@ -1566,7 +531,7 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
         {
             uint flagsLocal;
             int hrLocal = _legacyProcess.GetOtherNotificationFlags(&flagsLocal);
-            Debug.ValidateHResult(hr, hrLocal);
+            Debug.Assert(hrLocal == hr, $"cDAC: {hr:x}, DAC: {hrLocal:x}");
             Debug.Assert(*flags == flagsLocal);
         }
 #endif
@@ -1574,7 +539,6 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
     }
     int IXCLRDataProcess.SetOtherNotificationFlags(uint flags)
     {
-        using Lock.Scope scope = _apiLock.EnterScope();
         int hr = HResults.S_OK;
         try
         {
@@ -1612,7 +576,7 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
             {
                 hrLocal = ex.HResult;
             }
-            Debug.ValidateHResult(hr, hrLocal);
+            Debug.Assert(hrLocal == hr, $"cDAC: {hr:x}, DAC: {hrLocal:x}");
             if (hr == HResults.S_OK)
             {
                 Debug.Assert(flags == flagsLocal);
@@ -1625,197 +589,13 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
     }
 
     int IXCLRDataProcess.StartEnumMethodDefinitionsByAddress(ClrDataAddress address, ulong* handle)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.S_FALSE;
-        int hrLocal = HResults.S_OK;
-        ulong legacyHandle = 0;
-        if (handle is null)
-            return HResults.E_POINTER;
+        => _legacyProcess is not null ? _legacyProcess.StartEnumMethodDefinitionsByAddress(address, handle) : HResults.E_NOTIMPL;
 
-        try
-        {
-            *handle = 0;
-            if (_legacyProcess is not null)
-            {
-                hrLocal = _legacyProcess.StartEnumMethodDefinitionsByAddress(address, &legacyHandle);
-            }
-
-            ILoader loader = _target.Contracts.Loader;
-            IEnumerable<Contracts.ModuleHandle> modules = loader.GetModuleHandles(
-                loader.GetAppDomain(),
-                AssemblyIterationFlags.IncludeLoaded | AssemblyIterationFlags.IncludeExecution);
-            foreach (Contracts.ModuleHandle module in modules)
-            {
-                if (!loader.TryGetLoadedImageContents(module, out TargetPointer baseAddress, out uint size, out _))
-                    continue;
-
-                ClrDataAddress imageBase = baseAddress.ToClrDataAddress(_target);
-                if (imageBase > address || address - imageBase >= size)
-                    continue;
-
-                MetadataReader reader = _target.Contracts.EcmaMetadata.GetMetadata(module)
-                    ?? throw new InvalidOperationException($"Failed to get metadata reader for module {module.Address}");
-                ProcessEnum<MethodDefinitionInfo> methodDefinitions = new(
-                    EnumerateMethodDefinitionsByAddress(loader, module, reader, address),
-                    (nuint)legacyHandle);
-                *handle = (ulong)((IEnum<MethodDefinitionInfo>)methodDefinitions).GetHandle();
-                legacyHandle = 0;
-                hr = HResults.S_OK;
-                break;
-            }
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-        finally
-        {
-            if (_legacyProcess is not null && legacyHandle != 0)
-            {
-                _legacyProcess.EndEnumMethodDefinitionsByAddress(legacyHandle);
-            }
-        }
-
-#if DEBUG
-        if (_legacyProcess is not null)
-        {
-            Debug.ValidateHResult(hr, hrLocal);
-        }
-#endif
-
-        return hr;
-    }
-
-    int IXCLRDataProcess.EnumMethodDefinitionByAddress(ulong* handle, DacComNullableByRef<IXCLRDataMethodDefinition> method)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        ProcessEnum<MethodDefinitionInfo> methodDefinitions;
-        try
-        {
-            if (handle is null)
-                throw new ArgumentNullException(nameof(handle));
-            if (*handle == 0)
-                return HResults.S_FALSE;
-            if (method.IsNullRef)
-                throw new NullReferenceException();
-
-            GCHandle gcHandle = GCHandle.FromIntPtr((IntPtr)(*handle));
-            if (gcHandle.Target is not ProcessEnum<MethodDefinitionInfo> methodDefinitionsLocal)
-                throw new ArgumentException("Invalid enumeration handle", nameof(handle));
-
-            methodDefinitions = methodDefinitionsLocal;
-        }
-        catch (System.Exception ex)
-        {
-            return ex.HResult;
-        }
-
-        IXCLRDataMethodDefinition? legacyMethod = null;
-        int hrLocal = HResults.S_OK;
-        if (_legacyProcess is not null)
-        {
-            ulong legacyHandle = (ulong)methodDefinitions.LegacyHandle;
-            DacComNullableByRef<IXCLRDataMethodDefinition> legacyMethodOut = new(isNullRef: false);
-            hrLocal = _legacyProcess.EnumMethodDefinitionByAddress(&legacyHandle, legacyMethodOut);
-            legacyMethod = legacyMethodOut.Interface;
-            methodDefinitions.LegacyHandle = (nuint)legacyHandle;
-        }
-
-        int hr = HResults.S_OK;
-        try
-        {
-            if (methodDefinitions.Enumerator.MoveNext())
-            {
-                MethodDefinitionInfo methodDefinition = methodDefinitions.Enumerator.Current;
-                method.Interface = new ClrDataMethodDefinition(
-                    _target,
-                    methodDefinition.Module,
-                    methodDefinition.Token,
-                    legacyMethod,
-                    _apiLock);
-            }
-            else
-            {
-                hr = HResults.S_FALSE;
-            }
-        }
-        catch (System.Exception ex)
-        {
-            hr = ex.HResult;
-        }
-
-#if DEBUG
-        if (_legacyProcess is not null)
-        {
-            Debug.ValidateHResult(hr, hrLocal);
-        }
-#endif
-
-        return hr;
-    }
+    int IXCLRDataProcess.EnumMethodDefinitionByAddress(ulong* handle, /*IXCLRDataMethodDefinition*/ void** method)
+        => _legacyProcess is not null ? _legacyProcess.EnumMethodDefinitionByAddress(handle, method) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.EndEnumMethodDefinitionsByAddress(ulong handle)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-        int hr = HResults.S_OK;
-        ProcessEnum<MethodDefinitionInfo> methodDefinitions;
-        try
-        {
-            if (handle == 0)
-                throw new ArgumentException("Invalid enumeration handle", nameof(handle));
-
-            GCHandle gcHandle = GCHandle.FromIntPtr((IntPtr)handle);
-            if (gcHandle.Target is not ProcessEnum<MethodDefinitionInfo> methodDefinitionsLocal)
-                throw new ArgumentException("Invalid enumeration handle", nameof(handle));
-
-            methodDefinitions = methodDefinitionsLocal;
-            ((IEnum<MethodDefinitionInfo>)methodDefinitions).Dispose();
-            gcHandle.Free();
-        }
-        catch (System.Exception ex)
-        {
-            return ex.HResult;
-        }
-
-        if (_legacyProcess is not null && methodDefinitions.LegacyHandle != 0)
-        {
-            int hrLocal = _legacyProcess.EndEnumMethodDefinitionsByAddress((ulong)methodDefinitions.LegacyHandle);
-#if DEBUG
-            Debug.ValidateHResult(hr, hrLocal);
-#endif
-            if (hrLocal < 0)
-                hr = hrLocal;
-        }
-
-        return hr;
-    }
-
-    private IEnumerable<MethodDefinitionInfo> EnumerateMethodDefinitionsByAddress(
-        ILoader loader,
-        Contracts.ModuleHandle module,
-        MetadataReader reader,
-        ClrDataAddress address)
-    {
-        TargetPointer peAssembly = loader.GetPEAssembly(module);
-        foreach (MethodDefinitionHandle methodHandle in reader.MethodDefinitions)
-        {
-            MethodDefinition methodDefinition = reader.GetMethodDefinition(methodHandle);
-            if (methodDefinition.RelativeVirtualAddress == 0)
-                continue;
-
-            TargetPointer ilHeader = loader.GetILAddr(peAssembly, methodDefinition.RelativeVirtualAddress);
-            int headerSize = HeaderReaderHelpers.GetHeaderSize(_target, ilHeader);
-            int codeSize = HeaderReaderHelpers.GetCodeSize(_target, ilHeader);
-            ClrDataAddress codeStart = new TargetPointer(ilHeader + (uint)headerSize).ToClrDataAddress(_target);
-            if (codeStart <= address && address - codeStart < (uint)codeSize)
-            {
-                yield return new MethodDefinitionInfo(
-                    module.Address,
-                    (uint)MetadataTokens.GetToken(methodHandle));
-            }
-        }
-    }
+        => _legacyProcess is not null ? _legacyProcess.EndEnumMethodDefinitionsByAddress(handle) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.FollowStub(
         uint inFlags,
@@ -1824,25 +604,17 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
         ClrDataAddress* outAddr,
         /*struct CLRDATA_FOLLOW_STUB_BUFFER*/ void* outBuffer,
         uint* outFlags)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-
-        return LegacyFallbackHelper.CanFallback() && _legacyProcess is not null ? _legacyProcess.FollowStub(inFlags, inAddr, inBuffer, outAddr, outBuffer, outFlags) : HResults.E_NOTIMPL;
-    }
+        => _legacyProcess is not null ? _legacyProcess.FollowStub(inFlags, inAddr, inBuffer, outAddr, outBuffer, outFlags) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.FollowStub2(
-        IXCLRDataTask? task,
+        /*IXCLRDataTask*/ void* task,
         uint inFlags,
         ClrDataAddress inAddr,
         /*struct CLRDATA_FOLLOW_STUB_BUFFER*/ void* inBuffer,
         ClrDataAddress* outAddr,
         /*struct CLRDATA_FOLLOW_STUB_BUFFER*/ void* outBuffer,
         uint* outFlags)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-
-        return LegacyFallbackHelper.CanFallback() && _legacyProcess is not null ? _legacyProcess.FollowStub2(task, inFlags, inAddr, inBuffer, outAddr, outBuffer, outFlags) : HResults.E_NOTIMPL;
-    }
+        => _legacyProcess is not null ? _legacyProcess.FollowStub2(task, inFlags, inAddr, inBuffer, outAddr, outBuffer, outFlags) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess.DumpNativeImage(
         ClrDataAddress loadedBase,
@@ -1850,21 +622,16 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
         /*IXCLRDataDisplay*/ void* display,
         /*IXCLRLibrarySupport*/ void* libSupport,
         /*IXCLRDisassemblySupport*/ void* dis)
-    {
-        using Lock.Scope scope = _apiLock.EnterScope();
-
-        return HResults.E_NOTIMPL;
-    }
+        => _legacyProcess is not null ? _legacyProcess.DumpNativeImage(loadedBase, name, display, libSupport, dis) : HResults.E_NOTIMPL;
 
     int IXCLRDataProcess2.GetGcNotification(GcEvtArgs* gcEvtArgs)
     {
-        using Lock.Scope scope = _apiLock.EnterScope();
         int hr = HResults.E_NOTIMPL;
 #if DEBUG
         if (_legacyProcess2 is not null)
         {
             int hrLocal = _legacyProcess2.GetGcNotification(gcEvtArgs);
-            Debug.ValidateHResult(hr, hrLocal);
+            Debug.Assert(hrLocal == hr, $"cDAC: {hr:x}, DAC: {hrLocal:x}");
         }
 #endif
         return hr;
@@ -1872,7 +639,6 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
 
     int IXCLRDataProcess2.SetGcNotification(GcEvtArgs gcEvtArgs)
     {
-        using Lock.Scope scope = _apiLock.EnterScope();
         int hr = HResults.S_OK;
         try
         {
@@ -1889,19 +655,9 @@ public sealed unsafe partial class SOSDacImpl : IXCLRDataProcess, IXCLRDataProce
         {
             // update the DAC cache
             int hrLocal = _legacyProcess2.SetGcNotification(gcEvtArgs);
-            Debug.ValidateHResult(hr, hrLocal);
+            Debug.Assert(hrLocal == hr, $"cDAC: {hr:x}, DAC: {hrLocal:x}");
         }
 #endif
         return hr;
-    }
-
-    private static TargetPointer GetModuleAddress(void* comModulePtr)
-    {
-        if (System.Runtime.InteropServices.ComWrappers.TryGetObject((nint)comModulePtr, out object? obj))
-        {
-            if (obj is ClrDataModule cdm)
-                return cdm.Address;
-        }
-        throw new ArgumentException("Could not resolve module address from COM pointer");
     }
 }

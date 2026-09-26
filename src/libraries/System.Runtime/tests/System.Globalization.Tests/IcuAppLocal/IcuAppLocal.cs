@@ -16,7 +16,7 @@ namespace System.Globalization.Tests
                                                            !PlatformDetection.IsAlpine && !PlatformDetection.IsLinuxBionic));
 
 
-        [ConditionalFact(typeof(IcuAppLocalTests), nameof(SupportsIcuPackageDownload))]
+        [ConditionalFact(nameof(SupportsIcuPackageDownload))]
         public void TestIcuAppLocal()
         {
             // We define this switch dynamically during the runtime using RemoteExecutor.

@@ -7,7 +7,7 @@ using Xunit;
 set DOTNET_JitNoRegLoc=1
 set DOTNET_JitSched=2
 */
-namespace b50042
+namespace Test
 {
     using System;
 
@@ -21,7 +21,6 @@ namespace b50042
             return L;
         }
 
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

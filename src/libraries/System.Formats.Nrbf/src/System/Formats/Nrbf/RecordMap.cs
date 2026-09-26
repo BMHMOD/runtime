@@ -44,10 +44,19 @@ internal sealed class RecordMap : IReadOnlyDictionary<SerializationRecordId, Ser
             }
             else
             {
-                if (!_map.TryAdd(record.Id, record))
+#if NET
+                if (_map.TryAdd(record.Id, record))
                 {
-                    throw new SerializationException(SR.Format(SR.Serialization_DuplicateSerializationRecordId, record.Id._id));
+                    return;
                 }
+#else
+                if (!_map.ContainsKey(record.Id))
+                {
+                    _map.Add(record.Id, record);
+                    return;
+                }
+#endif
+                throw new SerializationException(SR.Format(SR.Serialization_DuplicateSerializationRecordId, record.Id._id));
             }
         }
     }

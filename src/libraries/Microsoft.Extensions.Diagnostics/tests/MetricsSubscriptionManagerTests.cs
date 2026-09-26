@@ -23,7 +23,7 @@ namespace Microsoft.Extensions.Diagnostics.Tests
             var serviceProvider = serviceCollection.BuildServiceProvider();
 
             // Make sure the subscription manager is started.
-            serviceProvider.GetRequiredService<IAsyncStartupValidator>().ValidateAsync().GetAwaiter().GetResult();
+            serviceProvider.GetRequiredService<IStartupValidator>().Validate();
 
             var listeners = serviceProvider.GetRequiredService<IEnumerable<IMetricsListener>>();
 

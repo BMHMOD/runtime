@@ -73,8 +73,6 @@ namespace System.Formats.Cbor
                 throw new InvalidOperationException(SR.Format(SR.Cbor_ConformanceMode_IndefiniteLengthItemsNotSupported, ConformanceMode));
             }
 
-            EnsureMaxDepthNotExceeded();
-
             if (ConvertIndefiniteLengthEncodings)
             {
                 // Writer does not allow indefinite-length encodings.
@@ -168,8 +166,6 @@ namespace System.Formats.Cbor
             {
                 throw new InvalidOperationException(SR.Format(SR.Cbor_ConformanceMode_IndefiniteLengthItemsNotSupported, ConformanceMode));
             }
-
-            EnsureMaxDepthNotExceeded();
 
             if (ConvertIndefiniteLengthEncodings)
             {

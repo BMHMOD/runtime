@@ -15,7 +15,6 @@ Module Name:
 
 #include "gcinterface.h"
 #include "env/gcenv.os.h"
-#include <minipal/types.h>
 
 #include "gchandletableimpl.h"
 
@@ -31,7 +30,7 @@ Module Name:
 #endif // BUILD_AS_STANDALONE
 #include "gcconfig.h"
 
-#include "../inc/cdacdata.h"
+#include "cdacdata.h"
 
 /*
  * Promotion Function Prototypes
@@ -142,6 +141,8 @@ extern size_t gc_global_mechanisms[MAX_GLOBAL_GC_MECHANISMS_COUNT];
 class DacHeapWalker;
 #endif
 
+#define MP_LOCKS
+
 #ifdef FEATURE_MANUALLY_MANAGED_CARD_BUNDLES
 extern "C" uint32_t* g_gc_card_bundle_table;
 #endif
@@ -161,8 +162,6 @@ extern "C" MethodTable* g_gc_pFreeObjectMethodTable;
 extern "C" uint32_t g_num_processors;
 
 extern VOLATILE(int32_t) g_fSuspensionPending;
-
-extern uint32_t g_totalCpuCount;
 
 ::IGCHandleManager*  CreateGCHandleManager();
 
@@ -244,11 +243,11 @@ struct alloc_context : gc_alloc_context
     }
 
     // How the alloc_count field is organized -
-    //
+    // 
     // high 16-bits are for the handle info, out of which
-    // high 10 bits store the cpu index.
+    // high 10 bits store the cpu index. 
     // low 6 bits store the number of handles allocated so far (before the next reset).
-    //
+    // 
     // low 16-bits are for the actual alloc_count used by balance_heaps
     inline void init_alloc_count()
     {
@@ -395,7 +394,7 @@ inline bool IsServerHeap()
 
 HRESULT initialize_log_file();
 void flush_gc_log (bool);
-void GCLog (const char *fmt, ... ) MINIPAL_ATTR_FORMAT_PRINTF(1, 2);
+void GCLog (const char *fmt, ... );
 #define dprintf(l,x) {if ((l == 1) || (l == GTC_LOG)) {GCLog x;}}
 #define SIMPLE_DPRINTF_ARG(x) , x
 
@@ -483,7 +482,7 @@ void GCLog (const char *fmt, ... ) MINIPAL_ATTR_FORMAT_PRINTF(1, 2);
 FILE* CreateLogFile(const GCConfigStringHolder& temp_logfile_name, bool is_config);
 #endif //TRACE_GC || GC_CONFIG_DRIVEN
 
-void log_init_error_to_host (const char* format, ...) MINIPAL_ATTR_FORMAT_PRINTF(1, 2);
+void log_init_error_to_host (const char* format, ...);
 
 uint64_t GetHighPrecisionTimeStamp();
 

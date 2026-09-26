@@ -1,8 +1,5 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
-
-namespace Runtime_106868;
-
 using System.Runtime.CompilerServices;
 using Xunit;
 
@@ -38,16 +35,19 @@ public class Runtime_106868
         return 1;
     }
 
-    [ConditionalFact(typeof(Sve), nameof(Sve.IsSupported))]
+    [Fact]
     public static void TestEntryPoint()
     {
-        var vr12 = Vector.Create<int>(0);
-        var vr13 = Vector.Create<int>(0);
-        var vr14 = M4();
-        var vr15 = Vector128.CreateScalar(vr14).AsVector();
-        var vr16 = Sve.AndAcross(vr13);
-        s_1.F2 = Sve.ConditionalSelect(vr12, vr16, vr15);
-        Consume(s_1.F2);
+        if (Sve.IsSupported)
+        {
+            var vr12 = Vector.Create<int>(0);
+            var vr13 = Vector.Create<int>(0);
+            var vr14 = M4();
+            var vr15 = Vector128.CreateScalar(vr14).AsVector();
+            var vr16 = Sve.AndAcross(vr13);
+            s_1.F2 = Sve.ConditionalSelect(vr12, vr16, vr15);
+            Consume(s_1.F2);
+        }
     }
 
     [MethodImpl(MethodImplOptions.NoInlining)]

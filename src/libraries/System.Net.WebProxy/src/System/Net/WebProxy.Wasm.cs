@@ -14,8 +14,7 @@ namespace System.Net
                 return true;
             }
 
-            // Use IdnHost rather than Host so that any non-ASCII dot separators (e.g. U+3002) are normalized to '.'.
-            string hostString = host.IdnHost;
+            string hostString = host.Host;
             return
                 !IPAddress.IsValid(hostString) &&
                 !hostString.Contains('.');

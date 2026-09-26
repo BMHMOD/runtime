@@ -33,11 +33,6 @@ namespace System.Text.Json.Serialization.Tests
                 yield return new object[] { typeof(TestClassWithObjectIReadOnlyCollectionT), TestClassWithObjectIReadOnlyCollectionT.s_data };
                 yield return new object[] { typeof(TestClassWithObjectIReadOnlyListT), TestClassWithObjectIReadOnlyListT.s_data };
                 yield return new object[] { typeof(TestClassWithObjectISetT), TestClassWithObjectISetT.s_data };
-
-#if NET
-                yield return new object[] { typeof(TestClassWithObjectIReadOnlySetT), TestClassWithObjectIReadOnlySetT.s_data };
-#endif
-
                 yield return new object[] { typeof(TestClassWithStringArray), TestClassWithStringArray.s_data };
                 yield return new object[] { typeof(TestClassWithGenericList), TestClassWithGenericList.s_data };
                 yield return new object[] { typeof(TestClassWithGenericIEnumerable), TestClassWithGenericIEnumerable.s_data };
@@ -49,11 +44,6 @@ namespace System.Text.Json.Serialization.Tests
                 yield return new object[] { typeof(TestClassWithGenericIReadOnlyCollectionT), TestClassWithGenericIReadOnlyCollectionT.s_data };
                 yield return new object[] { typeof(TestClassWithGenericIReadOnlyListT), TestClassWithGenericIReadOnlyListT.s_data };
                 yield return new object[] { typeof(TestClassWithGenericISetT), TestClassWithGenericISetT.s_data };
-
-#if NET
-                yield return new object[] { typeof(TestClassWithGenericIReadOnlySetT), TestClassWithGenericIReadOnlySetT.s_data };
-#endif
-
                 yield return new object[] { typeof(TestClassWithStringToPrimitiveDictionary), TestClassWithStringToPrimitiveDictionary.s_data };
                 yield return new object[] { typeof(TestClassWithObjectIEnumerableConstructibleTypes), TestClassWithObjectIEnumerableConstructibleTypes.s_data };
                 yield return new object[] { typeof(TestClassWithObjectImmutableTypes), TestClassWithObjectImmutableTypes.s_data };
@@ -89,11 +79,6 @@ namespace System.Text.Json.Serialization.Tests
                 yield return new object[] { new TestClassWithObjectIReadOnlyCollectionT() };
                 yield return new object[] { new TestClassWithObjectIReadOnlyListT() };
                 yield return new object[] { new TestClassWithObjectISetT() };
-
-#if NET
-                yield return new object[] { new TestClassWithObjectIReadOnlySetT() };
-#endif
-
                 yield return new object[] { new TestClassWithStringArray() };
                 yield return new object[] { new TestClassWithGenericList() };
                 yield return new object[] { new TestClassWithGenericIEnumerable() };
@@ -105,11 +90,6 @@ namespace System.Text.Json.Serialization.Tests
                 yield return new object[] { new TestClassWithGenericIReadOnlyCollectionT() };
                 yield return new object[] { new TestClassWithGenericIReadOnlyListT() };
                 yield return new object[] { new TestClassWithGenericISetT() };
-
-#if NET
-                yield return new object[] { new TestClassWithGenericIReadOnlySetT() };
-#endif
-
                 yield return new object[] { new TestClassWithStringToPrimitiveDictionary() };
                 yield return new object[] { new TestClassWithObjectIEnumerableConstructibleTypes() };
                 yield return new object[] { new TestClassWithObjectImmutableTypes() };

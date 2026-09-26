@@ -1,13 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <!-- Needed for CLRTestTargetUnsupported -->
+    <!-- Needed for CLRTestTargetUnsupported, GCStressIncompatible -->
     <RequiresProcessIsolation>true</RequiresProcessIsolation>
+    <CLRTestExecutionArguments />
+    <GCStressIncompatible>true</GCStressIncompatible>
     <!-- Consider enable it for Mono whenever the implementation is ready -->
     <!-- https://github.com/dotnet/runtime/issues/73167 -->
     <CLRTestTargetUnsupported Condition="'$(RuntimeFlavor)' != 'coreclr'">true</CLRTestTargetUnsupported>
-    <!-- TODO: Re-enable when CoreCLR WebAssembly supports server GC and managed threads.
-         Tracked by https://github.com/dotnet/runtime/issues/131321. -->
-    <CLRTestTargetUnsupported Condition="'$(RuntimeFlavor)' == 'coreclr' and '$(TargetOS)' == 'browser'">true</CLRTestTargetUnsupported>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup>
@@ -24,8 +23,5 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="Callback.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
   </ItemGroup>
 </Project>

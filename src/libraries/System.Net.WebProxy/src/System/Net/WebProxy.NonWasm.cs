@@ -9,8 +9,8 @@ namespace System.Net
 {
     public partial class WebProxy : IWebProxy, ISerializable
     {
-        private static string? s_domainName;
-        private static IPAddress[]? s_localAddresses;
+        private static volatile string? s_domainName;
+        private static volatile IPAddress[]? s_localAddresses;
         private static bool s_networkChangeRegistered;
 
         private static bool IsLocal(Uri host)
@@ -20,8 +20,7 @@ namespace System.Net
                 return true;
             }
 
-            // Use IdnHost rather than Host so that any non-ASCII dot separators (e.g. U+3002) are normalized to '.'.
-            string hostString = host.IdnHost;
+            string hostString = host.Host;
 
             if (IPAddress.TryParse(hostString, out IPAddress? hostAddress))
             {
@@ -40,7 +39,9 @@ namespace System.Net
             // If it matches the primary domain, it's local (whether or not the hostname matches).
             EnsureNetworkChangeRegistration();
             string local = s_domainName ??= "." + IPGlobalProperties.GetIPGlobalProperties().DomainName;
-            return hostString.AsSpan(dot).Equals(local, StringComparison.OrdinalIgnoreCase);
+            return
+                local.Length == (hostString.Length - dot) &&
+                string.Compare(local, 0, hostString, dot, local.Length, StringComparison.OrdinalIgnoreCase) == 0;
         }
 
         /// <summary>Ensures we've registered with NetworkChange to clear out statically-cached state upon a network change notification.</summary>

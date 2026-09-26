@@ -186,8 +186,7 @@ namespace System.Runtime.InteropServices
                 ReferenceTrackerNativeObjectWrapper? nativeObjectWrapper = Unsafe.As<ReferenceTrackerNativeObjectWrapper>(weakNativeObjectWrapperHandle.Target);
                 if (nativeObjectWrapper != null &&
                     nativeObjectWrapper.TrackerObject != IntPtr.Zero &&
-                    nativeObjectWrapper.ProxyHandle.TryGetTarget(out object? proxyTarget) &&
-                    !RuntimeImports.RhIsPromoted(proxyTarget))
+                    !RuntimeImports.RhIsPromoted(nativeObjectWrapper.ProxyHandle.Target))
                 {
                     // Notify the wrapper it was not promoted and is being collected.
                     BeforeWrapperFinalized(nativeObjectWrapper.TrackerObject);
@@ -197,7 +196,6 @@ namespace System.Runtime.InteropServices
     }
 
     // Callback implementation of IFindReferenceTargetsCallback
-    [EagerStaticClassConstruction]
     internal static unsafe class FindReferenceTargetsCallback
     {
         // Define an on-stack compatible COM instance to avoid allocating
@@ -206,9 +204,9 @@ namespace System.Runtime.InteropServices
         internal ref struct Instance
         {
             private readonly IntPtr _vtable; // First field is IUnknown based vtable.
-            public WeakGCHandle<object> RootObject;
+            public GCHandle RootObject;
 
-            public Instance(WeakGCHandle<object> handle)
+            public Instance(GCHandle handle)
             {
                 _vtable = (IntPtr)Unsafe.AsPointer(in FindReferenceTargetsCallback.Vftbl);
                 RootObject = handle;
@@ -241,11 +239,7 @@ namespace System.Runtime.InteropServices
                 return HResults.E_POINTER;
             }
 
-            _ = ((FindReferenceTargetsCallback.Instance*)pThis)->RootObject.TryGetTarget(out object? sourceObject);
-
-            // The callback is only ever set up with the handle of an RCW that was alive at the time, and
-            // that RCW keeps its wrapper alive, so the handle is expected to still have its target here
-            Debug.Assert(sourceObject is not null);
+            object sourceObject = ((FindReferenceTargetsCallback.Instance*)pThis)->RootObject.Target!;
 
             if (!TryGetObject(referenceTrackerTarget, out object? targetObject))
             {
@@ -258,7 +252,7 @@ namespace System.Runtime.InteropServices
             }
 
             // Notify the runtime a reference path was found.
-            return TrackerObjectManager.AddReferencePath(sourceObject!, targetObject) ? HResults.S_OK : HResults.S_FALSE;
+            return TrackerObjectManager.AddReferencePath(sourceObject, targetObject) ? HResults.S_OK : HResults.S_FALSE;
         }
 
         internal struct ReferenceTargetsVftbl

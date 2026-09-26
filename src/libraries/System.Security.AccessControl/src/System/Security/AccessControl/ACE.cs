@@ -1,6 +1,13 @@
 // Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 
+/*============================================================
+**
+** Classes:  Access Control Entry (ACE) family of classes
+**
+**
+===========================================================*/
+
 using System;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -9,8 +16,12 @@ using System.Security.Principal;
 
 namespace System.Security.AccessControl
 {
+    //
     // Predefined ACE types
     // Anything else is considered user-defined
+    //
+
+
     public enum AceType : byte
     {
         AccessAllowed = 0x00,
@@ -33,10 +44,14 @@ namespace System.Security.AccessControl
         MaxDefinedAceType = SystemAlarmCallbackObject,
     }
 
+    //
     // Predefined ACE flags
     // The inheritance and auditing flags are stored in the
     // same field - this is to follow Windows ACE design
+    //
+
     [Flags]
+
     public enum AceFlags : byte
     {
         None = 0x00,
@@ -52,15 +67,34 @@ namespace System.Security.AccessControl
         AuditFlags = SuccessfulAccess | FailedAccess,
     }
 
+
     public abstract class GenericAce
     {
+        #region Private Members
+
+        //
+        // The 'byte' type is used to accommodate user-defined,
+        // as well as well-known ACE types.
+        //
+
         private readonly AceType _type;
         private AceFlags _flags;
         internal ushort _indexInAcl;
+        #endregion
 
+        #region Internal Constants
+
+        //
         // Length of the ACE header in binary form
+        //
+
         internal const int HeaderLength = 4;
 
+        #endregion
+
+        #region Internal Methods
+
+        //
         // Format of the ACE header from ntseapi.h
         //
         // typedef struct _ACE_HEADER {
@@ -68,8 +102,12 @@ namespace System.Security.AccessControl
         //     UCHAR AceFlags;
         //     USHORT AceSize;
         // } ACE_HEADER;
+        //
 
+        //
         // Marshal the ACE header into the given array starting at the given offset
+        //
+
         internal void MarshalHeader(byte[] binaryForm, int offset)
         {
             ArgumentNullException.ThrowIfNull(binaryForm);
@@ -79,15 +117,21 @@ namespace System.Security.AccessControl
             ArgumentOutOfRangeException.ThrowIfNegative(offset);
             if (binaryForm.Length - offset < BinaryLength)
             {
+                //
                 // The buffer will not fit the header
+                //
+
                 throw new ArgumentOutOfRangeException(
                     nameof(binaryForm),
                     SR.ArgumentOutOfRange_ArrayTooSmall);
             }
             else if (Length > ushort.MaxValue)
             {
+                //
                 // Only have two bytes to store the length in.
                 // Indicates a bug in the implementation, not in user's code.
+                //
+
                 Debug.Fail("Length > ushort.MaxValue");
                 // Replacing SystemException with InvalidOperationException. It's not a perfect fit,
                 // but it's the best exception type available to indicate a failure because
@@ -101,15 +145,29 @@ namespace System.Security.AccessControl
             binaryForm[offset + 3] = (byte)(Length >> 8);
         }
 
+        #endregion
+
+        #region Constructors
+
         internal GenericAce(AceType type, AceFlags flags)
         {
+            //
             // Store the values passed in;
             // do not make any checks - anything is valid here
+            //
+
             _type = type;
             _flags = flags;
         }
 
+        #endregion
+
+        #region Static Methods
+
+        //
         // These mapper routines convert audit type flags to ACE flags and vice versa
+        //
+
         internal static AceFlags AceFlagsFromAuditFlags(AuditFlags auditFlags)
         {
             AceFlags flags = AceFlags.None;
@@ -134,7 +192,10 @@ namespace System.Security.AccessControl
             return flags;
         }
 
+        //
         // These mapper routines convert inheritance type flags to ACE flags and vice versa
+        //
+
         internal static AceFlags AceFlagsFromInheritanceFlags(InheritanceFlags inheritanceFlags, PropagationFlags propagationFlags)
         {
             AceFlags flags = AceFlags.None;
@@ -149,7 +210,10 @@ namespace System.Security.AccessControl
                 flags |= AceFlags.ObjectInherit;
             }
 
+            //
             // Propagation flags are meaningless without inheritance flags
+            //
+
             if (flags != 0)
             {
                 if ((propagationFlags & PropagationFlags.NoPropagateInherit) != 0)
@@ -166,7 +230,10 @@ namespace System.Security.AccessControl
             return flags;
         }
 
+        //
         // Sanity-check the ACE header (used by the unmarshaling logic)
+        //
+
         internal static void VerifyHeader(byte[] binaryForm, int offset)
         {
             ArgumentNullException.ThrowIfNull(binaryForm);
@@ -174,29 +241,41 @@ namespace System.Security.AccessControl
             ArgumentOutOfRangeException.ThrowIfNegative(offset);
             if (binaryForm.Length - offset < HeaderLength)
             {
+                //
                 // We expect at least the ACE header ( 4 bytes )
+                //
+
                 throw new ArgumentOutOfRangeException(
                     nameof(binaryForm),
                     SR.ArgumentOutOfRange_ArrayTooSmall);
             }
             else if ((binaryForm[offset + 3] << 8) + (binaryForm[offset + 2] << 0) > binaryForm.Length - offset)
             {
+                //
                 // Reported length of ACE ought to be no longer than the
                 // length of the buffer passed in
+                //
+
                 throw new ArgumentOutOfRangeException(
                     nameof(binaryForm),
                     SR.ArgumentOutOfRange_ArrayTooSmall);
             }
         }
 
+        //
         // Instantiates the most-derived ACE type based on the binary
         // representation of an ACE
+        //
+
         public static GenericAce CreateFromBinaryForm(byte[] binaryForm, int offset)
         {
             GenericAce result;
             AceType type;
 
+            //
             // Sanity check the header
+            //
+
             VerifyHeader(binaryForm, offset);
 
             type = (AceType)binaryForm[offset];
@@ -278,11 +357,16 @@ namespace System.Security.AccessControl
                 result = new CustomAce(type, flags, opaque);
             }
 
+            //
             // As a final check, confirm that the advertised ACE header length
             // was the actual parsed length
+            //
+
             if (((!(result is ObjectAce)) && ((binaryForm[offset + 2] << 0) + (binaryForm[offset + 3] << 8) != result.BinaryLength))
+                //
                 // This is needed because object aces created through ADSI have the advertised ACE length
                 // greater than the actual length by 32 (bug in ADSI).
+                //
                 || ((result is ObjectAce) && ((binaryForm[offset + 2] << 0) + (binaryForm[offset + 3] << 8) != result.BinaryLength) && (((binaryForm[offset + 2] << 0) + (binaryForm[offset + 3] << 8) - 32) != result.BinaryLength)))
             {
                 goto InvalidParameter;
@@ -297,9 +381,16 @@ namespace System.Security.AccessControl
                 nameof(binaryForm));
         }
 
+        #endregion
+
+        #region Public Properties
+
+        //
         // Returns the numeric type of the ACE
         // Since not all ACE types are known, this
         // property returns a byte value.
+        //
+
         public AceType AceType
         {
             get
@@ -308,8 +399,11 @@ namespace System.Security.AccessControl
             }
         }
 
+        //
         // Sets and retrieves the flags associated with the ACE
         // No checks are performed when setting the flags.
+        //
+
         public AceFlags AceFlags
         {
             get
@@ -327,7 +421,7 @@ namespace System.Security.AccessControl
         {
             get
             {
-                return ((AceFlags & AceFlags.Inherited) != 0);
+                return ((this.AceFlags & AceFlags.Inherited) != 0);
             }
         }
 
@@ -337,12 +431,12 @@ namespace System.Security.AccessControl
             {
                 InheritanceFlags flags = 0;
 
-                if ((AceFlags & AceFlags.ContainerInherit) != 0)
+                if ((this.AceFlags & AceFlags.ContainerInherit) != 0)
                 {
                     flags |= InheritanceFlags.ContainerInherit;
                 }
 
-                if ((AceFlags & AceFlags.ObjectInherit) != 0)
+                if ((this.AceFlags & AceFlags.ObjectInherit) != 0)
                 {
                     flags |= InheritanceFlags.ObjectInherit;
                 }
@@ -357,12 +451,12 @@ namespace System.Security.AccessControl
             {
                 PropagationFlags flags = 0;
 
-                if ((AceFlags & AceFlags.InheritOnly) != 0)
+                if ((this.AceFlags & AceFlags.InheritOnly) != 0)
                 {
                     flags |= PropagationFlags.InheritOnly;
                 }
 
-                if ((AceFlags & AceFlags.NoPropagateInherit) != 0)
+                if ((this.AceFlags & AceFlags.NoPropagateInherit) != 0)
                 {
                     flags |= PropagationFlags.NoPropagateInherit;
                 }
@@ -377,12 +471,12 @@ namespace System.Security.AccessControl
             {
                 AuditFlags flags = 0;
 
-                if ((AceFlags & AceFlags.SuccessfulAccess) != 0)
+                if ((this.AceFlags & AceFlags.SuccessfulAccess) != 0)
                 {
                     flags |= AuditFlags.Success;
                 }
 
-                if ((AceFlags & AceFlags.FailedAccess) != 0)
+                if ((this.AceFlags & AceFlags.FailedAccess) != 0)
                 {
                     flags |= AuditFlags.Failure;
                 }
@@ -391,21 +485,37 @@ namespace System.Security.AccessControl
             }
         }
 
+        //
         // The value returned is really an unsigned short
         // A signed type is used for CLS compliance
+        //
+
         public abstract int BinaryLength { get; }
 
+        #endregion
+
+        #region Public Methods
+
+        //
         // Copies the binary representation of the ACE into a given array
         // starting at the given offset.
+        //
+
         public abstract void GetBinaryForm(byte[] binaryForm, int offset);
 
+        //
         // Cloning is performed by calling the from-binary static factory method
         // on the binary representation of the ACE.
         // Make this routine virtual if any leaf ACE class were to ever become
         // unsealed.
+        //
+
         public GenericAce Copy()
         {
+            //
             // Allocate an array big enough to hold the binary representation of the ACE
+            //
+
             byte[] binaryForm = new byte[BinaryLength];
 
             GetBinaryForm(binaryForm, 0);
@@ -422,13 +532,13 @@ namespace System.Security.AccessControl
                 return false;
             }
 
-            if (AceType != ace.AceType ||
-                AceFlags != ace.AceFlags)
+            if (this.AceType != ace.AceType ||
+                this.AceFlags != ace.AceFlags)
             {
                 return false;
             }
 
-            int thisLength = BinaryLength;
+            int thisLength = this.BinaryLength;
 
             if (thisLength != ace.BinaryLength)
             {
@@ -436,7 +546,7 @@ namespace System.Security.AccessControl
             }
 
             byte[] array1 = new byte[thisLength];
-            GetBinaryForm(array1, 0);
+            this.GetBinaryForm(array1, 0);
 
             byte[] array2 = new byte[thisLength];
             ace.GetBinaryForm(array2, 0);
@@ -451,9 +561,12 @@ namespace System.Security.AccessControl
             GetBinaryForm(array, 0);
             int result = 0, i = 0;
 
+            //
             // For purposes of hash code computation,
             // treat the ACE as an array of ints (fortunately, its length is divisible by 4)
             // and simply XOR all these ints together
+            //
+
             while (i < binaryLength)
             {
                 int increment = ((int)array[i]) +
@@ -491,30 +604,61 @@ namespace System.Security.AccessControl
         {
             return !(left == right);
         }
+        #endregion
     }
 
+    //
     // ACEs fall into two broad categories: known and user-defined
+    //
+
+    //
     // Every known ACE type contains an access mask and a SID
+    //
+
+
     public abstract class KnownAce : GenericAce
     {
+        #region Private Members
+
+        //
         // All known ACE types contain an access mask and a SID
+        //
+
         private int _accessMask;
         private SecurityIdentifier _sid;
 
+        #endregion
+
+        #region Internal Constants
+
         internal const int AccessMaskLength = 4;
+
+        #endregion
+
+        #region Constructors
 
         internal KnownAce(AceType type, AceFlags flags, int accessMask, SecurityIdentifier securityIdentifier)
             : base(type, flags)
         {
             ArgumentNullException.ThrowIfNull(securityIdentifier);
 
+            //
             // The values are set by invoking the properties.
+            //
+
             AccessMask = accessMask;
             SecurityIdentifier = securityIdentifier;
         }
 
+        #endregion
+
+        #region Public Properties
+
+        //
         // Sets and retrieves the access mask associated with this ACE.
         // The access mask can be any 32-bit value.
+        //
+
         public int AccessMask
         {
             get
@@ -528,9 +672,12 @@ namespace System.Security.AccessControl
             }
         }
 
+        //
         // Sets and retrieves the SID associated with this ACE.
         // The SID can not be null, but can otherwise be any valid
         // security identifier.
+        //
+
         public SecurityIdentifier SecurityIdentifier
         {
             get
@@ -544,19 +691,40 @@ namespace System.Security.AccessControl
                 _sid = value;
             }
         }
+        #endregion
     }
 
+    //
     // User-defined ACEs are ACE types we don't recognize.
     // They contain a standard ACE header followed by a binary blob.
+    //
+
+
     public sealed class CustomAce : GenericAce
     {
+        #region Private Members
+
+        //
         // Opaque data is what follows the ACE header.
         // It is not interpreted by any code except that which
         // understands the ACE type.
+        //
+
         private byte[]? _opaque;
 
+        #endregion
+
+        #region Public Constants
+
+        //
         // Returns the maximum allowed length of opaque data
+        //
+
         public static readonly int MaxOpaqueLength = ushort.MaxValue - HeaderLength;
+
+        #endregion
+
+        #region Constructors
 
         public CustomAce(AceType type, AceFlags flags, byte[]? opaque)
             : base(type, flags)
@@ -571,7 +739,14 @@ namespace System.Security.AccessControl
             SetOpaque(opaque);
         }
 
+        #endregion
+
+        #region Public Properties
+
+        //
         // Returns the length of the opaque blob
+        //
+
         public int OpaqueLength
         {
             get
@@ -587,8 +762,11 @@ namespace System.Security.AccessControl
             }
         }
 
+        //
         // Returns the length of the binary representation of this ACE
         // The value returned is really an unsigned short
+        //
+
         public /* sealed */ override int BinaryLength
         {
             get
@@ -597,8 +775,15 @@ namespace System.Security.AccessControl
             }
         }
 
+        #endregion
+
+        #region Public Methods
+
+        //
         // Methods to set and retrieve the opaque portion of the ACE
         // Important: the caller is given the actual (not cloned) copy of the data
+        //
+
         public byte[]? GetOpaque()
         {
             return _opaque;
@@ -625,15 +810,24 @@ namespace System.Security.AccessControl
             _opaque = opaque;
         }
 
+        //
         // Copies the binary representation of the ACE into a given array
         // starting at the given offset.
+        //
+
         public /* sealed */ override void GetBinaryForm(byte[] binaryForm, int offset)
         {
+            //
             // Populate the header
+            //
+
             MarshalHeader(binaryForm, offset);
             offset += HeaderLength;
 
+            //
             // Header is followed by the opaque data
+            //
+
             if (OpaqueLength != 0)
             {
                 if (OpaqueLength > MaxOpaqueLength)
@@ -648,11 +842,18 @@ namespace System.Security.AccessControl
                 GetOpaque()!.CopyTo(binaryForm, offset);
             }
         }
+        #endregion
     }
 
+    //
     // Known ACE types fall into two categories: compound and qualified
+    //
+
+    //
     // Compound ACEs ...
+    //
     // Tne in-memory structure of a compound ACE is as follows:
+    //
     // typedef struct _COMPOUND_ACCESS_ALLOWED_ACE {
     //     ACE_HEADER Header;
     //     ACCESS_MASK Mask;
@@ -660,23 +861,44 @@ namespace System.Security.AccessControl
     //     USHORT Reserved;
     //     ULONG SidStart;
     // } COMPOUND_ACCESS_ALLOWED_ACE;
+    //
+
+
     public enum CompoundAceType
     {
         Impersonation = 0x01,
     }
 
+
     public sealed class CompoundAce : KnownAce
     {
+        #region Private Members
+
         private CompoundAceType _compoundAceType;
 
+        #endregion
+
+        #region Private Constants
+
         private const int AceTypeLength = 4; // including 2 reserved bytes
+
+        #endregion
+
+        #region Constructors
 
         public CompoundAce(AceFlags flags, int accessMask, CompoundAceType compoundAceType, SecurityIdentifier sid)
             : base(AceType.AccessAllowedCompound, flags, accessMask, sid)
         {
+            //
             // The compound ACE type value is deliberately not validated
+            //
+
             _compoundAceType = compoundAceType;
         }
+
+        #endregion
+
+        #region Static Parser
 
         internal static bool ParseBinaryForm(
             byte[] binaryForm,
@@ -685,10 +907,16 @@ namespace System.Security.AccessControl
             out CompoundAceType compoundAceType,
             [NotNullWhen(true)] out SecurityIdentifier? sid)
         {
+            //
             // Verify the ACE header
+            //
+
             VerifyHeader(binaryForm, offset);
 
+            //
             // Verify the length field
+            //
+
             if (binaryForm.Length - offset < HeaderLength + AccessMaskLength + AceTypeLength + SecurityIdentifier.MinBinaryLength)
             {
                 goto InvalidParameter;
@@ -697,7 +925,10 @@ namespace System.Security.AccessControl
             int baseOffset = offset + HeaderLength;
             int offsetLocal = 0;
 
+            //
             // The access mask is stored in big-endian format
+            //
+
             accessMask =
                 unchecked((int)(
                 (((uint)binaryForm[baseOffset + 0]) << 0) +
@@ -714,7 +945,10 @@ namespace System.Security.AccessControl
 
             offsetLocal += AceTypeLength; // Skipping over the two reserved bits
 
+            //
             // The access mask is followed by the SID
+            //
+
             sid = new SecurityIdentifier(binaryForm, baseOffset + offsetLocal);
 
             return true;
@@ -727,6 +961,10 @@ namespace System.Security.AccessControl
 
             return false;
         }
+
+        #endregion
+
+        #region Public Properties
 
         public CompoundAceType CompoundAceType
         {
@@ -749,17 +987,29 @@ namespace System.Security.AccessControl
             }
         }
 
+        #endregion
+
+        #region Public Methods
+
+        //
         // Copies the binary representation of the ACE into a given array
         // starting at the given offset.
+        //
+
         public override void GetBinaryForm(byte[] binaryForm, int offset)
         {
+            //
             // Populate the header
+            //
+
             MarshalHeader(binaryForm, offset);
 
             int baseOffset = offset + HeaderLength;
             int offsetLocal = 0;
 
+            //
             // Store the access mask in the big-endian format
+            //
             unchecked
             {
                 binaryForm[baseOffset + 0] = (byte)(AccessMask >> 0);
@@ -770,7 +1020,10 @@ namespace System.Security.AccessControl
 
             offsetLocal += AccessMaskLength;
 
+            //
             // Store the compound ace type and the two reserved bytes
+            //
+
             binaryForm[baseOffset + offsetLocal + 0] = (byte)((ushort)CompoundAceType >> 0);
             binaryForm[baseOffset + offsetLocal + 1] = (byte)((ushort)CompoundAceType >> 8);
             binaryForm[baseOffset + offsetLocal + 2] = 0;
@@ -778,17 +1031,25 @@ namespace System.Security.AccessControl
 
             offsetLocal += AceTypeLength;
 
+            //
             // Store the SID
+            //
+
             SecurityIdentifier.GetBinaryForm(binaryForm, baseOffset + offsetLocal);
         }
+        #endregion
     }
 
+    //
     // Qualified ACEs are always one of:
     //     - AccessAllowed
     //     - AccessDenied
     //     - SystemAudit
     //     - SystemAlarm
     // and may optionally support callback data
+    //
+
+
     public enum AceQualifier
     {
         AccessAllowed = 0x0,
@@ -797,15 +1058,25 @@ namespace System.Security.AccessControl
         SystemAlarm = 0x3,
     }
 
+
     public abstract class QualifiedAce : KnownAce
     {
+        #region Private Members
+
         private readonly bool _isCallback;
         private readonly AceQualifier _qualifier;
         private byte[]? _opaque;
 
+        #endregion
+
+        #region Private Methods
+
         private static AceQualifier QualifierFromType(AceType type, out bool isCallback)
         {
+            //
             // Better performance might be achieved by using a hard-coded table
+            //
+
             switch (type)
             {
                 case AceType.AccessAllowed:
@@ -874,7 +1145,10 @@ namespace System.Security.AccessControl
 
                 default:
 
+                    //
                     // Indicates a bug in the implementation, not in user's code
+                    //
+
                     Debug.Fail("Invalid ACE type");
                     // Replacing SystemException with InvalidOperationException. It's not a perfect fit,
                     // but it's the best exception type available to indicate a failure because
@@ -883,6 +1157,10 @@ namespace System.Security.AccessControl
             }
         }
 
+        #endregion
+
+        #region Constructors
+
         internal QualifiedAce(AceType type, AceFlags flags, int accessMask, SecurityIdentifier sid, byte[]? opaque)
             : base(type, flags, accessMask, sid)
         {
@@ -890,10 +1168,17 @@ namespace System.Security.AccessControl
             SetOpaque(opaque);
         }
 
+        #endregion
+
+        #region Public Properties
+
+        //
         // Returns the qualifier associated with this ACE
         // Qualifier is determined at object creation time and
         // can not be changed since doing so would change the ACE type
         // which is in itself an immutable property
+        //
+
         public AceQualifier AceQualifier
         {
             get
@@ -902,10 +1187,13 @@ namespace System.Security.AccessControl
             }
         }
 
+        //
         // Returns 'true' if this ACE type supports resource
         // manager-specific callback data.
         // This property is determined at object creation time
         // and can not be changed.
+        //
+
         public bool IsCallback
         {
             get
@@ -914,11 +1202,17 @@ namespace System.Security.AccessControl
             }
         }
 
+        //
         // ACE types that support opaque data must also specify the maximum
         // allowed length of such data
+        //
+
         internal abstract int MaxOpaqueLengthInternal { get; }
 
+        //
         // Returns the length of opaque blob
+        //
+
         public int OpaqueLength
         {
             get
@@ -934,8 +1228,15 @@ namespace System.Security.AccessControl
             }
         }
 
+        #endregion
+
+        #region Public Methods
+
+        //
         // Methods to set and retrieve the opaque portion of the ACE
         // NOTE: the caller is given the actual (not cloned) copy of the data
+        //
+
         public byte[]? GetOpaque()
         {
             return _opaque;
@@ -961,8 +1262,10 @@ namespace System.Security.AccessControl
 
             _opaque = opaque;
         }
+        #endregion
     }
 
+    //
     // The following eight classes are boilerplate, differing only by their ACE type
     // and support for callbacks
     // Thus their implementation will derive from the same class: CommonAce
@@ -1018,20 +1321,36 @@ namespace System.Security.AccessControl
     //     ULONG SidStart;
     //     // Opaque resource manager specific data
     // } SYSTEM_ALARM_CALLBACK_ACE, *PSYSTEM_ALARM_CALLBACK_ACE;
+    //
+
 
     public sealed class CommonAce : QualifiedAce
     {
+        #region Constructors
+
+        //
         // The constructor computes the type of this ACE and passes the rest
         // to the base class constructor
+        //
+
         public CommonAce(AceFlags flags, AceQualifier qualifier, int accessMask, SecurityIdentifier sid, bool isCallback, byte[]? opaque)
             : base(TypeFromQualifier(isCallback, qualifier), flags, accessMask, sid, opaque)
         {
         }
 
+        #endregion
+
+        #region Private Static Methods
+
+        //
         // Based on the is-callback and qualifier information,
         // computes the numerical type of the ACE
+        //
+
         private static AceType TypeFromQualifier(bool isCallback, AceQualifier qualifier) =>
+            //
             // Might benefit from replacing this with a static hard-coded table
+            //
             qualifier switch
             {
                 AceQualifier.AccessAllowed => isCallback ? AceType.AccessAllowedCallback : AceType.AccessAllowed,
@@ -1041,8 +1360,15 @@ namespace System.Security.AccessControl
                 _ => throw new ArgumentOutOfRangeException(nameof(qualifier), SR.ArgumentOutOfRange_Enum),
             };
 
+        #endregion
+
+        #region Static Parser
+
+        //
         // Called by GenericAce.CreateFromBinaryForm to parse the binary
         // form of the common ACE and extract the useful pieces.
+        //
+
         internal static bool ParseBinaryForm(
             byte[] binaryForm,
             int offset,
@@ -1052,16 +1378,25 @@ namespace System.Security.AccessControl
             out bool isCallback,
             out byte[]? opaque)
         {
+            //
             // Verify the ACE header
+            //
+
             VerifyHeader(binaryForm, offset);
 
+            //
             // Verify the length field
+            //
+
             if (binaryForm.Length - offset < HeaderLength + AccessMaskLength + SecurityIdentifier.MinBinaryLength)
             {
                 goto InvalidParameter;
             }
 
+            //
             // Identify callback ACE types
+            //
+
             AceType type = (AceType)binaryForm[offset];
 
             if (type == AceType.AccessAllowed ||
@@ -1083,7 +1418,10 @@ namespace System.Security.AccessControl
                 goto InvalidParameter;
             }
 
+            //
             // Compute the qualifier from the ACE type
+            //
+
             if (type == AceType.AccessAllowed ||
                 type == AceType.AccessAllowedCallback)
             {
@@ -1112,7 +1450,10 @@ namespace System.Security.AccessControl
             int baseOffset = offset + HeaderLength;
             int offsetLocal = 0;
 
+            //
             // The access mask is stored in big-endian format
+            //
+
             accessMask =
                 (int)(
                 (((uint)binaryForm[baseOffset + 0]) << 0) +
@@ -1122,10 +1463,16 @@ namespace System.Security.AccessControl
 
             offsetLocal += AccessMaskLength;
 
+            //
             // The access mask is followed by the SID
+            //
+
             sid = new SecurityIdentifier(binaryForm, baseOffset + offsetLocal);
 
+            //
             // The rest of the blob is occupied by opaque callback data, if such is supported
+            //
+
             opaque = null;
 
             int aceLength = (binaryForm[offset + 3] << 8) + (binaryForm[offset + 2] << 0);
@@ -1160,6 +1507,10 @@ namespace System.Security.AccessControl
             return false;
         }
 
+        #endregion
+
+        #region Public Properties
+
         public /* sealed */ override int BinaryLength
         {
             get
@@ -1178,17 +1529,30 @@ namespace System.Security.AccessControl
             get { return MaxOpaqueLength(IsCallback); }
         }
 
+        #endregion
+
+        #region Public Methods
+
+        //
         // Copies the binary representation of the ACE into a given array
         // starting at the given offset.
+        //
+
         public /* sealed */ override void GetBinaryForm(byte[] binaryForm, int offset)
         {
+            //
             // Populate the header
+            //
+
             MarshalHeader(binaryForm, offset);
 
             int baseOffset = offset + HeaderLength;
             int offsetLocal = 0;
 
+            //
             // Store the access mask in the big-endian format
+            //
+
             unchecked
             {
                 binaryForm[baseOffset + 0] = (byte)(AccessMask >> 0);
@@ -1199,11 +1563,17 @@ namespace System.Security.AccessControl
 
             offsetLocal += AccessMaskLength;
 
+            //
             // Store the SID
+            //
+
             SecurityIdentifier.GetBinaryForm(binaryForm, baseOffset + offsetLocal);
             offsetLocal += SecurityIdentifier.BinaryLength;
 
+            //
             // Finally, if opaque is supported, store it
+            //
+
             if (GetOpaque() != null)
             {
                 if (OpaqueLength > MaxOpaqueLengthInternal)
@@ -1218,8 +1588,10 @@ namespace System.Security.AccessControl
                 GetOpaque()!.CopyTo(binaryForm, baseOffset + offsetLocal);
             }
         }
+        #endregion
     }
 
+    //
     // The following eight classes are boilerplate, differing only by their ACE type
     // and support for opaque data
     // Thus their implementation will derive from the same class: ObjectAce
@@ -1299,8 +1671,10 @@ namespace System.Security.AccessControl
     //     ULONG SidStart;
     //     // Opaque resource manager specific data
     // } SYSTEM_ALARM_CALLBACK_OBJECT_ACE, *PSYSTEM_ALARM_CALLBACK_OBJECT_ACE;
+    //
 
     [Flags]
+
     public enum ObjectAceFlags
     {
         None = 0x00,
@@ -1308,14 +1682,21 @@ namespace System.Security.AccessControl
         InheritedObjectAceTypePresent = 0x02,
     }
 
+
     public sealed class ObjectAce : QualifiedAce
     {
+        #region Private Members and Constants
+
         private ObjectAceFlags _objectFlags;
         private Guid _objectAceType;
         private Guid _inheritedObjectAceType;
 
         private const int ObjectFlagsLength = 4;
         private const int GuidLength = 16;
+
+        #endregion
+
+        #region Constructors
 
         public ObjectAce(AceFlags aceFlags, AceQualifier qualifier, int accessMask, SecurityIdentifier sid, ObjectAceFlags flags, Guid type, Guid inheritedType, bool isCallback, byte[]? opaque)
             : base(TypeFromQualifier(isCallback, qualifier), aceFlags, accessMask, sid, opaque)
@@ -1325,6 +1706,11 @@ namespace System.Security.AccessControl
             _inheritedObjectAceType = inheritedType;
         }
 
+        #endregion
+
+        #region Private Methods
+
+        //
         // The following access mask bits in object aces may refer to an objectType that
         // identifies the property set, property, extended right, or type of child object to which the ACE applies
         //
@@ -1334,6 +1720,7 @@ namespace System.Security.AccessControl
         //    ADS_RIGHT_DS_READ_PROP = 0x10,
         //    ADS_RIGHT_DS_WRITE_PROP = 0x20,
         //    ADS_RIGHT_DS_CONTROL_ACCESS = 0x100
+        //
         internal const int AccessMaskWithObjectType = 0x1 | 0x2 | 0x8 | 0x10 | 0x20 | 0x100;
 
         private static AceType TypeFromQualifier(bool isCallback, AceQualifier qualifier) =>
@@ -1346,8 +1733,10 @@ namespace System.Security.AccessControl
                 _ => throw new ArgumentOutOfRangeException(nameof(qualifier), SR.ArgumentOutOfRange_Enum),
             };
 
+        //
         // This method checks if the objectType matches with the specified object type
         // (Either both do not have an object type or they have the same object type)
+        //
         internal bool ObjectTypesMatch(ObjectAceFlags objectFlags, Guid objectType)
         {
             if ((ObjectAceFlags & ObjectAceFlags.ObjectAceTypePresent) != (objectFlags & ObjectAceFlags.ObjectAceTypePresent))
@@ -1364,8 +1753,10 @@ namespace System.Security.AccessControl
             return true;
         }
 
+        //
         // This method checks if the inheritedObjectType matches with the specified inherited object type
         // (Either both do not have an inherited object type or they have the same inherited object type)
+        //
         internal bool InheritedObjectTypesMatch(ObjectAceFlags objectFlags, Guid inheritedObjectType)
         {
             if ((ObjectAceFlags & ObjectAceFlags.InheritedObjectAceTypePresent) != (objectFlags & ObjectAceFlags.InheritedObjectAceTypePresent))
@@ -1382,8 +1773,15 @@ namespace System.Security.AccessControl
             return true;
         }
 
+        #endregion
+
+        #region Static Parser
+
+        //
         // Called by GenericAce.CreateFromBinaryForm to parse the binary form
         // of the object ACE and extract the useful pieces
+        //
+
         internal static bool ParseBinaryForm(
             byte[] binaryForm,
             int offset,
@@ -1398,16 +1796,25 @@ namespace System.Security.AccessControl
         {
             byte[] guidArray = new byte[GuidLength];
 
+            //
             // Verify the ACE header
+            //
+
             VerifyHeader(binaryForm, offset);
 
+            //
             // Verify the length field
+            //
+
             if (binaryForm.Length - offset < HeaderLength + AccessMaskLength + ObjectFlagsLength + SecurityIdentifier.MinBinaryLength)
             {
                 goto InvalidParameter;
             }
 
+            //
             // Identify callback ACE types
+            //
+
             AceType type = (AceType)binaryForm[offset];
 
             if (type == AceType.AccessAllowedObject ||
@@ -1429,7 +1836,10 @@ namespace System.Security.AccessControl
                 goto InvalidParameter;
             }
 
+            //
             // Compute the qualifier from the ACE type
+            //
+
             if (type == AceType.AccessAllowedObject ||
                 type == AceType.AccessAllowedCallbackObject)
             {
@@ -1563,7 +1973,14 @@ namespace System.Security.AccessControl
             return false;
         }
 
+        #endregion
+
+        #region Public Properties
+
+        //
         // Returns the object flags field of this ACE
+        //
+
         public ObjectAceFlags ObjectAceFlags
         {
             get
@@ -1577,7 +1994,10 @@ namespace System.Security.AccessControl
             }
         }
 
+        //
         // Allows querying and setting the object type GUID for this ACE
+        //
+
         public Guid ObjectAceType
         {
             get
@@ -1591,8 +2011,11 @@ namespace System.Security.AccessControl
             }
         }
 
+        //
         // Allows querying and setting the inherited object type
         // GUID for this ACE
+        //
+
         public Guid InheritedObjectAceType
         {
             get
@@ -1610,7 +2033,10 @@ namespace System.Security.AccessControl
         {
             get
             {
+                //
                 // The GUIDs may or may not be present depending on the object flags
+                //
+
                 int GuidLengths =
                     ((_objectFlags & ObjectAceFlags.ObjectAceTypePresent) != 0 ? GuidLength : 0) +
                     ((_objectFlags & ObjectAceFlags.InheritedObjectAceTypePresent) != 0 ? GuidLength : 0);
@@ -1629,17 +2055,29 @@ namespace System.Security.AccessControl
             get { return MaxOpaqueLength(IsCallback); }
         }
 
+        #endregion
+
+        #region Public Methods
+
+        //
         // Copies the binary representation of the ACE into a given array
         // starting at the given offset.
+        //
+
         public /* sealed */ override void GetBinaryForm(byte[] binaryForm, int offset)
         {
+            //
             // Populate the header
+            //
+
             MarshalHeader(binaryForm, offset);
 
             int baseOffset = offset + HeaderLength;
             int offsetLocal = 0;
 
+            //
             // Store the access mask in the big-endian format
+            //
             unchecked
             {
                 binaryForm[baseOffset + 0] = (byte)(AccessMask >> 0);
@@ -1650,7 +2088,10 @@ namespace System.Security.AccessControl
 
             offsetLocal += AccessMaskLength;
 
+            //
             // Store the object flags in the big-endian format
+            //
+
             binaryForm[baseOffset + offsetLocal + 0] = (byte)(((uint)ObjectAceFlags) >> 0);
             binaryForm[baseOffset + offsetLocal + 1] = (byte)(((uint)ObjectAceFlags) >> 8);
             binaryForm[baseOffset + offsetLocal + 2] = (byte)(((uint)ObjectAceFlags) >> 16);
@@ -1658,7 +2099,10 @@ namespace System.Security.AccessControl
 
             offsetLocal += ObjectFlagsLength;
 
+            //
             // Store the object type GUIDs if present
+            //
+
             if ((ObjectAceFlags & ObjectAceFlags.ObjectAceTypePresent) != 0)
             {
                 ObjectAceType.ToByteArray().CopyTo(binaryForm, baseOffset + offsetLocal);
@@ -1671,11 +2115,17 @@ namespace System.Security.AccessControl
                 offsetLocal += GuidLength;
             }
 
+            //
             // Store the SID
+            //
+
             SecurityIdentifier.GetBinaryForm(binaryForm, baseOffset + offsetLocal);
             offsetLocal += SecurityIdentifier.BinaryLength;
 
+            //
             // Finally, if opaque is supported, store it
+            //
+
             if (GetOpaque() != null)
             {
                 if (OpaqueLength > MaxOpaqueLengthInternal)
@@ -1690,5 +2140,6 @@ namespace System.Security.AccessControl
                 GetOpaque()!.CopyTo(binaryForm, baseOffset + offsetLocal);
             }
         }
+        #endregion
     }
 }

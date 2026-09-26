@@ -1929,13 +1929,10 @@ get_call_info (MonoMemPool *mp, MonoMethodSignature *sig)
 				ainfo->size = size;
 				continue;
 			} else if (klass == swift_error || klass == swift_error_ptr) {
-				if (sig->pinvoke) {
+				if (sig->pinvoke)
 					ainfo->reg = ARMREG_R21;
-					ainfo->swift_error_in_reg = TRUE;
-				} else {
+				else
 					add_param (cinfo, ainfo, sig->params [pindex], FALSE);
-					ainfo->swift_error_in_reg = ainfo->storage == ArgInIReg;
-				}
 				ainfo->storage = ArgSwiftError;
 				continue;
 			}
@@ -2999,7 +2996,7 @@ mono_arch_allocate_vars (MonoCompile *cfg)
 		case ArgSwiftError: {
 			ins->flags |= MONO_INST_VOLATILE;
 			ins->opcode = OP_REGOFFSET;
-			if (!ainfo->swift_error_in_reg) {
+			if (ainfo->offset) {
 				g_assert (cfg->arch.args_reg);
 				ins->inst_basereg = cfg->arch.args_reg;
 				ins->inst_offset = ainfo->offset;
@@ -6035,7 +6032,7 @@ mono_arch_output_basic_block (MonoCompile *cfg, MonoBasicBlock *bb)
 	after_instruction_emit:
 		if ((cfg->opt & MONO_OPT_BRANCH) && ((code - cfg->native_code - offset) > max_len)) {
 			g_warning ("wrong maximal instruction length of instruction " M_PRI_INST " (expected %d, got %d)",
-				   mono_inst_name (ins->opcode), max_len, (int)(code - cfg->native_code - offset));
+				   mono_inst_name (ins->opcode), max_len, code - cfg->native_code - offset);
 			g_assert_not_reached ();
 		
 		}
@@ -6165,7 +6162,7 @@ emit_move_args (MonoCompile *cfg, guint8 *code)
 				break;
 			case ArgSwiftError:
 				if (cfg->method->wrapper_type == MONO_WRAPPER_MANAGED_TO_NATIVE) {
-					if (ainfo->swift_error_in_reg) {
+					if (ainfo->offset == 0) {
 						code = emit_strx (code, ainfo->reg, cfg->arch.swift_error_var->inst_basereg, GTMREG_TO_INT (cfg->arch.swift_error_var->inst_offset));
 					}
 				} else if (cfg->method->wrapper_type == MONO_WRAPPER_NATIVE_TO_MANAGED) {

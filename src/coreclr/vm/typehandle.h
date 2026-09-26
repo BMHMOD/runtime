@@ -80,7 +80,6 @@ class ComCallWrapperTemplate;
 // The entries in these tables (i.e. the code) are, however, often shared.
 // Clients of TypeHandle don't need to know any of this detail; just use the
 // GetInstantiation and HasInstantiation methods.
-// [cDAC] [RuntimeTypeSystem]: If ever the scheme of having the lower two bits be zero for MethodTables and two for TypeDescs is changed, version the RuntimeTypeSystem cDAC contract.
 
 class TypeHandle
 {
@@ -200,9 +199,25 @@ public:
     // This helper:
     // - Will return enums underlying type
     // - Will return underlying primitive for System.Int32 etc...
+    // - Will return underlying primitive as will be used in the calling convention
+    //      For example
+    //              struct t
+    //              {
+    //                  public int i;
+    //              }
+    //      will return ELEMENT_TYPE_I4 in x86 instead of ELEMENT_TYPE_VALUETYPE. We
+    //      call this type of value type a primitive value type
     //
-    // This will NOT convert E_T_ARRAY, E_T_SZARRAY etc. to E_T_CLASS. Use CorTypeInfo::IsObjRef for that.
+    // Internal representation is used among another things for the calling convention
+    // (jit benefits of primitive value types) or optimizing marshalling.
+    //
+    // This will NOT convert E_T_ARRAY, E_T_SZARRAY etc. to E_T_CLASS (though it probably
+    // should).  Use CorTypeInfo::IsObjRef for that.
     CorElementType GetInternalCorElementType() const;
+
+    // This helper will return the same as GetSignatureCorElementType except:
+    // - Will return enums underlying type
+    CorElementType GetVerifierCorElementType() const;
 
     //-------------------------------------------------------------------
     // CASTING
@@ -341,8 +356,6 @@ public:
 
     bool IsFloatHfa() const;
 
-    bool IsVectorT() const;
-
 #ifdef FEATURE_64BIT_ALIGNMENT
     bool RequiresAlign8() const;
 #endif // FEATURE_64BIT_ALIGNMENT
@@ -373,7 +386,6 @@ public:
     // And some types (like ByRef or generic type parameters) have no
     // method table and this function returns NULL for them.
     inline PTR_MethodTable GetMethodTable() const;
-    inline TypeHandle UpCastTypeIfNeeded() const;
 
     // Returns the type which should be used for visibility checking.
     inline MethodTable* GetMethodTableOfRootTypeParam() const;
@@ -429,7 +441,7 @@ public:
     BOOL IsString() const;
 
     // Continuation sub types
-    BOOL IsContinuationWithoutMetadata() const;
+    BOOL IsContinuation() const;
 
     // True if this type *is* a formal generic type parameter or any component of it is a formal generic type parameter
     BOOL ContainsGenericVariables(BOOL methodOnly=FALSE) const;
@@ -579,6 +591,7 @@ inline CHECK CheckPointer(TypeHandle th, IsNullOK ok = NULL_NOT_OK)
 {
     STATIC_CONTRACT_NOTHROW;
     STATIC_CONTRACT_GC_NOTRIGGER;
+    STATIC_CONTRACT_FORBID_FAULT;
     SUPPORTS_DAC;
     STATIC_CONTRACT_CANNOT_TAKE_LOCK;
 
@@ -683,7 +696,6 @@ public:
 
     bool ContainsAllOneType(TypeHandle th)
     {
-        LIMITED_METHOD_DAC_CONTRACT;
         for (DWORD i = GetNumArgs(); i > 0;)
         {
             if ((*this)[--i] != th)

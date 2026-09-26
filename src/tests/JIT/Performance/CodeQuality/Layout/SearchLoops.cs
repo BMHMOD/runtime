@@ -3,7 +3,6 @@
 
 using System;
 using Xunit;
-using TestLibrary;
 
 // Test code taken directly from https://github.com/dotnet/runtime/issues/7474
 // Laying the loop's early return path in-line can cost 30% on this micro-benchmark.
@@ -12,7 +11,6 @@ namespace Layout
 {
     public unsafe class SearchLoops
     {
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/86772", TestPlatforms.Browser | TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         [Fact]
         public static int TestEntryPoint()
         {

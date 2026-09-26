@@ -141,9 +141,19 @@ namespace System.ComponentModel
                 // See if this key matches our object.
                 string key = kvp.Key;
 
-                if (!key.StartsWith(objectName, IgnoreCase ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                if (IgnoreCase)
                 {
-                    continue;
+                    if (string.Compare(key, 0, objectName, 0, objectName.Length, StringComparison.OrdinalIgnoreCase) != 0)
+                    {
+                        continue;
+                    }
+                }
+                else
+                {
+                    if (string.CompareOrdinal(key, 0, objectName, 0, objectName.Length) != 0)
+                    {
+                        continue;
+                    }
                 }
 
                 // Character after objectName.Length should be a "." or a '-', or else we should continue.

@@ -215,11 +215,19 @@ namespace Microsoft.Win32
                 }
             }
 
+            Interop.Kernel32.SECURITY_ATTRIBUTES secAttrs = default;
             byte[]? securityDescriptor = registrySecurity?.GetSecurityDescriptorBinaryForm();
 
             fixed (void* pSecurityDescriptor = securityDescriptor)
             {
-                Interop.Kernel32.SECURITY_ATTRIBUTES secAttrs = Interop.Kernel32.SECURITY_ATTRIBUTES.Create(pSecurityDescriptor);
+                if (pSecurityDescriptor is not null)
+                {
+                    secAttrs = new()
+                    {
+                        nLength = (uint)sizeof(Interop.Kernel32.SECURITY_ATTRIBUTES),
+                        lpSecurityDescriptor = pSecurityDescriptor
+                    };
+                }
 
                 // By default, the new key will be writable.
                 int ret = Interop.Advapi32.RegCreateKeyEx(_hkey,
@@ -755,7 +763,7 @@ namespace Microsoft.Win32
 
         /// <summary>Retrieves an array of strings containing all the subkey names.</summary>
         /// <returns>All subkey names.</returns>
-        public unsafe string[] GetSubKeyNames()
+        public string[] GetSubKeyNames()
         {
             int subkeys = SubKeyCount;
 
@@ -1087,8 +1095,8 @@ namespace Microsoft.Win32
                         case Interop.Advapi32.RegistryValues.REG_QWORD:
                             return dataLength switch
                             {
-                                4 => BitConverter.ToInt32(span),
-                                8 => BitConverter.ToInt64(span),
+                                4 => MemoryMarshal.Read<int>(span),
+                                8 => MemoryMarshal.Read<long>(span),
                                 _ => span.Slice(0, dataLength).ToArray(), // This shouldn't happen, but the previous implementation included it defensively.
                             };
 

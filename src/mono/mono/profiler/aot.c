@@ -28,10 +28,9 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
-#ifdef HAVE_SYS_SOCKET_H
+#ifndef HOST_WIN32
 #include <sys/socket.h>
-#endif
-#ifdef HOST_WIN32
+#else
 #define sleep(t)                 Sleep((t) * 1000)
 #endif
 #include <glib.h>
@@ -409,12 +408,8 @@ mono_profiler_init_aot (const char *desc)
 static void
 make_room (MonoProfiler *prof, int n)
 {
-	int new_needed_len = prof->buf_pos + n;
-	if (new_needed_len >= prof->buf_len) {
+	if (prof->buf_pos + n >= prof->buf_len) {
 		int new_len = prof->buf_len * 2;
-		while (new_needed_len >= new_len)
-			new_len *= 2;
-
 		guint8 *new_buf = g_malloc0 (new_len);
 		memcpy (new_buf, prof->buf, prof->buf_pos);
 		g_free (prof->buf);

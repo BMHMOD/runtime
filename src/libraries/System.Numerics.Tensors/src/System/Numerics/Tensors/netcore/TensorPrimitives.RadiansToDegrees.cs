@@ -31,6 +31,7 @@ namespace System.Numerics.Tensors
 
             public static Vector128<T> Invoke(Vector128<T> x)
             {
+#if NET9_0_OR_GREATER
                 if (typeof(T) == typeof(double))
                 {
                     return Vector128.RadiansToDegrees(x.AsDouble()).As<double, T>();
@@ -40,10 +41,14 @@ namespace System.Numerics.Tensors
                     Debug.Assert(typeof(T) == typeof(float));
                     return Vector128.RadiansToDegrees(x.AsSingle()).As<float, T>();
                 }
+#else
+                return (x * T.CreateChecked(180)) / T.Pi;
+#endif
             }
 
             public static Vector256<T> Invoke(Vector256<T> x)
             {
+#if NET9_0_OR_GREATER
                 if (typeof(T) == typeof(double))
                 {
                     return Vector256.RadiansToDegrees(x.AsDouble()).As<double, T>();
@@ -53,10 +58,14 @@ namespace System.Numerics.Tensors
                     Debug.Assert(typeof(T) == typeof(float));
                     return Vector256.RadiansToDegrees(x.AsSingle()).As<float, T>();
                 }
+#else
+                return (x * T.CreateChecked(180)) / T.Pi;
+#endif
             }
 
             public static Vector512<T> Invoke(Vector512<T> x)
             {
+#if NET9_0_OR_GREATER
                 if (typeof(T) == typeof(double))
                 {
                     return Vector512.RadiansToDegrees(x.AsDouble()).As<double, T>();
@@ -66,6 +75,9 @@ namespace System.Numerics.Tensors
                     Debug.Assert(typeof(T) == typeof(float));
                     return Vector512.RadiansToDegrees(x.AsSingle()).As<float, T>();
                 }
+#else
+                return (x * T.CreateChecked(180)) / T.Pi;
+#endif
             }
         }
     }

@@ -7,7 +7,6 @@ using System;
 using System.Threading;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 public class Test_finalizearraysleep {
 
@@ -41,8 +40,6 @@ public class Test_finalizearraysleep {
         }
     }
 
-    [ActiveIssue("PlatformDetection.IsPreciseGcSupported false on mono", TestRuntimes.Mono)]
-    [SkipOnCoreClr("This test is not compatible with GC stress.", RuntimeTestModes.AnyGCStress)]
     [Fact]
     public static int TestEntryPoint() {
         CreateObj temp = new CreateObj();

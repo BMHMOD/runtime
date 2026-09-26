@@ -288,7 +288,6 @@ namespace System.IO.Pipelines
 
 #if NET
         [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
-        [RuntimeAsyncMethodGeneration(false)]
 #endif
         private async ValueTask<FlushResult> FlushAsyncInternal(bool writeToStream, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
         {

@@ -68,7 +68,7 @@
 #ifdef HAVE_SYS_MMAN_H
 #include <sys/mman.h>
 #endif
-#ifdef HAVE_SYS_SOCKET_H
+#ifndef HOST_WIN32
 #include <sys/socket.h>
 #endif
 #ifndef DISABLE_LOG_PROFILER_GZ

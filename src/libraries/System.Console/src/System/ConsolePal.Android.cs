@@ -4,7 +4,6 @@
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using Microsoft.Win32.SafeHandles;
 
 #pragma warning disable IDE0060
 
@@ -30,12 +29,6 @@ namespace System
         public static Stream OpenStandardOutput() => new LogcatStream(OutputEncoding);
 
         public static Stream OpenStandardError() => new LogcatStream(OutputEncoding);
-
-        public static SafeFileHandle OpenStandardInputHandle() => throw new PlatformNotSupportedException();
-
-        public static SafeFileHandle OpenStandardOutputHandle() => throw new PlatformNotSupportedException();
-
-        public static SafeFileHandle OpenStandardErrorHandle() => throw new PlatformNotSupportedException();
 
         public static Encoding InputEncoding => throw new PlatformNotSupportedException();
 

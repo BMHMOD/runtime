@@ -5,20 +5,23 @@ using System.Collections.Generic;
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.HijackArgs))]
-internal partial class HijackArgs : IData<HijackArgs>
+internal class HijackArgs : IData<HijackArgs>
 {
-    [CustomInit(nameof(InitRegisters))] public partial IReadOnlyDictionary<string, TargetNUInt> Registers { get; }
+    static HijackArgs IData<HijackArgs>.Create(Target target, TargetPointer address)
+        => new HijackArgs(target, address);
 
-    private partial IReadOnlyDictionary<string, TargetNUInt> InitRegisters(Target target, TargetPointer address)
+    public HijackArgs(Target target, TargetPointer address)
     {
         Target.TypeInfo type = target.GetTypeInfo(DataType.HijackArgs);
-        Dictionary<string, TargetNUInt> registers = new(type.Fields.Count);
+
+        Dictionary<string, TargetNUInt> registers = new Dictionary<string, TargetNUInt>(type.Fields.Count);
         foreach ((string name, Target.FieldInfo field) in type.Fields)
         {
             TargetNUInt value = target.ReadNUInt(address + (ulong)field.Offset);
             registers.Add(name, value);
         }
-        return registers;
+        Registers = registers;
     }
+
+    public IReadOnlyDictionary<string, TargetNUInt> Registers { get; }
 }

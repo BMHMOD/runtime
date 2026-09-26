@@ -11,7 +11,4 @@
     <Compile Include="Program.Gfni.V512.cs" />
     <Compile Include="..\Shared\Program.cs" />
   </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="$(TestLibraryProjectPath)" />
-  </ItemGroup>
 </Project>

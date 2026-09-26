@@ -6,9 +6,8 @@ using System.Security;
 using Xunit;
 
 [SecuritySafeCritical]
-public class DDB113347 {
-    [OuterLoop]
-    [ConditionalFact(typeof(TestLibrary.Utilities), nameof(TestLibrary.Utilities.IsNotNativeAot))]
+public class Program {
+    [Fact]
     public static int TestEntryPoint() {
         Console.WriteLine("Attempting delegate construction with null method pointer.");
         Console.WriteLine("Expecting: ArgumentNullException wrapped in TargetInvocationException.");

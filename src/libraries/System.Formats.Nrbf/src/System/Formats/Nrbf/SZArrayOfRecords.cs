@@ -38,8 +38,6 @@ internal sealed class SZArrayOfRecords : SZArrayRecord<SerializationRecord>
 
     private SerializationRecord?[] ToArray(bool allowNulls)
     {
-        CheckExpectedRecordCount(Records, allowNulls);
-
         SerializationRecord?[] result = new SerializationRecord?[Length];
 
         int resultIndex = 0;

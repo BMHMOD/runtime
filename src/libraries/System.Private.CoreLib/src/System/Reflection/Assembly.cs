@@ -259,7 +259,7 @@ namespace System.Reflection
             ArgumentNullException.ThrowIfNull(rawAssembly);
 
             if (rawAssembly.Length == 0)
-                throw new BadImageFormatException(SR.BadImageFormat_EmptyAssembly);
+                throw new BadImageFormatException(SR.BadImageFormat_BadILFormat);
 
             SerializationInfo.ThrowIfDeserializationInProgress("AllowAssembliesFromByteArrays",
                 ref s_cachedSerializationSwitch);

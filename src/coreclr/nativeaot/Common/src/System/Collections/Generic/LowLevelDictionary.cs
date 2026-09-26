@@ -86,7 +86,7 @@ namespace System.Collections.Generic
 
             Entry entry = Find(key);
             if (entry != null)
-                throw new ArgumentException(SR.Format(SR.Argument_AddingDuplicateWithKey, key));
+                throw new ArgumentException(SR.Format(SR.Argument_AddingDuplicate, key));
             _version++;
             UncheckedAdd(key, value);
         }

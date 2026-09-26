@@ -23,11 +23,9 @@ namespace Wasm.Build.Tests
 
         public Dictionary<string, string> Environment { get; } = new Dictionary<string, string>();
 
-        // Per-line callbacks used by ExecuteAsyncInternal. Wired via WithOutputDataReceived /
-        // WithErrorDataReceived. Replaces the older `event DataReceivedEventHandler` pair that
-        // were tied to the pre-net11 Process.BeginOutputReadLine pattern.
-        private Action<string?>? _onOutputLine;
-        private Action<string?>? _onErrorLine;
+        public event DataReceivedEventHandler? ErrorDataReceived;
+
+        public event DataReceivedEventHandler? OutputDataReceived;
 
         public string? WorkingDirectory { get; set; }
 
@@ -63,13 +61,13 @@ namespace Wasm.Build.Tests
 
         public ToolCommand WithOutputDataReceived(Action<string?> handler)
         {
-            _onOutputLine += handler;
+            OutputDataReceived += (_, args) => handler(args.Data);
             return this;
         }
 
         public ToolCommand WithErrorDataReceived(Action<string?> handler)
         {
-            _onErrorLine += handler;
+            ErrorDataReceived += (_, args) => handler(args.Data);
             return this;
         }
 
@@ -112,65 +110,45 @@ namespace Wasm.Build.Tests
         private async Task<CommandResult> ExecuteAsyncInternal(string executable, string args)
         {
             var output = new List<string>();
-
-            // Capture the process in a local. Dispose() can run concurrently — e.g. a test's
-            // `using` scope ending while a long-running server process is still executing (see
-            // BrowserRunner) — and it kills the process and sets the CurrentProcess field to null.
-            // Reading the field after that point would throw NullReferenceException, so all
-            // subsequent member access goes through the local instead.
-            Process process = CurrentProcess = CreateProcess(executable, args);
-
-            try
+            CurrentProcess = CreateProcess(executable, args);
+            DataReceivedEventHandler errorHandler = (s, e) =>
             {
-                process.Start();
+                if (e.Data == null || isDisposed)
+                    return;
 
-                // Process.ReadAllLinesAsync (added in .NET 11) yields each redirected stdout/stderr
-                // line as it arrives and completes once both streams have hit EOF. The streams
-                // close when the child process closes its pipe handles — typically (but not always)
-                // observable before Exited fires. We still call WaitForExitAsync after the loop so
-                // process.ExitCode is safe to read.
-                await foreach (ProcessOutputLine line in process.ReadAllLinesAsync().ConfigureAwait(false))
-                {
-                    if (isDisposed)
-                        break;
+                string msg = $"[{_label}] {e.Data}";
+                output.Add(msg);
+                _testOutput.WriteLine(msg);
+                ErrorDataReceived?.Invoke(s, e);
+            };
 
-                    string msg = $"[{_label}] {line.Content}";
-                    output.Add(msg);
-                    _testOutput.WriteLine(msg);
-
-                    if (line.StandardError)
-                        _onErrorLine?.Invoke(line.Content);
-                    else
-                        _onOutputLine?.Invoke(line.Content);
-                }
-
-                if (isDisposed)
-                {
-                    // The command was disposed while still running, so Dispose() has already killed
-                    // the process. There is no meaningful exit code to report and touching the
-                    // disposed process would throw, so return the output collected so far.
-                    RemoveNullTerminator(output);
-                    return new CommandResult(process.StartInfo, exitCode: -1, string.Join(System.Environment.NewLine, output));
-                }
-
-                await process.WaitForExitAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
+            DataReceivedEventHandler outputHandler = (s, e) =>
             {
-                // If process start fails, the `Process` object is in a state "don't touch me"
-                // (calling almost everything results in "No process associated with this object"),
-                // therefore we just set it to null to avoid hiding the root exception.
-                CurrentProcess = null;
+                if (e.Data == null || isDisposed)
+                    return;
 
-                _testOutput.WriteLine($"[{_label}] Exception running command: {ex}");
-                throw;
-            }
+                string msg = $"[{_label}] {e.Data}";
+                output.Add(msg);
+                _testOutput.WriteLine(msg);
+                OutputDataReceived?.Invoke(s, e);
+            };
+
+            CurrentProcess.ErrorDataReceived += errorHandler;
+            CurrentProcess.OutputDataReceived += outputHandler;
+
+            var completionTask = CurrentProcess.StartAndWaitForExitAsync();
+            CurrentProcess.BeginOutputReadLine();
+            CurrentProcess.BeginErrorReadLine();
+            await completionTask;
+
+            CurrentProcess.ErrorDataReceived -= errorHandler;
+            CurrentProcess.OutputDataReceived -= outputHandler;
 
             RemoveNullTerminator(output);
 
             return new CommandResult(
-                process.StartInfo,
-                process.ExitCode,
+                CurrentProcess.StartInfo,
+                CurrentProcess.ExitCode,
                 string.Join(System.Environment.NewLine, output));
         }
 
@@ -186,6 +164,7 @@ namespace Wasm.Build.Tests
                 UseShellExecute = false
             };
 
+            psi.Environment["DOTNET_MULTILEVEL_LOOKUP"] = "0";
             psi.Environment["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1";
 
             // runtime repo sets this, which interferes with the tests

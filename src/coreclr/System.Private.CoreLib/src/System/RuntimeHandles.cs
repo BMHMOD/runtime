@@ -31,7 +31,7 @@ namespace System
         /// <param name="value">An IntPtr handle to a RuntimeType to create a <see cref="RuntimeTypeHandle"/> object from.</param>
         /// <returns>A new <see cref="RuntimeTypeHandle"/> object that corresponds to the value parameter.</returns>
         public static RuntimeTypeHandle FromIntPtr(IntPtr value) =>
-            new RuntimeTypeHandle(value != IntPtr.Zero ? GetRuntimeTypeFromHandle(value) : null);
+            new RuntimeTypeHandle(GetRuntimeTypeFromHandleMaybeNull(value));
 
         [LibraryImport(RuntimeHelpers.QCall, EntryPoint = "RuntimeTypeHandle_GetRuntimeTypeFromHandleSlow")]
         private static partial void GetRuntimeTypeFromHandleSlow(
@@ -53,6 +53,17 @@ namespace System
             return (h.IsTypeDesc
                 ? h.AsTypeDesc()->ExposedClassObject
                 : h.AsMethodTable()->AuxiliaryData->ExposedClassObject) ?? GetRuntimeTypeFromHandleSlow(handle);
+        }
+
+        // implementation of CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPE_MAYBENULL, CORINFO_HELP_TYPEHANDLE_TO_RUNTIMETYPEHANDLE_MAYBENULL
+        internal static RuntimeType? GetRuntimeTypeFromHandleMaybeNull(IntPtr handle)
+        {
+            if (handle == IntPtr.Zero)
+            {
+                return null;
+            }
+
+            return GetRuntimeTypeFromHandle(handle);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -802,29 +813,6 @@ namespace System
             return type!;
         }
 
-        [LibraryImport(RuntimeHelpers.QCall, EntryPoint = "RuntimeTypeHandle_MakeFunctionPointer")]
-        private static partial void MakeFunctionPointer(nint* retAndParamTypes, int numArgs, [MarshalAs(UnmanagedType.Bool)] bool isUnmanaged, ObjectHandleOnStack type);
-
-        internal RuntimeType MakeFunctionPointer(Type[] parameterTypes, bool isUnmanaged)
-        {
-            int count = 1 + parameterTypes.Length;
-            nint[] retAndParamTypeHandles = new nint[count];
-
-            retAndParamTypeHandles[0] = GetNativeHandle().Value;
-            for (int i = 0; i < parameterTypes.Length; i++)
-                retAndParamTypeHandles[i + 1] = parameterTypes[i].TypeHandle.Value;
-
-            RuntimeType? type = null;
-            fixed (nint* pRetAndParamTypeHandles = retAndParamTypeHandles)
-            {
-                MakeFunctionPointer(pRetAndParamTypeHandles, parameterTypes.Length, isUnmanaged, ObjectHandleOnStack.Create(ref type));
-            }
-
-            GC.KeepAlive(m_type);
-            GC.KeepAlive(parameterTypes);
-            return type!;
-        }
-
         [LibraryImport(RuntimeHelpers.QCall, EntryPoint = "RuntimeTypeHandle_MakePointer")]
         private static partial void MakePointer(QCallTypeHandle handle, ObjectHandleOnStack type);
 
@@ -868,7 +856,7 @@ namespace System
 
         internal static bool SatisfiesConstraints(RuntimeType paramType, RuntimeType? typeContext, RuntimeMethodInfo? methodContext, RuntimeType toType)
         {
-            RuntimeMethodHandleInternal methodContextRaw = (methodContext == null) ? RuntimeMethodHandleInternal.EmptyHandle : IRuntimeMethodInfo.GetValue(methodContext);
+            RuntimeMethodHandleInternal methodContextRaw = ((IRuntimeMethodInfo?)methodContext)?.Value ?? RuntimeMethodHandleInternal.EmptyHandle;
             bool result = SatisfiesConstraints(new QCallTypeHandle(ref paramType), new QCallTypeHandle(ref typeContext!), methodContextRaw, new QCallTypeHandle(ref toType)) != Interop.BOOL.FALSE;
             GC.KeepAlive(methodContext);
             return result;
@@ -931,12 +919,12 @@ namespace System
         public RuntimeMethodInfoStub(RuntimeMethodHandleInternal methodHandleValue, object keepalive)
         {
             m_keepalive = keepalive;
-            m_value = methodHandleValue.Value;
+            m_value = methodHandleValue;
         }
 
         private readonly object m_keepalive;
 
-        // These unused variables are used to ensure that m_value has same offset as RuntimeMethodInfo.m_handle
+        // These unused variables are used to ensure that this class has the same layout as RuntimeMethodInfo
 #pragma warning disable CA1823, 414, 169, IDE0044
         private object? m_a;
         private object? m_b;
@@ -948,7 +936,9 @@ namespace System
         private object? m_h;
 #pragma warning restore CA1823, 414, 169, IDE0044
 
-        internal IntPtr m_value;
+        public RuntimeMethodHandleInternal m_value;
+
+        RuntimeMethodHandleInternal IRuntimeMethodInfo.Value => m_value;
 
         // implementation of CORINFO_HELP_METHODDESC_TO_STUBRUNTIMEMETHOD
         [StackTraceHidden]
@@ -963,10 +953,9 @@ namespace System
 
     internal interface IRuntimeMethodInfo
     {
-        internal static RuntimeMethodHandleInternal GetValue(IRuntimeMethodInfo method)
+        RuntimeMethodHandleInternal Value
         {
-            // All implementations of IRuntimeMethodInfo are required to have a m_value field at the same offset as RuntimeMethodInfoStub.m_value.
-            return new RuntimeMethodHandleInternal(Unsafe.As<RuntimeMethodInfoStub>(method).m_value);
+            get;
         }
     }
 
@@ -1001,7 +990,7 @@ namespace System
             throw new PlatformNotSupportedException();
         }
 
-        public IntPtr Value => m_value != null ? IRuntimeMethodInfo.GetValue(m_value).Value : IntPtr.Zero;
+        public IntPtr Value => m_value != null ? m_value.Value.Value : IntPtr.Zero;
 
         public override int GetHashCode()
         {
@@ -1056,7 +1045,7 @@ namespace System
 
         public IntPtr GetFunctionPointer()
         {
-            IntPtr ptr = GetFunctionPointer(IRuntimeMethodInfo.GetValue(EnsureNonNullMethodInfo(m_value)));
+            IntPtr ptr = GetFunctionPointer(EnsureNonNullMethodInfo(m_value).Value);
             GC.KeepAlive(m_value);
             return ptr;
         }
@@ -1076,7 +1065,7 @@ namespace System
 
         internal static MethodAttributes GetAttributes(IRuntimeMethodInfo method)
         {
-            MethodAttributes retVal = GetAttributes(IRuntimeMethodInfo.GetValue(method));
+            MethodAttributes retVal = GetAttributes(method.Value);
             GC.KeepAlive(method);
             return retVal;
         }
@@ -1091,7 +1080,7 @@ namespace System
         {
             string? name = null;
             IRuntimeMethodInfo methodInfo = EnsureNonNullMethodInfo(method);
-            ConstructInstantiation(IRuntimeMethodInfo.GetValue(methodInfo), format, new StringHandleOnStack(ref name));
+            ConstructInstantiation(methodInfo.Value, format, new StringHandleOnStack(ref name));
             GC.KeepAlive(methodInfo);
             return name!;
         }
@@ -1108,7 +1097,7 @@ namespace System
 
         internal static RuntimeType GetDeclaringType(IRuntimeMethodInfo method)
         {
-            RuntimeType type = GetDeclaringType(IRuntimeMethodInfo.GetValue(method));
+            RuntimeType type = GetDeclaringType(method.Value);
             GC.KeepAlive(method);
             return type;
         }
@@ -1120,7 +1109,7 @@ namespace System
         {
             Debug.Assert(method != null);
 
-            int slot = GetSlot(IRuntimeMethodInfo.GetValue(method));
+            int slot = GetSlot(method.Value);
             GC.KeepAlive(method);
             return slot;
         }
@@ -1132,7 +1121,7 @@ namespace System
         {
             Debug.Assert(method != null);
 
-            int token = GetMethodDef(IRuntimeMethodInfo.GetValue(method));
+            int token = GetMethodDef(method.Value);
             GC.KeepAlive(method);
             return token;
         }
@@ -1142,7 +1131,7 @@ namespace System
 
         internal static string GetName(IRuntimeMethodInfo method)
         {
-            string name = GetName(IRuntimeMethodInfo.GetValue(method));
+            string name = GetName(method.Value);
             GC.KeepAlive(method);
             return name;
         }
@@ -1225,7 +1214,7 @@ namespace System
         internal static RuntimeType[] GetMethodInstantiationInternal(IRuntimeMethodInfo method)
         {
             RuntimeType[]? types = null;
-            GetMethodInstantiation(IRuntimeMethodInfo.GetValue(EnsureNonNullMethodInfo(method)), ObjectHandleOnStack.Create(ref types), Interop.BOOL.TRUE);
+            GetMethodInstantiation(EnsureNonNullMethodInfo(method).Value, ObjectHandleOnStack.Create(ref types), Interop.BOOL.TRUE);
             GC.KeepAlive(method);
             return types!;
         }
@@ -1240,7 +1229,7 @@ namespace System
         internal static Type[]? GetMethodInstantiationPublic(IRuntimeMethodInfo method)
         {
             Type[]? types = null;
-            GetMethodInstantiation(IRuntimeMethodInfo.GetValue(EnsureNonNullMethodInfo(method)), ObjectHandleOnStack.Create(ref types), Interop.BOOL.FALSE);
+            GetMethodInstantiation(EnsureNonNullMethodInfo(method).Value, ObjectHandleOnStack.Create(ref types), Interop.BOOL.FALSE);
             GC.KeepAlive(method);
             return types;
         }
@@ -1250,7 +1239,7 @@ namespace System
 
         internal static bool HasMethodInstantiation(IRuntimeMethodInfo method)
         {
-            bool fRet = HasMethodInstantiation(IRuntimeMethodInfo.GetValue(method));
+            bool fRet = HasMethodInstantiation(method.Value);
             GC.KeepAlive(method);
             return fRet;
         }
@@ -1280,22 +1269,12 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern RuntimeMethodHandleInternal GetMethodFromCanonical(RuntimeMethodHandleInternal method, RuntimeType declaringType);
 
-        [LibraryImport(RuntimeHelpers.QCall, EntryPoint = "RuntimeMethodHandle_GetNativeCode")]
-        private static partial IntPtr GetNativeCode(RuntimeMethodHandleInternal method);
-
-        internal static IntPtr GetNativeCodeInternal(IRuntimeMethodInfo method)
-        {
-            IntPtr value = GetNativeCode(IRuntimeMethodInfo.GetValue(method));
-            GC.KeepAlive(method);
-            return value;
-        }
-
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsGenericMethodDefinition(RuntimeMethodHandleInternal method);
 
         internal static bool IsGenericMethodDefinition(IRuntimeMethodInfo method)
         {
-            bool fRet = IsGenericMethodDefinition(IRuntimeMethodInfo.GetValue(method));
+            bool fRet = IsGenericMethodDefinition(method.Value);
             GC.KeepAlive(method);
             return fRet;
         }
@@ -1310,7 +1289,7 @@ namespace System
         {
             if (!IsTypicalMethodDefinition(method))
             {
-                GetTypicalMethodDefinition(IRuntimeMethodInfo.GetValue(method), ObjectHandleOnStack.Create(ref method));
+                GetTypicalMethodDefinition(method.Value, ObjectHandleOnStack.Create(ref method));
                 GC.KeepAlive(method);
             }
 
@@ -1320,7 +1299,7 @@ namespace System
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern int GetGenericParameterCount(RuntimeMethodHandleInternal method);
 
-        internal static int GetGenericParameterCount(IRuntimeMethodInfo method) => GetGenericParameterCount(IRuntimeMethodInfo.GetValue(method));
+        internal static int GetGenericParameterCount(IRuntimeMethodInfo method) => GetGenericParameterCount(method.Value);
 
         [LibraryImport(RuntimeHelpers.QCall, EntryPoint = "RuntimeMethodHandle_StripMethodInstantiation")]
         private static partial void StripMethodInstantiation(RuntimeMethodHandleInternal method, ObjectHandleOnStack outMethod);
@@ -1329,7 +1308,7 @@ namespace System
         {
             IRuntimeMethodInfo strippedMethod = method;
 
-            StripMethodInstantiation(IRuntimeMethodInfo.GetValue(method), ObjectHandleOnStack.Create(ref strippedMethod));
+            StripMethodInstantiation(method.Value, ObjectHandleOnStack.Create(ref strippedMethod));
             GC.KeepAlive(method);
 
             return strippedMethod;
@@ -1350,16 +1329,13 @@ namespace System
         internal static RuntimeMethodBody? GetMethodBody(IRuntimeMethodInfo method, RuntimeType declaringType)
         {
             RuntimeMethodBody? result = null;
-            GetMethodBody(IRuntimeMethodInfo.GetValue(method), new QCallTypeHandle(ref declaringType), ObjectHandleOnStack.Create(ref result));
+            GetMethodBody(method.Value, new QCallTypeHandle(ref declaringType), ObjectHandleOnStack.Create(ref result));
             GC.KeepAlive(method);
             return result;
         }
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         internal static extern bool IsConstructor(RuntimeMethodHandleInternal method);
-
-        [MethodImpl(MethodImplOptions.InternalCall)]
-        internal static extern bool IsAsyncMethod(RuntimeMethodHandleInternal method);
 
         [MethodImpl(MethodImplOptions.InternalCall)]
         private static extern LoaderAllocator GetLoaderAllocatorInternal(RuntimeMethodHandleInternal method);
@@ -1409,28 +1385,28 @@ namespace System
         }
     }
 
+    [StructLayout(LayoutKind.Sequential)]
     internal sealed class RuntimeFieldInfoStub : IRuntimeFieldInfo
     {
         public RuntimeFieldInfoStub(RuntimeFieldHandleInternal fieldHandle, object keepalive)
         {
             m_keepalive = keepalive;
-            m_fieldHandle = fieldHandle.Value;
+            m_fieldHandle = fieldHandle;
         }
 
         private readonly object m_keepalive;
 
-        // These unused variables are used to ensure that m_fieldHandle has same offset as RtFieldInfo.m_fieldHandle
-#pragma warning disable CA1823, 414, 169, IDE0044
-        private IntPtr m_b;
+        // These unused variables are used to ensure that this class has the same layout as RuntimeFieldInfo
+#pragma warning disable 414, 169, IDE0044
         private object? m_c;
         private object? m_d;
+        private int m_b;
         private object? m_e;
         private object? m_f;
-#pragma warning restore CA1823, 414, 169, IDE0044
+        private RuntimeFieldHandleInternal m_fieldHandle;
+#pragma warning restore 414, 169, IDE0044
 
-        private IntPtr m_fieldHandle;
-
-        RuntimeFieldHandleInternal IRuntimeFieldInfo.Value => new RuntimeFieldHandleInternal(m_fieldHandle);
+        RuntimeFieldHandleInternal IRuntimeFieldInfo.Value => m_fieldHandle;
 
         // implementation of CORINFO_HELP_FIELDDESC_TO_STUBRUNTIMEFIELD
         [StackTraceHidden]
@@ -1574,9 +1550,9 @@ namespace System
         {
             ByteRef fieldDataRef = default;
             GetFieldDataReference(((RtFieldInfo)field).GetFieldDesc(), ObjectHandleOnStack.Create(ref target), ByteRefOnStack.Create(ref fieldDataRef));
-            Debug.Assert(!Unsafe.IsNullRef(ref fieldDataRef.Value));
+            Debug.Assert(!Unsafe.IsNullRef(ref fieldDataRef.Get()));
             GC.KeepAlive(field);
-            return ref fieldDataRef.Value;
+            return ref fieldDataRef.Get();
         }
 
         internal static ref byte GetFieldDataReference(ref byte target, RuntimeFieldInfo field)
@@ -2079,7 +2055,7 @@ namespace System
             _returnTypeORfieldType = returnType;
             _managedCallingConventionAndArgIteratorFlags = (int)callingConvention;
             Debug.Assert((_managedCallingConventionAndArgIteratorFlags & 0xffffff00) == 0);
-            _pMethod = IRuntimeMethodInfo.GetValue(methodHandle);
+            _pMethod = methodHandle.Value;
 
             _declaringType = RuntimeMethodHandle.GetDeclaringType(_pMethod);
             Init(null, 0, default, _pMethod);
@@ -2089,7 +2065,7 @@ namespace System
         public Signature(IRuntimeMethodInfo methodHandle, RuntimeType declaringType)
         {
             _declaringType = declaringType;
-            Init(null, 0, default, IRuntimeMethodInfo.GetValue(methodHandle));
+            Init(null, 0, default, methodHandle.Value);
             GC.KeepAlive(methodHandle);
         }
 
@@ -2228,105 +2204,5 @@ namespace System
         internal abstract byte[]? ResolveSignature(int token, int fromMethod);
         //
         internal abstract MethodInfo GetDynamicMethod();
-
-        [UnmanagedCallersOnly]
-        internal static unsafe void GetJitContext(Resolver* pResolver, int* pSecurityControlFlags, RuntimeType* ppResult, Exception* pException)
-        {
-            try
-            {
-                *ppResult = pResolver->GetJitContext(out *pSecurityControlFlags);
-            }
-            catch (Exception ex)
-            {
-                *pException = ex;
-            }
-        }
-
-        [UnmanagedCallersOnly]
-        internal static unsafe void GetCodeInfo(Resolver* pResolver, int* pStackSize, int* pInitLocals, int* pEHCount, byte[]* ppResult, Exception* pException)
-        {
-            try
-            {
-                *ppResult = pResolver->GetCodeInfo(out *pStackSize, out *pInitLocals, out *pEHCount);
-            }
-            catch (Exception ex)
-            {
-                *pException = ex;
-            }
-        }
-
-        [UnmanagedCallersOnly]
-        internal static unsafe void GetLocalsSignature(Resolver* pResolver, byte[]* ppResult, Exception* pException)
-        {
-            try
-            {
-                *ppResult = pResolver->GetLocalsSignature();
-            }
-            catch (Exception ex)
-            {
-                *pException = ex;
-            }
-        }
-
-        [UnmanagedCallersOnly]
-        internal static unsafe void GetStringLiteral(Resolver* pResolver, int token, string* ppResult, Exception* pException)
-        {
-            try
-            {
-                *ppResult = pResolver->GetStringLiteral(token);
-            }
-            catch (Exception ex)
-            {
-                *pException = ex;
-            }
-        }
-
-        [UnmanagedCallersOnly]
-        internal static unsafe void ResolveToken(Resolver* pResolver, int token, IntPtr* pTypeHandle, IntPtr* pMethodHandle, IntPtr* pFieldHandle, Exception* pException)
-        {
-            try
-            {
-                pResolver->ResolveToken(token, out *pTypeHandle, out *pMethodHandle, out *pFieldHandle);
-            }
-            catch (Exception ex)
-            {
-                *pException = ex;
-            }
-        }
-
-        [UnmanagedCallersOnly]
-        internal static unsafe void ResolveSignature(Resolver* pResolver, int token, int fromMethod, byte[]* ppResult, Exception* pException)
-        {
-            try
-            {
-                *ppResult = pResolver->ResolveSignature(token, fromMethod);
-            }
-            catch (Exception ex)
-            {
-                *pException = ex;
-            }
-        }
-
-        [UnmanagedCallersOnly]
-        internal static unsafe void GetEHInfo(Resolver* pResolver, int EHNumber, byte[]* ppRawEHInfo, void* parsedEHInfo, Exception* pException)
-        {
-            try
-            {
-                byte[]? rawEHInfo = pResolver->GetRawEHInfo();
-                if (rawEHInfo != null)
-                {
-                    *ppRawEHInfo = rawEHInfo;
-                }
-                else
-                {
-                    *ppRawEHInfo = null;
-                    pResolver->GetEHInfo(EHNumber, parsedEHInfo);
-                }
-            }
-            catch (Exception ex)
-            {
-                *pException = ex;
-            }
-        }
     }
 }

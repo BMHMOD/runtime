@@ -3,4 +3,6 @@
 
 using Xunit;
 
-[assembly: CollectionBehavior(CollectionBehavior.CollectionPerAssembly)]
+// [ActiveIssue("https://github.com/dotnet/runtime/issues/21870")]: Disabling parallel execution of HttpListener tests
+// until all of the hangs can be addressed
+[assembly: CollectionBehavior(CollectionBehavior.CollectionPerAssembly, DisableTestParallelization = true, MaxParallelThreads = 1)]

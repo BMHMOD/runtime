@@ -38,7 +38,7 @@ namespace System.Net.Http.Functional.Tests
 
         public HttpClientEKUTest(ITestOutputHelper output) : base(output) { }
 
-        [ConditionalFact(typeof(HttpClientEKUTest), nameof(CanTestCertificates))]
+        [ConditionalFact(nameof(CanTestCertificates))]
         public async Task HttpClient_NoEKUServerAuth_Ok()
         {
             var options = new HttpsTestServer.Options();
@@ -60,7 +60,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientEKUTest), nameof(CanTestCertificates))]
+        [ConditionalFact(nameof(CanTestCertificates))]
         public async Task HttpClient_ClientEKUServerAuth_Fails()
         {
             var options = new HttpsTestServer.Options();
@@ -82,7 +82,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientEKUTest), nameof(CanTestCertificates))]
+        [ConditionalFact(nameof(CanTestCertificates))]
         public async Task HttpClient_NoEKUClientAuth_Ok()
         {
             var options = new HttpsTestServer.Options();
@@ -106,7 +106,7 @@ namespace System.Net.Http.Functional.Tests
             }
         }
 
-        [ConditionalFact(typeof(HttpClientEKUTest), nameof(CanTestCertificates))]
+        [ConditionalFact(nameof(CanTestCertificates))]
         public async Task HttpClient_ServerEKUClientAuth_Fails()
         {
             var options = new HttpsTestServer.Options();

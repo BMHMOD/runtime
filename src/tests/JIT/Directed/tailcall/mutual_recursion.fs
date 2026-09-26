@@ -10,12 +10,7 @@
 //
 ////////////////////////////////////////////////////////////////////////////////
 
-module TailCallMutualRecursion
-
 open System
-open Xunit
-open Microsoft.DotNet.XUnitExtensions
-open TestLibrary
 
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
@@ -556,15 +551,11 @@ type Driver() =
 ////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 
-[<SkipOnCoreClr("Unstable under JIT stress", RuntimeTestModes.AnyJitStress ||| RuntimeTestModes.AnyGCStress)>]
-[<SkipOnMono("Not supported on Mono runtime")>]
-[<ConditionalFact(typeof<Utilities>, [| "IsNotNativeAot" |])>]
-let main () =
+[<EntryPoint>]
+let main argv =
     let driver = Driver()
     driver.Start()
 
-[<EntryPoint>]
-let entryPoint _argv =
-    let driver = Driver()
-    driver.Start()
+    // If we have gotten to this point we have not StackOverflowed. Therefore
+    // consider this a passing test
     100

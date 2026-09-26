@@ -329,10 +329,7 @@ namespace System.Security.Cryptography.Xml
 
         internal static string ExtractIdFromLocalUri(string? uri)
         {
-            if (string.IsNullOrEmpty(uri))
-                throw new CryptographicException(SR.Cryptography_Xml_UriRequired);
-
-            string idref = uri.Substring(1);
+            string idref = uri!.Substring(1);
 
             // Deal with XPointer of type #xpointer(id("ID")). Other XPointer support isn't handled here and is anyway optional
             if (idref.StartsWith("xpointer(id(", StringComparison.Ordinal))
@@ -763,5 +760,6 @@ namespace System.Security.Cryptography.Xml
         }
 
         internal const int MaxTransformsPerReference = 10;
+        internal const int MaxReferencesPerSignedInfo = 100;
     }
 }

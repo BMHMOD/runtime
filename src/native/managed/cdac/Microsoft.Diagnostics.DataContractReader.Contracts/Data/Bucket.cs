@@ -3,39 +3,27 @@
 
 namespace Microsoft.Diagnostics.DataContractReader.Data;
 
-[CdacType(nameof(DataType.Bucket))]
-internal sealed partial class Bucket : IData<Bucket>
+internal sealed class Bucket : IData<Bucket>
 {
-    [CustomInit(nameof(InitKeys))] public partial TargetPointer[] Keys { get; }
-    [CustomInit(nameof(InitValues))] public partial TargetPointer[] Values { get; }
+    static Bucket IData<Bucket>.Create(Target target, TargetPointer address)
+        => new Bucket(target, address);
 
-    [DataDescriptorDependency(nameof(Keys), "pointer")]
-    private partial TargetPointer[] InitKeys(Target target, TargetPointer address)
+    public Bucket(Target target, TargetPointer address)
     {
         Target.TypeInfo type = target.GetTypeInfo(DataType.Bucket);
         ulong keysStart = address + (ulong)type.Fields[nameof(Keys)].Offset;
-        uint numSlots = target.ReadGlobal<uint>(Constants.Globals.HashMapSlotsPerBucket);
-        TargetPointer[] keys = new TargetPointer[numSlots];
-        for (int i = 0; i < numSlots; i++)
-        {
-            keys[i] = target.ReadPointer(keysStart + (ulong)(i * target.PointerSize));
-        }
-
-        return keys;
-    }
-
-    [DataDescriptorDependency(nameof(Values), "pointer")]
-    private partial TargetPointer[] InitValues(Target target, TargetPointer address)
-    {
-        Target.TypeInfo type = target.GetTypeInfo(DataType.Bucket);
         ulong valuesStart = address + (ulong)type.Fields[nameof(Values)].Offset;
+
         uint numSlots = target.ReadGlobal<uint>(Constants.Globals.HashMapSlotsPerBucket);
-        TargetPointer[] values = new TargetPointer[numSlots];
+        Keys = new TargetPointer[numSlots];
+        Values = new TargetPointer[numSlots];
         for (int i = 0; i < numSlots; i++)
         {
-            values[i] = target.ReadPointer(valuesStart + (ulong)(i * target.PointerSize));
+            Keys[i] = target.ReadPointer(keysStart + (ulong)(i * target.PointerSize));
+            Values[i] = target.ReadPointer(valuesStart + (ulong)(i * target.PointerSize));
         }
-
-        return values;
     }
+
+    public TargetPointer[] Keys { get; }
+    public TargetPointer[] Values { get; }
 }

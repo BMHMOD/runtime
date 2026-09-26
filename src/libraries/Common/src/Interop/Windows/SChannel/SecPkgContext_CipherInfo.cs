@@ -2,14 +2,13 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace System.Net
 {
     // From Schannel.h
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    internal struct SecPkgContext_CipherInfo
+    internal unsafe struct SecPkgContext_CipherInfo
     {
         private const int SZ_ALG_MAX_SIZE = 64;
 
@@ -17,22 +16,16 @@ namespace System.Net
         private readonly int dwProtocol;
         public readonly int dwCipherSuite;
         private readonly int dwBaseCipherSuite;
-        private AlgNameBuffer szCipherSuite;
-        private AlgNameBuffer szCipher;
+        private fixed char szCipherSuite[SZ_ALG_MAX_SIZE];
+        private fixed char szCipher[SZ_ALG_MAX_SIZE];
         private readonly int dwCipherLen;
         private readonly int dwCipherBlockLen; // in bytes
-        private AlgNameBuffer szHash;
+        private fixed char szHash[SZ_ALG_MAX_SIZE];
         private readonly int dwHashLen;
-        private AlgNameBuffer szExchange;
+        private fixed char szExchange[SZ_ALG_MAX_SIZE];
         private readonly int dwMinExchangeLen;
         private readonly int dwMaxExchangeLen;
-        private AlgNameBuffer szCertificate;
+        private fixed char szCertificate[SZ_ALG_MAX_SIZE];
         private readonly int dwKeyType;
-
-        [InlineArray(SZ_ALG_MAX_SIZE)]
-        private struct AlgNameBuffer
-        {
-            private char _element0;
-        }
     }
 }

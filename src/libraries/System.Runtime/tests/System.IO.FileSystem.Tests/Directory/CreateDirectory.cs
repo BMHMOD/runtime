@@ -3,14 +3,13 @@
 
 using System.Linq;
 using Microsoft.DotNet.RemoteExecutor;
-using Microsoft.DotNet.XUnitExtensions;
 using Xunit;
 
 namespace System.IO.Tests
 {
     public class Directory_CreateDirectory : FileSystemTest
     {
-        public static TheoryData<string> ReservedDeviceNames = Xunit.TheoryDataExtensions.ToTheoryData(IOInputs.GetReservedDeviceNames());
+        public static TheoryData<string> ReservedDeviceNames = IOInputs.GetReservedDeviceNames().ToTheoryData();
         #region Utilities
 
         public virtual DirectoryInfo Create(string path)
@@ -416,7 +415,7 @@ namespace System.IO.Tests
             }
         }
 
-        [ConditionalTheory(typeof(Directory_CreateDirectory), nameof(ReservedDeviceNamesAreBlocked))] // device name prefixes
+        [ConditionalTheory(nameof(ReservedDeviceNamesAreBlocked))] // device name prefixes
         [MemberData(nameof(PathsWithReservedDeviceNames))]
         public void PathWithReservedDeviceNameAsPath_ThrowsDirectoryNotFoundException(string path)
         {
@@ -424,7 +423,7 @@ namespace System.IO.Tests
             Assert.Throws<DirectoryNotFoundException>(() => Create(path));
         }
 
-        [ConditionalTheory(typeof(Directory_CreateDirectory), nameof(ReservedDeviceNamesAreBlocked))] // device name prefixes
+        [ConditionalTheory(nameof(ReservedDeviceNamesAreBlocked))] // device name prefixes
         [MemberData(nameof(ReservedDeviceNames))]
         public void PathWithReservedDeviceNameAsExtendedPath(string path)
         {
@@ -519,14 +518,16 @@ namespace System.IO.Tests
             });
         }
 
-        [ConditionalFact]
+        [Fact]
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/14378")]
         [PlatformSpecific(TestPlatforms.Windows)] // testing drive labels
         public void NotReadyDriveAsPath_ThrowsDirectoryNotFoundException()
         {   // Behavior is suspect, should really have thrown IOException similar to the SubDirectory case
             var drive = IOServices.GetNotReadyDrive();
-            if (drive is null)
+            if (drive == null)
             {
-                throw new SkipTestException("Unable to find a not-ready drive, such as CD-Rom with no disc inserted.");
+                Console.WriteLine("Skipping test. Unable to find a not-ready drive, such as CD-Rom with no disc inserted.");
+                return;
             }
 
             Assert.Throws<DirectoryNotFoundException>(() =>
@@ -535,14 +536,16 @@ namespace System.IO.Tests
             });
         }
 
-        [ConditionalFact]
+        [Fact]
         [PlatformSpecific(TestPlatforms.Windows)] // testing drive labels
+        [ActiveIssue("https://github.com/dotnet/runtime/issues/14378")]
         public void SubdirectoryOnNotReadyDriveAsPath_ThrowsIOException()
         {
             var drive = IOServices.GetNotReadyDrive();
-            if (drive is null)
+            if (drive == null)
             {
-                throw new SkipTestException("Unable to find a not-ready drive, such as CD-Rom with no disc inserted.");
+                Console.WriteLine("Skipping test. Unable to find a not-ready drive, such as CD-Rom with no disc inserted.");
+                return;
             }
 
             // 'Device is not ready'

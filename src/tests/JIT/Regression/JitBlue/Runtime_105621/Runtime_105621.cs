@@ -7,9 +7,6 @@
 // Reduced from 12.6 KiB to 0.4 KiB in 00:00:17
 // Debug: Throws 'System.ArgumentOutOfRangeException'
 // Release: Runs successfully
-
-namespace Runtime_105621;
-
 using System;
 using System.Runtime.Intrinsics;
 using System.Runtime.Intrinsics.Arm;
@@ -21,147 +18,201 @@ public class Runtime_105621
     private static byte getShortImmOOB() => 17;
     private static byte getLongImmOOB() => 65;
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftLeftLogicalByZero()
     {
-        var vr3 = Vector64.Create<byte>(1);
-        var vr4 = AdvSimd.ShiftLeftLogical(vr3, 0);
-        Assert.Equal(vr3, vr4);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<byte>(1);
+            var vr4 = AdvSimd.ShiftLeftLogical(vr3, 0);
+            Assert.Equal(vr3, vr4);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftLeftLogicalToZero()
     {
-        var vr3 = Vector64.Create<byte>(128);
-        var vr4 = AdvSimd.ShiftLeftLogical(vr3, 9);
-        Assert.Equal(vr4, Vector64<byte>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<byte>(128);
+            var vr4 = AdvSimd.ShiftLeftLogical(vr3, 9);
+            Assert.Equal(vr4, Vector64<byte>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftLeftLogicalToZeroNonConst()
     {
-        var vr3 = Vector64.Create<byte>(128);
-        var vr4 = AdvSimd.ShiftLeftLogical(vr3, getByteImmOOB());
-        Assert.Equal(vr4, Vector64<byte>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<byte>(128);
+            var vr4 = AdvSimd.ShiftLeftLogical(vr3, getByteImmOOB());
+            Assert.Equal(vr4, Vector64<byte>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftLeftLogicalScalarByZero()
     {
-        var vr3 = Vector64.Create<long>(1);
-        var vr4 = AdvSimd.ShiftLeftLogicalScalar(vr3, 0);
-        Assert.Equal(vr3, vr4);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<long>(1);
+            var vr4 = AdvSimd.ShiftLeftLogicalScalar(vr3, 0);
+            Assert.Equal(vr3, vr4);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftLeftLogicalScalarToZero()
     {
-        var vr3 = Vector64.Create<long>(128);
-        var vr4 = AdvSimd.ShiftLeftLogicalScalar(vr3, 65);
-        Assert.Equal(vr4, Vector64<long>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<long>(128);
+            var vr4 = AdvSimd.ShiftLeftLogicalScalar(vr3, 65);
+            Assert.Equal(vr4, Vector64<long>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftLeftLogicalScalarToZeroNonConst()
     {
-        var vr3 = Vector64.Create<long>(128);
-        var vr4 = AdvSimd.ShiftLeftLogicalScalar(vr3, getLongImmOOB());
-        Assert.Equal(vr4, Vector64<long>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<long>(128);
+            var vr4 = AdvSimd.ShiftLeftLogicalScalar(vr3, getLongImmOOB());
+            Assert.Equal(vr4, Vector64<long>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftRightLogicalByZero()
     {
-        var vr3 = Vector64.Create<byte>(1);
-        var vr4 = AdvSimd.ShiftRightLogical(vr3, 0);
-        Assert.Equal(vr3, vr4);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<byte>(1);
+            var vr4 = AdvSimd.ShiftRightLogical(vr3, 0);
+            Assert.Equal(vr3, vr4);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftRightLogicalToZero()
     {
-        var vr3 = Vector64.Create<byte>(128);
-        var vr4 = AdvSimd.ShiftRightLogical(vr3, 9);
-        Assert.Equal(vr4, Vector64<byte>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<byte>(128);
+            var vr4 = AdvSimd.ShiftRightLogical(vr3, 9);
+            Assert.Equal(vr4, Vector64<byte>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftRightLogicalToZeroNonConst()
     {
-        var vr3 = Vector64.Create<byte>(128);
-        var vr4 = AdvSimd.ShiftRightLogical(vr3, getByteImmOOB());
-        Assert.Equal(vr4, Vector64<byte>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<byte>(128);
+            var vr4 = AdvSimd.ShiftRightLogical(vr3, getByteImmOOB());
+            Assert.Equal(vr4, Vector64<byte>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftRightLogicalScalarByZero()
     {
-        var vr3 = Vector64.Create<long>(1);
-        var vr4 = AdvSimd.ShiftRightLogicalScalar(vr3, 0);
-        Assert.Equal(vr3, vr4);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<long>(1);
+            var vr4 = AdvSimd.ShiftRightLogicalScalar(vr3, 0);
+            Assert.Equal(vr3, vr4);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftRightLogicalScalarToZero()
     {
-        var vr3 = Vector64.Create<long>(128);
-        var vr4 = AdvSimd.ShiftRightLogicalScalar(vr3, 65);
-        Assert.Equal(vr4, Vector64<long>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<long>(128);
+            var vr4 = AdvSimd.ShiftRightLogicalScalar(vr3, 65);
+            Assert.Equal(vr4, Vector64<long>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftRightLogicalScalarToZeroNonConst()
     {
-        var vr3 = Vector64.Create<long>(128);
-        var vr4 = AdvSimd.ShiftRightLogicalScalar(vr3, getLongImmOOB());
-        Assert.Equal(vr4, Vector64<long>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<long>(128);
+            var vr4 = AdvSimd.ShiftRightLogicalScalar(vr3, getLongImmOOB());
+            Assert.Equal(vr4, Vector64<long>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftRightArithmeticByZero()
     {
-        var vr3 = Vector128.Create<short>(1);
-        var vr4 = AdvSimd.ShiftRightArithmetic(vr3, 0);
-        Assert.Equal(vr3, vr4);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector128.Create<short>(1);
+            var vr4 = AdvSimd.ShiftRightArithmetic(vr3, 0);
+            Assert.Equal(vr3, vr4);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftRightArithmeticToZero()
     {
-        var vr3 = Vector128.Create<short>(128);
-        var vr4 = AdvSimd.ShiftRightArithmetic(vr3, 17);
-        Assert.Equal(vr4, Vector128<short>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector128.Create<short>(128);
+            var vr4 = AdvSimd.ShiftRightArithmetic(vr3, 17);
+            Assert.Equal(vr4, Vector128<short>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftRightArithmeticToZeroNonConst()
     {
-        var vr3 = Vector128.Create<short>(128);
-        var vr4 = AdvSimd.ShiftRightArithmetic(vr3, getShortImmOOB());
-        Assert.Equal(vr4, Vector128<short>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector128.Create<short>(128);
+            var vr4 = AdvSimd.ShiftRightArithmetic(vr3, getShortImmOOB());
+            Assert.Equal(vr4, Vector128<short>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftRightArithmeticScalarByZero()
     {
-        var vr3 = Vector64.Create<long>(1);
-        var vr4 = AdvSimd.ShiftRightArithmeticScalar(vr3, 0);
-        Assert.Equal(vr3, vr4);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<long>(1);
+            var vr4 = AdvSimd.ShiftRightArithmeticScalar(vr3, 0);
+            Assert.Equal(vr3, vr4);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftRightArithmeticScalarToZero()
     {
-        var vr3 = Vector64.Create<long>(128);
-        var vr4 = AdvSimd.ShiftRightArithmeticScalar(vr3, 65);
-        Assert.Equal(vr4, Vector64<long>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<long>(128);
+            var vr4 = AdvSimd.ShiftRightArithmeticScalar(vr3, 65);
+            Assert.Equal(vr4, Vector64<long>.Zero);
+        }
     }
 
-    [ConditionalFact(typeof(AdvSimd), nameof(AdvSimd.IsSupported))]
+    [Fact]
     public static void TestShiftRightArithmeticScalarToZeroNonConst()
     {
-        var vr3 = Vector64.Create<long>(128);
-        var vr4 = AdvSimd.ShiftRightArithmeticScalar(vr3, getLongImmOOB());
-        Assert.Equal(vr4, Vector64<long>.Zero);
+        if (AdvSimd.IsSupported)
+        {
+            var vr3 = Vector64.Create<long>(128);
+            var vr4 = AdvSimd.ShiftRightArithmeticScalar(vr3, getLongImmOOB());
+            Assert.Equal(vr4, Vector64<long>.Zero);
+        }
     }
 }

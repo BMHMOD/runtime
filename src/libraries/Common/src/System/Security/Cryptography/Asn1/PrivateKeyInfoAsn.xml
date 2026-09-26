@@ -2,8 +2,7 @@
 <asn:Sequence
   xmlns:asn="http://schemas.dot.net/asnxml/201808/"
   name="PrivateKeyInfoAsn"
-  namespace="System.Security.Cryptography.Asn1"
-  emitType="both">
+  namespace="System.Security.Cryptography.Asn1">
 
   <!--
     https://tools.ietf.org/html/rfc5208#section-5
@@ -21,14 +20,9 @@
     Attributes ::= SET OF Attribute
   -->
   <asn:Integer name="Version" backingType="int" />
-  <asn:AsnType
-    name="PrivateKeyAlgorithm"
-    typeName="System.Security.Cryptography.Asn1.AlgorithmIdentifierAsn"
-    valueTypeName="System.Security.Cryptography.Asn1.ValueAlgorithmIdentifierAsn" />
+  <asn:AsnType name="PrivateKeyAlgorithm" typeName="System.Security.Cryptography.Asn1.AlgorithmIdentifierAsn" />
   <asn:OctetString name="PrivateKey" />
-  <asn:SetOf name="Attributes" implicitTag="0" optional="true" valueName="GetAttributes">
-    <asn:AsnType
-      typeName="System.Security.Cryptography.Asn1.AttributeAsn"
-      valueTypeName="System.Security.Cryptography.Asn1.ValueAttributeAsn" />
+  <asn:SetOf name="Attributes" implicitTag="0" optional="true">
+    <asn:AsnType typeName="System.Security.Cryptography.Asn1.AttributeAsn" />
   </asn:SetOf>
 </asn:Sequence>

@@ -5,7 +5,6 @@ using System;
 using System.Runtime.InteropServices; // For SafeHandle
 using Xunit;
 
-namespace SafeHandleDangerousAddRefTest;
 
 [SecurityCritical]
 public class MySafeValidHandle : SafeHandle
@@ -208,7 +207,6 @@ public class SafeHandleDangerousAddRef
 
 
     [SecuritySafeCritical]
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

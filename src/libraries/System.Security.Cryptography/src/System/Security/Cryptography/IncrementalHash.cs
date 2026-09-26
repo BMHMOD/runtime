@@ -468,7 +468,7 @@ namespace System.Security.Cryptography
             }
         }
 
-        private static unsafe bool VerifyCore(
+        private static bool VerifyCore(
             ReadOnlySpan<byte> hash,
             IncrementalHash ih,
             Func<IncrementalHash, Span<byte>, int> getHashCallback)

@@ -287,16 +287,17 @@ HRESULT __stdcall ConnectionPoint::EnumConnections(IEnumConnections **ppEnum)
 
 IConnectionPointContainer *ConnectionPoint::GetConnectionPointContainerWorker()
 {
-    CONTRACTL
+    CONTRACT(IConnectionPointContainer*)
     {
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
+        POSTCONDITION(CheckPointer(RETVAL));
     }
-    CONTRACTL_END;
+    CONTRACT_END;
 
     // Retrieve the IConnectionPointContainer from the owner wrapper.
-    return (IConnectionPointContainer*)
+    RETURN (IConnectionPointContainer*)
         ComCallWrapper::GetComIPFromCCW(m_pOwnerWrap, IID_IConnectionPointContainer, NULL);
 }
 
@@ -312,7 +313,7 @@ void ConnectionPoint::AdviseWorker(IUnknown *pUnk, DWORD *pdwCookie)
     }
     CONTRACTL_END;
 
-    ReleaseHolderAnyMode<IUnknown> pEventItf;
+    SafeComHolder<IUnknown> pEventItf = NULL;
     HRESULT hr;
 
     // Make sure we have a pointer to the interface and not to another IUnknown.
@@ -343,8 +344,11 @@ void ConnectionPoint::AdviseWorker(IUnknown *pUnk, DWORD *pdwCookie)
         }
 
         // Allocate the object handle and the connection cookie.
-        OBJECTHANDLEHolder phndEventItfObj(GetAppDomain()->CreateHandle((OBJECTREF)pEventItfObj));
-        ConnectionCookieHolder pConCookie = ConnectionCookie::CreateConnectionCookie(std::move(phndEventItfObj));
+        OBJECTHANDLEHolder phndEventItfObj = GetAppDomain()->CreateHandle((OBJECTREF)pEventItfObj);
+        ConnectionCookieHolder pConCookie = ConnectionCookie::CreateConnectionCookie(phndEventItfObj);
+
+        // pConCookie owns the handle now and will destroy it on exception
+        phndEventItfObj.SuppressRelease();
 
         // Add the connection cookie to the list.
         InsertWithLock(pConCookie);
@@ -408,6 +412,7 @@ void ConnectionPoint::SetupEventMethods()
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
+        INJECT_FAULT(COMPlusThrowOM());
     }
     CONTRACTL_END;
 
@@ -464,31 +469,32 @@ void ConnectionPoint::SetupEventMethods()
 
 MethodDesc *ConnectionPoint::FindProviderMethodDesc( MethodDesc *pEventMethodDesc, EnumEventMethods Method )
 {
-    CONTRACTL
+    CONTRACT (MethodDesc*)
     {
         THROWS;
         GC_TRIGGERS;
         MODE_ANY;
         PRECONDITION(CheckPointer(pEventMethodDesc));
         PRECONDITION(Method == EventAdd || Method == EventRemove);
+        POSTCONDITION(CheckPointer(RETVAL, NULL_OK));
     }
-    CONTRACTL_END
+    CONTRACT_END
 
     // Retrieve the event method.
     MethodDesc *pProvMethodDesc =
         MemberLoader::FindEventMethod(m_pTCEProviderMT, pEventMethodDesc->GetName(), Method, MemberLoader::FM_IgnoreCase);
     if (!pProvMethodDesc)
-        return NULL;
+        RETURN NULL;
 
     // Validate that the signature of the delegate is the expected signature.
     MetaSig Sig(pProvMethodDesc);
     if (Sig.NextArg() != ELEMENT_TYPE_CLASS)
-        return NULL;
+        RETURN NULL;
 
     // <TODO>@TODO: this ignores the type of failure - try GetLastTypeHandleThrowing()</TODO>
     TypeHandle DelegateType = Sig.GetLastTypeHandleNT();
     if (DelegateType.IsNull())
-        return NULL;
+        RETURN NULL;
 
     PCCOR_SIGNATURE pEventMethSig;
     DWORD cEventMethSig;
@@ -500,10 +506,10 @@ MethodDesc *ConnectionPoint::FindProviderMethodDesc( MethodDesc *pEventMethodDes
         pEventMethodDesc->GetModule());
 
     if (!pInvokeMD)
-        return NULL;
+        RETURN NULL;
 
     // The requested method exists and has the appropriate signature.
-    return pProvMethodDesc;
+    RETURN pProvMethodDesc;
 }
 
 void ConnectionPoint::InvokeProviderMethod( OBJECTREF pProvider, OBJECTREF pSubscriber, MethodDesc *pProvMethodDesc, MethodDesc *pEventMethodDesc )
@@ -513,6 +519,7 @@ void ConnectionPoint::InvokeProviderMethod( OBJECTREF pProvider, OBJECTREF pSubs
         THROWS;
         GC_TRIGGERS;
         MODE_COOPERATIVE;
+        INJECT_FAULT(COMPlusThrowOM());
         PRECONDITION(CheckPointer(pProvMethodDesc));
         PRECONDITION(CheckPointer(pEventMethodDesc));
     }
@@ -532,17 +539,7 @@ void ConnectionPoint::InvokeProviderMethod( OBJECTREF pProvider, OBJECTREF pSubs
         // Retrieve the EE class representing the argument.
         MethodTable *pDelegateCls = MethodSig.GetLastTypeHandleThrowing().GetMethodTable();
 
-        // Initialize the delegate using the arguments structure.
-        MethodDesc *pDlgCtorMD = MemberLoader::FindConstructor(pDelegateCls, &gsig_IM_Obj_IntPtr_RetVoid);
-        if (pDlgCtorMD == NULL)
-            pDlgCtorMD = MemberLoader::FindConstructor(pDelegateCls, &gsig_IM_Obj_UIntPtr_RetVoid);
-
-        // The loader is responsible for only accepting well-formed delegate classes.
-        _ASSERTE(pDlgCtorMD);
-
-        // Make sure we activate assemblies containing target method descs.
-        pProvMethodDesc->EnsureActive();
-        pDlgCtorMD->EnsureActive();
+        // Make sure we activate the assembly containing the target method desc
         pEventMethodDesc->EnsureActive();
 
         // Allocate an object based on the method table of the delegate class.
@@ -550,26 +547,29 @@ void ConnectionPoint::InvokeProviderMethod( OBJECTREF pProvider, OBJECTREF pSubs
 
         GCPROTECT_BEGIN( pDelegate );
         {
-            UnmanagedCallersOnlyCaller invokeConnectionPointProviderMethod(METHOD__STUBHELPERS__INVOKE_CONNECTION_POINT_PROVIDER_METHOD);
+            // Initialize the delegate using the arguments structure.
+            // <TODO>Generics: ensure we get the right MethodDesc here and in similar places</TODO>
+            // Accept both void (object, native int) and void (object, native uint)
+            MethodDesc *pDlgCtorMD = MemberLoader::FindConstructor(pDelegateCls, &gsig_IM_Obj_IntPtr_RetVoid);
+            if (pDlgCtorMD == NULL)
+                pDlgCtorMD = MemberLoader::FindConstructor(pDelegateCls, &gsig_IM_Obj_UIntPtr_RetVoid);
 
-            PCODE pProvCode;
-            PCODE pDlgCtorCode;
-            PCODE pEventMethodCode;
-            {
-                GCX_PREEMP();
-                pProvCode = pProvMethodDesc->GetSingleCallableAddrOfCode();
-                pDlgCtorCode = pDlgCtorMD->GetSingleCallableAddrOfCode();
-                pEventMethodCode = pEventMethodDesc->GetMultiCallableAddrOfCode();
-            }
+            // The loader is responsible for only accepting well-formed delegate classes.
+            _ASSERTE(pDlgCtorMD);
 
-            // Using GetMultiCallableAddrOfCode() for the event target since it is stored for future invokes.
-            invokeConnectionPointProviderMethod.InvokeThrowing(
-                &pProvider,
-                pProvCode,
-                &pDelegate,
-                pDlgCtorCode,
-                &pSubscriber,
-                pEventMethodCode);
+            MethodDescCallSite dlgCtor(pDlgCtorMD);
+
+            ARG_SLOT CtorArgs[3] = { ObjToArgSlot(pDelegate),
+                                     ObjToArgSlot(pSubscriber),
+                                     (ARG_SLOT)pEventMethodDesc->GetMultiCallableAddrOfCode()
+                                   };
+            dlgCtor.Call(CtorArgs);
+
+            MethodDescCallSite prov(pProvMethodDesc, &pProvider);
+
+            // Do the actual invocation of the method method.
+            ARG_SLOT Args[2] = { ObjToArgSlot( pProvider ), ObjToArgSlot( pDelegate ) };
+            prov.Call(Args);
         }
         GCPROTECT_END();
     }
@@ -601,7 +601,7 @@ void ConnectionPoint::InsertWithLock(ConnectionCookie* pConCookie)
         fDone = true;
     }
 
-    if (!fDone && ((NULL != CONNECTIONCOOKIELIST::GetNext(m_pLastInserted)) || (idUpperLimit == m_pLastInserted->m_id)))
+    if (!fDone && ((NULL != m_pLastInserted->m_Link.m_pNext) || (idUpperLimit == m_pLastInserted->m_id)))
     {
         //
         // Special case 2:  Last inserted is somewhere in the middle of the list or we last
@@ -627,7 +627,7 @@ void ConnectionPoint::InsertWithLock(ConnectionCookie* pConCookie)
         ConnectionCookie* pLocationToStartSearchForInsertPoint = NULL;
         ConnectionCookie* pInsertionPoint = NULL;
 
-        if (NULL == CONNECTIONCOOKIELIST::GetNext(m_pLastInserted))
+        if (NULL == m_pLastInserted->m_Link.m_pNext)
         {
             if (idUpperLimit == m_pLastInserted->m_id)
             {
@@ -662,7 +662,7 @@ void ConnectionPoint::InsertWithLock(ConnectionCookie* pConCookie)
             //
             while (true)
             {
-                if (NULL == CONNECTIONCOOKIELIST::GetNext(pCurrentNode))
+                if (NULL == pCurrentNode->m_Link.m_pNext)
                 {
                     if (pCurrentNode->m_id < idUpperLimit)
                     {
@@ -673,7 +673,7 @@ void ConnectionPoint::InsertWithLock(ConnectionCookie* pConCookie)
                 }
                 else
                 {
-                    ConnectionCookie* pNext = CONNECTIONCOOKIELIST::GetNext(pCurrentNode);
+                    ConnectionCookie* pNext = CONTAINING_RECORD(pCurrentNode->m_Link.m_pNext, ConnectionCookie, m_Link);
                     if ((pCurrentNode->m_id + 1) < pNext->m_id)
                     {
                         break;
@@ -697,7 +697,7 @@ void ConnectionPoint::InsertWithLock(ConnectionCookie* pConCookie)
         CONSISTENCY_CHECK(idUpperLimit != pInsertionPoint->m_id);
 
 #ifdef _DEBUG
-        ConnectionCookie* pNextCookieNode = CONNECTIONCOOKIELIST::GetNext(pInsertionPoint);
+        ConnectionCookie* pNextCookieNode = CONTAINING_RECORD(pInsertionPoint->m_Link.m_pNext, ConnectionCookie, m_Link);
         DWORD idNew = pInsertionPoint->m_id + 1;
         CONSISTENCY_CHECK(NULL == pNextCookieNode ||
             ((pInsertionPoint->m_id < idNew) &&
@@ -705,7 +705,7 @@ void ConnectionPoint::InsertWithLock(ConnectionCookie* pConCookie)
 #endif // _DEBUG
 
         pConCookie->m_id = pInsertionPoint->m_id + 1;
-        CONNECTIONCOOKIELIST::InsertAfter(pInsertionPoint, pConCookie);
+        pInsertionPoint->m_Link.InsertAfter(&pConCookie->m_Link);
     }
 
     m_pLastInserted = pConCookie;
@@ -724,7 +724,7 @@ ConnectionCookie* ConnectionPoint::FindWithLock(DWORD idOfCookie)
 
         while (pCurrentNode && (pCurrentNode->m_id != idOfCookie))
         {
-            pCurrentNode = CONNECTIONCOOKIELIST::GetNext(pCurrentNode);
+            pCurrentNode = CONTAINING_RECORD(pCurrentNode->m_Link.m_pNext, ConnectionCookie, m_Link);
         }
     }
 
@@ -1111,23 +1111,24 @@ HRESULT __stdcall ConnectionEnum::Next(ULONG cConnections, CONNECTDATA* rgcd, UL
 
     HRESULT hr = S_OK;
     UINT cFetched;
+    CONNECTIONCOOKIELIST *pConnectionList = m_pConnectionPoint->GetCookieList();
 
     // Acquire the connection point's lock before we start traversing the connection list.
     {
         ConnectionPoint::LockHolder lh(m_pConnectionPoint);
 
         {
-            // Switch to cooperative GC mode before we manipulate OBJECTREF's.
+            // Switch to cooperative GC mode before we manipulate OBJCETREF's.
             GCX_COOP();
 
             for (cFetched = 0; cFetched < cConnections && m_CurrCookie; cFetched++)
             {
                 {
                     CONTRACT_VIOLATION(ThrowsViolation);
-                    rgcd[cFetched].pUnk = GetComIPFromObjectRef((OBJECTREF*)(OBJECTHANDLE)m_CurrCookie->m_hndEventProvObj, ComIpType_Unknown, NULL);
+                    rgcd[cFetched].pUnk = GetComIPFromObjectRef((OBJECTREF*)m_CurrCookie->m_hndEventProvObj, ComIpType_Unknown, NULL);
                     rgcd[cFetched].dwCookie = m_CurrCookie->m_id;
                 }
-                m_CurrCookie = CONNECTIONCOOKIELIST::GetNext(m_CurrCookie);
+                m_CurrCookie = pConnectionList->GetNext(m_CurrCookie);
             }
         }
 
@@ -1154,6 +1155,7 @@ HRESULT __stdcall ConnectionEnum::Skip(ULONG cConnections)
     SetupForComCallHR();
 
     HRESULT hr = S_FALSE;
+    CONNECTIONCOOKIELIST *pConnectionList = m_pConnectionPoint->GetCookieList();
 
     {
         ConnectionPoint::LockHolder lh(m_pConnectionPoint);
@@ -1161,7 +1163,7 @@ HRESULT __stdcall ConnectionEnum::Skip(ULONG cConnections)
         // Try and skip the requested number of connections.
         while (m_CurrCookie && cConnections)
         {
-            m_CurrCookie = CONNECTIONCOOKIELIST::GetNext(m_CurrCookie);
+            m_CurrCookie = pConnectionList->GetNext(m_CurrCookie);
             cConnections--;
         }
         // Leave the lock now that we are done traversing the list.

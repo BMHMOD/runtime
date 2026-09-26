@@ -4,7 +4,7 @@ using System;
 using System.Numerics;
 using Xunit;
 
-namespace SIMDTests.SimpleSIMDProgramTests
+namespace SIMDDebugTest
 {
     public class Program
     {

@@ -22,9 +22,6 @@ namespace System.Net.Mail
             switch (statusCode)
             {
                 default:
-                    return SR.SmtpUnknownStatusCode;
-                case SmtpStatusCode.GeneralFailure:
-                    return SR.SmtpGeneralFailure;
                 case SmtpStatusCode.CommandUnrecognized:
                     return SR.SmtpCommandUnrecognized;
                 case SmtpStatusCode.SyntaxError:
@@ -49,8 +46,6 @@ namespace System.Net.Mail
                     return SR.SmtpOK;
                 case SmtpStatusCode.UserNotLocalWillForward:
                     return SR.SmtpUserNotLocalWillForward;
-                case SmtpStatusCode.CannotVerifyUserWillAttemptDelivery:
-                    return SR.SmtpCannotVerifyUserWillAttemptDelivery;
                 case SmtpStatusCode.MailboxBusy:
                     return SR.SmtpMailboxBusy;
                 case SmtpStatusCode.MailboxUnavailable:

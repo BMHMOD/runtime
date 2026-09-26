@@ -6,19 +6,7 @@ macro(append_extra_security_libs NativeLibsExtra)
         message(FATAL_ERROR "Cannot find GSS.Framework and System.Net.Security.Native cannot build without it. Try installing GSS.Framework (or the appropriate package for your platform)")
      endif()
   elseif(HAVE_HEIMDAL_HEADERS)
-     set(_heimdal_hints)
-     if (CLR_CMAKE_TARGET_OPENBSD)
-        list(APPEND _heimdal_hints
-            "${CMAKE_SYSROOT}/usr/local/heimdal/lib")
-     endif()
-
-     if (_heimdal_hints)
-        # Prefer Heimdal location in sysroot on OpenBSD, where libgssapi is not in /usr/lib.
-        find_library(LIBGSS NAMES gssapi libgssapi.so.9.0 PATHS ${_heimdal_hints})
-     else()
-        find_library(LIBGSS NAMES gssapi)
-     endif()
-
+     find_library(LIBGSS NAMES gssapi)
      if(LIBGSS STREQUAL LIBGSS-NOTFOUND)
         message(FATAL_ERROR "Cannot find libgssapi and System.Net.Security.Native cannot build without it. Try installing heimdal (or the appropriate package for your platform)")
      endif()

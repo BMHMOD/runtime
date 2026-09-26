@@ -2,8 +2,7 @@
 <asn:Choice
   xmlns:asn="http://schemas.dot.net/asnxml/201808/"
   name="Pbkdf2SaltChoice"
-  namespace="System.Security.Cryptography.Asn1"
-  emitType="ref">
+  namespace="System.Security.Cryptography.Asn1">
 
   <!--
     https://tools.ietf.org/html/rfc2898#appendix-A.2
@@ -19,7 +18,5 @@
     }
   -->
   <asn:OctetString name="Specified" />
-  <asn:AsnType
-    name="OtherSource"
-    valueTypeName="System.Security.Cryptography.Asn1.ValueAlgorithmIdentifierAsn" />
+  <asn:AsnType name="OtherSource" typeName="System.Security.Cryptography.Asn1.AlgorithmIdentifierAsn" />
 </asn:Choice>

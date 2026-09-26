@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Xunit;
-using TestLibrary;
 
 namespace Functions
 {
@@ -59,7 +58,6 @@ namespace Functions
             ["tanhsingle"] = MathTests.TanhSingleTest
         };
 
-        [ActiveIssue("https://github.com/dotnet/runtime/issues/86772", TestPlatforms.Browser | TestPlatforms.iOS | TestPlatforms.tvOS | TestPlatforms.MacCatalyst)]
         [Fact]
         public static int TestEntryPoint()
         {

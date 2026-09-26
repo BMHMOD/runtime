@@ -29,10 +29,7 @@ namespace System.Security.Cryptography.Tests
         {
             return MLKem.ImportEncapsulationKey(algorithm, source);
         }
-    }
 
-    public static class MLKemImplementationSupportedTests
-    {
         [ConditionalFact(typeof(RemoteExecutor), nameof(RemoteExecutor.IsSupported))]
         public static void IsSupported_InitializesCrypto()
         {
@@ -53,17 +50,11 @@ namespace System.Security.Cryptography.Tests
         [Fact]
         public static void IsSupported_AgreesWithPlatform()
         {
-            if (PlatformDetection.IsSymCryptOpenSsl && !PlatformDetection.IsAzureLinux4OrHigher)
-            {
-                // Azure Linux backported ML-KEM SymCrypt-OpenSSL in 1.10 so either true or false is acceptable
-                // currently. Azure Linux 4 and later have OpenSSL 3.5, so that should always be true and fall in to the
-                // IsOpenSsl3_5 check.
-                return;
-            }
-
-            Assert.Equal(
-                PlatformDetection.IsOpenSsl3_5 || PlatformDetection.IsWindows10Version26100OrGreater,
-                MLKem.IsSupported);
+            Assert.Equal(PlatformSupportsMLKem(), MLKem.IsSupported);
         }
+
+        private static bool PlatformSupportsMLKem() =>
+            PlatformDetection.IsOpenSsl3_5 ||
+            PlatformDetection.IsWindows10Version27858OrGreater;
     }
 }

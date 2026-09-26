@@ -11,9 +11,6 @@
 // File: /__w/1/s/src/coreclr/jit/emitarm64.cpp Line: 7052
 //
 
-
-namespace Runtime_61045;
-
 using System;
 using System.Runtime.CompilerServices;
 using Xunit;

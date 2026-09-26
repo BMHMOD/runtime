@@ -120,44 +120,44 @@ public:
     // Inline accessors.
     BOOL IsCultureAware()
     {
-        CONTRACTL
+        CONTRACT (BOOL)
         {
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
             PRECONDITION(Unknown != m_CultureAwareState);
         }
-        CONTRACTL_END;
+        CONTRACT_END;
 
-        return Aware == m_CultureAwareState;
+        RETURN (Aware == m_CultureAwareState);
     }
 
     EnumMemberTypes GetMemberType()
     {
-        CONTRACTL
+        CONTRACT (EnumMemberTypes)
         {
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
             PRECONDITION(Uninitted != m_enumType);
         }
-        CONTRACTL_END;
+        CONTRACT_END;
 
-        return m_enumType;
+        RETURN m_enumType;
     }
 
     int GetNumParameters()
     {
-        CONTRACTL
+        CONTRACT (int)
         {
             NOTHROW;
             GC_NOTRIGGER;
             MODE_ANY;
             PRECONDITION(m_iNumParams != -1);
         }
-        CONTRACTL_END;
+        CONTRACT_END;
 
-        return m_iNumParams;
+        RETURN m_iNumParams;
     }
 
     BOOL IsLastParamOleVarArg()
@@ -261,6 +261,25 @@ public:
 
     // Helper method that invokes the member with the specified DISPID.
     HRESULT                 InvokeMember(SimpleComCallWrapper *pSimpleWrap, DISPID id, LCID lcid, WORD wFlags, DISPPARAMS *pdp, VARIANT *pVarRes, EXCEPINFO *pei, IServiceProvider *pspCaller, unsigned int *puArgErr);
+
+    void                    InvokeMemberDebuggerWrapper(DispatchMemberInfo*   pDispMemberInfo,
+                                               InvokeObjects*        pObjs,
+                                               int                   NumParams,
+                                               int                   NumArgs,
+                                               int                   NumNamedArgs,
+                                               int&                  NumByrefArgs,
+                                               int&                  iSrcArg,
+                                               DISPID                id,
+                                               DISPPARAMS*           pdp,
+                                               VARIANT*              pVarRes,
+                                               WORD                  wFlags,
+                                               LCID                  lcid,
+                                               DISPID*               pSrcArgNames,
+                                               VARIANT*              pSrcArgs,
+                                               OBJECTHANDLE*         aByrefStaticArrayBackupObjHandle,
+                                               int*                  pManagedMethodParamIndexMap,
+                                               VARIANT**             aByrefArgOleVariant,
+                                               Frame *               pFrame);
 
     void                    InvokeMemberWorker(DispatchMemberInfo*   pDispMemberInfo,
                                                InvokeObjects*        pObjs,

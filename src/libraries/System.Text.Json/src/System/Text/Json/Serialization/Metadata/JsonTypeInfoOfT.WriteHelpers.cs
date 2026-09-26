@@ -30,7 +30,7 @@ namespace System.Text.Json.Serialization.Metadata
                 // Even though this is already handled by JsonMetadataServicesConverter,
                 // this avoids creating a WriteStack and calling into the converter infrastructure.
 
-                Debug.Assert(SerializeHandler is not null);
+                Debug.Assert(SerializeHandler != null);
                 Debug.Assert(Converter is JsonMetadataServicesConverter<T>);
 
                 SerializeHandler(writer, rootValue!);
@@ -96,7 +96,7 @@ namespace System.Text.Json.Serialization.Metadata
             {
                 // Short-circuit calls into SerializeHandler, if the `CanUseSerializeHandlerInStreaming` heuristic allows it.
 
-                Debug.Assert(SerializeHandler is not null);
+                Debug.Assert(SerializeHandler != null);
                 Debug.Assert(CanUseSerializeHandler);
                 Debug.Assert(Converter is JsonMetadataServicesConverter<T>);
 
@@ -195,7 +195,7 @@ namespace System.Text.Json.Serialization.Metadata
                         }
                         finally
                         {
-                            // Await any pending resumable converter tasks (currently these can only be IAsyncEnumerator.MoveNextAsync() or DisposeAsync() tasks).
+                            // Await any pending resumable converter tasks (currently these can only be IAsyncEnumerator.MoveNextAsync() tasks).
                             // Note that pending tasks are always awaited, even if an exception has been thrown or the cancellation token has fired.
                             if (state.PendingTask is not null)
                             {
@@ -209,6 +209,12 @@ namespace System.Text.Json.Serialization.Metadata
                                 }
                                 catch { }
 #endif
+                            }
+
+                            // Dispose any pending async disposables (currently these can only be completed IAsyncEnumerators).
+                            if (state.CompletedAsyncDisposables?.Count > 0)
+                            {
+                                await state.DisposeCompletedAsyncDisposables().ConfigureAwait(false);
                             }
                         }
 
@@ -256,7 +262,7 @@ namespace System.Text.Json.Serialization.Metadata
             {
                 // Short-circuit calls into SerializeHandler, if the `CanUseSerializeHandlerInStreaming` heuristic allows it.
 
-                Debug.Assert(SerializeHandler is not null);
+                Debug.Assert(SerializeHandler != null);
                 Debug.Assert(CanUseSerializeHandler);
                 Debug.Assert(Converter is JsonMetadataServicesConverter<T>);
 
@@ -312,7 +318,7 @@ namespace System.Text.Json.Serialization.Metadata
                         bufferWriter.WriteToStream(utf8Json);
                         bufferWriter.Clear();
 
-                        Debug.Assert(state.PendingTask is null);
+                        Debug.Assert(state.PendingTask == null);
                     } while (!isFinalBlock);
 
                     if (CanUseSerializeHandler)

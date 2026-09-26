@@ -16,7 +16,6 @@
     <Compile Include="..\src\Metrics\Configuration\MetricsConfigureOptions.cs" />
     <Compile Include="..\src\Metrics\DebugConsoleMetricListener.cs" />
     <Compile Include="..\src\Metrics\ListenerSubscription.cs" />
-    <Compile Include="..\src\Tracing\Configuration\TracingConfigureOptions.cs" />
   </ItemGroup>
 
   <ItemGroup>

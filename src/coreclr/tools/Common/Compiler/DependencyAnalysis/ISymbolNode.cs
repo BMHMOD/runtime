@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System;
-using System.IO;
 using ILCompiler.DependencyAnalysisFramework;
 using Internal.Text;
 
@@ -98,14 +97,7 @@ namespace ILCompiler.DependencyAnalysis
     {
         int ChecksumSize { get; }
 
-        /// <summary>
-        /// Computes the checksum over the complete output image. <paramref name="outputStream"/>
-        /// is a seekable stream positioned at the start of the image and contains the image as it
-        /// is before any checksums are written, so the result must only depend on those original
-        /// bytes. The method may read the stream and leave its position changed, but must not
-        /// modify the stream contents; the caller writes the result.
-        /// </summary>
-        void EmitChecksum(Stream outputStream, Span<byte> checksumLocation);
+        void EmitChecksum(ReadOnlySpan<byte> outputBlob, Span<byte> checksumLocation);
     }
 
     /// <summary>

@@ -141,7 +141,7 @@ namespace System.Text.Json
             }
         }
 
-        private unsafe void WriteNumberEscapeProperty(ReadOnlySpan<char> propertyName, float value, int firstEscapeIndexProp)
+        private void WriteNumberEscapeProperty(ReadOnlySpan<char> propertyName, float value, int firstEscapeIndexProp)
         {
             Debug.Assert(int.MaxValue / JsonConstants.MaxExpansionFactorWhileEscaping >= propertyName.Length);
             Debug.Assert(firstEscapeIndexProp >= 0 && firstEscapeIndexProp < propertyName.Length);
@@ -158,13 +158,13 @@ namespace System.Text.Json
 
             WriteNumberByOptions(escapedPropertyName.Slice(0, written), value);
 
-            if (propertyArray is not null)
+            if (propertyArray != null)
             {
                 ArrayPool<char>.Shared.Return(propertyArray);
             }
         }
 
-        private unsafe void WriteNumberEscapeProperty(ReadOnlySpan<byte> utf8PropertyName, float value, int firstEscapeIndexProp)
+        private void WriteNumberEscapeProperty(ReadOnlySpan<byte> utf8PropertyName, float value, int firstEscapeIndexProp)
         {
             Debug.Assert(int.MaxValue / JsonConstants.MaxExpansionFactorWhileEscaping >= utf8PropertyName.Length);
             Debug.Assert(firstEscapeIndexProp >= 0 && firstEscapeIndexProp < utf8PropertyName.Length);
@@ -181,7 +181,7 @@ namespace System.Text.Json
 
             WriteNumberByOptions(escapedPropertyName.Slice(0, written), value);
 
-            if (propertyArray is not null)
+            if (propertyArray != null)
             {
                 ArrayPool<byte>.Shared.Return(propertyArray);
             }
@@ -367,7 +367,7 @@ namespace System.Text.Json
             BytesPending += bytesWritten;
         }
 
-        internal unsafe void WritePropertyName(float value)
+        internal void WritePropertyName(float value)
         {
             Span<byte> utf8PropertyName = stackalloc byte[JsonConstants.MaximumFormatSingleLength];
             bool result = TryFormatSingle(value, utf8PropertyName, out int bytesWritten);

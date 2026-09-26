@@ -275,9 +275,11 @@ namespace System.Reflection.PortableExecutable
             }
 
             // strong name signature:
-            // The bytes are required to be 0 for the purpose of calculating hash of the PE content
-            // when strong name signing. This is already handled by ReserveBytes.
             strongNameSignature = builder.ReserveBytes(StrongNameSignatureSize);
+
+            // The bytes are required to be 0 for the purpose of calculating hash of the PE content
+            // when strong name signing.
+            new BlobWriter(strongNameSignature).WriteBytes(0, StrongNameSignatureSize);
 
             // debug directory and data:
             if (debugDataBuilderOpt != null)

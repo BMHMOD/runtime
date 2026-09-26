@@ -35,7 +35,7 @@ internal sealed class HashMapLookup
         HashFunction(key, size, out uint seed, out uint increment);
 
         // HashMap::LookupValue
-        uint bucketSize = Data.Bucket.GetSize(_target);
+        uint bucketSize = _target.GetTypeInfo(DataType.Bucket).Size!.Value;
         TargetPointer buckets = map.Buckets + bucketSize;
         for (int i = 0; i < size; i++)
         {

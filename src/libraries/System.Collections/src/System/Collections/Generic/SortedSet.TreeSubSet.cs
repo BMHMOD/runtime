@@ -96,12 +96,12 @@ namespace System.Collections.Generic
                     return;
                 }
 
-                List<T> toRemove = new List<T>(Count);
+                List<T> toRemove = new List<T>();
                 BreadthFirstTreeWalk(n => { toRemove.Add(n.Item); return true; });
-
-                for (int i = toRemove.Count - 1; i >= 0; i--)
+                while (toRemove.Count != 0)
                 {
-                    _underlying.Remove(toRemove[i]);
+                    _underlying.Remove(toRemove[^1]);
+                    toRemove.RemoveAt(toRemove.Count - 1);
                 }
 
                 root = null;

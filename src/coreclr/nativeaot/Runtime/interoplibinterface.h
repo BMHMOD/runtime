@@ -32,7 +32,5 @@ class JavaMarshalNative
 public:
     static void TriggerClientBridgeProcessing(
         MarkCrossReferencesArgs* args);
-
-    static bool IsGCBridgeActive();
 };
 #endif // FEATURE_JAVAMARSHAL

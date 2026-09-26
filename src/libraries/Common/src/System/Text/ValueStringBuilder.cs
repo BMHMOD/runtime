@@ -10,7 +10,6 @@ using System.Runtime.InteropServices;
 
 namespace System.Text
 {
-    [DebuggerDisplay("{DebuggerDisplay,nq}")]
     internal ref partial struct ValueStringBuilder
     {
         private char[]? _arrayToReturnToPool;
@@ -83,10 +82,6 @@ namespace System.Text
                 return ref _chars[index];
             }
         }
-
-        // ToString() clears the builder, so we need a side-effect free debugger display.
-        [DebuggerBrowsable(DebuggerBrowsableState.Never)]
-        private string DebuggerDisplay => AsSpan().ToString();
 
         public override string ToString()
         {

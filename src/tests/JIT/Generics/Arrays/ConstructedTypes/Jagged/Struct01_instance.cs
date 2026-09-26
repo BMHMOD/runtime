@@ -2,8 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-namespace JitTest_Generics_Arrays_ConstructedTypes_Jagged_Struct01_instance;
-
 using System;
 using Xunit;
 
@@ -61,7 +59,6 @@ public class Test_Struct01_instance
     }
 
 
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

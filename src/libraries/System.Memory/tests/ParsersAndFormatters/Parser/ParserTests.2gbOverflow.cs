@@ -2,6 +2,7 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 using AllocationHelper = System.SpanTests.AllocationHelper;
 
@@ -22,19 +23,25 @@ namespace System.Buffers.Text.Tests
         [Fact]
         [OuterLoop]
         [PlatformSpecific(TestPlatforms.Windows | TestPlatforms.OSX)]
-        public static unsafe void TestParser2GiBOverflow()
+        public static void TestParser2GiBOverflow()
         {
             if (IntPtr.Size < 8)
                 return;
 
-            if (!AllocationHelper.TryAllocNative((IntPtr)TwoGiB, out IntPtr pMemory))
+            IntPtr pMemory;
+            try
+            {
+                if (!AllocationHelper.TryAllocNative(size: new IntPtr(int.MaxValue), out pMemory))
+                    return;
+            }
+            catch (OutOfMemoryException)
+            {
                 return;
+            }
 
             try
             {
-                Span<byte> span = new Span<byte>((void*)pMemory, TwoGiB);
-                span.Fill((byte)'0'); // Fill the full 2GB once; each case restores only the bytes it touches.
-                TwoGiBOverflowHelper<int>(TwoGiBOverflowInt32TestData, span);
+                TwoGiBOverflowHelper<int>(TwoGiBOverflowInt32TestData, pMemory);
             }
             finally
             {
@@ -42,41 +49,43 @@ namespace System.Buffers.Text.Tests
             }
         }
 
-        private static void TwoGiBOverflowHelper<T>(IEnumerable<ParserTestData<T>> testDataCollection, Span<byte> span)
+        private static void TwoGiBOverflowHelper<T>(IEnumerable<ParserTestData<T>> testDataCollection, IntPtr pMemory)
         {
-            foreach (ParserTestData<T> testData in testDataCollection)
-            {
-                ReadOnlySpan<byte> utf8Span = testData.Text.ToUtf8Span();
-                byte sign = utf8Span[0];
-                bool hasSign = sign == '-' || sign == '+';
-                if (hasSign)
+            Assert.All<ParserTestData<T>>(testDataCollection,
+                (testData) =>
                 {
-                    span[0] = sign;
-                    utf8Span = utf8Span.Slice(1);
-                }
+                    unsafe
+                    {
+                        Span<byte> buffer = new Span<byte>((void*)pMemory, int.MaxValue);
+                        ref byte memory = ref Unsafe.AsRef<byte>(pMemory.ToPointer());
+                        Span<byte> span = new Span<byte>(pMemory.ToPointer(), TwoGiB);
+                        span.Fill((byte)'0');
 
-                Span<byte> tail = span.Slice(TwoGiB - utf8Span.Length);
-                utf8Span.CopyTo(tail);
+                        ReadOnlySpan<byte> utf8Span = testData.Text.ToUtf8Span();
+                        byte sign = utf8Span[0];
+                        if (sign == '-' || sign == '+')
+                        {
+                            span[0] = sign;
+                            utf8Span = utf8Span.Slice(1);
+                        }
+                        utf8Span.CopyTo(span.Slice(TwoGiB - utf8Span.Length));
 
-                bool success = TryParseUtf8<T>(span, out T value, out int bytesConsumed, testData.FormatSymbol);
-                if (testData.ExpectedSuccess)
-                {
-                    Assert.True(success);
-                    Assert.Equal(testData.ExpectedValue, value);
-                    Assert.Equal(testData.ExpectedBytesConsumed, bytesConsumed);
-                }
-                else
-                {
-                    Assert.False(success);
-                    Assert.Equal<T>(default, value);
-                    Assert.Equal(0, bytesConsumed);
-                }
+                        bool success = TryParseUtf8<T>(span, out T value, out int bytesConsumed, testData.FormatSymbol);
+                        if (testData.ExpectedSuccess)
+                        {
+                            Assert.True(success);
+                            Assert.Equal(testData.ExpectedValue, value);
+                            Assert.Equal(testData.ExpectedBytesConsumed, bytesConsumed);
+                        }
+                        else
+                        {
+                            Assert.False(success);
+                            Assert.Equal<T>(default, value);
+                            Assert.Equal(0, bytesConsumed);
+                        }
+                    }
 
-                // Restore only the bytes this case wrote so the buffer is all '0' again for the next one.
-                tail.Fill((byte)'0');
-                if (hasSign)
-                    span[0] = (byte)'0';
-            }
+                });
         }
 
         private static IEnumerable<ParserTestData<int>> TwoGiBOverflowInt32TestData

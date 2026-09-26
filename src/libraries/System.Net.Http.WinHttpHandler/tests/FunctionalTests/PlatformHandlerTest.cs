@@ -153,6 +153,8 @@ namespace System.Net.Http.Functional.Tests
     public sealed class PlatformHandler_IdnaProtocolTests : IdnaProtocolTests
     {
         public PlatformHandler_IdnaProtocolTests(ITestOutputHelper output) : base(output) { }
+        // WinHttp on Win7 does not support IDNA
+        protected override bool SupportsIdna => !PlatformDetection.IsWindows7;
     }
 
     public sealed class PlatformHandlerTest_Cookies : HttpClientHandlerTest_Cookies
@@ -181,7 +183,7 @@ namespace System.Net.Http.Functional.Tests
     }
 
 #if NET
-    [ActiveIssue("https://github.com/dotnet/runtime/issues/126867", typeof(PlatformDetection), nameof(PlatformDetection.IsWindows), nameof(PlatformDetection.IsX64Process))]
+#if !WINHTTPHANDLER_TEST // [ActiveIssue("https://github.com/dotnet/runtime/issues/33930")]
     [ConditionalClass(typeof(PlatformDetection), nameof(PlatformDetection.IsWindows10Version1607OrGreater))]
     public sealed class PlatformHandlerTest_Cookies_Http2 : HttpClientHandlerTest_Cookies
     {
@@ -189,6 +191,7 @@ namespace System.Net.Http.Functional.Tests
 
         public PlatformHandlerTest_Cookies_Http2(ITestOutputHelper output) : base(output) { }
     }
+#endif
 
     public sealed class PlatformHandler_HttpClientHandler_Asynchrony_Http2_Test : HttpClientHandler_Asynchrony_Test
     {
@@ -319,6 +322,8 @@ namespace System.Net.Http.Functional.Tests
         protected override Version UseVersion => HttpVersion20.Value;
 
         public PlatformHandler_IdnaProtocol_Http2_Tests(ITestOutputHelper output) : base(output) { }
+        // WinHttp on Win7 does not support IDNA
+        protected override bool SupportsIdna => !PlatformDetection.IsWindows7;
     }
 
     public sealed class PlatformHandlerTest_Cookies_Http11_Http2 : HttpClientHandlerTest_Cookies_Http11

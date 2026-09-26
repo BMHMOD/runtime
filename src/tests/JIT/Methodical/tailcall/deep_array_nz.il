@@ -9,8 +9,6 @@
 }
 .assembly ASSEMBLY_NAME { }
 .assembly extern xunit.core {}
-.assembly extern Microsoft.DotNet.XUnitExtensions { .publickeytoken = (31 BF 38 56 AD 36 4E 35 ) }
-.assembly extern TestLibrary { .ver 0:0:0:0 }
 .namespace JitTest_compat_deep_array_nz
 {
   .class public auto ansi beforefieldinit TestClass extends [mscorlib]System.Object
@@ -875,8 +873,7 @@ REM:
       ret
     }
 
-    .custom instance void [Microsoft.DotNet.XUnitExtensions]Xunit.ActiveIssueAttribute::.ctor(string, class [mscorlib]System.Type, string[]) = {string('https://github.com/dotnet/runtimelab/issues/155: Arrays with non-zero lower bounds') type([TestLibrary]TestLibrary.PlatformDetection) string[1] ('IsNonZeroLowerBoundArrayNotSupported') }
-    .method public hidebysig static
+    .method public hidebysig static 
             int32 Main() il managed
     {
       .custom instance void [xunit.core]Xunit.FactAttribute::.ctor() = (
@@ -895,7 +892,7 @@ REM:
       ldc.i4 100
       ldc.i4.2
       call instance void int32[100...]::Set(int32, int32)
-
+      
 IL_0007:
       ldloc.0
       call       class System.String JitTest_compat_deep_array_nz.TestClass::Method0(int32[100...])
@@ -907,7 +904,7 @@ IL_0007:
       call       void [System.Console]System.Console::Write(int32)
       ldstr      " - prime!"
       call       void [System.Console]System.Console::WriteLine(class System.String)
-
+      
 IL_0027:
       ldloc.0
       ldc.i4 100
@@ -931,7 +928,7 @@ IL_0027:
       ret
     } // end of method TestClass::Main
 
-    .method public hidebysig specialname rtspecialname
+    .method public hidebysig specialname rtspecialname 
             instance void  .ctor(int32 A_0) il managed
     {
       // Code size       14 (0xe)

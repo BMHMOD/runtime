@@ -1125,7 +1125,7 @@ namespace System.Text
                 }
             }
             else
-                return [];
+                return Array.Empty<byte>();
         }
 
         public override ReadOnlySpan<byte> Preamble =>

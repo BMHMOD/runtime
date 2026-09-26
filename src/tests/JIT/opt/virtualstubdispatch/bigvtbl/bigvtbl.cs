@@ -12013,8 +12013,6 @@ internal class D : C
 }
 public class CTest
 {
-    [SkipOnCoreClr("This test simply takes too long to complete under heap verify; it is not fundamentally incompatible.", RuntimeTestModes.HeapVerify)]
-    [SkipOnCoreClr("This test takes too long to complete under GC stress/heap verify; it is not fundamentally incompatible.", RuntimeTestModes.AnyGCStress)]
     [Fact]
     public static int TestEntryPoint()
     {

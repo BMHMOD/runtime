@@ -111,14 +111,6 @@ namespace Microsoft.Interop
         ManagedTypeInfo EntryPointType,
         CustomTypeMarshallers Marshallers) : MarshallingInfo;
 
-    public sealed record IidParameterIndexNativeMarshallingInfo(
-        ManagedTypeInfo EntryPointType,
-        CustomTypeMarshallers Marshallers,
-        TypePositionInfo IidParameterIndexInfo) : NativeMarshallingAttributeInfo(EntryPointType, Marshallers)
-    {
-        public override IEnumerable<TypePositionInfo> ElementDependencies => [IidParameterIndexInfo];
-    }
-
     /// <summary>
     /// Custom type marshalling via MarshalUsingAttribute or NativeMarshallingAttribute for a linear collection
     /// </summary>

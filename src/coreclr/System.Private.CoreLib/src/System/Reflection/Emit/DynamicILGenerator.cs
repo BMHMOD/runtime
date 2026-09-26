@@ -3,7 +3,6 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
 using System.Diagnostics.SymbolStore;
 using System.Runtime.InteropServices;
 
@@ -245,18 +244,6 @@ namespace System.Reflection.Emit
             PutInteger4(token);
         }
 
-        /// <inheritdoc/>
-        public override void EmitCalli(Type functionPointerType)
-        {
-            ArgumentNullException.ThrowIfNull(functionPointerType);
-
-            if (!functionPointerType.IsFunctionPointer)
-                throw new ArgumentException(SR.Argument_MustBeFunctionPointer, nameof(functionPointerType));
-
-            SignatureHelper sig = SignatureHelper.GetMethodSigHelper(m_scope, functionPointerType);
-            Emit(OpCodes.Calli, sig);
-        }
-
         public override void EmitCall(OpCode opcode, MethodInfo methodInfo, Type[]? optionalParameterTypes)
         {
             ArgumentNullException.ThrowIfNull(methodInfo);
@@ -312,10 +299,6 @@ namespace System.Reflection.Emit
             {
                 Debug.Assert(opcode.Equals(OpCodes.Calli),
                                 "Unexpected opcode encountered for StackBehaviour VarPop.");
-
-                // If there is a non-void return type, push one.
-                if (signature.ReturnType is Type retType && retType != typeof(void))
-                    stackchange++;
                 // Pop the arguments..
                 stackchange -= signature.ArgumentCount;
                 // Pop native function pointer off the stack.
@@ -652,7 +635,7 @@ namespace System.Reflection.Emit
 
             // We can never ever have two active destroy scouts for the same method. We need to initialize the scout
             // outside the try/reregister block to avoid possibility of reregistration for finalization with active scout.
-            scout.m_methodHandle = IRuntimeMethodInfo.GetValue(method._methodHandle);
+            scout.m_methodHandle = method._methodHandle.Value;
         }
 
         private sealed class DestroyScout
@@ -875,9 +858,9 @@ namespace System.Reflection.Emit
             m_scope = new DynamicScope();
             m_method = method;
             m_methodSignature = m_scope.GetTokenFor(methodSignature);
-            m_exceptions = [];
-            m_code = [];
-            m_localSignature = [];
+            m_exceptions = Array.Empty<byte>();
+            m_code = Array.Empty<byte>();
+            m_localSignature = Array.Empty<byte>();
         }
         #endregion
 
@@ -900,7 +883,7 @@ namespace System.Reflection.Emit
 
         public void SetCode(byte[]? code, int maxStackSize)
         {
-            m_code = (code != null) ? (byte[])code.Clone() : [];
+            m_code = (code != null) ? (byte[])code.Clone() : Array.Empty<byte>();
             m_maxStackSize = maxStackSize;
         }
 
@@ -917,7 +900,7 @@ namespace System.Reflection.Emit
 
         public void SetExceptions(byte[]? exceptions)
         {
-            m_exceptions = (exceptions != null) ? (byte[])exceptions.Clone() : [];
+            m_exceptions = (exceptions != null) ? (byte[])exceptions.Clone() : Array.Empty<byte>();
         }
 
         [CLSCompliant(false)]
@@ -933,7 +916,7 @@ namespace System.Reflection.Emit
 
         public void SetLocalSignature(byte[]? localSignature)
         {
-            m_localSignature = (localSignature != null) ? (byte[])localSignature.Clone() : [];
+            m_localSignature = (localSignature != null) ? (byte[])localSignature.Clone() : Array.Empty<byte>();
         }
 
         [CLSCompliant(false)]
@@ -1028,7 +1011,7 @@ namespace System.Reflection.Emit
             IRuntimeMethodInfo methodReal = method.GetMethodInfo();
             if (methodReal != null)
             {
-                RuntimeMethodHandleInternal rmhi = IRuntimeMethodInfo.GetValue(methodReal);
+                RuntimeMethodHandleInternal rmhi = methodReal.Value;
                 if (!RuntimeMethodHandle.IsDynamicMethod(rmhi))
                 {
                     RuntimeType type = RuntimeMethodHandle.GetDeclaringType(rmhi);

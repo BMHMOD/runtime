@@ -6,7 +6,6 @@ using Xunit;
 
 namespace System.Threading.Tests
 {
-    [ConditionalClass(typeof(PlatformDetection), nameof(PlatformDetection.IsMultithreadingSupported))]
     public static class SemaphoreSlimCancellationTests
     {
         [Fact]
@@ -26,7 +25,7 @@ namespace System.Threading.Tests
             semaphoreSlim.Dispose();
         }
 
-        [Fact]
+        [ConditionalFact(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         public static void CancelAfterWait()
         {
             CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
@@ -50,7 +49,7 @@ namespace System.Threading.Tests
             // currently we don't expose this.. but it was verified manually
         }
 
-        [Theory]
+        [ConditionalTheory(typeof(PlatformDetection), nameof(PlatformDetection.IsThreadingSupported))]
         [InlineData(false)]
         [InlineData(true)]
         public static async Task Cancel_WaitAsync_ContinuationInvokedAsynchronously(bool withTimeout)

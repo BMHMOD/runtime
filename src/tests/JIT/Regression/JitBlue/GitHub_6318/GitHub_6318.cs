@@ -4,7 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Numerics;
 using Xunit;
 
-namespace GitHub_6318
+namespace N
 {
     public static class C
     {

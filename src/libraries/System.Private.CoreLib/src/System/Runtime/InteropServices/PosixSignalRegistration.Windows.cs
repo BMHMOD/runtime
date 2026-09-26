@@ -10,18 +10,6 @@ namespace System.Runtime.InteropServices
     {
         private static readonly Dictionary<int, List<Token>> s_registrations = new();
 
-        /// <summary>
-        /// Serializes concurrent <see cref="Register"/> calls to make the emptiness check and
-        /// the subsequent token insertion atomic.
-        /// </summary>
-        private static readonly object s_registerLock = new();
-
-        /// <summary>
-        /// Runtime can generate multiple addresses to the same function. To ensure that registering and
-        /// unregistering always use the same instance, we capture it in this static field.
-        /// </summary>
-        private static readonly unsafe delegate* unmanaged<int, Interop.BOOL> s_handlerRoutineAddr = &HandlerRoutine;
-
         private static unsafe PosixSignalRegistration Register(PosixSignal signal, Action<PosixSignalContext> handler)
         {
             int signo = signal switch
@@ -36,56 +24,26 @@ namespace System.Runtime.InteropServices
             var token = new Token(signal, signo, handler);
             var registration = new PosixSignalRegistration(token);
 
-            lock (s_registerLock)
+            lock (s_registrations)
             {
-                bool registerCtrlHandler = false;
-                lock (s_registrations)
+                if (s_registrations.Count == 0 &&
+                    !Interop.Kernel32.SetConsoleCtrlHandler(&HandlerRoutine, Add: true))
                 {
-                    if (s_registrations.Count == 0)
-                    {
-                        registerCtrlHandler = true;
-                    }
+                    throw Win32Marshal.GetExceptionForLastWin32Error();
                 }
 
-                // All SetConsoleCtrlHandler calls must happen outside s_registrations locked section
-                // otherwise we risk AB/BA deadlock between it and internal critical section in OS.
-
-                if (registerCtrlHandler)
+                if (!s_registrations.TryGetValue(signo, out List<Token>? tokens))
                 {
-                    // User may reset registrations externally by direct calls of Free/Attach/AllocConsole.
-                    // We do not know if it is currently registered or not. To prevent duplicate
-                    // registration, we try unregister existing one first.
-                    if (!Interop.Kernel32.SetConsoleCtrlHandler(s_handlerRoutineAddr, Add: false))
-                    {
-                        // Returns ERROR_INVALID_PARAMETER if it was not registered. Throw for everything else.
-                        int error = Marshal.GetLastPInvokeError();
-                        if (error != Interop.Errors.ERROR_INVALID_PARAMETER)
-                        {
-                            throw Win32Marshal.GetExceptionForWin32Error(error);
-                        }
-                    }
-
-                    if (!Interop.Kernel32.SetConsoleCtrlHandler(s_handlerRoutineAddr, Add: true))
-                    {
-                        throw Win32Marshal.GetExceptionForLastWin32Error();
-                    }
+                    s_registrations[signo] = tokens = new List<Token>();
                 }
 
-                lock (s_registrations)
-                {
-                    if (!s_registrations.TryGetValue(signo, out List<Token>? tokens))
-                    {
-                        s_registrations[signo] = tokens = new List<Token>();
-                    }
-
-                    tokens.Add(token);
-                }
+                tokens.Add(token);
             }
 
             return registration;
         }
 
-        private void Unregister()
+        private unsafe void Unregister()
         {
             lock (s_registrations)
             {
@@ -99,6 +57,19 @@ namespace System.Runtime.InteropServices
                         if (tokens.Count == 0)
                         {
                             s_registrations.Remove(token.SigNo);
+                        }
+
+                        if (s_registrations.Count == 0 &&
+                            !Interop.Kernel32.SetConsoleCtrlHandler(&HandlerRoutine, Add: false))
+                        {
+                            // Ignore errors due to the handler no longer being registered; this can happen, for example, with
+                            // direct use of Alloc/Attach/FreeConsole which result in the table of control handlers being reset.
+                            // Throw for everything else.
+                            int error = Marshal.GetLastPInvokeError();
+                            if (error != Interop.Errors.ERROR_INVALID_PARAMETER)
+                            {
+                                throw Win32Marshal.GetExceptionForWin32Error(error);
+                            }
                         }
                     }
                 }

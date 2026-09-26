@@ -2,15 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 //
 
-
-namespace b416667;
-
 using System;
 using Xunit;
 public class CMain
 {
     public static int Count = 0;
-    [OuterLoop]
     [Fact]
     public static int TestEntryPoint()
     {

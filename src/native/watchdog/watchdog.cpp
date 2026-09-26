@@ -3,7 +3,6 @@
 
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <errno.h>
 #include <signal.h>
 
@@ -42,7 +41,7 @@ int main(const int argc, const char *argv[])
     const long timeout_mins = strtol(argv[1], nullptr, 10);
     int exit_code = run_timed_process(timeout_mins * 60000L, argc-2, &argv[2]);
 
-    printf("Exit Code: %d\n", exit_code);
+    printf("App Exit Code: %d\n", exit_code);
     return exit_code;
 }
 
@@ -59,6 +58,7 @@ int run_timed_process(const long timeout_ms, const int proc_argc, const char *pr
 
     STARTUPINFOA startup_info;
     PROCESS_INFORMATION proc_info;
+    unsigned long exit_code;
 
     ZeroMemory(&startup_info, sizeof(startup_info));
     startup_info.cb = sizeof(startup_info);
@@ -72,11 +72,7 @@ int run_timed_process(const long timeout_ms, const int proc_argc, const char *pr
         return error_code;
     }
 
-    if (WaitForSingleObject(proc_info.hProcess, timeout_ms) == WAIT_TIMEOUT)
-    {
-        printf("Child process took too long. Timed out...\n");
-    }
-    DWORD exit_code;
+    WaitForSingleObject(proc_info.hProcess, timeout_ms);
     GetExitCodeProcess(proc_info.hProcess, &exit_code);
 
     CloseHandle(proc_info.hProcess);
@@ -86,6 +82,7 @@ int run_timed_process(const long timeout_ms, const int proc_argc, const char *pr
 #else // !TARGET_WINDOWS
 
     const int check_interval_ms = 25;
+    int check_count = 0;
     std::vector<const char*> args;
 
     pid_t child_pid;
@@ -113,49 +110,24 @@ int run_timed_process(const long timeout_ms, const int proc_argc, const char *pr
     }
     else
     {
-        const std::chrono::steady_clock::time_point timeout_time =
-            std::chrono::steady_clock::now() + std::chrono::milliseconds(timeout_ms);
-
         do
         {
             // Instructions for the parent process!
             wait_code = waitpid(child_pid, &child_status, WNOHANG);
 
             if (wait_code == -1)
-            {
-                int err = errno;
-                if (err != EINTR)
-                {
-                    printf("waitpid failed: errno=%d (%s)\n", err, std::strerror(err));
-                    return err;
-                }
+                return EINVAL;
 
-                // Retry on interrupt.
-                wait_code = 0;
-            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(check_interval_ms));
 
             if (wait_code)
             {
                 if (WIFEXITED(child_status))
                     return WEXITSTATUS(child_status);
-
-                if (WIFSIGNALED(child_status))
-                {
-                    int sig = WTERMSIG(child_status);
-                    printf("Child killed by signal %d\n", sig);
-                    return 128 + sig;  // Convention: 128 + signal number
-                }
             }
+            check_count++;
 
-            std::chrono::steady_clock::time_point next_check_time =
-                std::chrono::steady_clock::now() + std::chrono::milliseconds(check_interval_ms);
-            if (next_check_time > timeout_time)
-            {
-                next_check_time = timeout_time;
-            }
-            std::this_thread::sleep_until(next_check_time);
-
-        } while (std::chrono::steady_clock::now() < timeout_time);
+        } while (check_count < (timeout_ms / check_interval_ms));
     }
 
     printf("Child process took too long. Timed out... Exiting...\n");
@@ -164,3 +136,4 @@ int run_timed_process(const long timeout_ms, const int proc_argc, const char *pr
 #endif // TARGET_WINDOWS
     return ETIMEDOUT;
 }
+

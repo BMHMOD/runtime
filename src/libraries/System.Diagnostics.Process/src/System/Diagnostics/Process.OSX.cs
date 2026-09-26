@@ -14,7 +14,11 @@ namespace System.Diagnostics
 
         private const int MicrosecondsToSecondsFactor = 1_000_000;
 
-        public partial TimeSpan PrivilegedProcessorTime
+        /// <summary>Gets the amount of time the process has spent running code inside the operating system core.</summary>
+        [UnsupportedOSPlatform("ios")]
+        [UnsupportedOSPlatform("tvos")]
+        [SupportedOSPlatform("maccatalyst")]
+        public TimeSpan PrivilegedProcessorTime
         {
             get
             {
@@ -48,12 +52,20 @@ namespace System.Diagnostics
         }
 
         /// <summary>Gets execution path</summary>
-        internal static string GetPathToOpenFile()
+        private static string GetPathToOpenFile()
         {
             return "/usr/bin/open";
         }
 
-        public partial TimeSpan TotalProcessorTime
+        /// <summary>
+        /// Gets the amount of time the associated process has spent utilizing the CPU.
+        /// It is the sum of the <see cref='System.Diagnostics.Process.UserProcessorTime'/> and
+        /// <see cref='System.Diagnostics.Process.PrivilegedProcessorTime'/>.
+        /// </summary>
+        [UnsupportedOSPlatform("ios")]
+        [UnsupportedOSPlatform("tvos")]
+        [SupportedOSPlatform("maccatalyst")]
+        public TimeSpan TotalProcessorTime
         {
             get
             {
@@ -68,7 +80,14 @@ namespace System.Diagnostics
             }
         }
 
-        public partial TimeSpan UserProcessorTime
+        /// <summary>
+        /// Gets the amount of time the associated process has spent running code
+        /// inside the application portion of the process (not the operating system core).
+        /// </summary>
+        [UnsupportedOSPlatform("ios")]
+        [UnsupportedOSPlatform("tvos")]
+        [SupportedOSPlatform("maccatalyst")]
+        public TimeSpan UserProcessorTime
         {
             get
             {

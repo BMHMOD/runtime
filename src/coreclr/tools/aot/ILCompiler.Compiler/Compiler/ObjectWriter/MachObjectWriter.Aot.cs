@@ -12,7 +12,6 @@ using System.Numerics;
 using System.Text;
 using ILCompiler.DependencyAnalysis;
 using ILCompiler.DependencyAnalysisFramework;
-using Internal.Text;
 using Internal.TypeSystem;
 using static ILCompiler.DependencyAnalysis.RelocType;
 using static ILCompiler.ObjectWriter.MachNative;
@@ -57,7 +56,7 @@ namespace ILCompiler.ObjectWriter
     /// </remarks>
     internal sealed partial class MachObjectWriter : UnixObjectWriter
     {
-        private sealed record CompactUnwindCode(Utf8String PcStartSymbolName, uint PcLength, uint Code, Utf8String LsdaSymbolName, Utf8String PersonalitySymbolName);
+        private sealed record CompactUnwindCode(string PcStartSymbolName, uint PcLength, uint Code, string LsdaSymbolName = null, string PersonalitySymbolName = null);
 
         // Exception handling sections
         private MachSection _compactUnwindSection;
@@ -67,7 +66,7 @@ namespace ILCompiler.ObjectWriter
 
         private bool IsEhFrameSection(int sectionIndex) => sectionIndex == EhFrameSectionIndex;
 
-        partial void EmitCompactUnwindTable(IDictionary<Utf8String, SymbolDefinition> definedSymbols)
+        partial void EmitCompactUnwindTable(IDictionary<string, SymbolDefinition> definedSymbols)
         {
             _compactUnwindStream = new MemoryStream(32 * _compactUnwindCodes.Count);
             // Preset the size of the compact unwind section which is not generated yet
@@ -91,10 +90,10 @@ namespace ILCompiler.ObjectWriter
                 EmitCompactUnwindSymbol(cu.LsdaSymbolName);
             }
 
-            void EmitCompactUnwindSymbol(Utf8String symbolName)
+            void EmitCompactUnwindSymbol(string symbolName)
             {
                 Span<byte> tempBuffer = stackalloc byte[8];
-                if (!symbolName.IsNull)
+                if (symbolName is not null)
                 {
                     SymbolDefinition symbol = definedSymbols[symbolName];
                     MachSection section = _sections[symbol.SectionIndex];
@@ -160,10 +159,6 @@ namespace ILCompiler.ObjectWriter
 
                 switch (opcode)
                 {
-                    case CFI_OPCODE.CFI_NEGATE_RA_STATE:
-                        // Fall back to DWARF so the AArch64 negate_ra_state opcode is preserved for libunwind.
-                        return UNWIND_ARM64_MODE_DWARF;
-
                     case CFI_OPCODE.CFI_DEF_CFA_REGISTER:
                         cfaRegister = dwarfReg;
 
@@ -278,7 +273,7 @@ namespace ILCompiler.ObjectWriter
             return unwindCode;
         }
 
-        private protected override bool EmitCompactUnwinding(Utf8String startSymbolName, ulong length, Utf8String lsdaSymbolName, byte[] blob)
+        private protected override bool EmitCompactUnwinding(string startSymbolName, ulong length, string lsdaSymbolName, byte[] blob)
         {
             uint encoding = _compactUnwindDwarfCode;
 
@@ -290,9 +285,8 @@ namespace ILCompiler.ObjectWriter
             _compactUnwindCodes.Add(new CompactUnwindCode(
                 PcStartSymbolName: startSymbolName,
                 PcLength: (uint)length,
-                Code: encoding | (encoding != _compactUnwindDwarfCode && !lsdaSymbolName.IsNull ? 0x40000000u : 0), // UNWIND_HAS_LSDA
-                LsdaSymbolName: encoding != _compactUnwindDwarfCode ? lsdaSymbolName : default,
-                PersonalitySymbolName: default
+                Code: encoding | (encoding != _compactUnwindDwarfCode && lsdaSymbolName is not null ? 0x40000000u : 0), // UNWIND_HAS_LSDA
+                LsdaSymbolName: encoding != _compactUnwindDwarfCode ? lsdaSymbolName : null
             ));
 
             return encoding != _compactUnwindDwarfCode;

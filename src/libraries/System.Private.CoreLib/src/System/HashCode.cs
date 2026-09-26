@@ -45,6 +45,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 
 #pragma warning disable CA1066 // Implement IEquatable when overriding Object.Equals
 
@@ -316,6 +317,9 @@ namespace System
         /// </remarks>
         public void AddBytes(ReadOnlySpan<byte> value)
         {
+            ref byte pos = ref MemoryMarshal.GetReference(value);
+            ref byte end = ref Unsafe.Add(ref pos, value.Length);
+
             if (value.Length < (sizeof(int) * 4))
             {
                 goto Small;
@@ -333,47 +337,55 @@ namespace System
                 switch (_length % 4)
                 {
                     case 1:
-                        Debug.Assert(value.Length >= sizeof(int));
-                        Add(BitConverter.ToInt32(value));
-                        value = value.Slice(sizeof(int));
+                        Debug.Assert(Unsafe.ByteOffset(ref pos, ref end) >= sizeof(int));
+                        Add(Unsafe.ReadUnaligned<int>(ref pos));
+                        pos = ref Unsafe.Add(ref pos, sizeof(int));
                         goto case 2;
                     case 2:
-                        Debug.Assert(value.Length >= sizeof(int));
-                        Add(BitConverter.ToInt32(value));
-                        value = value.Slice(sizeof(int));
+                        Debug.Assert(Unsafe.ByteOffset(ref pos, ref end) >= sizeof(int));
+                        Add(Unsafe.ReadUnaligned<int>(ref pos));
+                        pos = ref Unsafe.Add(ref pos, sizeof(int));
                         goto case 3;
                     case 3:
-                        Debug.Assert(value.Length >= sizeof(int));
-                        Add(BitConverter.ToInt32(value));
-                        value = value.Slice(sizeof(int));
+                        Debug.Assert(Unsafe.ByteOffset(ref pos, ref end) >= sizeof(int));
+                        Add(Unsafe.ReadUnaligned<int>(ref pos));
+                        pos = ref Unsafe.Add(ref pos, sizeof(int));
                         break;
                 }
             }
 
             // With the queue clear, we add sixteen bytes at a time until the input has fewer than sixteen bytes remaining.
-            while (value.Length >= sizeof(int) * 4)
+            // We first have to round the end pointer to the nearest 16-byte block from the offset. This makes the loop's condition simpler.
+            ref byte blockEnd = ref Unsafe.Subtract(ref end, Unsafe.ByteOffset(ref pos, ref end) % (sizeof(int) * 4));
+            while (Unsafe.IsAddressLessThan(ref pos, ref blockEnd))
             {
-                _v1 = Round(_v1, BitConverter.ToUInt32(value));
-                _v2 = Round(_v2, BitConverter.ToUInt32(value.Slice(sizeof(int) * 1)));
-                _v3 = Round(_v3, BitConverter.ToUInt32(value.Slice(sizeof(int) * 2)));
-                _v4 = Round(_v4, BitConverter.ToUInt32(value.Slice(sizeof(int) * 3)));
+                Debug.Assert(Unsafe.ByteOffset(ref pos, ref blockEnd) >= (sizeof(int) * 4));
+                uint v1 = Unsafe.ReadUnaligned<uint>(ref pos);
+                _v1 = Round(_v1, v1);
+                uint v2 = Unsafe.ReadUnaligned<uint>(ref Unsafe.Add(ref pos, sizeof(int) * 1));
+                _v2 = Round(_v2, v2);
+                uint v3 = Unsafe.ReadUnaligned<uint>(ref Unsafe.Add(ref pos, sizeof(int) * 2));
+                _v3 = Round(_v3, v3);
+                uint v4 = Unsafe.ReadUnaligned<uint>(ref Unsafe.Add(ref pos, sizeof(int) * 3));
+                _v4 = Round(_v4, v4);
 
                 _length += 4;
-                value = value.Slice(sizeof(int) * 4);
+                pos = ref Unsafe.Add(ref pos, sizeof(int) * 4);
             }
 
         Small:
             // Add four bytes at a time until the input has fewer than four bytes remaining.
-            while (value.Length >= sizeof(int))
+            while (Unsafe.ByteOffset(ref pos, ref end) >= sizeof(int))
             {
-                Add(BitConverter.ToInt32(value));
-                value = value.Slice(sizeof(int));
+                Add(Unsafe.ReadUnaligned<int>(ref pos));
+                pos = ref Unsafe.Add(ref pos, sizeof(int));
             }
 
             // Add the remaining bytes a single byte at a time.
-            foreach (byte b in value)
+            while (Unsafe.IsAddressLessThan(ref pos, ref end))
             {
-                Add((int)b);
+                Add((int)pos);
+                pos = ref Unsafe.Add(ref pos, 1);
             }
         }
 

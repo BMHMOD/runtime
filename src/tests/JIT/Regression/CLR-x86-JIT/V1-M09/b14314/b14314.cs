@@ -3,7 +3,7 @@
 //
 
 using Xunit;
-namespace b14314
+namespace DefaultNamespace
 {
     //@BEGINRENAME; Verify this renames
     //@ENDRENAME; Verify this renames
@@ -29,7 +29,6 @@ namespace b14314
 
     public class Finalize
     {
-        [OuterLoop]
         [Fact]
         public static void TestEntryPoint()
         {

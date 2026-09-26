@@ -63,12 +63,10 @@ struct RelocContext
     size_t coldCodeAddress;
     size_t coldCodeSize;
     size_t roDataAddress;
-    size_t roDataSize1;
-    size_t roDataSize2;
+    size_t roDataSize;
     size_t originalHotCodeAddress;
     size_t originalColdCodeAddress;
-    size_t originalRoDataAddress1;
-    size_t originalRoDataAddress2;
+    size_t originalRoDataAddress;
 };
 
 class CompileResult
@@ -97,15 +95,17 @@ public:
                      ULONG              coldCodeSize,
                      ULONG              roDataSize,
                      ULONG              xcptnsCount,
-                     void*              hotCodeBlock,
-                     void*              coldCodeBlock,
-                     void*              roDataBlock);
+                     CorJitAllocMemFlag flag,
+                     void**             hotCodeBlock,
+                     void**             coldCodeBlock,
+                     void**             roDataBlock);
     void recAllocMemCapture();
     void dmpAllocMem(DWORD key, const Agnostic_AllocMemDetails& value);
     void repAllocMem(ULONG*              hotCodeSize,
                      ULONG*              coldCodeSize,
                      ULONG*              roDataSize,
                      ULONG*              xcptnsCount,
+                     CorJitAllocMemFlag* flag,
                      unsigned char**     hotCodeBlock,
                      unsigned char**     coldCodeBlock,
                      unsigned char**     roDataBlock,
@@ -180,19 +180,10 @@ public:
     void recReportFatalError(CorJitResult result);
     void dmpReportFatalError(DWORD key, DWORD value);
 
-    void recRecordRelocation(void* location, void* target, CorInfoReloc fRelocType, int32_t addlDelta);
+    void recRecordRelocation(void* location, void* target, uint16_t fRelocType, int32_t addlDelta);
     void dmpRecordRelocation(DWORD key, const Agnostic_RecordRelocation& value);
-    void repRecordRelocation(void* location, void* target, CorInfoReloc fRelocType, int32_t addlDelta);
+    void repRecordRelocation(void* location, void* target, uint16_t fRelocType, int32_t addlDelta);
     void applyRelocs(RelocContext* rc, unsigned char* block1, ULONG blocksize1, void* originalAddr);
-
-    // Find the recorded relocation (if any) whose location falls in the half-open
-    // buffer range [originalBufferOffset, originalBufferOffset + windowSize) relative
-    // to `originalBufferStart`. Used by the wasm32 near-differ to map a coredistools
-    // opcode-byte block offset to a JIT-recorded reloc on the immediate-payload byte.
-    // Returns nullptr if no reloc is recorded in the range.
-    const Agnostic_RecordRelocation* findRelocationInRange(size_t originalBufferStart,
-                                                           size_t originalBufferOffset,
-                                                           size_t windowSize);
 
     void recProcessName(const char* name);
     void dmpProcessName(DWORD key, DWORD value);

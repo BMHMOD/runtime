@@ -6,11 +6,6 @@
 //</Description>
 
 
-namespace JitTest_Directed_nullabletypes_hasvalue;
-
-using JitTest_Directed_nullabletypes_invokecommon;
-using Xunit;
-
 using System;
 
 
@@ -71,10 +66,8 @@ class NullableTest2
     }
 }
 
-public class NullableTests
+class NullableTests
 {
-    [OuterLoop]
-    [Fact]
     public static void Run()
     {
         NullableTest1.Run();
